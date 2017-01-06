@@ -13,18 +13,18 @@
 #define sub2ind(r, c, n_columns) r* n_columns + c
 
 // All the memory used in nnet:
-// name,type,size/value,
-// data,float *,NUM_TEST_CASES*INPUT_DIM
-// weights,float *,INPUT_DIM * NUM_UNITS_1 + NUM_UNITS_1 * NUM_UNITS_2 +
-// NUM_UNITS_2 * NUM_CLASSES
-// num_test_cases,int,NUM_TEST_CASES
-// num_layers,int,NUM_LAYERS
-// num_units,int *,NUM_LAYERS + 2
-// activation_fun,int,ACTIVATION_FUN
-// num_rows,int *,NUM_LAYERS + 1
-// num_colums,int *,NUM_LAYERS + 1
-// hid,float *,NUM_TEST_CASES * BIGGEST_ROW
-// hid_temp,float *,NUM_TEST_CASES * BIGGEST_ROW
+// name           | type  | size/value
+// ---------------|-------|--------------
+// data           | float | NUM_TEST_CASES*INPUT_DIM
+// weights        | float | INPUT_DIM * NUM_UNITS_1 + NUM_UNITS_1 * NUM_UNITS_2 + NUM_UNITS_2 * NUM_CLASSES
+// num_test_cases | int   | NUM_TEST_CASES
+// num_layers     | int   | NUM_LAYERS
+// num_units      | int   | NUM_LAYERS + 2
+// activation_fun | int   | ACTIVATION_FUN
+// num_rows       | int   | NUM_LAYERS + 1
+// num_colums     | int   | NUM_LAYERS + 1
+// hid            | float | NUM_TEST_CASES * BIGGEST_ROW
+// hid_temp       | float | NUM_TEST_CASES * BIGGEST_ROW
 
 
 // Grab matrix n out of the doubly flattened w
