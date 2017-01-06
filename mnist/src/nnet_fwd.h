@@ -9,9 +9,9 @@
 // Fixed parameters
 #define INPUT_DIM 784
 #define NUM_CLASSES 10
-#define LG_SIGMOID_COARSENESS                                                  \
-    4                         // number of stored points in sigmoid lookup table
-#define NUM_TEST_CASES 10000  // NOT READ BY nnet_fwd.c, ONLY BY the other one
+// number of stored points in sigmoid lookup table
+#define LG_SIGMOID_COARSENESS 4
+#define NUM_TEST_CASES 100    // NOT READ BY nnet_fwd.c, ONLY BY the other one
 #define SIG_MIN -5            // lower input bound for sigmoid lookup table
 #define SIG_MAX +5            // upper input bound for sigmoid lookup table
 
@@ -44,5 +44,10 @@
 #else
 #define PRINT_DEBUG(hid, rows, cols, num_cols)
 #endif
+
+#define CACHELINE_SIZE 32
+
+#define ASSERT_MEMALIGN(ptr, err) \
+    assert(err == 0 && "Failed to allocate memory for " #ptr ".\n");
 
 #endif

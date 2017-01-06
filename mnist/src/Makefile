@@ -1,7 +1,8 @@
 SRCS =  \
 		activation_functions.c \
 		nnet_fwd.c \
-		utility.c
+		utility.c \
+		init_data.c
 
 ACCEL_NAME = nnet
 export WORKLOAD=nnet_fwd

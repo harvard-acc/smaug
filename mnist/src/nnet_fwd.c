@@ -1,4 +1,9 @@
+#include <assert.h>
+#include <stdbool.h>
+#include <stdio.h>
+
 #include "activation_functions.h"
+#include "init_data.h"
 #include "utility.h"
 
 #include "nnet_fwd.h"
@@ -7,7 +12,9 @@
 // name           | type  | size/value
 // ---------------|-------|--------------
 // data           | float | NUM_TEST_CASES*INPUT_DIM
-// weights        | float | INPUT_DIM * NUM_UNITS_1 + NUM_UNITS_1 * NUM_UNITS_2 + NUM_UNITS_2 * NUM_CLASSES
+// weights        | float | INPUT_DIM * NUM_UNITS_1 +
+//                |       | NUM_UNITS_1 * NUM_UNITS_2 +
+//                |       | NUM_UNITS_2 * NUM_CLASSES
 // num_test_cases | int   | NUM_TEST_CASES
 // num_layers     | int   | NUM_LAYERS
 // num_units      | int   | NUM_LAYERS + 2
@@ -140,7 +147,7 @@ void nnet_fwd(float* data,
               float* hid_temp,
               float* sigmoid_table) {
 
-    int i, j, l;
+    int i, l;
 
     if (DEBUG == 1) {
         printf("\nDATA:\n");
@@ -203,13 +210,10 @@ void nnet_fwd(float* data,
 
 // This is the thing that we want to be good at in hardware
 int main(int argc, const char* argv[]) {
-    int ret_f_scanf;
     // set random seed (need to #include <time.h>)
     srand(time(NULL));
 
-    float* result;
-    int i, j;
-
+    int i;
     int num_units[NUM_LAYERS + 2];
 
     num_units[0] = INPUT_DIM;  // input dimensionality
@@ -218,13 +222,13 @@ int main(int argc, const char* argv[]) {
     }
     num_units[NUM_LAYERS + 1] = NUM_CLASSES;  // number of classes
 
-    int RANDOM_WEIGHTS = 1;
-    int RANDOM_DATA = 1;
+    bool RANDOM_WEIGHTS = true;
+    bool RANDOM_DATA = true;
 
     // We have NUM_LAYERS weight matrices, sizes are given in num_units
     // NOTE: we do not necessarily need full precision here in the weights
     // ...............
-    int w_size = 0;                   // number of weights total
+    size_t w_size = 0;                   // number of weights total
     int num_rows[NUM_LAYERS + 1];     // the sizes of each weight matrix
     int num_columns[NUM_LAYERS + 1];  // ""
     for (i = 0; i < NUM_LAYERS + 1; i++) {
@@ -234,98 +238,27 @@ int main(int argc, const char* argv[]) {
         num_rows[i] = num_units[i + 1];
         w_size += num_columns[i] * num_rows[i];
     }
-    printf("Network has %d weights in total.\n", w_size);
-    float weights[w_size];
+    printf("Network has %lu weights in total.\n", w_size);
 
-    if (RANDOM_WEIGHTS) {
-        // Randomly initialize weights
-        printf("Initializing weights randomly\n");
+    // Initialize weights, data, and labels.
+    float* weights;
+    int err;
+    err = posix_memalign((void**)&weights, CACHELINE_SIZE, w_size * sizeof(float));
+    ASSERT_MEMALIGN(weights, err);
+    init_weights(weights, w_size, RANDOM_WEIGHTS);
 
-        for (i = 0; i < w_size; i++) {
-            weights[i] = conv_float2fixed((randfloat() - 0.5) *
-                                          10);  // Question: does nan output
-                                                // take longer in simulation?
-        }
-        // NOTE: FOR SIGMOID ACTIVATION FUNCTION, WEIGHTS SHOULD BE BIG
-        // Otherwise everything just becomes ~0.5 after sigmoid, and results are
-        // boring
-    } else {
-        // Read in the weights
-        printf("Reading in weights from %s\n", WEIGHTS_FILENAME);
-
-        FILE* weights_file;
-        weights_file = fopen(WEIGHTS_FILENAME, "r");
-        if (weights_file == NULL) {
-            fprintf(stderr, "Can't open input file %s!\n", WEIGHTS_FILENAME);
-            exit(1);
-        }
-
-        float read_float;
-        for (i = 0; i < w_size; i++) {
-            ret_f_scanf = fscanf(weights_file, "%f,", &read_float);
-            // printf("%f,", read_float);
-            weights[i] = conv_float2fixed(read_float);
-        }
-        fclose(weights_file);
-    }
-
-    float* data = (float*)malloc(sizeof(float) * NUM_TEST_CASES * INPUT_DIM);
-    int* labels = (int*)malloc(sizeof(int) * NUM_TEST_CASES);
-
-    if (RANDOM_DATA) {
-        printf("Initializing data randomly\n");
-        // Generate random input data, size num_test_cases by num_units[0]
-        // (input dimensionality)
-        for (i = 0; i < NUM_TEST_CASES * INPUT_DIM; i++) {
-            data[i] = conv_float2fixed(randfloat() - 0.5);
-        }
-        for (i = 0; i < NUM_TEST_CASES; i++) {
-            labels[i] = 0;  // set all labels to 0
-        }
-    } else {
-        printf("Reading in %d data of dimensionality %d from %s\n",
-               NUM_TEST_CASES, INPUT_DIM, INPUTS_FILENAME);
-
-        FILE* data_file;
-        float read_float;
-        data_file = fopen(INPUTS_FILENAME, "r");
-        if (data_file == NULL) {
-            fprintf(stderr, "Can't open inputs text file!\n");
-            exit(1);
-        }
-
-        for (i = 0; i < NUM_TEST_CASES; i++) {
-            for (j = 0; j < INPUT_DIM; j++) {
-                // each data point is a *ROW* !!!!!!!!!!!!!
-                // this is our convention!!!!!!!!!!!!!!!!
-                ret_f_scanf = fscanf(data_file, "%f,", &read_float);
-                data[sub2ind(i, j, INPUT_DIM)] = conv_float2fixed(read_float);
-            }
-        }
-        fclose(data_file);
-
-        printf("Reading in %d labels from %s\n", NUM_TEST_CASES,
-               LABELS_FILENAME);
-        FILE* labels_file;
-        labels_file = fopen(LABELS_FILENAME, "r");
-        if (labels_file == NULL) {
-            fprintf(stderr, "Can't open labels text file.txt!\n");
-            exit(1);
-        }
-        int read_int;
-        for (i = 0; i < NUM_TEST_CASES; i++) {
-            ret_f_scanf = fscanf(labels_file, "%d,", &read_int);
-            labels[i] = read_int;
-        }
-        fclose(labels_file);
-    }
-
-    // for (i = 0; i < NUM_TEST_CASES*INPUT_DIM; i++) {
-    //     printf("%f,", data[i]);
-    // }
-    // for (i = 0; i < NUM_TEST_CASES; i++) {
-    //     printf("%d,", labels[i]);
-    // }
+    float* data;
+    int* labels;
+    size_t data_size = NUM_TEST_CASES * INPUT_DIM;
+    size_t label_size = NUM_TEST_CASES;
+    err = posix_memalign(
+            (void**)&data, CACHELINE_SIZE, data_size * sizeof(float));
+    ASSERT_MEMALIGN(data, err);
+    err = posix_memalign(
+            (void**)&labels, CACHELINE_SIZE, label_size * sizeof(int));
+    ASSERT_MEMALIGN(labels, err);
+    init_data(data, NUM_TEST_CASES, INPUT_DIM, RANDOM_DATA);
+    init_labels(labels, NUM_TEST_CASES, RANDOM_DATA);
 
     // Get the dimensions of the biggest matrix that will ever come out of
     // matrix_multiply. All of them will have NUM_TEST_CASES columns. So I just
@@ -342,9 +275,18 @@ int main(int argc, const char* argv[]) {
 
     // Then, allocate memory for it. We will always place the result of our
     // matrix multiplications in here.
-    float* hid = (float*)malloc(NUM_TEST_CASES * biggest_rows * sizeof(float));
-    float* hid_temp =
-            (float*)malloc(NUM_TEST_CASES * biggest_rows * sizeof(float));
+    //
+    // Mapped to its own scratchpad. Not certain we need hid_temp.
+    float* hid;
+    float* hid_temp;
+    size_t hid_size = NUM_TEST_CASES * biggest_rows;
+    err = posix_memalign(
+            (void**)&hid, CACHELINE_SIZE, hid_size * sizeof(float));
+    ASSERT_MEMALIGN(hid, err);
+    err = posix_memalign(
+            (void**)&hid_temp, CACHELINE_SIZE, hid_size * sizeof(float));
+    ASSERT_MEMALIGN(hid_temp, err);
+
     // This file is not looked at by aladdin so malloc is fine.
     // If I do the old version then I get a memory overflow, because the
     // max stack size is not big enough for TIMIT stuff.
