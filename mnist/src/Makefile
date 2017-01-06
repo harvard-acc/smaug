@@ -4,7 +4,9 @@ SRCS =  \
 		utility.c \
 		init_data.c
 
+CFLAGS = -Wno-unused-but-set-variable
 ACCEL_NAME = nnet
+BMARK_SPECIFIC_CFLAGS = -DDMA_INTERFACE_V2
 export WORKLOAD=nnet_fwd
 
 include Makefile.tracer

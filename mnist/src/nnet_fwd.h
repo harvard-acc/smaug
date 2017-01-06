@@ -7,7 +7,7 @@
 #include <time.h>
 
 // Fixed parameters
-#define INPUT_DIM 784
+#define INPUT_DIM 10
 #define NUM_CLASSES 10
 // number of stored points in sigmoid lookup table
 #define LG_SIGMOID_COARSENESS 4
@@ -16,7 +16,7 @@
 #define SIG_MAX +5            // upper input bound for sigmoid lookup table
 
 // Parameters for optimization
-#define NUM_LAYERS 3
+#define NUM_LAYERS 1
 
 #define ACTIVATION_FUN 0  // categorical, 0=RELU 1=sigmoid lookup 2=true sigmoid
 #define NUM_OF_INT_BITS                                                        \

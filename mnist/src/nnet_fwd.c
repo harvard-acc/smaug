@@ -6,6 +6,14 @@
 #include "init_data.h"
 #include "utility.h"
 
+#ifdef DMA_MODE
+#include "gem5_harness.h"
+#endif
+#ifdef GEM5_HARNESS
+#include "gem5/aladdin_sys_connection.h"
+#include "gem5/aladdin_sys_constants.h"
+#endif
+
 #include "nnet_fwd.h"
 
 // All the memory used in nnet:
@@ -24,7 +32,8 @@
 // hid            | float | NUM_TEST_CASES * BIGGEST_ROW
 // hid_temp       | float | NUM_TEST_CASES * BIGGEST_ROW
 
-int NUM_HIDDEN_UNITS[NUM_LAYERS] = { 79,74,71 };
+// int NUM_HIDDEN_UNITS[NUM_LAYERS] = { 79,74,71 };
+int NUM_HIDDEN_UNITS[NUM_LAYERS] = { 5 };
 
 // Grab matrix n out of the doubly flattened w
 // (w is a flattened collection of matrices, each flattened)
@@ -36,6 +45,21 @@ float* grab_matrix(float* w, int n, int* n_rows, int* n_columns) {
     }
     return w + ind;
 }
+
+#ifdef DMA_MODE
+void grab_matrix_dma(float* weights,
+                     int layer,
+                     int* n_rows,
+                     int* n_columns) {
+    size_t offset = 0;
+    int i;
+    for (i = 0; i < layer; i++) {
+        offset += n_rows[i] * n_columns[i];
+    }
+    size_t size = n_rows[layer] + n_columns[layer];
+    dmaLoad(weights, offset, 0, size);
+}
+#endif
 
 // Multiply matrices a and b with given sizes and store into result_goes_here.
 //
@@ -169,6 +193,11 @@ void nnet_fwd(float* data,
     // FORMAT HERE IS H TIMES W, NOT W TIMES H!!!!!
     // SO EACH DATA POINT IS A ***ROW****
 
+#ifdef DMA_MODE
+    dmaLoad(data, 0, 0, NUM_TEST_CASES*INPUT_DIM*sizeof(float));
+    grab_matrix_dma(weights, 0, num_rows, num_columns);
+#endif
+
     // FIRST LAYER. hid should be num_test_cases x num_units[1]
     matrix_multiply_with_bias(data, weights, NUM_TEST_CASES, num_units[0],
                               num_units[1], hid,
@@ -184,9 +213,15 @@ void nnet_fwd(float* data,
 
     for (l = 1; l < NUM_LAYERS; l++) {
         // Get hidden activations
+#ifdef DMA_MODE
+        grab_matrix_dma(weights, l, num_rows, num_columns);
+        matrix_multiply_with_bias(hid, weights, NUM_TEST_CASES, num_units[l],
+                                  num_units[l + 1], hid, hid_temp);
+#else
         matrix_multiply_with_bias(
                 hid, grab_matrix(weights, l, num_rows, num_columns),
                 NUM_TEST_CASES, num_units[l], num_units[l + 1], hid, hid_temp);
+#endif
 
         PRINT_DEBUG(hid, NUM_TEST_CASES, num_units[l + 1], num_units[l + 1]);
 
@@ -196,9 +231,15 @@ void nnet_fwd(float* data,
         PRINT_DEBUG(hid, NUM_TEST_CASES, num_units[l + 1], num_units[l + 1]);
     }
 
+#ifdef DMA_MODE
+    grab_matrix_dma(weights, l, num_rows, num_columns);
+    matrix_multiply_with_bias(hid, weights, NUM_TEST_CASES, num_units[l],
+                              num_units[l + 1], hid, hid_temp);
+#else
     matrix_multiply_with_bias(
             hid, grab_matrix(weights, NUM_LAYERS, num_rows, num_columns),
             NUM_TEST_CASES, num_units[NUM_LAYERS], NUM_CLASSES, hid, hid_temp);
+#endif
     // hid now contains the output
 
     PRINT_DEBUG(hid, NUM_TEST_CASES, NUM_CLASSES, NUM_CLASSES);
@@ -259,6 +300,7 @@ int main(int argc, const char* argv[]) {
     ASSERT_MEMALIGN(labels, err);
     init_data(data, NUM_TEST_CASES, INPUT_DIM, RANDOM_DATA);
     init_labels(labels, NUM_TEST_CASES, RANDOM_DATA);
+    printf("Data has %lu elements.\n", data_size);
 
     // Get the dimensions of the biggest matrix that will ever come out of
     // matrix_multiply. All of them will have NUM_TEST_CASES columns. So I just
@@ -309,10 +351,26 @@ int main(int argc, const char* argv[]) {
     // -------------------------------------------------------- //
     //     THIS IS THE FUNCTION BEING SIMULATED IN HARDWARE     //
     // -------------------------------------------------------- //
+#ifdef GEM5_HARNESS
+    mapArrayToAccelerator(
+            INTEGRATION_TEST, "data", data, data_size * sizeof(float));
+    mapArrayToAccelerator(
+            INTEGRATION_TEST, "weights", weights, w_size * sizeof(float));
+    mapArrayToAccelerator(
+            INTEGRATION_TEST, "hid", hid, hid_size * sizeof(float));
+    // sigmoid_table, num_units, num_rows, and num_columns I consider as
+    // configuration, which is really one-time (compared to data and weights
+    // which may need to be reloaded multiple times for the same network).
+    // They're small enough that they should be completely partitioned, and
+    // because they're configuration time parameters, I don't count them as
+    // DMA.
+    invokeAcceleratorAndBlock(INTEGRATION_TEST);
+#else
     // Run a forward pass through the neural net
     printf("Running forward pass\n");
     nnet_fwd(data, weights, num_units, num_rows, num_columns, hid, hid_temp,
              sigmoid_table);  // The function being synthesized
+#endif
 
     // "hid" now contains the outputs
 
