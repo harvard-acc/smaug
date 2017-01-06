@@ -1,3 +1,4 @@
+#include "nnet_fwd.h"
 #include "utility.h"
 
 float randfloat() { return rand() / ((float)(RAND_MAX)); }
@@ -57,29 +58,4 @@ int arg_min(float* input, int size, int increment) {
         }
     }
     return min_ind;
-}
-
-// Softmax function on matrix a
-// a is num_test_cases by num_classes
-// the softmax function exponentiates each element and then normalizes each row
-// to sum to 1
-// ** this function is in-place (modifies a) **
-float* softmax(float* a, int num_test_cases, int num_classes) {
-
-    int i, j;
-    float numerator, normaliz;
-    for (i = 0; i < num_test_cases; i++) {
-        // compute the normalization factor
-        normaliz = 0.0;
-        for (j = 0; j < num_classes; j++) {
-            numerator = sigmoid(a[sub2ind(i, j, num_classes)]);
-            // replace a[i,j] with exp(a[i,j])
-            a[sub2ind(i, j, num_classes)] = numerator;
-            normaliz += numerator;
-        }
-        for (j = 0; j < num_classes; j++) {
-            a[sub2ind(i, j, num_classes)] /= normaliz;
-        }
-    }
-    return a;
 }

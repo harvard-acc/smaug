@@ -17,7 +17,6 @@
 
 // Parameters for optimization
 #define NUM_LAYERS 3
-int NUM_HIDDEN_UNITS[NUM_LAYERS] = { 79, 74, 71 };
 
 #define ACTIVATION_FUN 0  // categorical, 0=RELU 1=sigmoid lookup 2=true sigmoid
 #define NUM_OF_INT_BITS                                                        \
@@ -25,7 +24,7 @@ int NUM_HIDDEN_UNITS[NUM_LAYERS] = { 79, 74, 71 };
 #define NUM_OF_FRAC_BITS                                                       \
     26  // number of bits after the decimal pt in our representation
 
-#define PRINT_DEBUG 0
+#define DEBUG 0
 
 #define INPUTS_FILENAME                                                        \
     "/home/jmh/projects/pesc_hardware/HardwareNets/../mnist/"                  \
@@ -36,5 +35,14 @@ int NUM_HIDDEN_UNITS[NUM_LAYERS] = { 79, 74, 71 };
 #define WEIGHTS_FILENAME                                                       \
     "/home/jmh/projects/pesc_hardware/HardwareNets/../mnist/"                  \
     "mnist_textual_weights.txt"
+
+#define sub2ind(r, c, n_columns) r* n_columns + c
+
+#if DEBUG == 1
+#define PRINT_DEBUG(hid, rows, cols, num_cols)                                 \
+    print_debug(hid, rows, col, num_cols)
+#else
+#define PRINT_DEBUG(hid, rows, cols, num_cols)
+#endif
 
 #endif

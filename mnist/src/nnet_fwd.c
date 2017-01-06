@@ -3,15 +3,6 @@
 
 #include "nnet_fwd.h"
 
-#if DEBUG == 1
-#define PRINT_DEBUG(hid, rows, cols, num_cols)                                 \
-    print_debug(hid, rows, col, num_cols)
-#else
-#define PRINT_DEBUG(hid, rows, cols, num_cols)
-#endif
-
-#define sub2ind(r, c, n_columns) r* n_columns + c
-
 // All the memory used in nnet:
 // name           | type  | size/value
 // ---------------|-------|--------------
@@ -26,6 +17,7 @@
 // hid            | float | NUM_TEST_CASES * BIGGEST_ROW
 // hid_temp       | float | NUM_TEST_CASES * BIGGEST_ROW
 
+int NUM_HIDDEN_UNITS[NUM_LAYERS] = { 79,74,71 };
 
 // Grab matrix n out of the doubly flattened w
 // (w is a flattened collection of matrices, each flattened)
@@ -118,7 +110,7 @@ void activation_fun(float* hid, int size, float* sigmoid_table) {
     } else if (ACTIVATION_FUN == 1) {
         sigmoid_lookup(hid, size, sigmoid_table);
     } else {
-        sigmoid(hid, size);
+        sigmoidn(hid, size);
     }
 }
 
@@ -226,8 +218,8 @@ int main(int argc, const char* argv[]) {
     }
     num_units[NUM_LAYERS + 1] = NUM_CLASSES;  // number of classes
 
-    int RANDOM_WEIGHTS = 0;
-    int RANDOM_DATA = 0;
+    int RANDOM_WEIGHTS = 1;
+    int RANDOM_DATA = 1;
 
     // We have NUM_LAYERS weight matrices, sizes are given in num_units
     // NOTE: we do not necessarily need full precision here in the weights
@@ -373,7 +365,7 @@ int main(int argc, const char* argv[]) {
     }
 
     // -------------------------------------------------------- //
-    //     THIS IS THE FUNCTION BEING SIMULATED IN  HARDWARE    //
+    //     THIS IS THE FUNCTION BEING SIMULATED IN HARDWARE     //
     // -------------------------------------------------------- //
     // Run a forward pass through the neural net
     printf("Running forward pass\n");
