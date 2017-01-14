@@ -20,13 +20,13 @@ float conv_float2fixed(float input) {
 
 void clear_matrix(float* input, int size) {
     int i;
-    for (i = 0; i < size; i++)
+clear_loop:    for (i = 0; i < size; i++)
         input[i] = 0.0;
 }
 
 void copy_matrix(float* input, float* output, int size) {
     int i;
-    for (i = 0; i < size; i++)
+copy_loop:    for (i = 0; i < size; i++)
         output[i] = input[i];
 }
 
@@ -35,7 +35,7 @@ int arg_max(float* input, int size, int increment) {
     int j = 0;
     int max_ind = 0;
     float max_val = input[0];
-    for (i = 1; i < size; i++) {
+arg_max_loop:    for (i = 1; i < size; i++) {
         j += increment;
         if (input[j] > max_val) {
             max_ind = i;
@@ -50,7 +50,7 @@ int arg_min(float* input, int size, int increment) {
     int j = 0;
     int min_ind = 0;
     float min_val = input[0];
-    for (i = 1; i < size; i++) {
+arg_min_loop:    for (i = 1; i < size; i++) {
         j += increment;
         if (input[j] < min_val) {
             min_ind = i;

@@ -40,7 +40,7 @@ int NUM_HIDDEN_UNITS[NUM_LAYERS] = { 5 };
 float* grab_matrix(float* w, int n, int* n_rows, int* n_columns) {
     int ind = 0;
     int i;
-    for (i = 0; i < n; i++) {
+grab_matrix_loop:    for (i = 0; i < n; i++) {
         ind += n_rows[i] * n_columns[i];
     }
     return w + ind;
@@ -53,11 +53,11 @@ void grab_matrix_dma(float* weights,
                      int* n_columns) {
     size_t offset = 0;
     int i;
-    for (i = 0; i < layer; i++) {
+grab_matrix_dma_loop:    for (i = 0; i < layer; i++) {
         offset += n_rows[i] * n_columns[i];
     }
-    size_t size = n_rows[layer] + n_columns[layer];
-    dmaLoad(weights, offset, 0, size);
+    size_t size = n_rows[layer] * n_columns[layer] * sizeof(float);
+    dmaLoad(weights, offset*sizeof(float), 0, size);
 }
 #endif
 
@@ -83,9 +83,9 @@ void matrix_multiply(float* a,
     int size = a_height * b_width;
     clear_matrix(result_temp, size);
 
-    for (i = 0; i < a_height; i++) {
-        for (j = 0; j < b_width; j++) {
-            for (k = 0; k < a_width_b_height; k++) {
+matmul0:    for (i = 0; i < a_height; i++) {
+matmul1:        for (j = 0; j < b_width; j++) {
+matmul2:            for (k = 0; k < a_width_b_height; k++) {
                 value = conv_float2fixed(a[sub2ind(i, k, a_width_b_height)]) *
                         conv_float2fixed(b[sub2ind(k, j, b_width)]);
                 result_temp[sub2ind(i, j, b_width)] =
@@ -117,9 +117,9 @@ void matrix_multiply_with_bias(float* a,
 
     // a is hid, b is weights
 
-    for (i = 0; i < a_height; i++) {
-        for (j = 0; j < b_width; j++) {
-            for (k = 0; k < b_height; k++) {
+matmulb0:    for (i = 0; i < a_height; i++) {
+matmulb1:        for (j = 0; j < b_width; j++) {
+matmulb2:            for (k = 0; k < b_height; k++) {
                 value = conv_float2fixed(a[sub2ind(i, k, b_height)]) *
                         conv_float2fixed(b[sub2ind(k, j, b_width)]);
                 result_temp[sub2ind(i, j, b_width)] =
@@ -211,7 +211,7 @@ void nnet_fwd(float* data,
 
     PRINT_DEBUG(hid, NUM_TEST_CASES, num_units[1], num_units[1]);
 
-    for (l = 1; l < NUM_LAYERS; l++) {
+nnet_fwd_layer_loop:    for (l = 1; l < NUM_LAYERS; l++) {
         // Get hidden activations
 #ifdef DMA_MODE
         grab_matrix_dma(weights, l, num_rows, num_columns);
@@ -247,12 +247,15 @@ void nnet_fwd(float* data,
     // we now apply the softmax to turn the outputs into class probabilities
     // softmax(hid, NUM_TEST_CASES, num_units[NUM_LAYERS+1]);
     // PRINT_DEBUG(hid, 10, NUM_CLASSES, NUM_CLASSES);
+#ifdef DMA_MODE
+    dmaStore(hid, 0, 0, NUM_TEST_CASES*NUM_CLASSES*sizeof(float));
+#endif
 }
 
 // This is the thing that we want to be good at in hardware
 int main(int argc, const char* argv[]) {
     // set random seed (need to #include <time.h>)
-    srand(time(NULL));
+    srand(1);
 
     int i;
     int num_units[NUM_LAYERS + 2];
