@@ -204,10 +204,11 @@ void nnet_fwd(float* data,
 #ifdef DMA_MODE
     dmaLoad(data, 0, 0, NUM_TEST_CASES*INPUT_DIM*sizeof(float));
     grab_matrix_dma(weights, 0, num_rows, num_columns);
+#else
+    // Don't need to grab 0th matrix.
 #endif
 
     // FIRST LAYER. hid should be num_test_cases x num_units[1]
-    // Don't need to grab 0th matrix
     matrix_multiply_with_bias(
             data, weights, NUM_TEST_CASES, num_units[0], num_units[1], hid);
 
@@ -223,6 +224,7 @@ nnet_fwd_layer_loop:    for (l = 1; l < NUM_LAYERS; l++) {
         // Get hidden activations
 #ifdef DMA_MODE
         grab_matrix_dma(weights, l, num_rows, num_columns);
+#endif
         // Alternate between reading from hid and hid_temp so we can avoid
         // copying matrices. Odd layers must read from hid since that's where
         // the first layer puts the output.
@@ -233,11 +235,6 @@ nnet_fwd_layer_loop:    for (l = 1; l < NUM_LAYERS; l++) {
             matrix_multiply_with_bias(hid, weights, NUM_TEST_CASES,
                                       num_units[l], num_units[l + 1], hid_temp);
         }
-#else
-        matrix_multiply_with_bias_and_copy(
-                hid, grab_matrix(weights, l, num_rows, num_columns),
-                NUM_TEST_CASES, num_units[l], num_units[l + 1], hid, hid_temp);
-#endif
 
         PRINT_DEBUG(hid, NUM_TEST_CASES, num_units[l + 1], num_units[l + 1]);
 
@@ -249,6 +246,7 @@ nnet_fwd_layer_loop:    for (l = 1; l < NUM_LAYERS; l++) {
 
 #ifdef DMA_MODE
     grab_matrix_dma(weights, NUM_LAYERS, num_rows, num_columns);
+#endif
     if (NUM_LAYERS % 2 == 0) {
         matrix_multiply_with_bias(hid_temp, weights, NUM_TEST_CASES,
                                   num_units[NUM_LAYERS],
@@ -258,11 +256,6 @@ nnet_fwd_layer_loop:    for (l = 1; l < NUM_LAYERS; l++) {
                                   num_units[NUM_LAYERS],
                                   num_units[NUM_LAYERS + 1], hid_temp);
     }
-#else
-    matrix_multiply_with_bias_and_copy(
-            hid, grab_matrix(weights, NUM_LAYERS, num_rows, num_columns),
-            NUM_TEST_CASES, num_units[NUM_LAYERS], NUM_CLASSES, hid, hid_temp);
-#endif
     // hid now contains the output
 
     PRINT_DEBUG(hid, NUM_TEST_CASES, NUM_CLASSES, NUM_CLASSES);
@@ -412,11 +405,7 @@ int main(int argc, const char* argv[]) {
             num_to_print < NUM_TEST_CASES ? num_to_print : NUM_TEST_CASES;
 
     // Compute the classification error rate
-#if defined(GEM5_HARNESS) || defined(DMA_MODE)
     float* result = NUM_LAYERS % 2 == 0 ? hid : hid_temp;
-#else
-    float* result = hid;
-#endif
     int num_errors = 0;
     for (i = 0; i < NUM_TEST_CASES; i++) {
         if (arg_max(result + i * NUM_CLASSES, NUM_CLASSES, 1) != labels[i]) {
