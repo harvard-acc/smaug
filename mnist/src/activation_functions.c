@@ -6,7 +6,7 @@
 // ** this function is in-place (modifies a) **
 void RELU(float* a, int num_units) {
     int i;
-    for (i = 0; i < num_units; i++) {
+relu_loop: for (i = 0; i < num_units; i++) {
         if (a[i] < 0.0) {
             a[i] = 0.0;
         }
@@ -25,7 +25,7 @@ float sigmoid(float a) {
 void sigmoidn(float* a, int num_units) {
     int i;
     float value;
-    for (i = 0; i < num_units; i++) {
+sigmoidn_loop: for (i = 0; i < num_units; i++) {
         value = 1.0 / (1.0 + exp(-a[i]));
         a[i] = conv_float2fixed(value);
     }
@@ -38,7 +38,7 @@ void sigmoid_lookup(float* a, int num_units, float* sigmoid_table) {
     int i, ind;
     float temp, delta_x;
     float SIG_RANGE = SIG_MAX - SIG_MIN;
-    for (i = 0; i < num_units; i++) {
+sigmoid_table_loop: for (i = 0; i < num_units; i++) {
         if (a[i] < SIG_MIN) {
             a[i] = 0.0;  // do I need to convert these?? I guess not?
         } else if (a[i] >= SIG_MAX) {
@@ -63,16 +63,16 @@ void sigmoid_lookup(float* a, int num_units, float* sigmoid_table) {
 float* softmax(float* a, int num_test_cases, int num_classes) {
     int i, j;
     float numerator, normaliz;
-    for (i = 0; i < num_test_cases; i++) {
+softmax_outer: for (i = 0; i < num_test_cases; i++) {
         // compute the normalization factor
         normaliz = 0.0;
-        for (j = 0; j < num_classes; j++) {
+softmax_inner0: for (j = 0; j < num_classes; j++) {
             numerator = sigmoid(a[sub2ind(i, j, num_classes)]);
             // replace a[i,j] with exp(a[i,j])
             a[sub2ind(i, j, num_classes)] = numerator;
             normaliz += numerator;
         }
-        for (j = 0; j < num_classes; j++) {
+softmax_inner1: for (j = 0; j < num_classes; j++) {
             a[sub2ind(i, j, num_classes)] /= normaliz;
         }
     }
