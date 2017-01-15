@@ -3,6 +3,7 @@
 
 float randfloat() { return rand() / ((float)(RAND_MAX)); }
 
+#ifndef TRACE_MODE
 float conv_float2fixed(float input) {
     // return input;
     int sign = 1;
@@ -17,6 +18,7 @@ float conv_float2fixed(float input) {
                     ((long_1 << (NUM_OF_INT_BITS + NUM_OF_FRAC_BITS)) - 1))) /
            (long_1 << NUM_OF_FRAC_BITS);
 }
+#endif
 
 void clear_matrix(float* input, int size) {
     int i;

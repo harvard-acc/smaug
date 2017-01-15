@@ -32,7 +32,7 @@ LOGGER = $(TRACER_HOME)/lib/trace_logger.llvm
 GET_LABELED_STMTS = $(TRACER_HOME)/bin/get-labeled-stmts
 
 MODE = LLVM_TRACE
-CPPFLAGS = -I$(ALADDIN_HOME) -I$(COMMON_DIR) -D$(MODE)
+CPPFLAGS = -I$(ALADDIN_HOME) -I$(COMMON_DIR) -D$(MODE) -DTRACE_MODE
 
 ALL_SRCS := $(patsubst %, $(SRC_DIR)/%, $(SRCS))
 _BUILD_VIEW_SRCS := $(patsubst %, ../%, $(ALL_SRCS))
