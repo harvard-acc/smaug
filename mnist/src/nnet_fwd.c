@@ -105,32 +105,40 @@ void matrix_multiply_with_bias(float* a,
                                int a_height,
                                int b_height,
                                int b_width,
-                               float* result_goes_here,
-                               float* result_temp) {
+                               float* result) {
 
+    // a is hid, b is weights
     int i, j, k;
     float value;
 
-    // Initialize to zero
-    int size = a_height * b_width;
-    clear_matrix(result_temp, size);
-
-    // a is hid, b is weights
-
-matmulb0:    for (i = 0; i < a_height; i++) {
-matmulb1:        for (j = 0; j < b_width; j++) {
-matmulb2:            for (k = 0; k < b_height; k++) {
+matmulb0: for (i = 0; i < a_height; i++) {
+matmulb1: for (j = 0; j < b_width; j++) {
+            // Initialize to zero
+            result[sub2ind(i, j, b_width)] = 0;
+matmulb2: for (k = 0; k < b_height; k++) {
                 value = conv_float2fixed(a[sub2ind(i, k, b_height)]) *
                         conv_float2fixed(b[sub2ind(k, j, b_width)]);
-                result_temp[sub2ind(i, j, b_width)] =
-                        conv_float2fixed(result_temp[sub2ind(i, j, b_width)] +
+                result[sub2ind(i, j, b_width)] =
+                        conv_float2fixed(result[sub2ind(i, j, b_width)] +
                                          conv_float2fixed(value));
             }
-            result_temp[sub2ind(i, j, b_width)] =
-                    conv_float2fixed(result_temp[sub2ind(i, j, b_width)] +
+            result[sub2ind(i, j, b_width)] =
+                    conv_float2fixed(result[sub2ind(i, j, b_width)] +
                                      b[sub2ind(b_height, j, b_width)]);
         }
     }
+}
+
+void matrix_multiply_with_bias_and_copy(float* a,
+                               float* b,
+                               int a_height,
+                               int b_height,
+                               int b_width,
+                               float* result_goes_here,
+                               float* result_temp) {
+    int size = a_height * b_width;
+    matrix_multiply_with_bias(
+            a, b, a_height, b_height, b_width, result_temp);
     copy_matrix(result_temp, result_goes_here, size);
 }
 
@@ -199,9 +207,9 @@ void nnet_fwd(float* data,
 #endif
 
     // FIRST LAYER. hid should be num_test_cases x num_units[1]
-    matrix_multiply_with_bias(data, weights, NUM_TEST_CASES, num_units[0],
-                              num_units[1], hid,
-                              hid_temp);  // Don't need to grab 0th matrix
+    // Don't need to grab 0th matrix
+    matrix_multiply_with_bias(
+            data, weights, NUM_TEST_CASES, num_units[0], num_units[1], hid);
 
     // Rows to print, cols to print, number of cols
     PRINT_DEBUG(hid, NUM_TEST_CASES, num_units[1], num_units[1]);
@@ -215,10 +223,18 @@ nnet_fwd_layer_loop:    for (l = 1; l < NUM_LAYERS; l++) {
         // Get hidden activations
 #ifdef DMA_MODE
         grab_matrix_dma(weights, l, num_rows, num_columns);
-        matrix_multiply_with_bias(hid, weights, NUM_TEST_CASES, num_units[l],
-                                  num_units[l + 1], hid, hid_temp);
+        // Alternate between reading from hid and hid_temp so we can avoid
+        // copying matrices. Odd layers must read from hid since that's where
+        // the first layer puts the output.
+        if (l % 2 == 0) {
+            matrix_multiply_with_bias(hid_temp, weights, NUM_TEST_CASES,
+                                      num_units[l], num_units[l + 1], hid);
+        } else {
+            matrix_multiply_with_bias(hid, weights, NUM_TEST_CASES,
+                                      num_units[l], num_units[l + 1], hid_temp);
+        }
 #else
-        matrix_multiply_with_bias(
+        matrix_multiply_with_bias_and_copy(
                 hid, grab_matrix(weights, l, num_rows, num_columns),
                 NUM_TEST_CASES, num_units[l], num_units[l + 1], hid, hid_temp);
 #endif
@@ -232,11 +248,18 @@ nnet_fwd_layer_loop:    for (l = 1; l < NUM_LAYERS; l++) {
     }
 
 #ifdef DMA_MODE
-    grab_matrix_dma(weights, l, num_rows, num_columns);
-    matrix_multiply_with_bias(hid, weights, NUM_TEST_CASES, num_units[l],
-                              num_units[l + 1], hid, hid_temp);
+    grab_matrix_dma(weights, NUM_LAYERS, num_rows, num_columns);
+    if (NUM_LAYERS % 2 == 0) {
+        matrix_multiply_with_bias(hid_temp, weights, NUM_TEST_CASES,
+                                  num_units[NUM_LAYERS],
+                                  num_units[NUM_LAYERS + 1], hid);
+    } else {
+        matrix_multiply_with_bias(hid, weights, NUM_TEST_CASES,
+                                  num_units[NUM_LAYERS],
+                                  num_units[NUM_LAYERS + 1], hid_temp);
+    }
 #else
-    matrix_multiply_with_bias(
+    matrix_multiply_with_bias_and_copy(
             hid, grab_matrix(weights, NUM_LAYERS, num_rows, num_columns),
             NUM_TEST_CASES, num_units[NUM_LAYERS], NUM_CLASSES, hid, hid_temp);
 #endif
@@ -248,7 +271,10 @@ nnet_fwd_layer_loop:    for (l = 1; l < NUM_LAYERS; l++) {
     // softmax(hid, NUM_TEST_CASES, num_units[NUM_LAYERS+1]);
     // PRINT_DEBUG(hid, 10, NUM_CLASSES, NUM_CLASSES);
 #ifdef DMA_MODE
-    dmaStore(hid, 0, 0, NUM_TEST_CASES*NUM_CLASSES*sizeof(float));
+    if (NUM_LAYERS % 2 == 0)
+        dmaStore(hid, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
+    else
+        dmaStore(hid_temp, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
 #endif
 }
 
@@ -321,7 +347,7 @@ int main(int argc, const char* argv[]) {
     // Then, allocate memory for it. We will always place the result of our
     // matrix multiplications in here.
     //
-    // Mapped to its own scratchpad. Not certain we need hid_temp.
+    // Mapped to its own scratchpad.
     float* hid;
     float* hid_temp;
     size_t hid_size = NUM_TEST_CASES * biggest_rows;
@@ -361,6 +387,8 @@ int main(int argc, const char* argv[]) {
             INTEGRATION_TEST, "weights", weights, w_size * sizeof(float));
     mapArrayToAccelerator(
             INTEGRATION_TEST, "hid", hid, hid_size * sizeof(float));
+    mapArrayToAccelerator(
+            INTEGRATION_TEST, "hid_temp", hid_temp, hid_size * sizeof(float));
     // sigmoid_table, num_units, num_rows, and num_columns I consider as
     // configuration, which is really one-time (compared to data and weights
     // which may need to be reloaded multiple times for the same network).
@@ -384,9 +412,14 @@ int main(int argc, const char* argv[]) {
             num_to_print < NUM_TEST_CASES ? num_to_print : NUM_TEST_CASES;
 
     // Compute the classification error rate
+#if defined(GEM5_HARNESS) || defined(DMA_MODE)
+    float* result = NUM_LAYERS % 2 == 0 ? hid : hid_temp;
+#else
+    float* result = hid;
+#endif
     int num_errors = 0;
     for (i = 0; i < NUM_TEST_CASES; i++) {
-        if (arg_max(hid + i * NUM_CLASSES, NUM_CLASSES, 1) != labels[i]) {
+        if (arg_max(result + i * NUM_CLASSES, NUM_CLASSES, 1) != labels[i]) {
             num_errors = num_errors + 1;
         }
     }
