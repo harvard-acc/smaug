@@ -3,7 +3,7 @@
 
 float randfloat() { return rand() / ((float)(RAND_MAX)); }
 
-#ifndef TRACE_MODE
+#ifdef BITWIDTH_REDUCTION
 float conv_float2fixed(float input) {
     // return input;
     int sign = 1;

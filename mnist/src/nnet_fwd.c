@@ -9,6 +9,7 @@
 #ifdef DMA_MODE
 #include "gem5_harness.h"
 #endif
+
 #ifdef GEM5_HARNESS
 #include "gem5/aladdin_sys_connection.h"
 #include "gem5/aladdin_sys_constants.h"
@@ -109,37 +110,74 @@ void matrix_multiply_with_bias(float* a,
 
     // a is hid, b is weights
     int i, j, k;
+    float partial_sum;
     float value;
 
 matmulb0: for (i = 0; i < a_height; i++) {
 matmulb1: for (j = 0; j < b_width; j++) {
             // Initialize to zero
-            result[sub2ind(i, j, b_width)] = 0;
+            partial_sum = 0;
 matmulb2: for (k = 0; k < b_height; k++) {
                 value = conv_float2fixed(a[sub2ind(i, k, b_height)]) *
                         conv_float2fixed(b[sub2ind(k, j, b_width)]);
+                partial_sum += value;
+                /*
                 result[sub2ind(i, j, b_width)] =
                         conv_float2fixed(result[sub2ind(i, j, b_width)] +
                                          conv_float2fixed(value));
+                                         */
             }
-            result[sub2ind(i, j, b_width)] =
+            // Add the bias.
+            partial_sum += conv_float2fixed(b[sub2ind(b_height, j, b_width)]);
+            result[sub2ind(i, j, b_width)] = partial_sum;
+            /*
                     conv_float2fixed(result[sub2ind(i, j, b_width)] +
                                      b[sub2ind(b_height, j, b_width)]);
+                                     */
         }
     }
 }
 
 void matrix_multiply_with_bias_and_copy(float* a,
-                               float* b,
-                               int a_height,
-                               int b_height,
-                               int b_width,
-                               float* result_goes_here,
-                               float* result_temp) {
+                                        float* b,
+                                        int a_height,
+                                        int b_height,
+                                        int b_width,
+                                        float* result_goes_here,
+                                        float* result_temp) {
     int size = a_height * b_width;
     matrix_multiply_with_bias(
             a, b, a_height, b_height, b_width, result_temp);
     copy_matrix(result_temp, result_goes_here, size);
+}
+
+// Multiply the matrices a and b, but assume that b has been transposed.
+void matrix_multiply_with_bias_transpose(float* a,
+                                         float* b,
+                                         int a_height,
+                                         int b_height,
+                                         int b_width,
+                                         float* result) {
+
+    // a is hid, b is weights
+    int i, j, k;
+    float partial_sum;
+    float value;
+
+matmulbt0: for (i = 0; i < a_height; i++) {
+matmulbt1: for (j = 0; j < b_width; j++) {
+            // Initialize to zero
+            partial_sum = 0;
+matmulbt2: for (k = 0; k < b_height; k++) {
+                value = conv_float2fixed(a[sub2ind(i, k, b_width)]) *
+                        conv_float2fixed(b[sub2ind(j, k, b_height)]);
+                partial_sum += value;
+            }
+            // Add the bias.
+            partial_sum += conv_float2fixed(b[sub2ind(j, b_height, b_height)]);
+            result[sub2ind(i, j, b_width)] = partial_sum;
+        }
+    }
 }
 
 // Dispatch to the appropriate activation function.
@@ -209,7 +247,7 @@ void nnet_fwd(float* data,
 #endif
 
     // FIRST LAYER. hid should be num_test_cases x num_units[1]
-    matrix_multiply_with_bias(
+    matrix_multiply_with_bias_transpose(
             data, weights, NUM_TEST_CASES, num_units[0], num_units[1], hid);
 
     // Rows to print, cols to print, number of cols
@@ -229,36 +267,40 @@ nnet_fwd_layer_loop:    for (l = 1; l < NUM_LAYERS; l++) {
         // copying matrices. Odd layers must read from hid since that's where
         // the first layer puts the output.
         if (l % 2 == 0) {
-            matrix_multiply_with_bias(hid_temp, weights, NUM_TEST_CASES,
-                                      num_units[l], num_units[l + 1], hid);
+            matrix_multiply_with_bias_transpose(hid_temp, weights,
+                                                NUM_TEST_CASES, num_units[l],
+                                                num_units[l + 1], hid);
+            PRINT_DEBUG(hid, NUM_TEST_CASES, num_units[l + 1], num_units[l + 1]);
+            // Pass through activation function
+            activation_fun(hid, NUM_TEST_CASES * num_units[l + 1], sigmoid_table);
+            PRINT_DEBUG(hid, NUM_TEST_CASES, num_units[l + 1], num_units[l + 1]);
         } else {
-            matrix_multiply_with_bias(hid, weights, NUM_TEST_CASES,
-                                      num_units[l], num_units[l + 1], hid_temp);
+            matrix_multiply_with_bias_transpose(hid, weights, NUM_TEST_CASES,
+                                                num_units[l], num_units[l + 1],
+                                                hid_temp);
+            PRINT_DEBUG(hid_temp, NUM_TEST_CASES, num_units[l + 1], num_units[l + 1]);
+            // Pass through activation function
+            activation_fun(hid_temp, NUM_TEST_CASES * num_units[l + 1], sigmoid_table);
+            PRINT_DEBUG(hid_temp, NUM_TEST_CASES, num_units[l + 1], num_units[l + 1]);
         }
-
-        PRINT_DEBUG(hid, NUM_TEST_CASES, num_units[l + 1], num_units[l + 1]);
-
-        // Pass through activation function
-        activation_fun(hid, NUM_TEST_CASES * num_units[l + 1], sigmoid_table);
-
-        PRINT_DEBUG(hid, NUM_TEST_CASES, num_units[l + 1], num_units[l + 1]);
     }
 
 #ifdef DMA_MODE
     grab_matrix_dma(weights, NUM_LAYERS, num_rows, num_columns);
 #endif
     if (NUM_LAYERS % 2 == 0) {
-        matrix_multiply_with_bias(hid_temp, weights, NUM_TEST_CASES,
+        matrix_multiply_with_bias_transpose(hid_temp, weights, NUM_TEST_CASES,
                                   num_units[NUM_LAYERS],
                                   num_units[NUM_LAYERS + 1], hid);
+        PRINT_DEBUG(hid, NUM_TEST_CASES, NUM_CLASSES, NUM_CLASSES);
     } else {
-        matrix_multiply_with_bias(hid, weights, NUM_TEST_CASES,
+        matrix_multiply_with_bias_transpose(hid, weights, NUM_TEST_CASES,
                                   num_units[NUM_LAYERS],
                                   num_units[NUM_LAYERS + 1], hid_temp);
+        PRINT_DEBUG(hid_temp, NUM_TEST_CASES, NUM_CLASSES, NUM_CLASSES);
     }
     // hid now contains the output
 
-    PRINT_DEBUG(hid, NUM_TEST_CASES, NUM_CLASSES, NUM_CLASSES);
 
     // we now apply the softmax to turn the outputs into class probabilities
     // softmax(hid, NUM_TEST_CASES, num_units[NUM_LAYERS+1]);
@@ -412,6 +454,12 @@ int main(int argc, const char* argv[]) {
             num_errors = num_errors + 1;
         }
     }
+    FILE* output_labels = fopen("output_labels.out", "w");
+    for (i = 0; i < NUM_TEST_CASES; i++) {
+        fprintf(output_labels, "Test %d label: %d\n", i,
+                arg_max(result + i * NUM_CLASSES, NUM_CLASSES, 1));
+    }
+    fclose(output_labels);
     float error_fraction = ((float)num_errors) / ((float)NUM_TEST_CASES);
     printf("Fraction incorrect (over %d cases) = %f\n", NUM_TEST_CASES,
            error_fraction);

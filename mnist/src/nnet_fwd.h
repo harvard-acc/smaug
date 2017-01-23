@@ -7,7 +7,7 @@
 #include <time.h>
 
 // Fixed parameters
-#define INPUT_DIM 10
+#define INPUT_DIM 784
 #define NUM_CLASSES 10
 // number of stored points in sigmoid lookup table
 #define LG_SIGMOID_COARSENESS 4
@@ -40,7 +40,7 @@
 
 #if DEBUG == 1
 #define PRINT_DEBUG(hid, rows, cols, num_cols)                                 \
-    print_debug(hid, rows, col, num_cols)
+    print_debug(hid, rows, cols, num_cols)
 #else
 #define PRINT_DEBUG(hid, rows, cols, num_cols)
 #endif
