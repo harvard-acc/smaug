@@ -18,7 +18,7 @@ GEM5_CFLAGS = -static -O3 -mno-80387 -msoft-float \
               -march=nocona -msse -mfpmath=sse \
               -fno-exceptions -fno-inline
 
-INCLUDES += -I$(ALADDIN_HOME)
+INCLUDES += -I$(ALADDIN_HOME) -I$(ALADDIN_HOME)/gem5
 LFLAGS = -lm
 BMARK = $(ACCEL_NAME)
 
@@ -31,7 +31,8 @@ native: $(NATIVE)
 
 $(NATIVE): $(ALL_SRCS)
 	@echo Building benchmark $(BMARK) for native platform.
-	$(CC) $(CFLAGS) $^ $(INCLUDES) -o $@ $(LFLAGS)
+	$(CC) $(CFLAGS) -DDMA_INTERFACE_V2 -DDMA_MODE $^ $(ALADDIN_HOME)/gem5/dma_interface.c $(INCLUDES) -o $@ $(LFLAGS)
+#	$(CC) $(CFLAGS) $^ $(INCLUDES) -o $@ $(LFLAGS)
 
 # Builds both standalone CPU version and the HW accelerated version.
 gem5: gem5-cpu gem5-accel
