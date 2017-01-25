@@ -303,6 +303,14 @@ nnet_fwd_layer_loop:    for (l = 1; l < NUM_LAYERS; l++) {
 #endif
 }
 
+size_t next_multiple(size_t request, size_t align) {
+  size_t n = request/align;
+  if (n == 0)
+    return align;
+  size_t remainder = n*align - request;
+  return request + remainder;
+}
+
 // This is the thing that we want to be good at in hardware
 int main(int argc, const char* argv[]) {
     // set random seed (need to #include <time.h>)
@@ -338,7 +346,8 @@ int main(int argc, const char* argv[]) {
     // Initialize weights, data, and labels.
     float* weights;
     int err;
-    err = posix_memalign((void**)&weights, CACHELINE_SIZE, w_size * sizeof(float));
+    err = posix_memalign((void**)&weights, CACHELINE_SIZE,
+                         next_multiple(w_size * sizeof(float), CACHELINE_SIZE));
     ASSERT_MEMALIGN(weights, err);
     init_weights(weights, w_size, RANDOM_WEIGHTS);
 
@@ -347,10 +356,12 @@ int main(int argc, const char* argv[]) {
     size_t data_size = NUM_TEST_CASES * INPUT_DIM;
     size_t label_size = NUM_TEST_CASES;
     err = posix_memalign(
-            (void**)&data, CACHELINE_SIZE, data_size * sizeof(float));
+            (void**)&data, CACHELINE_SIZE,
+            next_multiple(data_size * sizeof(float), CACHELINE_SIZE));
     ASSERT_MEMALIGN(data, err);
     err = posix_memalign(
-            (void**)&labels, CACHELINE_SIZE, label_size * sizeof(int));
+            (void**)&labels, CACHELINE_SIZE,
+            next_multiple(label_size * sizeof(int), CACHELINE_SIZE));
     ASSERT_MEMALIGN(labels, err);
     init_data(data, NUM_TEST_CASES, INPUT_DIM, RANDOM_DATA);
     init_labels(labels, NUM_TEST_CASES, RANDOM_DATA);
@@ -377,10 +388,12 @@ int main(int argc, const char* argv[]) {
     float* hid_temp;
     size_t hid_size = NUM_TEST_CASES * biggest_rows;
     err = posix_memalign(
-            (void**)&hid, CACHELINE_SIZE, hid_size * sizeof(float));
+            (void**)&hid, CACHELINE_SIZE,
+            next_multiple(hid_size * sizeof(float), CACHELINE_SIZE));
     ASSERT_MEMALIGN(hid, err);
     err = posix_memalign(
-            (void**)&hid_temp, CACHELINE_SIZE, hid_size * sizeof(float));
+            (void**)&hid_temp, CACHELINE_SIZE,
+            next_multiple(hid_size * sizeof(float), CACHELINE_SIZE));
     ASSERT_MEMALIGN(hid_temp, err);
 
     // This file is not looked at by aladdin so malloc is fine.
