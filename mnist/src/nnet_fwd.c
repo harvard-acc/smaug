@@ -121,19 +121,10 @@ matmulb2: for (k = 0; k < b_height; k++) {
                 value = conv_float2fixed(a[sub2ind(i, k, b_height)]) *
                         conv_float2fixed(b[sub2ind(k, j, b_width)]);
                 partial_sum += value;
-                /*
-                result[sub2ind(i, j, b_width)] =
-                        conv_float2fixed(result[sub2ind(i, j, b_width)] +
-                                         conv_float2fixed(value));
-                                         */
             }
             // Add the bias.
             partial_sum += conv_float2fixed(b[sub2ind(b_height, j, b_width)]);
             result[sub2ind(i, j, b_width)] = partial_sum;
-            /*
-                    conv_float2fixed(result[sub2ind(i, j, b_width)] +
-                                     b[sub2ind(b_height, j, b_width)]);
-                                     */
         }
     }
 }
@@ -169,7 +160,7 @@ matmulbt1: for (j = 0; j < b_width; j++) {
             // Initialize to zero
             partial_sum = 0;
 matmulbt2: for (k = 0; k < b_height; k++) {
-                value = conv_float2fixed(a[sub2ind(i, k, b_width)]) *
+                value = conv_float2fixed(a[sub2ind(i, k, b_height)]) *
                         conv_float2fixed(b[sub2ind(j, k, b_height)]);
                 partial_sum += value;
             }
@@ -290,17 +281,16 @@ nnet_fwd_layer_loop:    for (l = 1; l < NUM_LAYERS; l++) {
 #endif
     if (NUM_LAYERS % 2 == 0) {
         matrix_multiply_with_bias_transpose(hid_temp, weights, NUM_TEST_CASES,
-                                  num_units[NUM_LAYERS],
-                                  num_units[NUM_LAYERS + 1], hid);
+                                            num_units[NUM_LAYERS],
+                                            num_units[NUM_LAYERS + 1], hid);
         PRINT_DEBUG(hid, NUM_TEST_CASES, NUM_CLASSES, NUM_CLASSES);
     } else {
-        matrix_multiply_with_bias_transpose(hid, weights, NUM_TEST_CASES,
-                                  num_units[NUM_LAYERS],
-                                  num_units[NUM_LAYERS + 1], hid_temp);
+        matrix_multiply_with_bias_transpose(
+                hid, weights, NUM_TEST_CASES, num_units[NUM_LAYERS],
+                num_units[NUM_LAYERS + 1], hid_temp);
         PRINT_DEBUG(hid_temp, NUM_TEST_CASES, NUM_CLASSES, NUM_CLASSES);
     }
     // hid now contains the output
-
 
     // we now apply the softmax to turn the outputs into class probabilities
     // softmax(hid, NUM_TEST_CASES, num_units[NUM_LAYERS+1]);
