@@ -14,6 +14,7 @@
 
 
 /*float convert_float2fixed ( unsigned num_of_int_bits, unsigned num_of_frac_bits, float input)*/
+#ifdef BITWIDTH_QUANTIZATION
 float conv_float2fixed ( float input)
 {
     // return input;
@@ -42,6 +43,7 @@ float conv_float2fixed ( float input)
     // y = y * sign;
     // printf("Final value: %f\n", y);
 }
+#endif
 
 
 
@@ -366,7 +368,7 @@ int main( int argc, const char* argv[] )
 {
     int ret_f_scanf;
     // set random seed (need to #include <time.h>)
-    srand(time(NULL));
+    srand(1);
 
     float* result;
     int i, j;
@@ -379,8 +381,8 @@ int main( int argc, const char* argv[] )
     }
     num_units[NUM_LAYERS+1] = NUM_CLASSES;    // number of classes
 
-    int RANDOM_WEIGHTS = 0;
-    int RANDOM_DATA = 0;
+    int RANDOM_WEIGHTS = 1;
+    int RANDOM_DATA = 1;
 
     // We have NUM_LAYERS weight matrices, sizes are given in num_units
     // NOTE: we do not necessarily need full precision here in the weights ...............
@@ -590,6 +592,11 @@ int main( int argc, const char* argv[] )
     }
     float error_fraction = ((float) num_errors) / ( (float) NUM_TEST_CASES);
     printf("Fraction incorrect (over %d cases) = %f\n", NUM_TEST_CASES, error_fraction);
+    FILE* output_labels = fopen("output_labels.out", "w");
+    for (i = 0; i < NUM_TEST_CASES; i++) {
+        fprintf(output_labels, "Test %d label: %d\n", i, arg_max(hid+i*NUM_CLASSES, NUM_CLASSES, 1));
+    }
+    fclose(output_labels);
 
     // Write this number to a file
     FILE* accuracy_file;
