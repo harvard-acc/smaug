@@ -9,5 +9,6 @@ void init_data(float* data,
                size_t input_dim,
                bool random);
 void init_labels(int* labels, size_t label_size, bool random);
+void init_kernels(float* kernels, size_t kernel_size);
 
 #endif

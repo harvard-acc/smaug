@@ -9,6 +9,8 @@
 // Fixed parameters
 #define INPUT_DIM 784
 #define NUM_CLASSES 10
+#define NUM_KERNELS 1
+#define KERNEL_SIZE 3
 // number of stored points in sigmoid lookup table
 #define LG_SIGMOID_COARSENESS 4
 #define NUM_TEST_CASES 1    // NOT READ BY nnet_fwd.c, ONLY BY the other one
@@ -36,7 +38,7 @@
     "/home/jmh/projects/pesc_hardware/HardwareNets/../mnist/"                  \
     "mnist_textual_weights.txt"
 
-#define sub2ind(r, c, n_columns) r* n_columns + c
+#define sub2ind(r, c, n_columns) ((r) * (n_columns) + (c))
 
 #if DEBUG == 1
 #define PRINT_DEBUG(hid, rows, cols, num_cols)                                 \

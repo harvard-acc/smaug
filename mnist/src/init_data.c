@@ -5,6 +5,13 @@
 #include "utility.h"
 #include "init_data.h"
 
+void init_kernels(float* kernels, size_t k_size) {
+    int i;
+
+    for (i = 0; i < k_size; i++)
+        kernels[i] = conv_float2fixed(randfloat() - 0.5);
+}
+
 void init_weights(float* weights, size_t w_size, bool random) {
     int i, ret_f_scanf;
     if (random) {

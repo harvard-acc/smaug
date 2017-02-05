@@ -62,6 +62,100 @@ grab_matrix_dma_loop:    for (i = 0; i < layer; i++) {
 }
 #endif
 
+void print_debug(float* hid,
+                 int rows_to_print,
+                 int cols_to_print,
+                 int num_columns) {
+    int i, l;
+    printf("\nHidden units:\n");
+    for (i = 0; i < rows_to_print; i++) {
+        for (l = 0; l < cols_to_print; l++) {
+            printf("%f, ", hid[sub2ind(i, l, num_columns)]);
+        }
+        printf("\n");
+    }
+}
+
+void copy_zeropad(
+        float* a, int a_height, int a_width, int pad, float* result) {
+    int i, j;
+    int result_width = a_width + 2*pad;
+    int result_height = a_height + 2*pad;
+    for (i = 0; i < pad; i++) {
+        for (j = 0; j < result_width; j++) {
+            result[sub2ind(i, j, result_width)] = 0;
+        }
+    }
+
+    for (i = pad; i < a_height + pad; i++) {
+        for (j = 0; j < pad; j++) {
+            result[sub2ind(i, j, result_width)] = 0;
+        }
+        // Copy the original array.
+        for (j = pad; j < a_width + pad; j++) {
+            result[sub2ind(i, j, result_width)] = a[sub2ind(i - pad, j - pad, a_width)];
+        }
+        for (j = a_width + pad; j < result_width; j++) {
+            result[sub2ind(i, j, result_width)] = 0;
+        }
+    }
+
+    for (i = a_height + pad; i < result_height; i++) {
+        for (j = 0; j < result_width; j++) {
+            result[sub2ind(i, j, result_width)] = 0;
+        }
+    }
+}
+
+void convolution2d_no_padding(float* a,
+                              float* kernels,
+                              int a_height,
+                              int a_width,
+                              int k_idx,
+                              int k_width,
+                              float* result) {
+
+    int i, j, k, l;
+    int result_width = a_width - k_width + 1;
+
+    int start_i = 0;
+    int start_j = 0;
+    int end_i = a_width - k_width + 1;
+    int end_j = a_height - k_width + 1;
+    int start_k = k_width*k_width*k_idx;
+
+    float partial_sum;
+
+    for (i = start_i; i < end_i; i++) {
+        for (j = start_j; j < end_j; j++) {
+            partial_sum = 0;
+            for (k = 0; k < k_width; k++) {
+                for (l = 0; l < k_width; l++) {
+                    partial_sum +=
+                            conv_float2fixed(a[sub2ind(i+k, j+l, a_width)]) *
+                            conv_float2fixed(
+                                    kernels[sub2ind(k, l, k_width) + start_k]);
+                }
+            }
+            result[sub2ind(i, j, result_width)] = partial_sum;
+        }
+    }
+}
+
+void convolution2d_zeropad(float* a,
+                           float* kernels,
+                           int a_height,
+                           int a_width,
+                           int k_idx,
+                           int k_width,
+                           float* result,
+                           float* result_temp) {
+    int padding = k_width / 2;
+    copy_zeropad(a, a_height, a_width, padding, result_temp);
+    convolution2d_no_padding(result_temp, kernels, a_height + 2 * padding,
+                             a_width + 2 * padding, k_idx, k_width, result);
+}
+
 // Multiply matrices a and b with given sizes and store into result_goes_here.
 //
 // We could do something tricky by switching the role of result and temp, to
@@ -182,18 +276,18 @@ void activation_fun(float* hid, int size, float* sigmoid_table) {
     }
 }
 
-void print_debug(float* hid,
-                 int rows_to_print,
-                 int cols_to_print,
-                 int num_columns) {
-    int i, l;
-    printf("\nHidden units:\n");
-    for (i = 0; i < rows_to_print; i++) {
-        for (l = 0; l < cols_to_print; l++) {
-            printf("%f, ", hid[sub2ind(i, l, num_columns)]);
-        }
-        printf("\n");
-    }
+void conv_fwd(float* data,
+              float* kernels,
+              int* num_units,
+              int* num_rows,
+              int* num_columns,
+              float* hid,
+              float* hid_temp,
+              float* sigmoid_table) {
+
+    int k = 0;
+    convolution2d_zeropad(data, kernels, 28, 28, k, KERNEL_SIZE, hid, hid_temp);
+    print_debug(hid, 28, 28, 28);
 }
 
 // Does the forward predictive pass of a neural net.
@@ -306,7 +400,7 @@ nnet_fwd_layer_loop:    for (l = 1; l < NUM_LAYERS; l++) {
 size_t next_multiple(size_t request, size_t align) {
   size_t n = request/align;
   if (n == 0)
-    return align;
+    return align;  // Return at least this many bytes.
   size_t remainder = n*align - request;
   return request + remainder;
 }
@@ -353,8 +447,10 @@ int main(int argc, const char* argv[]) {
 
     float* data;
     int* labels;
+    float* kernels;
     size_t data_size = NUM_TEST_CASES * INPUT_DIM;
     size_t label_size = NUM_TEST_CASES;
+    size_t kernel_size = NUM_KERNELS * KERNEL_SIZE * KERNEL_SIZE;
     err = posix_memalign(
             (void**)&data, CACHELINE_SIZE,
             next_multiple(data_size * sizeof(float), CACHELINE_SIZE));
@@ -363,8 +459,13 @@ int main(int argc, const char* argv[]) {
             (void**)&labels, CACHELINE_SIZE,
             next_multiple(label_size * sizeof(int), CACHELINE_SIZE));
     ASSERT_MEMALIGN(labels, err);
+    err = posix_memalign(
+            (void**)&kernels, CACHELINE_SIZE,
+            next_multiple(kernel_size * sizeof(float), CACHELINE_SIZE));
+    ASSERT_MEMALIGN(kernels, err);
     init_data(data, NUM_TEST_CASES, INPUT_DIM, RANDOM_DATA);
     init_labels(labels, NUM_TEST_CASES, RANDOM_DATA);
+    init_kernels(kernels, kernel_size);
     printf("Data has %lu elements.\n", data_size);
 
     // Get the dimensions of the biggest matrix that will ever come out of
@@ -475,6 +576,8 @@ int main(int argc, const char* argv[]) {
 
     free(hid);
     free(hid_temp);
+    free(weights);
     free(data);
     free(labels);
+    free(kernels);
 }
