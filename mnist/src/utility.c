@@ -61,3 +61,14 @@ arg_min_loop:    for (i = 1; i < size; i++) {
     }
     return min_ind;
 }
+
+int get_total_num_weights(layer_t* layers, int num_layers) {
+    int l;
+    int w_size = 0;
+    for (l = 0; l < num_layers; l++) {
+        if (layers[l].type != FC && layers[l].type != OUTPUT)
+            continue;
+        w_size += layers[l].input_rows * layers[l].input_cols;
+    }
+    return w_size;
+}

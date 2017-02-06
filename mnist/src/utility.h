@@ -6,6 +6,7 @@ void clear_matrix(float* input, int size);
 void copy_matrix(float* input, float* output, int size);
 int arg_max(float* input, int size, int increment);
 int arg_min(float* input, int size, int increment);
+int get_total_num_weights(layer_t* layers, int num_layers);
 
 #ifdef BITWIDTH_REDUCTION
 // Don't add this function unless we want to model bit width quantization

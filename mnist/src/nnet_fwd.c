@@ -25,16 +25,31 @@
 //                |       | NUM_UNITS_1 * NUM_UNITS_2 +
 //                |       | NUM_UNITS_2 * NUM_CLASSES
 // num_test_cases | int   | NUM_TEST_CASES
-// num_layers     | int   | NUM_LAYERS
-// num_units      | int   | NUM_LAYERS + 2
+// num_layers     | int   | NUM_FC_LAYERS
+// num_units      | int   | NUM_FC_LAYERS + 2
 // activation_fun | int   | ACTIVATION_FUN
-// num_rows       | int   | NUM_LAYERS + 1
-// num_colums     | int   | NUM_LAYERS + 1
+// num_rows       | int   | NUM_FC_LAYERS + 1
+// num_colums     | int   | NUM_FC_LAYERS + 1
 // hid            | float | NUM_TEST_CASES * BIGGEST_ROW
 // hid_temp       | float | NUM_TEST_CASES * BIGGEST_ROW
 
-// int NUM_HIDDEN_UNITS[NUM_LAYERS] = { 79,74,71 };
-int NUM_HIDDEN_UNITS[NUM_LAYERS] = { 5 };
+// Network layer configuration.
+layer_type LAYER_TYPES[MAX_LAYERS] = {
+    INPUT, FC, FC, FC, OUTPUT
+};
+// Fully connected layer config.
+int NUM_HIDDEN_UNITS[NUM_FC_LAYERS] = { 256, 256, 256 };
+
+/*
+// Conv layer config: (kernel size, number of kernels)
+int CONV_LAYERS[NUM_CONV_LAYERS][2] = { { 3, 1 } };
+// Pool layer config: (pooling size, pooling stride)
+int POOL_LAYERS[NUM_CONV_LAYERS][2] = { { 2, 2 } };
+*/
+// Conv layer config: (kernel size, number of kernels)
+int CONV_LAYERS[NUM_CONV_LAYERS][2] = {};
+// Pool layer config: (pooling size, pooling stride)
+int POOL_LAYERS[NUM_CONV_LAYERS][2] = {};
 
 // Grab matrix n out of the doubly flattened w
 // (w is a flattened collection of matrices, each flattened)
@@ -50,14 +65,15 @@ grab_matrix_loop:    for (i = 0; i < n; i++) {
 #ifdef DMA_MODE
 void grab_matrix_dma(float* weights,
                      int layer,
-                     int* n_rows,
-                     int* n_columns) {
+                     layer_t* layers) {
     size_t offset = 0;
     int i;
-grab_matrix_dma_loop:    for (i = 0; i < layer; i++) {
-        offset += n_rows[i] * n_columns[i];
+    // Start from layer idx 1 (to skip the input layer).
+grab_matrix_dma_loop:    for (i = 1; i < layer; i++) {
+        offset += layers[i].input_rows * layers[i].input_cols;
     }
-    size_t size = n_rows[layer] * n_columns[layer] * sizeof(float);
+    size_t size =
+            layers[layer].input_rows * layers[layer].input_cols * sizeof(float);
     dmaLoad(weights, offset*sizeof(float), 0, size);
 }
 #endif
@@ -117,12 +133,17 @@ void convolution2d_no_padding(float* a,
 
     int i, j, k, l;
     int result_width = a_width - k_width + 1;
+    int result_height = a_height - k_width + 1;
 
+    // Convolution borders.
     int start_i = 0;
     int start_j = 0;
     int end_i = a_width - k_width + 1;
     int end_j = a_height - k_width + 1;
+
+    // Which kernel to read and where to put the output feature map.
     int start_k = k_width*k_width*k_idx;
+    int start_result = result_width * result_height * k_idx;
 
     float partial_sum;
 
@@ -137,7 +158,7 @@ void convolution2d_no_padding(float* a,
                                     kernels[sub2ind(k, l, k_width) + start_k]);
                 }
             }
-            result[sub2ind(i, j, result_width)] = partial_sum;
+            result[sub2ind(i, j, result_width) + start_result] = partial_sum;
         }
     }
 }
@@ -194,7 +215,11 @@ matmul2:            for (k = 0; k < a_width_b_height; k++) {
 
 // Multiply matrices a and b, assuming the last row of b are biases.
 //
-// So we expect a_width = b_height - 1.
+// Args:
+//   a_height = height of A matrix.
+//   b_height = height of the B matrix, which is also the width of the A matrix
+//     + 1.
+//   b_width = width of the B matrix.
 void matrix_multiply_with_bias(float* a,
                                float* b,
                                int a_height,
@@ -207,17 +232,19 @@ void matrix_multiply_with_bias(float* a,
     float partial_sum;
     float value;
 
+    int a_width = b_height - 1;
+
 matmulb0: for (i = 0; i < a_height; i++) {
 matmulb1: for (j = 0; j < b_width; j++) {
             // Initialize to zero
             partial_sum = 0;
-matmulb2: for (k = 0; k < b_height; k++) {
-                value = conv_float2fixed(a[sub2ind(i, k, b_height)]) *
+matmulb2: for (k = 0; k < a_width; k++) {
+                value = conv_float2fixed(a[sub2ind(i, k, a_width)]) *
                         conv_float2fixed(b[sub2ind(k, j, b_width)]);
                 partial_sum += value;
             }
-            // Add the bias.
-            partial_sum += conv_float2fixed(b[sub2ind(b_height, j, b_width)]);
+            // Add the bias (the index of the last row is the width of A).
+            partial_sum += conv_float2fixed(b[sub2ind(a_width, j, b_width)]);
             result[sub2ind(i, j, b_width)] = partial_sum;
         }
     }
@@ -237,6 +264,11 @@ void matrix_multiply_with_bias_and_copy(float* a,
 }
 
 // Multiply the matrices a and b, but assume that b has been transposed.
+//
+// Args:
+//   a_height = height of the A matrix.
+//   b_height = height of the UNTRANSPOSED B matrix.
+//   b_width = width of the UNTRANSPOSED B matrix.
 void matrix_multiply_with_bias_transpose(float* a,
                                          float* b,
                                          int a_height,
@@ -249,17 +281,19 @@ void matrix_multiply_with_bias_transpose(float* a,
     float partial_sum;
     float value;
 
+    int a_width = b_height - 1;
+
 matmulbt0: for (i = 0; i < a_height; i++) {
 matmulbt1: for (j = 0; j < b_width; j++) {
             // Initialize to zero
             partial_sum = 0;
-matmulbt2: for (k = 0; k < b_height; k++) {
-                value = conv_float2fixed(a[sub2ind(i, k, b_height)]) *
+matmulbt2: for (k = 0; k < a_width; k++) {
+                value = conv_float2fixed(a[sub2ind(i, k, a_width)]) *
                         conv_float2fixed(b[sub2ind(j, k, b_height)]);
                 partial_sum += value;
             }
             // Add the bias.
-            partial_sum += conv_float2fixed(b[sub2ind(j, b_height, b_height)]);
+            partial_sum += conv_float2fixed(b[sub2ind(j, a_width, b_height)]);
             result[sub2ind(i, j, b_width)] = partial_sum;
         }
     }
@@ -278,15 +312,25 @@ void activation_fun(float* hid, int size, float* sigmoid_table) {
 
 void conv_fwd(float* data,
               float* kernels,
-              int* num_units,
               int* num_rows,
               int* num_columns,
               float* hid,
               float* hid_temp,
               float* sigmoid_table) {
 
-    int k = 0;
-    convolution2d_zeropad(data, kernels, 28, 28, k, KERNEL_SIZE, hid, hid_temp);
+    int k, l;
+
+    int padding = 0;
+    for (l = 0; l < NUM_CONV_LAYERS; l++) {
+        // Zero pad every input feature map of this layer.
+        // Without pooling layers, each input feature map would be the same
+        // size as the input.
+        copy_zeropad(data, num_rows[l], num_columns[l], padding, hid_temp);
+        for (k = 0; k < NUM_KERNELS; k++) {
+            convolution2d_no_padding(
+                    hid_temp, kernels, INPUT_X, INPUT_Y, k, KERNEL_SIZE, hid);
+        }
+    }
     print_debug(hid, 28, 28, 28);
 }
 
@@ -295,102 +339,114 @@ void conv_fwd(float* data,
 // num_test_cases*num_labels
 void nnet_fwd(float* data,
               float* weights,
-              int* num_units,
-              int* num_rows,
-              int* num_columns,
+              layer_t* layers,
+              int num_layers,
               float* hid,
               float* hid_temp,
               float* sigmoid_table) {
 
-    int i, l;
+    int i, j, l;
 
-    if (DEBUG == 1) {
-        printf("\nDATA:\n");
+    if (PRINT_DATA_AND_WEIGHTS) {
+        printf("DATA:\n");
         for (i = 0; i < NUM_TEST_CASES; i++) {
             printf("Datum %d:\n", i);
-            for (l = 0; l < INPUT_DIM; l++) {
-                printf("%e, ", data[sub2ind(i, l, NUM_TEST_CASES)]);
+            for (j = 0; j < INPUT_DIM; j++) {
+                printf("%e, ", data[sub2ind(i, j, INPUT_DIM)]);
             }
             printf("\n");
         }
-
-        printf("\nWEIGHTS:\n\n");
-        for (l = 0; l < num_rows[0] * num_columns[0]; l++) {
-            printf("%f\n", weights[l]);
+        printf("\nWEIGHTS:\n");
+        for (i = 0; i < layers[1].input_rows; i++) {
+            for (j = 0; j < layers[1].input_cols; j++) {
+                printf("%f\n", weights[sub2ind(i, j, layers[1].input_cols)]);
+            }
         }
-        printf("\nEND WEIGHTS:\n\n");
+        printf("\nEND WEIGHTS\n");
     }
 
     // FORMAT HERE IS H TIMES W, NOT W TIMES H!!!!!
     // SO EACH DATA POINT IS A ***ROW****
 
+    l = 1;  // Skip the input layer.
 #ifdef DMA_MODE
-    dmaLoad(data, 0, 0, NUM_TEST_CASES*INPUT_DIM*sizeof(float));
-    grab_matrix_dma(weights, 0, num_rows, num_columns);
+    dmaLoad(data, 0, 0, NUM_TEST_CASES * INPUT_DIM * sizeof(float));
+    grab_matrix_dma(weights, l, layers);
 #else
-    // Don't need to grab 0th matrix.
+// Don't need to grab 0th matrix.
 #endif
 
-    // FIRST LAYER. hid should be num_test_cases x num_units[1]
-    matrix_multiply_with_bias_transpose(
-            data, weights, NUM_TEST_CASES, num_units[0], num_units[1], hid);
+    // FIRST LAYER.
+    MATRIX_MULTIPLY_WITH_BIAS(data, weights, NUM_TEST_CASES,
+                              layers[l].input_rows, layers[l].input_cols, hid);
 
     // Rows to print, cols to print, number of cols
-    PRINT_DEBUG(hid, NUM_TEST_CASES, num_units[1], num_units[1]);
+    PRINT_DEBUG(
+            hid, NUM_TEST_CASES, layers[l].input_cols, layers[l].input_cols);
 
     // Pass through activation function
-    activation_fun(hid, NUM_TEST_CASES * num_units[1], sigmoid_table);
+    activation_fun(hid, NUM_TEST_CASES * layers[l].input_cols, sigmoid_table);
 
-    PRINT_DEBUG(hid, NUM_TEST_CASES, num_units[1], num_units[1]);
+    PRINT_DEBUG(
+            hid, NUM_TEST_CASES, layers[l].input_cols, layers[l].input_cols);
 
-nnet_fwd_layer_loop:    for (l = 1; l < NUM_LAYERS; l++) {
-        // Get hidden activations
+    // This inner loop goes until the SECOND TO LAST layer. The last layer is
+    // handled differently.
+nnet_fwd_layer_loop:
+    for (l = 2; l < num_layers - 1; l++) {
+// Get hidden activations
 #ifdef DMA_MODE
-        grab_matrix_dma(weights, l, num_rows, num_columns);
+        grab_matrix_dma(weights, l, layers);
 #endif
         // Alternate between reading from hid and hid_temp so we can avoid
         // copying matrices. Odd layers must read from hid since that's where
         // the first layer puts the output.
-        if (l % 2 == 0) {
-            matrix_multiply_with_bias_transpose(hid_temp, weights,
-                                                NUM_TEST_CASES, num_units[l],
-                                                num_units[l + 1], hid);
-            PRINT_DEBUG(hid, NUM_TEST_CASES, num_units[l + 1], num_units[l + 1]);
+        if (l % 2 == 1) {
+            MATRIX_MULTIPLY_WITH_BIAS(hid_temp, weights, NUM_TEST_CASES,
+                                      layers[l].input_rows,
+                                      layers[l].input_cols, hid);
+            PRINT_DEBUG(hid, NUM_TEST_CASES, layers[l].input_cols,
+                        layers[l].input_cols);
             // Pass through activation function
-            activation_fun(hid, NUM_TEST_CASES * num_units[l + 1], sigmoid_table);
-            PRINT_DEBUG(hid, NUM_TEST_CASES, num_units[l + 1], num_units[l + 1]);
+            activation_fun(
+                    hid, NUM_TEST_CASES * layers[l].input_cols, sigmoid_table);
+            PRINT_DEBUG(hid, NUM_TEST_CASES, layers[l].input_cols,
+                        layers[l].input_cols);
         } else {
-            matrix_multiply_with_bias_transpose(hid, weights, NUM_TEST_CASES,
-                                                num_units[l], num_units[l + 1],
-                                                hid_temp);
-            PRINT_DEBUG(hid_temp, NUM_TEST_CASES, num_units[l + 1], num_units[l + 1]);
+            MATRIX_MULTIPLY_WITH_BIAS(hid, weights, NUM_TEST_CASES,
+                                      layers[l].input_rows,
+                                      layers[l].input_cols, hid_temp);
+            PRINT_DEBUG(hid_temp, NUM_TEST_CASES, layers[l].input_cols,
+                        layers[l].input_cols);
             // Pass through activation function
-            activation_fun(hid_temp, NUM_TEST_CASES * num_units[l + 1], sigmoid_table);
-            PRINT_DEBUG(hid_temp, NUM_TEST_CASES, num_units[l + 1], num_units[l + 1]);
+            activation_fun(hid_temp, NUM_TEST_CASES * layers[l].input_cols,
+                           sigmoid_table);
+            PRINT_DEBUG(hid_temp, NUM_TEST_CASES, layers[l].input_cols,
+                        layers[l].input_cols);
         }
     }
 
 #ifdef DMA_MODE
-    grab_matrix_dma(weights, NUM_LAYERS, num_rows, num_columns);
+    grab_matrix_dma(weights, l, layers);
 #endif
-    if (NUM_LAYERS % 2 == 0) {
-        matrix_multiply_with_bias_transpose(hid_temp, weights, NUM_TEST_CASES,
-                                            num_units[NUM_LAYERS],
-                                            num_units[NUM_LAYERS + 1], hid);
+    if (l % 2 == 1) {
+        MATRIX_MULTIPLY_WITH_BIAS(hid_temp, weights, NUM_TEST_CASES,
+                                  layers[l].input_rows,
+                                  layers[l].input_cols, hid);
         PRINT_DEBUG(hid, NUM_TEST_CASES, NUM_CLASSES, NUM_CLASSES);
     } else {
-        matrix_multiply_with_bias_transpose(
-                hid, weights, NUM_TEST_CASES, num_units[NUM_LAYERS],
-                num_units[NUM_LAYERS + 1], hid_temp);
+        MATRIX_MULTIPLY_WITH_BIAS(hid, weights, NUM_TEST_CASES,
+                                  layers[l].input_rows,
+                                  layers[l].input_cols, hid_temp);
         PRINT_DEBUG(hid_temp, NUM_TEST_CASES, NUM_CLASSES, NUM_CLASSES);
     }
-    // hid now contains the output
+    // hid or hid_temp now contains the output
 
     // we now apply the softmax to turn the outputs into class probabilities
-    // softmax(hid, NUM_TEST_CASES, num_units[NUM_LAYERS+1]);
+    // softmax(hid, NUM_TEST_CASES, num_units[NUM_FC_LAYERS+1]);
     // PRINT_DEBUG(hid, 10, NUM_CLASSES, NUM_CLASSES);
 #ifdef DMA_MODE
-    if (NUM_LAYERS % 2 == 0)
+    if (l % 2 == 1)
         dmaStore(hid, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
     else
         dmaStore(hid_temp, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
@@ -401,8 +457,138 @@ size_t next_multiple(size_t request, size_t align) {
   size_t n = request/align;
   if (n == 0)
     return align;  // Return at least this many bytes.
-  size_t remainder = n*align - request;
-  return request + remainder;
+  return (n+1)*align;
+}
+
+int configure_network(layer_t** layers_ptr) {
+    int i, err;
+    int last_conv_layer = 0, last_pool_layer = 0, last_fc_layer = 0;
+    int next_input_width, next_input_height;
+    int total_layers = 0;
+
+    // I assume total layers is at most one pooling layer per conv layer, plus
+    // all FC layers, plus 1 (output).
+    err = posix_memalign(
+            (void**)layers_ptr, CACHELINE_SIZE,
+            next_multiple(
+                    sizeof(layer_t) * (NUM_CONV_LAYERS * 2 + NUM_FC_LAYERS + 1),
+                    CACHELINE_SIZE));
+    ASSERT_MEMALIGN(layers_ptr, err);
+
+    layer_t* layers = *layers_ptr;
+
+    next_input_width = INPUT_X;
+    next_input_height = INPUT_Y;
+    for (i = 0; i < MAX_LAYERS; i ++) {
+        layers[i].type = LAYER_TYPES[i];
+        if (layers[i].type == INPUT) {
+            assert(i == 0 && "Input layer must be the first layer!");
+            layers[i].input_rows = INPUT_Y;
+            layers[i].input_cols = INPUT_X;
+
+            if (LAYER_TYPES[i+1] == FC) {
+                layers[i].output_rows = NUM_TEST_CASES;
+                layers[i].output_cols = INPUT_X * INPUT_Y;
+            } else {
+                layers[i].output_rows = INPUT_Y;
+                layers[i].output_cols = INPUT_X;
+            }
+        } else if (layers[i].type == CONV) {
+            layers[i].c_kernel_size = CONV_LAYERS[i][0];
+            layers[i].c_num_kernels = CONV_LAYERS[i][1];
+            layers[i].input_rows = layers[i-1].output_rows;
+            layers[i].input_cols = layers[i-1].output_cols;
+            layers[i].output_rows = layers[i].input_rows;
+            layers[i].output_cols = layers[i].input_cols;
+            last_conv_layer++;
+        } else if (layers[i].type == POOL_MAX) {
+            // Assume that the first layer will not be a pooling layer.
+            layers[i].p_size = POOL_LAYERS[last_pool_layer][0];
+            layers[i].p_stride = POOL_LAYERS[last_pool_layer][1];
+            layers[i].input_rows = layers[i-1].output_rows;
+            layers[i].input_cols = layers[i-1].output_cols;
+            layers[i].output_rows = ((layers[i].input_rows - layers[i].p_size) /
+                                     layers[i].p_stride) + 1;
+            layers[i].output_cols = ((layers[i].input_cols - layers[i].p_size) /
+                                     layers[i].p_stride) + 1;
+            last_pool_layer++;
+        } else if (layers[i].type == FLATTEN) {
+            layers[i].input_rows = layers[i-1].input_rows;
+            layers[i].input_cols = layers[i-1].input_cols;
+            // TODO: Is this right?
+            layers[i].output_rows = layers[i].input_rows * layers[i].input_cols;
+            layers[i].output_cols = 1;
+        } else if (layers[i].type == FC) {
+            layers[i].input_rows = layers[i-1].output_cols + 1;
+            layers[i].input_cols = NUM_HIDDEN_UNITS[last_fc_layer];
+
+            // The next layer's input rows is the number of this layer's columns + 1.
+            layers[i].output_cols = layers[i].input_cols;
+            layers[i].output_rows = -1;  // Not used.
+            last_fc_layer++;
+        } else if (layers[i].type == OUTPUT) {
+            // Assume that the last layer must be fully connected.
+            layers[i].input_rows = layers[i-1].output_cols + 1;
+            layers[i].input_cols = NUM_CLASSES;
+
+            layers[i].output_cols = NUM_CLASSES;
+            layers[i].output_rows = -1;  // Not used.
+
+            // This is the last layer. Break.
+            total_layers = ++i;
+            break;
+        } else {
+            printf("Layer %d is an unsupported type!\n", i);
+            assert(false);
+        }
+    }
+
+    // Helpfully print out the network topology.
+    for (i = 0; i < total_layers; i++) {
+        layer_type type = layers[i].type;
+        printf("Layer %d: ", i);
+        if (type == CONV) {
+            printf("Convolutional\n");
+            printf("  Input size: %d x %d\n", layers[i].input_rows,
+                   layers[i].input_cols);
+            printf("  Output size: %d x %d\n", layers[i].output_rows,
+                   layers[i].output_cols);
+            printf("  Kernel size: %d x %d\n", layers[i].c_kernel_size,
+                   layers[i].c_kernel_size);
+            printf("  Num kernels: %d\n", layers[i].c_num_kernels);
+        } else if (type == FC) {
+            printf("Fully connected\n");
+            printf("  Weights: %d x %d\n", layers[i].input_rows,
+                   layers[i].input_cols);
+        } else if (type == POOL_MAX) {
+            printf("Max pooling\n");
+            printf("  Input size: %d x %d\n", layers[i].input_rows,
+                   layers[i].input_cols);
+            printf("  Output size: %d x %d\n", layers[i].output_rows,
+                   layers[i].output_cols);
+            printf("  Field size: %d\n", layers[i].p_size);
+            printf("  Stride: %d\n", layers[i].p_stride);
+        } else if (type == SOFTMAX) {
+            printf("Softmax\n");
+        } else if (type == FLATTEN) {
+            printf("Flatten\n");
+            printf("  Input size: %d x %d\n", layers[i].input_rows,
+                   layers[i].input_cols);
+            printf("  Output size: %d x %d\n", layers[i].output_rows,
+                   layers[i].output_cols);
+        } else if (type == INPUT) {
+            printf("Input layer\n");
+            printf("  Input size: %d x %d\n", layers[i].input_rows,
+                   layers[i].input_cols);
+            printf("  Output size: %d x %d\n", layers[i].output_rows,
+                   layers[i].output_cols);
+        } else if (type == OUTPUT) {
+            printf("Output layer\n");
+            printf("  Weights: %d x %d\n", layers[i].input_rows,
+                   layers[i].input_cols);
+        }
+    }
+    return total_layers;
 }
 
 // This is the thing that we want to be good at in hardware
@@ -410,40 +596,22 @@ int main(int argc, const char* argv[]) {
     // set random seed (need to #include <time.h>)
     srand(1);
 
-    int i;
-    int num_units[NUM_LAYERS + 2];
+    layer_t* layers;
+    int total_layers = configure_network(&layers);
 
-    num_units[0] = INPUT_DIM;  // input dimensionality
-    for (i = 1; i <= NUM_LAYERS; i++) {
-        num_units[i] = NUM_HIDDEN_UNITS[i - 1];
-    }
-    num_units[NUM_LAYERS + 1] = NUM_CLASSES;  // number of classes
+    int i;
 
     bool RANDOM_WEIGHTS = true;
     bool RANDOM_DATA = true;
 
-    // We have NUM_LAYERS weight matrices, sizes are given in num_units
-    // NOTE: we do not necessarily need full precision here in the weights
-    // ...............
-    size_t w_size = 0;                   // number of weights total
-    int num_rows[NUM_LAYERS + 1];     // the sizes of each weight matrix
-    int num_columns[NUM_LAYERS + 1];  // ""
-    for (i = 0; i < NUM_LAYERS + 1; i++) {
-        printf("Weight matrix %d has size (%d, %d)\n", i, num_units[i] + 1,
-               num_units[i + 1]);
-        num_columns[i] = num_units[i] + 1;  // For the bias
-        num_rows[i] = num_units[i + 1];
-        w_size += num_columns[i] * num_rows[i];
-    }
-    printf("Network has %lu weights in total.\n", w_size);
-
     // Initialize weights, data, and labels.
     float* weights;
     int err;
+    int w_size = get_total_num_weights(layers, total_layers);
     err = posix_memalign((void**)&weights, CACHELINE_SIZE,
                          next_multiple(w_size * sizeof(float), CACHELINE_SIZE));
     ASSERT_MEMALIGN(weights, err);
-    init_weights(weights, w_size, RANDOM_WEIGHTS);
+    init_weights(weights, layers, total_layers, RANDOM_WEIGHTS, TRANSPOSE_WEIGHTS);
 
     float* data;
     int* labels;
@@ -469,16 +637,15 @@ int main(int argc, const char* argv[]) {
     printf("Data has %lu elements.\n", data_size);
 
     // Get the dimensions of the biggest matrix that will ever come out of
-    // matrix_multiply. All of them will have NUM_TEST_CASES columns. So I just
-    // find the biggest number of rows.
+    // matrix_multiply. All of them will have NUM_TEST_CASES rows. So I just
+    // find the biggest number of columns.
     printf("Setting up arrays\n");
-    int biggest_rows = num_units[1];
-    for (i = 2; i < NUM_LAYERS + 2; i++) {
-        if (num_units[i] > biggest_rows) {
-            biggest_rows = num_units[i];
-        }
+    int biggest_cols = 0;
+    for (i = 1; i < total_layers; i++) {
+        if (layers[i].input_cols > biggest_cols)
+            biggest_cols = layers[i].input_cols;
     }
-    printf("Largest hidden/output layer: %d\n", biggest_rows);
+    printf("Largest hidden/output layer: %d\n", biggest_cols);
     fflush(stdout);
 
     // Then, allocate memory for it. We will always place the result of our
@@ -487,7 +654,8 @@ int main(int argc, const char* argv[]) {
     // Mapped to its own scratchpad.
     float* hid;
     float* hid_temp;
-    size_t hid_size = NUM_TEST_CASES * biggest_rows;
+    size_t hid_size = NUM_TEST_CASES * biggest_cols;
+    hid_size = NUM_TEST_CASES * 34 * 34;
     err = posix_memalign(
             (void**)&hid, CACHELINE_SIZE,
             next_multiple(hid_size * sizeof(float), CACHELINE_SIZE));
@@ -528,7 +696,7 @@ int main(int argc, const char* argv[]) {
             INTEGRATION_TEST, "hid", hid, hid_size * sizeof(float));
     mapArrayToAccelerator(
             INTEGRATION_TEST, "hid_temp", hid_temp, hid_size * sizeof(float));
-    // sigmoid_table, num_units, num_rows, and num_columns I consider as
+    // sigmoid_table, num_units, num_fc_rows, and num_columns I consider as
     // configuration, which is really one-time (compared to data and weights
     // which may need to be reloaded multiple times for the same network).
     // They're small enough that they should be completely partitioned, and
@@ -538,8 +706,12 @@ int main(int argc, const char* argv[]) {
 #else
     // Run a forward pass through the neural net
     printf("Running forward pass\n");
-    nnet_fwd(data, weights, num_units, num_rows, num_columns, hid, hid_temp,
-             sigmoid_table);  // The function being synthesized
+    /*
+    conv_fwd(data, kernels, num_conv_rows, num_conv_columns, hid,
+             hid_temp, sigmoid_table);
+             */
+    // The function being synthesized
+    nnet_fwd(data, weights, layers, total_layers, hid, hid_temp, sigmoid_table);
 #endif
 
     // "hid" now contains the outputs
@@ -551,7 +723,7 @@ int main(int argc, const char* argv[]) {
             num_to_print < NUM_TEST_CASES ? num_to_print : NUM_TEST_CASES;
 
     // Compute the classification error rate
-    float* result = NUM_LAYERS % 2 == 0 ? hid : hid_temp;
+    float* result = NUM_FC_LAYERS % 2 == 0 ? hid : hid_temp;
     int num_errors = 0;
     for (i = 0; i < NUM_TEST_CASES; i++) {
         if (arg_max(result + i * NUM_CLASSES, NUM_CLASSES, 1) != labels[i]) {
@@ -580,4 +752,5 @@ int main(int argc, const char* argv[]) {
     free(data);
     free(labels);
     free(kernels);
+    free(layers);
 }

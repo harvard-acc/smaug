@@ -3,7 +3,11 @@
 
 #include <stdbool.h>
 
-void init_weights(float* weights, size_t w_size, bool random);
+void init_weights(float* weights,
+                  layer_t* layers,
+                  int num_layers,
+                  bool random,
+                  bool transpose);
 void init_data(float* data,
                size_t num_test_cases,
                size_t input_dim,

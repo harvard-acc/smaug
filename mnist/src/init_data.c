@@ -12,16 +12,34 @@ void init_kernels(float* kernels, size_t k_size) {
         kernels[i] = conv_float2fixed(randfloat() - 0.5);
 }
 
-void init_weights(float* weights, size_t w_size, bool random) {
-    int i, ret_f_scanf;
+void init_weights(float* weights,
+                  layer_t* layers,
+                  int num_layers,
+                  bool random,
+                  bool transpose) {
+    int i, j, l, w_size, w_offset, ret_f_scanf;
+    float val;
+
+    w_offset = 0;
     if (random) {
         // Randomly initialize weights
         printf("Initializing weights randomly\n");
 
-        for (i = 0; i < w_size; i++) {
-            weights[i] = conv_float2fixed((randfloat() - 0.5) *
-                                          10);  // Question: does nan output
-                                                // take longer in simulation?
+        for (l = 0; l < num_layers; l++) {
+            if (layers[l].type != FC && layers[l].type != OUTPUT)
+                continue;
+            for (i = 0; i < layers[l].input_rows; i++) {
+                for (j = 0; j < layers[l].input_cols; j++) {
+                    val = conv_float2fixed((randfloat() - 0.5) *
+                                           10);  // Question: does nan output
+                                                 // take longer in simulation?
+                    if (transpose)
+                        weights[sub2ind(j, i, layers[l].input_rows) + w_offset] = val;
+                    else
+                        weights[sub2ind(i, j, layers[l].input_cols) + w_offset] = val;
+                }
+            }
+            w_offset += layers[l].input_rows * layers[l].input_cols;
         }
         // NOTE: FOR SIGMOID ACTIVATION FUNCTION, WEIGHTS SHOULD BE BIG
         // Otherwise everything just becomes ~0.5 after sigmoid, and results are
@@ -29,6 +47,7 @@ void init_weights(float* weights, size_t w_size, bool random) {
     } else {
         // Read in the weights
         printf("Reading in weights from %s\n", WEIGHTS_FILENAME);
+        w_size = get_total_num_weights(layers, num_layers);
 
         FILE* weights_file;
         weights_file = fopen(WEIGHTS_FILENAME, "r");
