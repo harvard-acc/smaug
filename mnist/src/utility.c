@@ -62,6 +62,27 @@ arg_min_loop:    for (i = 1; i < size; i++) {
     return min_ind;
 }
 
+// Get the dimensions of this layer's weights.
+//
+// Store them into @num_rows and @num_cols.
+void get_weights_dims_layer(layer_t* layers,
+                           int l,
+                           int* num_rows,
+                           int* num_cols) {
+
+    if (layers[l].type == FC) {
+        *num_rows = layers[l].input_rows;
+        *num_cols = layers[l].input_cols;
+    } else if (layers[l].type == CONV) {
+        *num_rows = layers[l].c_kernel_size;
+        *num_cols = layers[l].c_kernel_size;
+    } else {
+        *num_rows = 0;
+        *num_cols = 0;
+    }
+}
+
+// Get the total number of weights for layer @l in the network.
 int get_num_weights_layer(layer_t* layers, int l) {
     if (layers[l].type == FC)
         return layers[l].input_rows * layers[l].input_cols;
@@ -72,6 +93,7 @@ int get_num_weights_layer(layer_t* layers, int l) {
         return 0;
 }
 
+// Get the total number of weights for the entire network.
 int get_total_num_weights(layer_t* layers, int num_layers) {
     int l;
     int w_size = 0;
@@ -81,6 +103,7 @@ int get_total_num_weights(layer_t* layers, int num_layers) {
     return w_size;
 }
 
+// Returns true if this layer is not actually supposed to be executed.
 bool is_dummy_layer(layer_t* layers, int l) {
     switch (layers[l].type) {
         case FLATTEN:

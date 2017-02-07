@@ -467,7 +467,10 @@ size_t next_multiple(size_t request, size_t align) {
   size_t n = request/align;
   if (n == 0)
     return align;  // Return at least this many bytes.
-  return (n+1)*align;
+  size_t remainder = request - n*align;
+  if (remainder)
+      return (n+1)*align;
+  return request;
 }
 
 size_t calc_layer_intermediate_memory(layer_t layer) {

@@ -10,7 +10,8 @@ void init_weights(float* weights,
                   int num_layers,
                   bool random,
                   bool transpose) {
-    int i, j, l, w_size, w_offset, ret_f_scanf;
+    int i, j, l, w_size, ret_f_scanf;
+    int w_rows, w_cols, w_offset;
     float val;
 
     w_offset = 0;
@@ -21,8 +22,9 @@ void init_weights(float* weights,
         for (l = 0; l < num_layers; l++) {
             if (is_dummy_layer(layers, l))
                 continue;
-            for (i = 0; i < layers[l].input_rows; i++) {
-                for (j = 0; j < layers[l].input_cols; j++) {
+            get_weights_dims_layer(layers, l, &w_rows, &w_cols);
+            for (i = 0; i < w_rows; i++) {
+                for (j = 0; j < w_cols; j++) {
                     val = conv_float2fixed((randfloat() - 0.5) *
                                            10);  // Question: does nan output
                                                  // take longer in simulation?
@@ -32,7 +34,7 @@ void init_weights(float* weights,
                         weights[sub2ind(i, j, layers[l].input_cols) + w_offset] = val;
                 }
             }
-            w_offset += layers[l].input_rows * layers[l].input_cols;
+            w_offset += w_rows * w_cols;
         }
         // NOTE: FOR SIGMOID ACTIVATION FUNCTION, WEIGHTS SHOULD BE BIG
         // Otherwise everything just becomes ~0.5 after sigmoid, and results are
