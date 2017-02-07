@@ -334,6 +334,33 @@ void conv_fwd(float* data,
     print_debug(hid, 28, 28, 28);
 }
 
+void run_layer(float* activations,
+               float* weights,
+               layer_t curr_layer,
+               float* result,
+               float* sigmoid_table,
+               bool do_activation_func) {
+
+    layer_type l_type = curr_layer.type;
+    if (l_type == FC || l_type == OUTPUT) {
+        MATRIX_MULTIPLY_WITH_BIAS(activations, weights, NUM_TEST_CASES,
+                                  curr_layer.input_rows, curr_layer.input_cols,
+                                  result);
+    }
+
+    PRINT_DEBUG(result, NUM_TEST_CASES, curr_layer.input_rows,
+                curr_layer.input_cols);
+
+    if (do_activation_func) {
+        // Pass through activation function
+        activation_fun(
+                result, NUM_TEST_CASES * curr_layer.input_cols, sigmoid_table);
+
+        PRINT_DEBUG(result, NUM_TEST_CASES, curr_layer.input_cols,
+                    curr_layer.input_cols);
+    }
+}
+
 // Does the forward predictive pass of a neural net.
 // Returns a float array of class predictions in row major format of size
 // num_test_cases*num_labels
@@ -346,6 +373,11 @@ void nnet_fwd(float* data,
               float* sigmoid_table) {
 
     int i, j, l;
+
+    // Alternate between reading from/writing to hid and hid_temp so we can
+    // avoid copying matrices.
+    bool result_in_temp = false;
+    bool do_activation_func = true;
 
     if (PRINT_DATA_AND_WEIGHTS) {
         printf("DATA:\n");
@@ -376,80 +408,39 @@ void nnet_fwd(float* data,
 // Don't need to grab 0th matrix.
 #endif
 
-    // FIRST LAYER.
-    MATRIX_MULTIPLY_WITH_BIAS(data, weights, NUM_TEST_CASES,
-                              layers[l].input_rows, layers[l].input_cols, hid);
+    ///////////////////////////////
+    /////     FIRST LAYER      ////
+    ///////////////////////////////
 
-    // Rows to print, cols to print, number of cols
-    PRINT_DEBUG(
-            hid, NUM_TEST_CASES, layers[l].input_cols, layers[l].input_cols);
+    // First layer must directly pass "data" as the function argument.
+    run_layer(data, weights, layers[l], hid, sigmoid_table, do_activation_func);
 
-    // Pass through activation function
-    activation_fun(hid, NUM_TEST_CASES * layers[l].input_cols, sigmoid_table);
+    ////////////////////////////////
+    ////    REMAINING LAYERS    ////
+    ////////////////////////////////
 
-    PRINT_DEBUG(
-            hid, NUM_TEST_CASES, layers[l].input_cols, layers[l].input_cols);
+    for (l = 2; l < num_layers; l++) {
+        // Don't run the activation function on the last layer.
+        do_activation_func = (l != num_layers - 1);
 
-    // This inner loop goes until the SECOND TO LAST layer. The last layer is
-    // handled differently.
-nnet_fwd_layer_loop:
-    for (l = 2; l < num_layers - 1; l++) {
-// Get hidden activations
 #ifdef DMA_MODE
         grab_matrix_dma(weights, l, layers);
 #endif
-        // Alternate between reading from hid and hid_temp so we can avoid
-        // copying matrices. Odd layers must read from hid since that's where
-        // the first layer puts the output.
-        if (l % 2 == 1) {
-            MATRIX_MULTIPLY_WITH_BIAS(hid_temp, weights, NUM_TEST_CASES,
-                                      layers[l].input_rows,
-                                      layers[l].input_cols, hid);
-            PRINT_DEBUG(hid, NUM_TEST_CASES, layers[l].input_cols,
-                        layers[l].input_cols);
-            // Pass through activation function
-            activation_fun(
-                    hid, NUM_TEST_CASES * layers[l].input_cols, sigmoid_table);
-            PRINT_DEBUG(hid, NUM_TEST_CASES, layers[l].input_cols,
-                        layers[l].input_cols);
+
+        if (result_in_temp) {
+          run_layer(hid_temp, weights, layers[l], hid, sigmoid_table, do_activation_func);
         } else {
-            MATRIX_MULTIPLY_WITH_BIAS(hid, weights, NUM_TEST_CASES,
-                                      layers[l].input_rows,
-                                      layers[l].input_cols, hid_temp);
-            PRINT_DEBUG(hid_temp, NUM_TEST_CASES, layers[l].input_cols,
-                        layers[l].input_cols);
-            // Pass through activation function
-            activation_fun(hid_temp, NUM_TEST_CASES * layers[l].input_cols,
-                           sigmoid_table);
-            PRINT_DEBUG(hid_temp, NUM_TEST_CASES, layers[l].input_cols,
-                        layers[l].input_cols);
+          run_layer(hid, weights, layers[l], hid_temp, sigmoid_table, do_activation_func);
         }
+
+        result_in_temp = !result_in_temp;
     }
 
 #ifdef DMA_MODE
-    grab_matrix_dma(weights, l, layers);
-#endif
-    if (l % 2 == 1) {
-        MATRIX_MULTIPLY_WITH_BIAS(hid_temp, weights, NUM_TEST_CASES,
-                                  layers[l].input_rows,
-                                  layers[l].input_cols, hid);
-        PRINT_DEBUG(hid, NUM_TEST_CASES, NUM_CLASSES, NUM_CLASSES);
-    } else {
-        MATRIX_MULTIPLY_WITH_BIAS(hid, weights, NUM_TEST_CASES,
-                                  layers[l].input_rows,
-                                  layers[l].input_cols, hid_temp);
-        PRINT_DEBUG(hid_temp, NUM_TEST_CASES, NUM_CLASSES, NUM_CLASSES);
-    }
-    // hid or hid_temp now contains the output
-
-    // we now apply the softmax to turn the outputs into class probabilities
-    // softmax(hid, NUM_TEST_CASES, num_units[NUM_FC_LAYERS+1]);
-    // PRINT_DEBUG(hid, 10, NUM_CLASSES, NUM_CLASSES);
-#ifdef DMA_MODE
-    if (l % 2 == 1)
-        dmaStore(hid, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
-    else
+    if (result_in_temp)
         dmaStore(hid_temp, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
+    else
+        dmaStore(hid, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
 #endif
 }
 

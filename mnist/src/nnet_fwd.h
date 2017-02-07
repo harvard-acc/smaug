@@ -34,7 +34,7 @@
 // access pattern is strided in the same way as the activations, which is
 // beneficial for increasing memory level parallelism (by reducing the number
 // of consecutive references to the same partition of a scratchpad).
-// 
+//
 // This can also be defined from the build command.
 #ifndef TRANSPOSE_WEIGHTS
 #define TRANSPOSE_WEIGHTS 0
