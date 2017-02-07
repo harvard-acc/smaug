@@ -2,6 +2,7 @@
 #define _NNET_FWD_H_
 
 #include <math.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -11,18 +12,16 @@
 #define INPUT_Y 28
 #define INPUT_DIM (INPUT_X * INPUT_Y)
 #define NUM_CLASSES 10
-#define NUM_KERNELS 5
-#define KERNEL_SIZE 3
 // number of stored points in sigmoid lookup table
 #define LG_SIGMOID_COARSENESS 4
-#define NUM_TEST_CASES 100    // NOT READ BY nnet_fwd.c, ONLY BY the other one
+#define NUM_TEST_CASES 1      // NOT READ BY nnet_fwd.c, ONLY BY the other one
 #define SIG_MIN -5            // lower input bound for sigmoid lookup table
 #define SIG_MAX +5            // upper input bound for sigmoid lookup table
 
 // Parameters for optimization
 #define NUM_FC_LAYERS 3
-#define NUM_CONV_LAYERS 0
-#define MAX_LAYERS ((NUM_CONV_LAYERS)*2 + NUM_FC_LAYERS + 2)
+#define NUM_CONV_LAYERS 1
+#define MAX_LAYERS ((NUM_CONV_LAYERS)*2 + NUM_FC_LAYERS + 3)
 
 #define ACTIVATION_FUN 0  // categorical, 0=RELU 1=sigmoid lookup 2=true sigmoid
 #define NUM_OF_INT_BITS                                                        \
@@ -152,6 +151,9 @@ typedef struct _layer_t {
   // for POOL layers only.
   int p_size;
   int p_stride;
+
+  // Where are the class predictions stored, hid or hid_temp?
+  bool result_in_temp;
 } layer_t;
 
 #endif

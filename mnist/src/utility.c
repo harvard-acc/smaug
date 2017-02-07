@@ -62,13 +62,31 @@ arg_min_loop:    for (i = 1; i < size; i++) {
     return min_ind;
 }
 
+int get_num_weights_layer(layer_t* layers, int l) {
+    if (layers[l].type == FC)
+        return layers[l].input_rows * layers[l].input_cols;
+    else if (layers[l].type == CONV)
+        return layers[l].c_num_kernels * layers[l].c_kernel_size *
+               layers[l].c_kernel_size;
+    else
+        return 0;
+}
+
 int get_total_num_weights(layer_t* layers, int num_layers) {
     int l;
     int w_size = 0;
     for (l = 0; l < num_layers; l++) {
-        if (layers[l].type != FC && layers[l].type != OUTPUT)
-            continue;
-        w_size += layers[l].input_rows * layers[l].input_cols;
+        w_size += get_num_weights_layer(layers, l);
     }
     return w_size;
+}
+
+bool is_dummy_layer(layer_t* layers, int l) {
+    switch (layers[l].type) {
+        case FLATTEN:
+        case INPUT:
+            return true;
+        default:
+            return false;
+    }
 }

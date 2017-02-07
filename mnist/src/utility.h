@@ -1,12 +1,16 @@
 #ifndef _UTILITY_H_
 #define _UTILITY_H_
 
+#include <stdbool.h>
+
 float randfloat();
 void clear_matrix(float* input, int size);
 void copy_matrix(float* input, float* output, int size);
 int arg_max(float* input, int size, int increment);
 int arg_min(float* input, int size, int increment);
+int get_num_weights_layer(layer_t* layers, int l);
 int get_total_num_weights(layer_t* layers, int num_layers);
+bool is_dummy_layer(layer_t* layers, int l);
 
 #ifdef BITWIDTH_REDUCTION
 // Don't add this function unless we want to model bit width quantization

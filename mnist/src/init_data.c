@@ -5,13 +5,6 @@
 #include "utility.h"
 #include "init_data.h"
 
-void init_kernels(float* kernels, size_t k_size) {
-    int i;
-
-    for (i = 0; i < k_size; i++)
-        kernels[i] = conv_float2fixed(randfloat() - 0.5);
-}
-
 void init_weights(float* weights,
                   layer_t* layers,
                   int num_layers,
@@ -26,7 +19,7 @@ void init_weights(float* weights,
         printf("Initializing weights randomly\n");
 
         for (l = 0; l < num_layers; l++) {
-            if (layers[l].type != FC && layers[l].type != OUTPUT)
+            if (is_dummy_layer(layers, l))
                 continue;
             for (i = 0; i < layers[l].input_rows; i++) {
                 for (j = 0; j < layers[l].input_cols; j++) {
