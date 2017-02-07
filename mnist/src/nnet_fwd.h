@@ -52,6 +52,8 @@
 ////   USER TUNABLE PARAMETERS END HERE   ////
 //////////////////////////////////////////////
 
+#define max(A, B) (((A) > (B)) ? (A) : (B))
+
 // Based on whether the weights matrix is transposed or not, use a different
 // multiplication kernel.
 #if TRANSPOSE_WEIGHTS == 1
@@ -60,7 +62,17 @@
 #define MATRIX_MULTIPLY_WITH_BIAS matrix_multiply_with_bias
 #endif
 
+// 2D indexing into a flattened array.
+//
+// This assumes data is stored in row major order.
 #define sub2ind(r, c, n_columns) ((r) * (n_columns) + (c))
+
+// 3D indexing into a flattened array.
+//
+// This assumes the data structure is a stack of 2D matrices, where h is the
+// desired depth of the stack.
+#define sub3ind(r, c, h, n_rows, n_cols)                                       \
+    (sub2ind(r, c, n_cols) + h * (n_rows * n_cols))
 
 #if DEBUG == 1
 #define PRINT_DEBUG(hid, rows, cols, num_cols)                                 \
@@ -84,7 +96,6 @@
     "/home/jmh/projects/pesc_hardware/HardwareNets/../mnist/"                  \
     "mnist_textual_weights.txt"
 
-
 typedef struct _conv2d_layer {
   int layer_idx;
   int num_kernels;
@@ -103,10 +114,11 @@ typedef enum _layer_type {
     CONV,
     POOL_MAX,
     POOL_AVG,
+    // TODO: Remove.
     FLATTEN,  // Flatten previous output into a column vector (for FC layers).
     FC,
     INPUT,  // First layer (skipped during execution).
-    OUTPUT,  // Output label layer (and also the implied end).
+    OUTPUT,  // Output label layer (and also the implicit last layer).
     SOFTMAX
 } layer_type;
 
@@ -114,15 +126,17 @@ typedef struct _layer_t {
   // Type of layer.
   layer_type type;
 
-  // Data input/output dimensions.
+  // Data input/output dimensions on a per iteration basis.
   //
-  // Our convention is that layer i gets its input row/col from layer i-1's
-  // output row/col.
+  // These values refer to a single data point or image, so the total size of
+  // the layer's output is output_rows * output_cols * NUM_TEST_CASES.  Our
+  // convention is that layer i gets its input row/col from layer i-1's output
+  // row/col.
   //
   // Conv/pool layers: the dimensions of the input/output images/activations.
   //    Note that the activations are stored in row vector form.
   // FC layers: input_rows/cols is the size of the weights matrix. Output cols
-  //    is the number of input rows for the next layer. Output rows is unused.
+  //    is the number of input rows for the next layer. Output rows is 1.
   // Input layer: input rows/cols are the dimensions of each input image.
   //    Output rows/cols are the dimensions of the transformed input to the
   //    next layer.

@@ -2,6 +2,7 @@
 #define _INIT_DATA_H_
 
 #include <stdbool.h>
+#include "nnet_fwd.h"
 
 void init_weights(float* weights,
                   layer_t* layers,

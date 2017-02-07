@@ -342,13 +342,13 @@ void run_layer(float* activations,
                bool do_activation_func) {
 
     layer_type l_type = curr_layer.type;
-    if (l_type == FC || l_type == OUTPUT) {
+    if (l_type == FC) {
         MATRIX_MULTIPLY_WITH_BIAS(activations, weights, NUM_TEST_CASES,
                                   curr_layer.input_rows, curr_layer.input_cols,
                                   result);
     }
 
-    PRINT_DEBUG(result, NUM_TEST_CASES, curr_layer.input_rows,
+    PRINT_DEBUG(result, NUM_TEST_CASES, curr_layer.input_cols,
                 curr_layer.input_cols);
 
     if (do_activation_func) {
@@ -364,11 +364,11 @@ void run_layer(float* activations,
 // Does the forward predictive pass of a neural net.
 // Returns a float array of class predictions in row major format of size
 // num_test_cases*num_labels
-void nnet_fwd(float* data,
+void nnet_fwd(float* hid,
               float* weights,
+              float* kernels,
               layer_t* layers,
               int num_layers,
-              float* hid,
               float* hid_temp,
               float* sigmoid_table) {
 
@@ -384,7 +384,7 @@ void nnet_fwd(float* data,
         for (i = 0; i < NUM_TEST_CASES; i++) {
             printf("Datum %d:\n", i);
             for (j = 0; j < INPUT_DIM; j++) {
-                printf("%e, ", data[sub2ind(i, j, INPUT_DIM)]);
+                printf("%e, ", hid[sub2ind(i, j, INPUT_DIM)]);
             }
             printf("\n");
         }
@@ -402,24 +402,14 @@ void nnet_fwd(float* data,
 
     l = 1;  // Skip the input layer.
 #ifdef DMA_MODE
-    dmaLoad(data, 0, 0, NUM_TEST_CASES * INPUT_DIM * sizeof(float));
-    grab_matrix_dma(weights, l, layers);
-#else
-// Don't need to grab 0th matrix.
+    dmaLoad(hid, 0, 0, NUM_TEST_CASES * INPUT_DIM * sizeof(float));
 #endif
 
-    ///////////////////////////////
-    /////     FIRST LAYER      ////
-    ///////////////////////////////
+    //******************//
+    //   PRIMARY LOOP   //
+    //******************//
 
-    // First layer must directly pass "data" as the function argument.
-    run_layer(data, weights, layers[l], hid, sigmoid_table, do_activation_func);
-
-    ////////////////////////////////
-    ////    REMAINING LAYERS    ////
-    ////////////////////////////////
-
-    for (l = 2; l < num_layers; l++) {
+    for (l = 1; l < num_layers; l++) {
         // Don't run the activation function on the last layer.
         do_activation_func = (l != num_layers - 1);
 
@@ -451,6 +441,26 @@ size_t next_multiple(size_t request, size_t align) {
   return (n+1)*align;
 }
 
+size_t calc_layer_intermediate_memory(layer_t layer) {
+    size_t usage = 0;
+
+    switch (layer.type) {
+        case FC:
+        case SOFTMAX:
+            usage = layer.output_rows * layer.output_cols;
+            break;
+        case CONV:
+        case POOL_MAX:
+        case POOL_AVG:
+            usage = layer.input_rows * layer.input_cols;
+            break;
+        default:
+            usage = 0;
+            break;
+    }
+    return usage * NUM_TEST_CASES;
+}
+
 int configure_network(layer_t** layers_ptr) {
     int i, err;
     int last_conv_layer = 0, last_pool_layer = 0, last_fc_layer = 0;
@@ -478,7 +488,7 @@ int configure_network(layer_t** layers_ptr) {
             layers[i].input_cols = INPUT_X;
 
             if (LAYER_TYPES[i+1] == FC) {
-                layers[i].output_rows = NUM_TEST_CASES;
+                layers[i].output_rows = 1;
                 layers[i].output_cols = INPUT_X * INPUT_Y;
             } else {
                 layers[i].output_rows = INPUT_Y;
@@ -487,10 +497,13 @@ int configure_network(layer_t** layers_ptr) {
         } else if (layers[i].type == CONV) {
             layers[i].c_kernel_size = CONV_LAYERS[i][0];
             layers[i].c_num_kernels = CONV_LAYERS[i][1];
-            layers[i].input_rows = layers[i-1].output_rows;
-            layers[i].input_cols = layers[i-1].output_cols;
-            layers[i].output_rows = layers[i].input_rows;
-            layers[i].output_cols = layers[i].input_cols;
+            // Input rows/cols must include zero padding.
+            layers[i].input_rows = layers[i - 1].output_rows +
+                                   (layers[i].c_kernel_size - 1) / 2;
+            layers[i].input_cols = layers[i - 1].output_cols +
+                                   (layers[i].c_kernel_size - 1) / 2;
+            layers[i].output_rows = layers[i - 1].output_rows;
+            layers[i].output_cols = layers[i - 1].output_cols;
             last_conv_layer++;
         } else if (layers[i].type == POOL_MAX) {
             // Assume that the first layer will not be a pooling layer.
@@ -515,15 +528,16 @@ int configure_network(layer_t** layers_ptr) {
 
             // The next layer's input rows is the number of this layer's columns + 1.
             layers[i].output_cols = layers[i].input_cols;
-            layers[i].output_rows = -1;  // Not used.
+            layers[i].output_rows = 1;
             last_fc_layer++;
         } else if (layers[i].type == OUTPUT) {
             // Assume that the last layer must be fully connected.
+            layers[i].type = FC;
             layers[i].input_rows = layers[i-1].output_cols + 1;
             layers[i].input_cols = NUM_CLASSES;
 
             layers[i].output_cols = NUM_CLASSES;
-            layers[i].output_rows = -1;  // Not used.
+            layers[i].output_rows = 1;
 
             // This is the last layer. Break.
             total_layers = ++i;
@@ -534,8 +548,8 @@ int configure_network(layer_t** layers_ptr) {
         }
     }
 
-    // Helpfully print out the network topology.
-    for (i = 0; i < total_layers; i++) {
+    // Helpfully print out the network topology. Skip the input layer.
+    for (i = 1; i < total_layers; i++) {
         layer_type type = layers[i].type;
         printf("Layer %d: ", i);
         if (type == CONV) {
@@ -567,16 +581,6 @@ int configure_network(layer_t** layers_ptr) {
                    layers[i].input_cols);
             printf("  Output size: %d x %d\n", layers[i].output_rows,
                    layers[i].output_cols);
-        } else if (type == INPUT) {
-            printf("Input layer\n");
-            printf("  Input size: %d x %d\n", layers[i].input_rows,
-                   layers[i].input_cols);
-            printf("  Output size: %d x %d\n", layers[i].output_rows,
-                   layers[i].output_cols);
-        } else if (type == OUTPUT) {
-            printf("Output layer\n");
-            printf("  Weights: %d x %d\n", layers[i].input_rows,
-                   layers[i].input_cols);
         }
     }
     return total_layers;
@@ -604,16 +608,41 @@ int main(int argc, const char* argv[]) {
     ASSERT_MEMALIGN(weights, err);
     init_weights(weights, layers, total_layers, RANDOM_WEIGHTS, TRANSPOSE_WEIGHTS);
 
-    float* data;
+    // hid and hid_temp are the two primary buffers that will store the input
+    // and output of each layer. They alternate in which one is input and which
+    // is output. All input activations are initially loaded into hid. For this
+    // reason, hid and hid_temp may not be the same size; hid must be large
+    // enough to store the input activations, but this is not a concern for
+    // hid_temp.
+    float* hid;
+    float* hid_temp;
+    size_t data_size = NUM_TEST_CASES * INPUT_DIM;
+
+    // Get the dimensions of the biggest matrix that will ever come out of
+    // run_layer.
+    printf("Setting up arrays\n");
+    size_t hid_temp_size = 0;
+    for (i = 1; i < total_layers; i++) {
+        size_t curr_layer_usage = calc_layer_intermediate_memory(layers[i]);
+        if (curr_layer_usage > hid_temp_size)
+            hid_temp_size = curr_layer_usage;
+    }
+    printf("Largest intermediate output size is %lu\n", hid_temp_size);
+    err = posix_memalign(
+            (void**)&hid_temp, CACHELINE_SIZE,
+            next_multiple(hid_temp_size * sizeof(float), CACHELINE_SIZE));
+    ASSERT_MEMALIGN(hid_temp, err);
+    size_t hid_size = max(data_size, hid_temp_size);
+    printf("hid has %lu elements\n", hid_size);
+    err = posix_memalign(
+            (void**)&hid, CACHELINE_SIZE,
+            next_multiple(hid_size * sizeof(float), CACHELINE_SIZE));
+    ASSERT_MEMALIGN(hid, err);
+
     int* labels;
     float* kernels;
-    size_t data_size = NUM_TEST_CASES * INPUT_DIM;
     size_t label_size = NUM_TEST_CASES;
     size_t kernel_size = NUM_KERNELS * KERNEL_SIZE * KERNEL_SIZE;
-    err = posix_memalign(
-            (void**)&data, CACHELINE_SIZE,
-            next_multiple(data_size * sizeof(float), CACHELINE_SIZE));
-    ASSERT_MEMALIGN(data, err);
     err = posix_memalign(
             (void**)&labels, CACHELINE_SIZE,
             next_multiple(label_size * sizeof(int), CACHELINE_SIZE));
@@ -622,39 +651,11 @@ int main(int argc, const char* argv[]) {
             (void**)&kernels, CACHELINE_SIZE,
             next_multiple(kernel_size * sizeof(float), CACHELINE_SIZE));
     ASSERT_MEMALIGN(kernels, err);
-    init_data(data, NUM_TEST_CASES, INPUT_DIM, RANDOM_DATA);
+
+    printf("Initializing data\n");
+    init_data(hid, NUM_TEST_CASES, INPUT_DIM, RANDOM_DATA);
     init_labels(labels, NUM_TEST_CASES, RANDOM_DATA);
     init_kernels(kernels, kernel_size);
-    printf("Data has %lu elements.\n", data_size);
-
-    // Get the dimensions of the biggest matrix that will ever come out of
-    // matrix_multiply. All of them will have NUM_TEST_CASES rows. So I just
-    // find the biggest number of columns.
-    printf("Setting up arrays\n");
-    int biggest_cols = 0;
-    for (i = 1; i < total_layers; i++) {
-        if (layers[i].input_cols > biggest_cols)
-            biggest_cols = layers[i].input_cols;
-    }
-    printf("Largest hidden/output layer: %d\n", biggest_cols);
-    fflush(stdout);
-
-    // Then, allocate memory for it. We will always place the result of our
-    // matrix multiplications in here.
-    //
-    // Mapped to its own scratchpad.
-    float* hid;
-    float* hid_temp;
-    size_t hid_size = NUM_TEST_CASES * biggest_cols;
-    hid_size = NUM_TEST_CASES * 34 * 34;
-    err = posix_memalign(
-            (void**)&hid, CACHELINE_SIZE,
-            next_multiple(hid_size * sizeof(float), CACHELINE_SIZE));
-    ASSERT_MEMALIGN(hid, err);
-    err = posix_memalign(
-            (void**)&hid_temp, CACHELINE_SIZE,
-            next_multiple(hid_size * sizeof(float), CACHELINE_SIZE));
-    ASSERT_MEMALIGN(hid_temp, err);
 
     // This file is not looked at by aladdin so malloc is fine.
     // If I do the old version then I get a memory overflow, because the
@@ -675,37 +676,29 @@ int main(int argc, const char* argv[]) {
         x_sig += sig_step;
     }
 
+    fflush(stdout);
+
     // -------------------------------------------------------- //
     //     THIS IS THE FUNCTION BEING SIMULATED IN HARDWARE     //
     // -------------------------------------------------------- //
 #ifdef GEM5_HARNESS
     mapArrayToAccelerator(
-            INTEGRATION_TEST, "data", data, data_size * sizeof(float));
-    mapArrayToAccelerator(
-            INTEGRATION_TEST, "weights", weights, w_size * sizeof(float));
-    mapArrayToAccelerator(
             INTEGRATION_TEST, "hid", hid, hid_size * sizeof(float));
     mapArrayToAccelerator(
             INTEGRATION_TEST, "hid_temp", hid_temp, hid_size * sizeof(float));
-    // sigmoid_table, num_units, num_fc_rows, and num_columns I consider as
-    // configuration, which is really one-time (compared to data and weights
-    // which may need to be reloaded multiple times for the same network).
-    // They're small enough that they should be completely partitioned, and
-    // because they're configuration time parameters, I don't count them as
-    // DMA.
+    mapArrayToAccelerator(
+            INTEGRATION_TEST, "weights", weights, w_size * sizeof(float));
+    mapArrayToAccelerator(
+            INTEGRATION_TEST, "kernels", kernels, kernel_size * sizeof(float));
+    mapArrayToAccelerator(
+            INTEGRATION_TEST, "layers", layers, total_layers * sizeof(layer_t));
     invokeAcceleratorAndBlock(INTEGRATION_TEST);
 #else
     // Run a forward pass through the neural net
     printf("Running forward pass\n");
-    /*
-    conv_fwd(data, kernels, num_conv_rows, num_conv_columns, hid,
-             hid_temp, sigmoid_table);
-             */
     // The function being synthesized
-    nnet_fwd(data, weights, layers, total_layers, hid, hid_temp, sigmoid_table);
+    nnet_fwd(hid, weights, kernels, layers, total_layers, hid_temp, sigmoid_table);
 #endif
-
-    // "hid" now contains the outputs
 
     // Print the result, maybe not all the test_cases
     int num_to_print = 1;
@@ -714,7 +707,7 @@ int main(int argc, const char* argv[]) {
             num_to_print < NUM_TEST_CASES ? num_to_print : NUM_TEST_CASES;
 
     // Compute the classification error rate
-    float* result = NUM_FC_LAYERS % 2 == 0 ? hid : hid_temp;
+    float* result = NUM_FC_LAYERS % 2 == 1 ? hid : hid_temp;
     int num_errors = 0;
     for (i = 0; i < NUM_TEST_CASES; i++) {
         if (arg_max(result + i * NUM_CLASSES, NUM_CLASSES, 1) != labels[i]) {
@@ -740,7 +733,6 @@ int main(int argc, const char* argv[]) {
     free(hid);
     free(hid_temp);
     free(weights);
-    free(data);
     free(labels);
     free(kernels);
     free(layers);
