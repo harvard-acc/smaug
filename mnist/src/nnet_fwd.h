@@ -118,32 +118,34 @@
     "/home/jmh/projects/pesc_hardware/HardwareNets/../mnist/"                  \
     "mnist_textual_weights.txt"
 
-typedef struct _conv2d_layer {
-  int layer_idx;
-  int num_kernels;
-  int kernel_size;
-  int input_width;
-  int input_height;
-} conv2d_layer;
-
-typedef struct _fc_layer {
-  int layer_idx;
-  int num_rows;
-  int num_columns;
-} fc_layer;
-
 typedef enum _layer_type {
+    // 2D convolutional layer.
     CONV,
+    // Max pooling layer.
     POOL_MAX,
+    // Average pooling layer.
     POOL_AVG,
-    // TODO: Remove.
-    FLATTEN,  // Flatten previous output into a column vector (for FC layers).
+    // Softmax output.
+    SOFTMAX,
+    // Flatten previous output into a column vector (for FC layers).
+    FLATTEN,
+    // Fully connected layer.
     FC,
-    INPUT,  // First layer (skipped during execution).
-    OUTPUT,  // Output label layer (and also the implicit last layer).
-    SOFTMAX
+    // First layer (skipped during execution).
+    INPUT,
+    // Output label layer, fully connected (the implicit last layer).
+    OUTPUT,
+    // End the network without a FC output layer.  This is mostly used for
+    // debugging.
+    END
 } layer_type;
 
+// Description of a layer in a neural network.
+//
+// TODO: Due to Aladdin's requirement to specify a word size for arrays, all
+// members of a struct must be of the same size (so that they can be
+// partitioned at a single granularity). This needs to be fixed so that we can have
+// struct members of different sizes.
 typedef struct _layer_t {
   // Type of layer.
   layer_type type;
@@ -176,7 +178,7 @@ typedef struct _layer_t {
   int p_stride;
 
   // Where are the class predictions stored, hid or hid_temp?
-  bool result_in_temp;
+  int result_in_temp;
 } layer_t;
 
 #endif

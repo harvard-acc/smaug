@@ -567,7 +567,11 @@ nnet_fwd_outer:
         dmaStore(hid, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
 #endif
 
-    layers[num_layers - 1].result_in_temp = result_in_temp;
+    layers[num_layers - 1].result_in_temp = (int)result_in_temp;
+
+#ifdef DMA_MODE
+    dmaStore(layers, 0, 0, num_layers*sizeof(layer_t));
+#endif
 }
 
 size_t next_multiple(size_t request, size_t align) {
@@ -678,6 +682,9 @@ int configure_network(layer_t** layers_ptr) {
 
             // This is the last layer. Break.
             total_layers = ++i;
+            break;
+        } else if (layers[i].type == END) {
+            total_layers = i;
             break;
         } else {
             printf("Layer %d is an unsupported type!\n", i);
