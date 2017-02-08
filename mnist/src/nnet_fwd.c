@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <float.h>
 
 #include "activation_functions.h"
 #include "init_data.h"
@@ -19,7 +20,7 @@
 
 // Network layer configuration.
 layer_type LAYER_TYPES[MAX_LAYERS] = {
-    INPUT, CONV, FLATTEN, FC, FC, FC, OUTPUT
+    INPUT, CONV, POOL_MAX, FLATTEN, FC, FC, FC, OUTPUT
 };
 // Fully connected layer config.
 int NUM_HIDDEN_UNITS[NUM_FC_LAYERS] = { 256, 256, 256 };
@@ -69,6 +70,17 @@ void print_debug(float* hid,
     }
 }
 
+// Dispatch to the appropriate activation function.
+void activation_fun(float* hid, int size, float* sigmoid_table) {
+    if (ACTIVATION_FUN == 0) {
+        RELU(hid, size * NUM_TEST_CASES);
+    } else if (ACTIVATION_FUN == 1) {
+        sigmoid_lookup(hid, size * NUM_TEST_CASES, sigmoid_table);
+    } else {
+        sigmoidn(hid, size * NUM_TEST_CASES);
+    }
+}
+
 // Zeropad each image in @a by @pad zeros.
 //
 // a is a matrix of flattened image vectors with dimensions NUM_TEST_CASES * n
@@ -112,6 +124,44 @@ void copy_zeropad(float* a, layer_t curr_layer, int pad, float* result) {
             for (j = 0; j < result_width; j++) {
                 result[sub3ind(i, j, ni, result_height, result_width)] = 0;
             }
+        }
+    }
+}
+
+// Downsample the input using a max-pooling operation.
+//
+// @input contains a stack of 2D images.
+// The parameters of the pooling operation are given in @curr_layer.
+//
+// The downsampled result is placed into @result.
+void max_pooling(float* input, float* result, layer_t curr_layer) {
+    int i, j, k, l, ni, oi, oj;
+    float in_val, curr_max;
+    int stride = curr_layer.p_stride;
+    int size = curr_layer.p_size;
+    int height = curr_layer.input_rows;
+    int width = curr_layer.input_cols;
+
+    for (ni = 0; ni < NUM_TEST_CASES; ni++) {
+        // Output image indices.
+        oi = 0;
+        oj = 0;
+        for (i = 0; i < curr_layer.input_rows; i += stride) {
+            for (j = 0; j < curr_layer.input_cols; j += stride) {
+                // Iterate over the pooling field.
+                curr_max = -FLT_MAX;
+                for (k = 0; k < size; k++) {
+                    for (l = 0; l < size; l++) {
+                        in_val = input[sub3ind(i+k, j+l, ni, height, width)];
+                        curr_max = max(in_val, curr_max);
+                    }
+                }
+                result[sub3ind(oi, oj, ni, curr_layer.output_rows,
+                               curr_layer.output_cols)] = curr_max;
+                oj++;
+            }
+            oi ++;
+            oj = 0;
         }
     }
 }
@@ -319,17 +369,6 @@ matmulbt2: for (k = 0; k < a_width; k++) {
     }
 }
 
-// Dispatch to the appropriate activation function.
-void activation_fun(float* hid, int size, float* sigmoid_table) {
-    if (ACTIVATION_FUN == 0) {
-        RELU(hid, size * NUM_TEST_CASES);
-    } else if (ACTIVATION_FUN == 1) {
-        sigmoid_lookup(hid, size * NUM_TEST_CASES, sigmoid_table);
-    } else {
-        sigmoidn(hid, size * NUM_TEST_CASES);
-    }
-}
-
 bool run_layer(float* activations,
                float* weights,
                layer_t curr_layer,
@@ -350,7 +389,9 @@ bool run_layer(float* activations,
                     curr_layer.output_cols);
         result_in_input = true;
     } else if (l_type == POOL_MAX) {
-
+        max_pooling(activations, result_temp, curr_layer);
+        PRINT_DEBUG(result_temp, curr_layer.output_rows, curr_layer.output_cols,
+                    curr_layer.output_cols);
     } else if (l_type == FLATTEN) {
         // This is just a dummy layer. Return.
         result_in_input = true;
