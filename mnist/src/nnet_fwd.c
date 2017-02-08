@@ -145,6 +145,12 @@ void max_pooling(float* input, float* result, layer_t curr_layer) {
     int height = curr_layer.input_rows;
     int width = curr_layer.input_cols;
 
+#if TREE_MAX == 1
+    int total_pool_size = size * size;
+    float elems[total_pool_size];
+    int elem_idx;
+#endif
+
     for (ni = 0; ni < NUM_TEST_CASES; ni++) {
         // Output image indices.
         oi = 0;
@@ -152,6 +158,25 @@ void max_pooling(float* input, float* result, layer_t curr_layer) {
         for (i = 0; i < curr_layer.input_rows; i += stride) {
             for (j = 0; j < curr_layer.input_cols; j += stride) {
                 // Iterate over the pooling field.
+#if TREE_MAX == 1
+                elem_idx = 0;
+                for (k = 0; k < size; k++) {
+                    for (l = 0; l < size; l++) {
+                         elems[elem_idx] = input[sub3ind(i+k, j+l, ni, height, width)];
+                         elem_idx++;
+                    }
+                }
+
+                if (total_pool_size == 4)
+                    curr_max = max4(elems[0], elems[1], elems[2], elems[3]);
+                else if (total_pool_size == 9)
+                    curr_max = max9(elems[0], elems[1], elems[2], elems[3],
+                                    elems[4], elems[5], elems[6], elems[7],
+                                    elems[8]);
+                else
+                    assert(false && "Unsupported pooling size!");
+
+#else
                 curr_max = -FLT_MAX;
                 for (k = 0; k < size; k++) {
                     for (l = 0; l < size; l++) {
@@ -159,6 +184,8 @@ void max_pooling(float* input, float* result, layer_t curr_layer) {
                         curr_max = max(in_val, curr_max);
                     }
                 }
+#endif              
+
                 result[sub3ind(oi, oj, ni, curr_layer.output_rows,
                                curr_layer.output_cols)] = curr_max;
                 oj++;

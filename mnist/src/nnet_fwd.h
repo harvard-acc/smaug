@@ -39,6 +39,12 @@
 #define TRANSPOSE_WEIGHTS 0
 #endif
 
+// If 1, then this uses a tree-based max implementation for the pooling layers,
+// which is more efficient than a loop.
+#ifdef TREE_MAX
+#define TREE_MAX 1
+#endif
+
 // Turns out debugging output, which prints out the results of operations.
 #ifndef DEBUG
 #define DEBUG 0
@@ -53,7 +59,22 @@
 ////   USER TUNABLE PARAMETERS END HERE   ////
 //////////////////////////////////////////////
 
+// Macros for computing the maximum of a group of elements.
+//
+// Why macros and not functions (or a loop)? A loop takes O(n) cycles to
+// compute the maximum, when it could be done in O(log n) time with a tree
+// based implementation. But Aladdin regards function calls as a hard
+// dependency that it does not optimize across, so we would not get the
+// parallelism we expect from the tree. Thus, these must be macros.
+//
+// I've only implemented a few of these. These are only meant for the pooling
+// layers, and we shouldn't need more than a 3x3 pooling layer anyways.
 #define max(A, B) (((A) > (B)) ? (A) : (B))
+#define max4(e0, e1, e2, e3) max(max(e0, e1), max(e2, e3))
+#define max8(e0, e1, e2, e3, e4, e5, e6, e7)                                   \
+    max(max4(e0, e1, e2, e3), max4(e4, e5, e6, e7))
+#define max9(e0, e1, e2, e3, e4, e5, e6, e7, e8)                               \
+    max(max8(e0, e1, e2, e3, e4, e5, e6, e7), e8)
 
 // Based on whether the weights matrix is transposed or not, use a different
 // multiplication kernel.
