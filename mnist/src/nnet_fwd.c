@@ -725,7 +725,7 @@ int configure_network(layer_t** layers_ptr) {
 
 // This is the thing that we want to be good at in hardware
 int main(int argc, const char* argv[]) {
-    int i, err;
+    int i, j, err;
 
     // set random seed (need to #include <time.h>)
     srand(1);
@@ -842,21 +842,20 @@ int main(int argc, const char* argv[]) {
             num_errors = num_errors + 1;
         }
     }
-    FILE* output_labels = fopen("output_labels.out", "w");
-    for (i = 0; i < NUM_TEST_CASES; i++) {
-        fprintf(output_labels, "Test %d label: %d\n", i,
-                arg_max(result + i * NUM_CLASSES, NUM_CLASSES, 1));
-    }
-    fclose(output_labels);
     float error_fraction = ((float)num_errors) / ((float)NUM_TEST_CASES);
     printf("Fraction incorrect (over %d cases) = %f\n", NUM_TEST_CASES,
            error_fraction);
 
-    // Write this number to a file
-    FILE* accuracy_file;
-    accuracy_file = fopen("accuracy.txt", "w");
-    fprintf(accuracy_file, "%f", error_fraction);
-    fclose(accuracy_file);
+    // Print the output labels and soft outputs.
+    FILE* output_labels = fopen("output_labels.out", "w");
+    for (i = 0; i < NUM_TEST_CASES; i++) {
+        int pred = arg_max(result + i * NUM_CLASSES, NUM_CLASSES, 1);
+        fprintf(output_labels, "Test %d: %d\n  [", i, pred);
+        for (j = 0; j < NUM_CLASSES; j++)
+            fprintf(output_labels, "%f  ", result[sub2ind(i, j, NUM_CLASSES)]);
+        fprintf(output_labels, "]\n");
+    }
+    fclose(output_labels);
 
     free(hid);
     free(hid_temp);
