@@ -57,7 +57,8 @@ grab_matrix_dma_loop:
 #if DEBUG == 1
     printf("dmaLoad weights, offset: %lu, size: %lu\n", offset*sizeof(float), size);
 #endif
-    dmaLoad(weights, offset*sizeof(float), 0, size);
+    if (size > 0)
+        dmaLoad(weights, offset*sizeof(float), 0, size);
 }
 #endif
 
@@ -461,7 +462,6 @@ bool run_layer(float* activations,
         do_activation_func = false;
     }
 
-
     if (do_activation_func) {
         // Pass through activation function
         if (result_in_input) {
@@ -500,6 +500,7 @@ void nnet_fwd(float* hid,
               float* sigmoid_table) {
 
     int i, j, l;
+    layer_t curr_layer;
 
     // Alternate between reading from/writing to hid and hid_temp so we can
     // avoid copying matrices.
@@ -539,6 +540,7 @@ void nnet_fwd(float* hid,
 
 nnet_fwd_outer:
     for (l = 1; l < num_layers; l++) {
+        curr_layer = layers[l];
         // Don't run the activation function on the last layer.
         do_activation_func = (l != num_layers - 1);
 
@@ -547,10 +549,10 @@ nnet_fwd_outer:
 #endif
 
         if (result_in_temp) {
-            result_in_input = run_layer(hid_temp, weights, layers[l], hid,
+            result_in_input = run_layer(hid_temp, weights, curr_layer, hid,
                                         sigmoid_table, do_activation_func);
         } else {
-            result_in_input = run_layer(hid, weights, layers[l], hid_temp,
+            result_in_input = run_layer(hid, weights, curr_layer, hid_temp,
                                         sigmoid_table, do_activation_func);
         }
 
