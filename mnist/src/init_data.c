@@ -10,8 +10,8 @@ void init_weights(float* weights,
                   int num_layers,
                   bool random,
                   bool transpose) {
-    int i, j, l, w_size, ret_f_scanf;
-    int w_rows, w_cols, w_offset;
+    int h, i, j, l, w_size, ret_f_scanf;
+    int w_rows, w_cols, w_height, w_offset;
     float val;
 
     w_offset = 0;
@@ -22,19 +22,24 @@ void init_weights(float* weights,
         for (l = 0; l < num_layers; l++) {
             if (is_dummy_layer(layers, l))
                 continue;
-            get_weights_dims_layer(layers, l, &w_rows, &w_cols);
-            for (i = 0; i < w_rows; i++) {
-                for (j = 0; j < w_cols; j++) {
-                    val = conv_float2fixed((randfloat() - 0.5) *
-                                           10);  // Question: does nan output
-                                                 // take longer in simulation?
-                    if (transpose)
-                        weights[sub2ind(j, i, layers[l].input_rows) + w_offset] = val;
-                    else
-                        weights[sub2ind(i, j, layers[l].input_cols) + w_offset] = val;
+            get_weights_dims_layer(layers, l, &w_rows, &w_cols, &w_height);
+            for (h = 0; h < w_height; h++) {
+                for (i = 0; i < w_rows; i++) {
+                    for (j = 0; j < w_cols; j++) {
+                        val = conv_float2fixed(
+                                (randfloat() - 0.5) *
+                                10);  // Question: does nan output
+                                      // take longer in simulation?
+                        if (transpose)
+                            weights[sub3ind(j, i, h, w_rows, w_cols) +
+                                    w_offset] = val;
+                        else
+                            weights[sub3ind(i, j, h, w_rows, w_cols) +
+                                    w_offset] = val;
+                    }
                 }
             }
-            w_offset += w_rows * w_cols;
+            w_offset += w_rows * w_cols * w_height;
         }
         // NOTE: FOR SIGMOID ACTIVATION FUNCTION, WEIGHTS SHOULD BE BIG
         // Otherwise everything just becomes ~0.5 after sigmoid, and results are

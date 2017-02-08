@@ -8,10 +8,12 @@ void clear_matrix(float* input, int size);
 void copy_matrix(float* input, float* output, int size);
 int arg_max(float* input, int size, int increment);
 int arg_min(float* input, int size, int increment);
+int get_weights_offset_layer(layer_t* layers, int l);
 void get_weights_dims_layer(layer_t* layers,
                             int l,
                             int* num_rows,
-                            int* num_cols);
+                            int* num_cols,
+                            int* num_height);
 int get_num_weights_layer(layer_t* layers, int l);
 int get_total_num_weights(layer_t* layers, int num_layers);
 bool is_dummy_layer(layer_t* layers, int l);

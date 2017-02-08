@@ -68,17 +68,21 @@ arg_min_loop:    for (i = 1; i < size; i++) {
 void get_weights_dims_layer(layer_t* layers,
                            int l,
                            int* num_rows,
-                           int* num_cols) {
+                           int* num_cols,
+                           int* num_height) {
 
     if (layers[l].type == FC) {
         *num_rows = layers[l].input_rows;
         *num_cols = layers[l].input_cols;
+        *num_height = 1;
     } else if (layers[l].type == CONV) {
         *num_rows = layers[l].c_kernel_size;
         *num_cols = layers[l].c_kernel_size;
+        *num_height = layers[l].c_num_kernels;
     } else {
         *num_rows = 0;
         *num_cols = 0;
+        *num_height = 0;
     }
 }
 
