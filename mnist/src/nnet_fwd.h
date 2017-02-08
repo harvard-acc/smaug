@@ -39,10 +39,12 @@
 #define TRANSPOSE_WEIGHTS 0
 #endif
 
+// Turns out debugging output, which prints out the results of operations.
 #ifndef DEBUG
 #define DEBUG 0
 #endif
 
+// Print the input data and the complete set of weights.
 #ifndef PRINT_DATA_AND_WEIGHTS
 #define PRINT_DATA_AND_WEIGHTS 0
 #endif
