@@ -78,7 +78,7 @@ void get_weights_dims_layer(layer_t* layers,
     } else if (layers[l].type == CONV) {
         *num_rows = layers[l].c_kernel_size;
         *num_cols = layers[l].c_kernel_size;
-        *num_height = layers[l].c_num_kernels;
+        *num_height = layers[l].depth;
     } else {
         *num_rows = 0;
         *num_cols = 0;
@@ -91,7 +91,7 @@ int get_num_weights_layer(layer_t* layers, int l) {
     if (layers[l].type == FC)
         return layers[l].input_rows * layers[l].input_cols;
     else if (layers[l].type == CONV)
-        return layers[l].c_num_kernels * layers[l].c_kernel_size *
+        return layers[l].depth * layers[l].c_kernel_size *
                layers[l].c_kernel_size;
     else
         return 0;

@@ -111,7 +111,7 @@ copy_zeropad_outer:
         for (i = 0; i < pad; i++) {
         copy_zeropad_first_cols:
             for (j = 0; j < result_width; j++) {
-                result[sub3ind(i, j, ni, result_height, result_width)] = 0;
+                result[sub3ind(ni, i, j, result_height, result_width)] = 0;
             }
         }
 
@@ -119,17 +119,17 @@ copy_zeropad_outer:
         for (i = pad; i < a_height + pad; i++) {
         copy_zeropad_left_cols:
             for (j = 0; j < pad; j++) {
-                result[sub3ind(i, j, ni, result_height, result_width)] = 0;
+                result[sub3ind(ni, i, j, result_height, result_width)] = 0;
             }
         // Copy the original array.
         copy_zeropad_copy_cols:
             for (j = pad; j < a_width + pad; j++) {
-                result[sub3ind(i, j, ni, result_height, result_width)] =
-                        a[sub3ind(i - pad, j - pad, ni, a_height, a_width)];
+                result[sub3ind(ni, i, j, result_height, result_width)] =
+                        a[sub3ind(ni, i - pad, j - pad, a_height, a_width)];
             }
         copy_zeropad_right_cols:
             for (j = a_width + pad; j < result_width; j++) {
-                result[sub3ind(i, j, ni, result_height, result_width)] = 0;
+                result[sub3ind(ni, i, j, result_height, result_width)] = 0;
             }
         }
 
@@ -137,7 +137,7 @@ copy_zeropad_outer:
         for (i = a_height + pad; i < result_height; i++) {
         copy_zeropad_last_cols:
             for (j = 0; j < result_width; j++) {
-                result[sub3ind(i, j, ni, result_height, result_width)] = 0;
+                result[sub3ind(ni, i, j, result_height, result_width)] = 0;
             }
         }
     }
@@ -179,7 +179,7 @@ maxpool_outer:
                 for (k = 0; k < size; k++) {
                 maxpool_tree_inner:
                     for (l = 0; l < size; l++) {
-                         elems[elem_idx] = input[sub3ind(i+k, j+l, ni, height, width)];
+                         elems[elem_idx] = input[sub3ind(ni, i+k, j+l, height, width)];
                          elem_idx++;
                     }
                 }
@@ -199,13 +199,13 @@ maxpool_outer:
                 for (k = 0; k < size; k++) {
                 maxpool_iter_inner:
                     for (l = 0; l < size; l++) {
-                        in_val = input[sub3ind(i+k, j+l, ni, height, width)];
+                        in_val = input[sub3ind(ni, i+k, j+l, height, width)];
                         curr_max = max(in_val, curr_max);
                     }
                 }
 #endif
 
-                result[sub3ind(oi, oj, ni, curr_layer.output_rows,
+                result[sub3ind(ni, oi, oj, curr_layer.output_rows,
                                curr_layer.output_cols)] = curr_max;
                 oj++;
             }
@@ -260,7 +260,7 @@ conv2d_outer:
 
             // For each kernel in this layer.
             conv2d_kernel_outer:
-                for (nk = 0; nk < curr_layer.c_num_kernels; nk++) {
+                for (nk = 0; nk < curr_layer.depth; nk++) {
 
                     // Convolution loop over the kernel.
                     partial_sum = 0;
@@ -269,13 +269,13 @@ conv2d_outer:
                     conv2d_kernel_cols:
                         for (l = 0; l < k_width; l++) {
                             a_val = conv_float2fixed(a[sub3ind(
-                                    i + k, j + l, ni, a_height, a_width)]);
+                                    ni, i + k, j + l, a_height, a_width)]);
                             kern_val = conv_float2fixed(kernels[sub3ind(
-                                    k, l, nk, k_width, k_width)]);
+                                    nk, k, l, k_width, k_width)]);
                             partial_sum += conv_float2fixed(a_val * kern_val);
                         }
                     }
-                    result[sub3ind(i, j, ni, result_height, result_width)] =
+                    result[sub3ind(ni, i, j, result_height, result_width)] =
                             partial_sum;
                 }
             }
@@ -635,9 +635,10 @@ int configure_network(layer_t** layers_ptr) {
                 layers[i].output_rows = INPUT_Y;
                 layers[i].output_cols = INPUT_X;
             }
+            layers[i].depth = 1;
         } else if (layers[i].type == CONV) {
             layers[i].c_kernel_size = CONV_LAYERS[last_conv_layer][0];
-            layers[i].c_num_kernels = CONV_LAYERS[last_conv_layer][1];
+            layers[i].depth = CONV_LAYERS[last_conv_layer][1];
             // Input rows/cols must include zero padding.
             layers[i].input_rows =
                     layers[i - 1].output_rows + layers[i].c_kernel_size - 1;
@@ -656,13 +657,15 @@ int configure_network(layer_t** layers_ptr) {
                                      layers[i].p_stride) + 1;
             layers[i].output_cols = ((layers[i].input_cols - layers[i].p_size) /
                                      layers[i].p_stride) + 1;
+            layers[i].depth = layers[i - 1].depth;
             last_pool_layer++;
         } else if (layers[i].type == FLATTEN) {
             layers[i].input_rows = layers[i-1].output_rows;
             layers[i].input_cols = layers[i-1].output_cols;
-            // TODO: Is this right?
             layers[i].output_rows = 1;
-            layers[i].output_cols = layers[i].input_rows * layers[i].input_cols;
+            layers[i].output_cols = layers[i].input_rows *
+                                    layers[i].input_cols * layers[i - 1].depth;
+            layers[i].depth = 1;
         } else if (layers[i].type == FC) {
             layers[i].input_rows = layers[i-1].output_cols + 1;
             layers[i].input_cols = NUM_HIDDEN_UNITS[last_fc_layer];
@@ -670,6 +673,7 @@ int configure_network(layer_t** layers_ptr) {
             // The next layer's input rows is the number of this layer's columns + 1.
             layers[i].output_cols = layers[i].input_cols;
             layers[i].output_rows = 1;
+            layers[i].depth = 1;
             last_fc_layer++;
         } else if (layers[i].type == OUTPUT) {
             // Assume that the last layer must be fully connected.
@@ -679,6 +683,7 @@ int configure_network(layer_t** layers_ptr) {
 
             layers[i].output_cols = NUM_CLASSES;
             layers[i].output_rows = 1;
+            layers[i].depth = 1;
 
             // This is the last layer. Break.
             total_layers = ++i;
@@ -704,7 +709,7 @@ int configure_network(layer_t** layers_ptr) {
                    layers[i].output_cols);
             printf("  Kernel size: %d x %d\n", layers[i].c_kernel_size,
                    layers[i].c_kernel_size);
-            printf("  Num kernels: %d\n", layers[i].c_num_kernels);
+            printf("  Num kernels: %d\n", layers[i].depth);
         } else if (type == FC) {
             printf("Fully connected\n");
             printf("  Weights: %d x %d\n", layers[i].input_rows,
@@ -717,6 +722,7 @@ int configure_network(layer_t** layers_ptr) {
                    layers[i].output_cols);
             printf("  Field size: %d\n", layers[i].p_size);
             printf("  Stride: %d\n", layers[i].p_stride);
+            printf("  Depth: %d\n", layers[i].depth);
         } else if (type == SOFTMAX) {
             printf("Softmax\n");
         } else if (type == FLATTEN) {

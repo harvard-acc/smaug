@@ -86,14 +86,13 @@
 
 // 2D indexing into a flattened array.
 //
-// This assumes data is stored in row major order.
+// Operation: data[row][col]
 #define sub2ind(r, c, n_columns) ((r) * (n_columns) + (c))
 
 // 3D indexing into a flattened array.
 //
-// This assumes the data structure is a stack of 2D matrices, where h is the
-// desired depth of the stack.
-#define sub3ind(r, c, h, n_rows, n_cols)                                       \
+// Operation: data[height][row][col]
+#define sub3ind(h, r, c, n_rows, n_cols)                                       \
     (sub2ind(r, c, n_cols) + h * (n_rows * n_cols))
 
 #if DEBUG == 1
@@ -169,8 +168,13 @@ typedef struct _layer_t {
   int output_rows;
   int output_cols;
 
+  // Depth is the number of feature maps produced per iteration.
+  //
+  // For conv/pool layers, this is the number of kernels.
+  // For all other layers, this is 1.
+  int depth;
+
   // for CONV layers only.
-  int c_num_kernels;
   int c_kernel_size;
 
   // for POOL layers only.

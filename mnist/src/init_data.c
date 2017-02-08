@@ -30,11 +30,11 @@ void init_weights(float* weights,
                                 (randfloat() - 0.5) *
                                 10);  // Question: does nan output
                                       // take longer in simulation?
-                        if (transpose)
-                            weights[sub3ind(j, i, h, w_rows, w_cols) +
+                        if (transpose && layers[l].type == FC)
+                            weights[sub3ind(h, j, i, w_cols, w_rows) +
                                     w_offset] = val;
                         else
-                            weights[sub3ind(i, j, h, w_rows, w_cols) +
+                            weights[sub3ind(h, i, j, w_rows, w_cols) +
                                     w_offset] = val;
                     }
                 }
