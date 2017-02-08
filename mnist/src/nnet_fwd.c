@@ -52,6 +52,9 @@ grab_matrix_dma_loop:    for (i = 1; i < layer; i++) {
         offset += get_num_weights_layer(layers, i);
     }
     size_t size = get_num_weights_layer(layers, layer) * sizeof(float);
+#if DEBUG == 1
+    printf("dmaLoad weights, offset: %lu, size: %lu\n", offset*sizeof(float), size);
+#endif
     dmaLoad(weights, offset*sizeof(float), 0, size);
 }
 #endif
