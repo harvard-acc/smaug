@@ -1,5 +1,8 @@
 # Workaround for the forwarding rules in multiple translation units.
-SRCS = all.c
+SRCS = activation_functions.c \
+			 nnet_fwd.c \
+			 utility.c \
+			 init_data.c
 
 CFLAGS = -Wno-unused-but-set-variable
 ACCEL_NAME = nnet
