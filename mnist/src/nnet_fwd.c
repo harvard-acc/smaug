@@ -35,7 +35,8 @@ int POOL_LAYERS[NUM_CONV_LAYERS][2] = { { 2, 2 } };
 float* grab_matrix(float* w, int n, int* n_rows, int* n_columns) {
     int ind = 0;
     int i;
-grab_matrix_loop:    for (i = 0; i < n; i++) {
+grab_matrix_loop:
+    for (i = 0; i < n; i++) {
         ind += n_rows[i] * n_columns[i];
     }
     return w + ind;
@@ -48,7 +49,8 @@ void grab_matrix_dma(float* weights,
     size_t offset = 0;
     int i;
     // Start from layer idx 1 (to skip the input layer).
-grab_matrix_dma_loop:    for (i = 1; i < layer; i++) {
+grab_matrix_dma_loop:
+    for (i = 1; i < layer; i++) {
         offset += get_num_weights_layer(layers, i);
     }
     size_t size = get_num_weights_layer(layers, layer) * sizeof(float);
@@ -102,28 +104,37 @@ void copy_zeropad(float* a, layer_t curr_layer, int pad, float* result) {
     int result_width = a_width + 2 * pad;
     int result_height = a_height + 2 * pad;
 
+copy_zeropad_outer:
     for (ni = 0; ni < NUM_TEST_CASES; ni++) {
+    copy_zeropad_first:
         for (i = 0; i < pad; i++) {
+        copy_zeropad_first_cols:
             for (j = 0; j < result_width; j++) {
                 result[sub3ind(i, j, ni, result_height, result_width)] = 0;
             }
         }
 
+    copy_zeropad_left:
         for (i = pad; i < a_height + pad; i++) {
+        copy_zeropad_left_cols:
             for (j = 0; j < pad; j++) {
                 result[sub3ind(i, j, ni, result_height, result_width)] = 0;
             }
-            // Copy the original array.
+        // Copy the original array.
+        copy_zeropad_copy_cols:
             for (j = pad; j < a_width + pad; j++) {
                 result[sub3ind(i, j, ni, result_height, result_width)] =
                         a[sub3ind(i - pad, j - pad, ni, a_height, a_width)];
             }
+        copy_zeropad_right_cols:
             for (j = a_width + pad; j < result_width; j++) {
                 result[sub3ind(i, j, ni, result_height, result_width)] = 0;
             }
         }
 
+    copy_zeropad_last:
         for (i = a_height + pad; i < result_height; i++) {
+        copy_zeropad_last_cols:
             for (j = 0; j < result_width; j++) {
                 result[sub3ind(i, j, ni, result_height, result_width)] = 0;
             }
@@ -151,16 +162,21 @@ void max_pooling(float* input, float* result, layer_t curr_layer) {
     int elem_idx;
 #endif
 
+maxpool_outer:
     for (ni = 0; ni < NUM_TEST_CASES; ni++) {
         // Output image indices.
         oi = 0;
         oj = 0;
+    maxpool_input_rows:
         for (i = 0; i < curr_layer.input_rows; i += stride) {
+        maxpool_input_cols:
             for (j = 0; j < curr_layer.input_cols; j += stride) {
                 // Iterate over the pooling field.
 #if TREE_MAX == 1
                 elem_idx = 0;
+            maxpool_tree_outer:
                 for (k = 0; k < size; k++) {
+                maxpool_tree_inner:
                     for (l = 0; l < size; l++) {
                          elems[elem_idx] = input[sub3ind(i+k, j+l, ni, height, width)];
                          elem_idx++;
@@ -178,13 +194,15 @@ void max_pooling(float* input, float* result, layer_t curr_layer) {
 
 #else
                 curr_max = -FLT_MAX;
+            maxpool_iter_outer:
                 for (k = 0; k < size; k++) {
+                maxpool_iter_inner:
                     for (l = 0; l < size; l++) {
                         in_val = input[sub3ind(i+k, j+l, ni, height, width)];
                         curr_max = max(in_val, curr_max);
                     }
                 }
-#endif              
+#endif
 
                 result[sub3ind(oi, oj, ni, curr_layer.output_rows,
                                curr_layer.output_cols)] = curr_max;
@@ -230,18 +248,24 @@ void convolution2d_no_padding(float* a,
 
     float partial_sum;
 
-    // Loop over all input activation feature maps.
+// Loop over all input activation feature maps.
+conv2d_outer:
     for (ni = 0; ni < NUM_TEST_CASES; ni++) {
-        // Convolution loop over the output pixels.
+    // Convolution loop over the output pixels.
+    conv2d_input_rows:
         for (i = start_i; i < end_i; i++) {
+        conv2d_input_cols:
             for (j = start_j; j < end_j; j++) {
 
-                // For each kernel in this layer.
+            // For each kernel in this layer.
+            conv2d_kernel_outer:
                 for (nk = 0; nk < curr_layer.c_num_kernels; nk++) {
 
                     // Convolution loop over the kernel.
                     partial_sum = 0;
+                conv2d_kernel_rows:
                     for (k = 0; k < k_width; k++) {
+                    conv2d_kernel_cols:
                         for (l = 0; l < k_width; l++) {
                             a_val = conv_float2fixed(a[sub3ind(
                                     i + k, j + l, ni, a_height, a_width)]);
@@ -298,9 +322,12 @@ void matrix_multiply(float* a,
     int size = a_height * b_width;
     clear_matrix(result_temp, size);
 
-matmul0:    for (i = 0; i < a_height; i++) {
-matmul1:        for (j = 0; j < b_width; j++) {
-matmul2:            for (k = 0; k < a_width_b_height; k++) {
+matmul0:
+    for (i = 0; i < a_height; i++) {
+    matmul1:
+        for (j = 0; j < b_width; j++) {
+        matmul2:
+            for (k = 0; k < a_width_b_height; k++) {
                 value = conv_float2fixed(a[sub2ind(i, k, a_width_b_height)]) *
                         conv_float2fixed(b[sub2ind(k, j, b_width)]);
                 result_temp[sub2ind(i, j, b_width)] =
@@ -333,11 +360,14 @@ void matrix_multiply_with_bias(float* a,
 
     int a_width = b_height - 1;
 
-matmulb0: for (i = 0; i < a_height; i++) {
-matmulb1: for (j = 0; j < b_width; j++) {
+matmulb0:
+    for (i = 0; i < a_height; i++) {
+    matmulb1:
+        for (j = 0; j < b_width; j++) {
             // Initialize to zero
             partial_sum = 0;
-matmulb2: for (k = 0; k < a_width; k++) {
+        matmulb2:
+            for (k = 0; k < a_width; k++) {
                 value = conv_float2fixed(a[sub2ind(i, k, a_width)]) *
                         conv_float2fixed(b[sub2ind(k, j, b_width)]);
                 partial_sum += value;
@@ -383,11 +413,14 @@ void matrix_multiply_with_bias_transpose(float* a,
 
     int a_width = b_height - 1;
 
-matmulbt0: for (i = 0; i < a_height; i++) {
-matmulbt1: for (j = 0; j < b_width; j++) {
+matmulbt0:
+    for (i = 0; i < a_height; i++) {
+    matmulbt1:
+        for (j = 0; j < b_width; j++) {
             // Initialize to zero
             partial_sum = 0;
-matmulbt2: for (k = 0; k < a_width; k++) {
+        matmulbt2:
+            for (k = 0; k < a_width; k++) {
                 value = conv_float2fixed(a[sub2ind(i, k, a_width)]) *
                         conv_float2fixed(b[sub2ind(j, k, b_height)]);
                 partial_sum += value;
@@ -504,6 +537,7 @@ void nnet_fwd(float* hid,
     //   PRIMARY LOOP   //
     //******************//
 
+nnet_fwd_outer:
     for (l = 1; l < num_layers; l++) {
         // Don't run the activation function on the last layer.
         do_activation_func = (l != num_layers - 1);
@@ -696,6 +730,7 @@ int main(int argc, const char* argv[]) {
 
     layer_t* layers;
     int total_layers = configure_network(&layers);
+    printf("Size of layer configuration: %lu\n", total_layers * sizeof(layer_t));
 
     bool RANDOM_WEIGHTS = true;
     bool RANDOM_DATA = true;
