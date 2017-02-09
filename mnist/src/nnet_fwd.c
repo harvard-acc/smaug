@@ -1,11 +1,14 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <float.h>
 
 #include "activation_functions.h"
+#include "convolution.h"
 #include "init_data.h"
+#include "matrix_multiply.h"
+#include "pooling.h"
 #include "utility.h"
+#include "zeropad.h"
 
 #ifdef DMA_MODE
 #include "gem5_harness.h"
@@ -26,7 +29,7 @@ layer_type LAYER_TYPES[MAX_LAYERS] = {
 int NUM_HIDDEN_UNITS[NUM_FC_LAYERS] = { 256, 256, 256 };
 
 // Conv layer config: (kernel size, number of kernels)
-int CONV_LAYERS[NUM_CONV_LAYERS][2] = { { 3, 1 } };
+int CONV_LAYERS[NUM_CONV_LAYERS][2] = { { 3, 2 } };
 // Pool layer config: (pooling size, pooling stride)
 int POOL_LAYERS[NUM_CONV_LAYERS][2] = { { 2, 2 } };
 
@@ -76,6 +79,21 @@ void print_debug(float* hid,
     }
 }
 
+void print_debug4d(float* hid, int rows, int cols, int height, int img) {
+    int i, j, d;
+
+    for (d = 0; d < height; d++) {
+        printf("Depth %d\n", d);
+        for (i = 0; i < rows; i++) {
+            for (j = 0; j < cols; j++) {
+                printf("%f, ",
+                       hid[sub4ind(d, img, i, j, NUM_TEST_CASES, rows, cols)]);
+            }
+            printf("\n");
+        }
+    }
+}
+
 // Dispatch to the appropriate activation function.
 void activation_fun(float* hid, int size, float* sigmoid_table) {
     if (ACTIVATION_FUN == 0) {
@@ -84,352 +102,6 @@ void activation_fun(float* hid, int size, float* sigmoid_table) {
         sigmoid_lookup(hid, size * NUM_TEST_CASES, sigmoid_table);
     } else {
         sigmoidn(hid, size * NUM_TEST_CASES);
-    }
-}
-
-// Zeropad each image in @a by @pad zeros.
-//
-// a is a matrix of flattened image vectors with dimensions NUM_TEST_CASES * n
-// * m, where n and m are denoted by curr_layer.output_rows and
-// curr_layer.output_cols. Yes, "output_rows" and "output_cols". "input_rows"
-// and "input_cols" is the dimensions of the data after zeropadding because
-// this is considered as the "input" to the convolution itself.
-//
-// Place the result in @result, which is an array that is assumed to be large
-// enough for this operation.
-void copy_zeropad(float* a, layer_t curr_layer, int pad, float* result) {
-    int i, j, ni;
-
-    int a_height = curr_layer.output_rows;
-    int a_width = curr_layer.output_cols;
-    int result_width = a_width + 2 * pad;
-    int result_height = a_height + 2 * pad;
-
-copy_zeropad_outer:
-    for (ni = 0; ni < NUM_TEST_CASES; ni++) {
-    copy_zeropad_first:
-        for (i = 0; i < pad; i++) {
-        copy_zeropad_first_cols:
-            for (j = 0; j < result_width; j++) {
-                result[sub3ind(ni, i, j, result_height, result_width)] = 0;
-            }
-        }
-
-    copy_zeropad_left:
-        for (i = pad; i < a_height + pad; i++) {
-        copy_zeropad_left_cols:
-            for (j = 0; j < pad; j++) {
-                result[sub3ind(ni, i, j, result_height, result_width)] = 0;
-            }
-        // Copy the original array.
-        copy_zeropad_copy_cols:
-            for (j = pad; j < a_width + pad; j++) {
-                result[sub3ind(ni, i, j, result_height, result_width)] =
-                        a[sub3ind(ni, i - pad, j - pad, a_height, a_width)];
-            }
-        copy_zeropad_right_cols:
-            for (j = a_width + pad; j < result_width; j++) {
-                result[sub3ind(ni, i, j, result_height, result_width)] = 0;
-            }
-        }
-
-    copy_zeropad_last:
-        for (i = a_height + pad; i < result_height; i++) {
-        copy_zeropad_last_cols:
-            for (j = 0; j < result_width; j++) {
-                result[sub3ind(ni, i, j, result_height, result_width)] = 0;
-            }
-        }
-    }
-}
-
-// Downsample the input using a max-pooling operation.
-//
-// @input contains a stack of 2D images.
-// The parameters of the pooling operation are given in @curr_layer.
-//
-// The downsampled result is placed into @result.
-void max_pooling(float* input, float* result, layer_t curr_layer) {
-    int i, j, k, l, ni, oi, oj;
-    float in_val, curr_max;
-    int stride = curr_layer.p_stride;
-    int size = curr_layer.p_size;
-    int height = curr_layer.input_rows;
-    int width = curr_layer.input_cols;
-
-#if TREE_MAX == 1
-    int total_pool_size = size * size;
-    float elems[total_pool_size];
-    int elem_idx;
-#endif
-
-maxpool_outer:
-    for (ni = 0; ni < NUM_TEST_CASES; ni++) {
-        // Output image indices.
-        oi = 0;
-        oj = 0;
-    maxpool_input_rows:
-        for (i = 0; i < curr_layer.input_rows; i += stride) {
-        maxpool_input_cols:
-            for (j = 0; j < curr_layer.input_cols; j += stride) {
-                // Iterate over the pooling field.
-#if TREE_MAX == 1
-                elem_idx = 0;
-            maxpool_tree_outer:
-                for (k = 0; k < size; k++) {
-                maxpool_tree_inner:
-                    for (l = 0; l < size; l++) {
-                         elems[elem_idx] = input[sub3ind(ni, i+k, j+l, height, width)];
-                         elem_idx++;
-                    }
-                }
-
-                if (total_pool_size == 4)
-                    curr_max = max4(elems[0], elems[1], elems[2], elems[3]);
-                else if (total_pool_size == 9)
-                    curr_max = max9(elems[0], elems[1], elems[2], elems[3],
-                                    elems[4], elems[5], elems[6], elems[7],
-                                    elems[8]);
-                else
-                    assert(false && "Unsupported pooling size!");
-
-#else
-                curr_max = -FLT_MAX;
-            maxpool_iter_outer:
-                for (k = 0; k < size; k++) {
-                maxpool_iter_inner:
-                    for (l = 0; l < size; l++) {
-                        in_val = input[sub3ind(ni, i+k, j+l, height, width)];
-                        curr_max = max(in_val, curr_max);
-                    }
-                }
-#endif
-
-                result[sub3ind(ni, oi, oj, curr_layer.output_rows,
-                               curr_layer.output_cols)] = curr_max;
-                oj++;
-            }
-            oi ++;
-            oj = 0;
-        }
-    }
-}
-
-// Perform a 2D convolution operation over the data in @a.
-//
-// The convolutions are specified through the curr_layers struct. Zero padding
-// for borders is not handled.
-//
-// @a contains a stack of 2D images, and kernels contains a stack of 2D
-// kernels, whose dimensions are specified in @curr_layer.
-//
-// The result of the operation is placed into @result, which is assumed to be
-// large enough to hold the data. @result is also a stack of 2D images.
-void convolution2d_no_padding(float* a,
-                              float* kernels,
-                              layer_t curr_layer,
-                              float* result) {
-
-    int i, j, k, l;
-    int ni, nk;
-    float a_val, kern_val;
-
-    int a_height = curr_layer.input_rows;
-    int a_width = curr_layer.input_cols;
-    int k_width = curr_layer.c_kernel_size;
-
-    int result_height = curr_layer.output_rows;
-    int result_width = curr_layer.output_cols;
-
-    // Convolution borders.
-    int start_i = 0;
-    int start_j = 0;
-    int end_i = result_width;
-    int end_j = result_height;
-
-    float partial_sum;
-
-// Loop over all input activation feature maps.
-conv2d_outer:
-    for (ni = 0; ni < NUM_TEST_CASES; ni++) {
-    // Convolution loop over the output pixels.
-    conv2d_input_rows:
-        for (i = start_i; i < end_i; i++) {
-        conv2d_input_cols:
-            for (j = start_j; j < end_j; j++) {
-
-            // For each kernel in this layer.
-            conv2d_kernel_outer:
-                for (nk = 0; nk < curr_layer.depth; nk++) {
-
-                    // Convolution loop over the kernel.
-                    partial_sum = 0;
-                conv2d_kernel_rows:
-                    for (k = 0; k < k_width; k++) {
-                    conv2d_kernel_cols:
-                        for (l = 0; l < k_width; l++) {
-                            a_val = conv_float2fixed(a[sub3ind(
-                                    ni, i + k, j + l, a_height, a_width)]);
-                            kern_val = conv_float2fixed(kernels[sub3ind(
-                                    nk, k, l, k_width, k_width)]);
-                            partial_sum += conv_float2fixed(a_val * kern_val);
-                        }
-                    }
-                    result[sub3ind(ni, i, j, result_height, result_width)] =
-                            partial_sum;
-                }
-            }
-        }
-    }
-}
-
-// Perform a 2D convolution on the data in @input with zero padding.
-//
-// The amount of padding is determined by the convolution operation configured
-// in the @curr_layer struct.
-//
-// NOTE: The data is not actually placed in @result, but rather into @input!
-// This is because the input data is zero-padded and copied into result. To
-// avoid a second copy back into @input, we simply execute the convolution using
-// @result as the input array instead.
-void convolution2d_zeropad(float* input,
-                           float* kernels,
-                           layer_t curr_layer,
-                           float* result) {
-    int padding = (curr_layer.c_kernel_size - 1) / 2;
-    copy_zeropad(input, curr_layer, padding, result);
-    convolution2d_no_padding(result, kernels, curr_layer, input);
-}
-
-// Multiply matrices a and b with given sizes and store into result_goes_here.
-//
-// We could do something tricky by switching the role of result and temp, to
-// avoid copying but let's leave that for now.
-//
-// result_temp is used to ensure that weird things don't happen if
-// result_goes_here overlaps with a or b.
-void matrix_multiply(float* a,
-                     float* b,
-                     int a_height,
-                     int a_width_b_height,
-                     int b_width,
-                     float* result_goes_here,
-                     float* result_temp) {
-
-    int i, j, k;
-    float value;
-
-    // Initialize to zero
-    int size = a_height * b_width;
-    clear_matrix(result_temp, size);
-
-matmul0:
-    for (i = 0; i < a_height; i++) {
-    matmul1:
-        for (j = 0; j < b_width; j++) {
-        matmul2:
-            for (k = 0; k < a_width_b_height; k++) {
-                value = conv_float2fixed(a[sub2ind(i, k, a_width_b_height)]) *
-                        conv_float2fixed(b[sub2ind(k, j, b_width)]);
-                result_temp[sub2ind(i, j, b_width)] =
-                        conv_float2fixed(result_temp[sub2ind(i, j, b_width)] +
-                                         conv_float2fixed(value));
-            }
-        }
-    }
-    copy_matrix(result_temp, result_goes_here, size);
-}
-
-// Multiply matrices a and b, assuming the last row of b are biases.
-//
-// Args:
-//   a_height = height of A matrix.
-//   b_height = height of the B matrix, which is also the width of the A matrix
-//     + 1.
-//   b_width = width of the B matrix.
-void matrix_multiply_with_bias(float* a,
-                               float* b,
-                               int a_height,
-                               int b_height,
-                               int b_width,
-                               float* result) {
-
-    // a is hid, b is weights
-    int i, j, k;
-    float partial_sum;
-    float value;
-
-    int a_width = b_height - 1;
-
-matmulb0:
-    for (i = 0; i < a_height; i++) {
-    matmulb1:
-        for (j = 0; j < b_width; j++) {
-            // Initialize to zero
-            partial_sum = 0;
-        matmulb2:
-            for (k = 0; k < a_width; k++) {
-                value = conv_float2fixed(a[sub2ind(i, k, a_width)]) *
-                        conv_float2fixed(b[sub2ind(k, j, b_width)]);
-                partial_sum += value;
-                // printf("partial_sum: %f\n", partial_sum);
-            }
-            // Add the bias (the index of the last row is the width of A).
-            partial_sum += conv_float2fixed(b[sub2ind(a_width, j, b_width)]);
-            result[sub2ind(i, j, b_width)] = partial_sum;
-        }
-    }
-}
-
-void matrix_multiply_with_bias_and_copy(float* a,
-                                        float* b,
-                                        int a_height,
-                                        int b_height,
-                                        int b_width,
-                                        float* result_goes_here,
-                                        float* result_temp) {
-    int size = a_height * b_width;
-    matrix_multiply_with_bias(
-            a, b, a_height, b_height, b_width, result_temp);
-    copy_matrix(result_temp, result_goes_here, size);
-}
-
-// Multiply the matrices a and b, but assume that b has been transposed.
-//
-// Args:
-//   a_height = height of the A matrix.
-//   b_height = height of the UNTRANSPOSED B matrix.
-//   b_width = width of the UNTRANSPOSED B matrix.
-void matrix_multiply_with_bias_transpose(float* a,
-                                         float* b,
-                                         int a_height,
-                                         int b_height,
-                                         int b_width,
-                                         float* result) {
-
-    // a is hid, b is weights
-    int i, j, k;
-    float partial_sum;
-    float value;
-
-    int a_width = b_height - 1;
-
-matmulbt0:
-    for (i = 0; i < a_height; i++) {
-    matmulbt1:
-        for (j = 0; j < b_width; j++) {
-            // Initialize to zero
-            partial_sum = 0;
-        matmulbt2:
-            for (k = 0; k < a_width; k++) {
-                value = conv_float2fixed(a[sub2ind(i, k, a_width)]) *
-                        conv_float2fixed(b[sub2ind(j, k, b_height)]);
-                partial_sum += value;
-            }
-            // Add the bias.
-            partial_sum += conv_float2fixed(b[sub2ind(j, a_width, b_height)]);
-            result[sub2ind(i, j, b_width)] = partial_sum;
-        }
     }
 }
 
@@ -449,13 +121,13 @@ bool run_layer(float* activations,
                 result_temp, 1, curr_layer.output_cols, curr_layer.output_cols);
     } else if (l_type == CONV) {
         convolution2d_zeropad(activations, weights, curr_layer, result_temp);
-        PRINT_DEBUG(activations, curr_layer.output_rows, curr_layer.output_cols,
-                    curr_layer.output_cols);
+        print_debug4d(activations, curr_layer.output_rows, curr_layer.output_cols,
+                      curr_layer.output_height, 0);
         result_in_input = true;
     } else if (l_type == POOL_MAX) {
         max_pooling(activations, result_temp, curr_layer);
-        PRINT_DEBUG(result_temp, curr_layer.output_rows, curr_layer.output_cols,
-                    curr_layer.output_cols);
+        print_debug4d(result_temp, curr_layer.output_rows, curr_layer.output_cols,
+                      curr_layer.output_height, 0);
     } else if (l_type == FLATTEN) {
         // This is just a dummy layer. Return.
         result_in_input = true;
@@ -466,18 +138,20 @@ bool run_layer(float* activations,
         // Pass through activation function
         if (result_in_input) {
             activation_fun(activations,
-                           curr_layer.output_rows * curr_layer.output_cols,
+                           curr_layer.output_rows * curr_layer.output_cols *
+                                   curr_layer.output_height,
                            sigmoid_table);
 
-            PRINT_DEBUG(activations, curr_layer.output_rows, curr_layer.output_cols,
-                        curr_layer.output_cols);
+            print_debug4d(activations, curr_layer.output_rows,
+                          curr_layer.output_cols, curr_layer.output_height, 0);
         } else {
             activation_fun(result_temp,
-                           curr_layer.output_rows * curr_layer.output_cols,
+                           curr_layer.output_rows * curr_layer.output_cols *
+                                   curr_layer.output_height,
                            sigmoid_table);
 
-            PRINT_DEBUG(result_temp, curr_layer.output_rows,
-                        curr_layer.output_cols, curr_layer.output_cols);
+            print_debug4d(result_temp, curr_layer.output_rows,
+                          curr_layer.output_cols, curr_layer.output_height, 0);
         }
 
     }
@@ -595,7 +269,8 @@ size_t calc_layer_intermediate_memory(layer_t layer) {
         case CONV:
         case POOL_MAX:
         case POOL_AVG:
-            usage = layer.input_rows * layer.input_cols;
+            usage = layer.input_rows * layer.input_cols * layer.input_height *
+                    layer.output_height;
             break;
         default:
             usage = 0;
@@ -627,6 +302,7 @@ int configure_network(layer_t** layers_ptr) {
             assert(i == 0 && "Input layer must be the first layer!");
             layers[i].input_rows = INPUT_Y;
             layers[i].input_cols = INPUT_X;
+            layers[i].input_height = INPUT_Z;
 
             if (LAYER_TYPES[i+1] == FC) {
                 layers[i].output_rows = 1;
@@ -635,10 +311,11 @@ int configure_network(layer_t** layers_ptr) {
                 layers[i].output_rows = INPUT_Y;
                 layers[i].output_cols = INPUT_X;
             }
-            layers[i].depth = 1;
+            layers[i].output_height = INPUT_Z;
         } else if (layers[i].type == CONV) {
             layers[i].c_kernel_size = CONV_LAYERS[last_conv_layer][0];
-            layers[i].depth = CONV_LAYERS[last_conv_layer][1];
+            layers[i].input_height = layers[i-1].output_height;
+            layers[i].output_height = CONV_LAYERS[last_conv_layer][1];
             // Input rows/cols must include zero padding.
             layers[i].input_rows =
                     layers[i - 1].output_rows + layers[i].c_kernel_size - 1;
@@ -653,37 +330,42 @@ int configure_network(layer_t** layers_ptr) {
             layers[i].p_stride = POOL_LAYERS[last_pool_layer][1];
             layers[i].input_rows = layers[i-1].output_rows;
             layers[i].input_cols = layers[i-1].output_cols;
+            layers[i].input_height = layers[i - 1].output_height;
             layers[i].output_rows = ((layers[i].input_rows - layers[i].p_size) /
                                      layers[i].p_stride) + 1;
             layers[i].output_cols = ((layers[i].input_cols - layers[i].p_size) /
                                      layers[i].p_stride) + 1;
-            layers[i].depth = layers[i - 1].depth;
+            layers[i].output_height = layers[i].input_height;
             last_pool_layer++;
         } else if (layers[i].type == FLATTEN) {
             layers[i].input_rows = layers[i-1].output_rows;
             layers[i].input_cols = layers[i-1].output_cols;
+            layers[i].input_height = layers[i-1].output_height;
             layers[i].output_rows = 1;
             layers[i].output_cols = layers[i].input_rows *
-                                    layers[i].input_cols * layers[i - 1].depth;
-            layers[i].depth = 1;
+                                    layers[i].input_cols *
+                                    layers[i].input_height;
+            layers[i].output_height = 1;
         } else if (layers[i].type == FC) {
             layers[i].input_rows = layers[i-1].output_cols + 1;
             layers[i].input_cols = NUM_HIDDEN_UNITS[last_fc_layer];
+            layers[i].input_height = layers[i-1].output_height;
 
             // The next layer's input rows is the number of this layer's columns + 1.
             layers[i].output_cols = layers[i].input_cols;
             layers[i].output_rows = 1;
-            layers[i].depth = 1;
+            layers[i].output_height = 1;
             last_fc_layer++;
         } else if (layers[i].type == OUTPUT) {
             // Assume that the last layer must be fully connected.
             layers[i].type = FC;
             layers[i].input_rows = layers[i-1].output_cols + 1;
             layers[i].input_cols = NUM_CLASSES;
+            layers[i].input_height = layers[i-1].output_height;
 
             layers[i].output_cols = NUM_CLASSES;
             layers[i].output_rows = 1;
-            layers[i].depth = 1;
+            layers[i].output_height = 1;
 
             // This is the last layer. Break.
             total_layers = ++i;
@@ -709,7 +391,7 @@ int configure_network(layer_t** layers_ptr) {
                    layers[i].output_cols);
             printf("  Kernel size: %d x %d\n", layers[i].c_kernel_size,
                    layers[i].c_kernel_size);
-            printf("  Num kernels: %d\n", layers[i].depth);
+            printf("  Num kernels: %d\n", layers[i].output_height);
         } else if (type == FC) {
             printf("Fully connected\n");
             printf("  Weights: %d x %d\n", layers[i].input_rows,
@@ -722,7 +404,7 @@ int configure_network(layer_t** layers_ptr) {
                    layers[i].output_cols);
             printf("  Field size: %d\n", layers[i].p_size);
             printf("  Stride: %d\n", layers[i].p_stride);
-            printf("  Depth: %d\n", layers[i].depth);
+            printf("  Height: %d\n", layers[i].output_height);
         } else if (type == SOFTMAX) {
             printf("Softmax\n");
         } else if (type == FLATTEN) {

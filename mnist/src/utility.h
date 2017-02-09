@@ -13,7 +13,8 @@ void get_weights_dims_layer(layer_t* layers,
                             int l,
                             int* num_rows,
                             int* num_cols,
-                            int* num_height);
+                            int* num_height,
+                            int* num_depth);
 int get_num_weights_layer(layer_t* layers, int l);
 int get_total_num_weights(layer_t* layers, int num_layers);
 bool is_dummy_layer(layer_t* layers, int l);
@@ -27,7 +28,7 @@ bool is_dummy_layer(layer_t* layers, int l);
 // function go away.
 float conv_float2fixed(float input);
 #else
-#define conv_float2fixed(X) X
+#define conv_float2fixed(X) (X)
 #endif
 
 #endif

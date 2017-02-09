@@ -10,6 +10,7 @@
 // Fixed parameters
 #define INPUT_X 28
 #define INPUT_Y 28
+#define INPUT_Z 1
 #define INPUT_DIM (INPUT_X * INPUT_Y)
 #define NUM_CLASSES 10
 // number of stored points in sigmoid lookup table
@@ -41,13 +42,13 @@
 
 // If 1, then this uses a tree-based max implementation for the pooling layers,
 // which is more efficient than a loop.
-#ifdef TREE_MAX
+#ifndef TREE_MAX
 #define TREE_MAX 1
 #endif
 
 // Turns out debugging output, which prints out the results of operations.
 #ifndef DEBUG
-#define DEBUG 0
+#define DEBUG 1
 #endif
 
 // Print the input data and the complete set of weights.
@@ -93,7 +94,41 @@
 //
 // Operation: data[height][row][col]
 #define sub3ind(h, r, c, n_rows, n_cols)                                       \
-    (sub2ind(r, c, n_cols) + h * (n_rows * n_cols))
+    (sub2ind(r, c, n_cols) + (h) * ((n_rows) * (n_cols)))
+
+// 4D indexing into a flattened array.
+//
+// Operation: data[depth][height][row][col]
+//
+//                   c
+//              ------------
+//           r /           /|
+//            /           / |
+//           /           /  |
+//  _     _  ------------   |
+//  |     |  |          |   /
+//  |     h  |          |  /|
+//  |     |  |          | / |
+//  d     -  ------------/  |
+//  |        |          |   /
+//  |        |          |  /
+//  |        |          | /
+//  -        |-----------/
+//
+// n_hgt = maximum value of h
+// n_rows = maximum value of r
+// n_cols = maximum value of c
+//
+// As an example, this is used to index input feature maps in convolutional
+// layers, where depth = number of input images, and height = number of feature
+// maps from previous layer.
+#define sub4ind(d, h, r, c, n_hgt, n_rows, n_cols)                             \
+    (sub3ind(h, r, c, n_rows, n_cols) + (d) * ((n_rows) * (n_cols) * (n_hgt)))
+
+#define printf_sub4ind(d, h, r, c, n_hgt, n_rows, n_cols)                      \
+    printf("sub4ind(%d, %d, %d, %d, %d, %d, %d) = %d\n", d, h, r, c, n_hgt,    \
+           n_rows, n_cols, (sub3ind(h, r, c, n_rows, n_cols) +                 \
+                            (d) * ((n_rows) * (n_cols) * (n_hgt))))
 
 #if DEBUG == 1
 #define PRINT_DEBUG(hid, rows, cols, num_cols)                                 \
@@ -154,25 +189,30 @@ typedef struct _layer_t {
   // These values refer to a single data point or image, so the total size of
   // the layer's output is output_rows * output_cols * NUM_TEST_CASES.  Our
   // convention is that layer i gets its input row/col from layer i-1's output
-  // row/col.
+  // row/col. Depth is the number of feature maps read/written per iteration.
   //
-  // Conv/pool layers: the dimensions of the input/output images/activations.
-  //    Note that the activations are stored in row vector form.
-  // FC layers: input_rows/cols is the size of the weights matrix. Output cols
-  //    is the number of input rows for the next layer. Output rows is 1.
-  // Input layer: input rows/cols are the dimensions of each input image.
-  //    Output rows/cols are the dimensions of the transformed input to the
-  //    next layer.
+  // Input/output rows/cols:
+  //
+  //   Conv/pool layers: the dimensions of the input/output images/activations.
+  //      Note that the activations are stored in row vector form.
+  //   FC layers: input_rows/cols is the size of the weights matrix. Output
+  //      cols is the number of input rows for the next layer. Output rows is 1.
+  //   Input layer: input rows/cols are the dimensions of each input image.
+  //      Output rows/cols are the dimensions of the transformed input to the
+  //      next layer.
+  //
+  // Input/output height:
+  //    Conv layers: input height is the number of input feature maps from the
+  //      previous layer, and output height is the number of filters (aka number
+  //      of output feature maps).
+  //    Pool layers: input/output heights are equal to number of input feature maps.
+  //    All other layers: 1.
   int input_rows;
   int input_cols;
+  int input_height;
   int output_rows;
   int output_cols;
-
-  // Depth is the number of feature maps produced per iteration.
-  //
-  // For conv/pool layers, this is the number of kernels.
-  // For all other layers, this is 1.
-  int depth;
+  int output_height;
 
   // for CONV layers only.
   int c_kernel_size;
