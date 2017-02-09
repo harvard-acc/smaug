@@ -429,8 +429,8 @@ int main(int argc, const char* argv[]) {
     int total_layers = configure_network(&layers);
     printf("Size of layer configuration: %lu\n", total_layers * sizeof(layer_t));
 
-    bool RANDOM_WEIGHTS = true;
-    bool RANDOM_DATA = true;
+    data_init_mode RANDOM_DATA = FIXED;
+    data_init_mode RANDOM_WEIGHTS = FIXED;
 
     // hid and hid_temp are the two primary buffers that will store the input
     // and output of each layer. They alternate in which one is input and which

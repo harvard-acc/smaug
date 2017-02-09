@@ -8,38 +8,53 @@
 void init_weights(float* weights,
                   layer_t* layers,
                   int num_layers,
-                  bool random,
+                  data_init_mode mode,
                   bool transpose) {
-    int h, i, j, l, w_size, ret_f_scanf;
-    int w_rows, w_cols, w_height, w_offset;
+    int d, h, i, j, l, w_size, ret_f_scanf;
+    int w_rows, w_cols, w_height, w_depth, w_offset;
     float val;
 
     w_offset = 0;
-    if (random) {
+    if (mode == RANDOM || mode == FIXED) {
         // Randomly initialize weights
         printf("Initializing weights randomly\n");
 
         for (l = 0; l < num_layers; l++) {
             if (is_dummy_layer(layers, l))
                 continue;
-            get_weights_dims_layer(layers, l, &w_rows, &w_cols, &w_height);
-            for (h = 0; h < w_height; h++) {
-                for (i = 0; i < w_rows; i++) {
-                    for (j = 0; j < w_cols; j++) {
-                        val = conv_float2fixed(
-                                (randfloat() - 0.5) *
-                                10);  // Question: does nan output
-                                      // take longer in simulation?
-                        if (transpose && layers[l].type == FC)
-                            weights[sub3ind(h, j, i, w_cols, w_rows) +
-                                    w_offset] = val;
-                        else
-                            weights[sub3ind(h, i, j, w_rows, w_cols) +
-                                    w_offset] = val;
+            get_weights_dims_layer(layers, l, &w_rows, &w_cols, &w_height, &w_depth);
+            for (d = 0; d < w_depth; d++) {
+                for (h = 0; h < w_height; h++) {
+                    for (i = 0; i < w_rows; i++) {
+                        for (j = 0; j < w_cols; j++) {
+                            if (mode == RANDOM) {
+                                val = conv_float2fixed(
+                                        (randfloat() - 0.5) *
+                                        10);  // Question: does nan output
+                                              // take longer in simulation?
+                            } else {
+                                // Give each depth slice a different weight so
+                                // we don't get all the same value in the
+                                // output.
+                                val = (d+1) * 0.1;
+                            }
+                            if (layers[l].type == FC) {
+                                if (transpose)
+                                    weights[sub3ind(h, j, i, w_cols, w_rows) +
+                                            w_offset] = val;
+                                else
+                                    weights[sub3ind(h, i, j, w_rows, w_cols) +
+                                            w_offset] = val;
+                            } else {
+                                weights[sub4ind(d, h, i, j, w_height, w_rows,
+                                                w_cols) +
+                                        w_offset] = val;
+                            }
+                        }
                     }
                 }
             }
-            w_offset += w_rows * w_cols * w_height;
+            w_offset += w_rows * w_cols * w_height * w_depth;
         }
         // NOTE: FOR SIGMOID ACTIVATION FUNCTION, WEIGHTS SHOULD BE BIG
         // Otherwise everything just becomes ~0.5 after sigmoid, and results are
@@ -68,14 +83,19 @@ void init_weights(float* weights,
 void init_data(float* data,
                size_t num_test_cases,
                size_t input_dim,
-               bool random) {
+               data_init_mode mode) {
     int i, j, ret_f_scanf;
-    if (random) {
+    if (mode == RANDOM || mode == FIXED) {
         printf("Initializing data randomly\n");
         // Generate random input data, size num_test_cases by num_units[0]
         // (input dimensionality)
         for (i = 0; i < num_test_cases * input_dim; i++) {
-            data[i] = conv_float2fixed(randfloat() - 0.5);
+            if (mode == RANDOM) {
+                data[i] = conv_float2fixed(randfloat() - 0.5);
+            } else {
+                // Make each input image distinguishable.
+                data[i] = 1.0 * (i/input_dim + 1);
+            }
         }
     } else {
         printf("Reading in %lu data of dimensionality %lu from %s\n",
@@ -102,9 +122,9 @@ void init_data(float* data,
 
 }
 
-void init_labels(int* labels, size_t label_size, bool random) {
+void init_labels(int* labels, size_t label_size, data_init_mode mode) {
     int i, ret_f_scanf;
-    if (random) {
+    if (mode == RANDOM || mode == FIXED) {
         printf("Initializing labels randomly\n");
         for (i = 0; i < label_size; i++) {
             labels[i] = 0;  // set all labels to 0

@@ -152,6 +152,12 @@
     "/home/jmh/projects/pesc_hardware/HardwareNets/../mnist/"                  \
     "mnist_textual_weights.txt"
 
+typedef enum _data_init_mode {
+    RANDOM,    // Generate pseudo-random input.
+    FIXED,     // Use (mostly) constant values (helpful for debugging).
+    READ_FILE  // Read data and weights from files.
+} data_init_mode;
+
 typedef enum _layer_type {
     // 2D convolutional layer.
     CONV,
