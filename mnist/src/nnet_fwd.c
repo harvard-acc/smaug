@@ -118,19 +118,22 @@ bool run_layer(float* activations,
     bool result_in_input = false;
     layer_type l_type = curr_layer.type;
     if (l_type == FC) {
+        PRINT_MSG("\nmatrix multiply with bias\n");
         MATRIX_MULTIPLY_WITH_BIAS(activations, weights, NUM_TEST_CASES,
                                   curr_layer.input_rows, curr_layer.input_cols,
                                   result_temp);
-        PRINT_DEBUG(
-                result_temp, 1, curr_layer.output_cols, curr_layer.output_cols);
+        PRINT_DEBUG4D(result_temp, curr_layer.output_rows,
+                      curr_layer.output_cols, curr_layer.output_height);
     } else if (l_type == CONV) {
+        PRINT_MSG("\nconvolution2d\n");
         convolution2d_zeropad(activations, weights, curr_layer, result_temp);
-        print_debug4d(activations, curr_layer.output_rows, curr_layer.output_cols,
+        PRINT_DEBUG4D(activations, curr_layer.output_rows, curr_layer.output_cols,
                       curr_layer.output_height);
         result_in_input = true;
     } else if (l_type == POOL_MAX) {
+        PRINT_MSG("\nmax pooling\n");
         max_pooling(activations, result_temp, curr_layer);
-        print_debug4d(result_temp, curr_layer.output_rows, curr_layer.output_cols,
+        PRINT_DEBUG4D(result_temp, curr_layer.output_rows, curr_layer.output_cols,
                       curr_layer.output_height);
     } else if (l_type == FLATTEN) {
         // This is just a dummy layer. Return.
@@ -139,6 +142,7 @@ bool run_layer(float* activations,
     }
 
     if (do_activation_func) {
+        PRINT_MSG("\nactivation function\n");
         // Pass through activation function
         if (result_in_input) {
             activation_fun(activations,
@@ -146,7 +150,7 @@ bool run_layer(float* activations,
                                    curr_layer.output_height,
                            sigmoid_table);
 
-            print_debug4d(activations, curr_layer.output_rows,
+            PRINT_DEBUG4D(activations, curr_layer.output_rows,
                           curr_layer.output_cols, curr_layer.output_height);
         } else {
             activation_fun(result_temp,
@@ -154,7 +158,7 @@ bool run_layer(float* activations,
                                    curr_layer.output_height,
                            sigmoid_table);
 
-            print_debug4d(result_temp, curr_layer.output_rows,
+            PRINT_DEBUG4D(result_temp, curr_layer.output_rows,
                           curr_layer.output_cols, curr_layer.output_height);
         }
 

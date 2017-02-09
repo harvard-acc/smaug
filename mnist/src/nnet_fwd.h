@@ -133,8 +133,13 @@
 #if DEBUG == 1
 #define PRINT_DEBUG(hid, rows, cols, num_cols)                                 \
     print_debug(hid, rows, cols, num_cols)
+#define PRINT_DEBUG4D(hid, rows, cols, height)                                 \
+    print_debug4d(hid, rows, cols, height)
+#define PRINT_MSG(msg) printf(msg);
 #else
 #define PRINT_DEBUG(hid, rows, cols, num_cols)
+#define PRINT_DEBUG4D(hid, rows, cols, height)
+#define PRINT_MSG(msg)
 #endif
 
 #define CACHELINE_SIZE 32
