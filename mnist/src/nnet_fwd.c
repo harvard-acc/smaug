@@ -277,8 +277,10 @@ size_t calc_layer_intermediate_memory(layer_t layer) {
         case CONV:
         case POOL_MAX:
         case POOL_AVG:
-            usage = layer.input_rows * layer.input_cols * layer.input_height *
-                    layer.output_height;
+            usage = max(
+                    layer.input_rows * layer.input_cols * layer.input_height,
+                    layer.output_rows * layer.output_cols *
+                            layer.output_height);
             break;
         default:
             usage = 0;
