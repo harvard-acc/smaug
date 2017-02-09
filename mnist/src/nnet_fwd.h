@@ -15,7 +15,7 @@
 #define NUM_CLASSES 10
 // number of stored points in sigmoid lookup table
 #define LG_SIGMOID_COARSENESS 4
-#define NUM_TEST_CASES 1      // NOT READ BY nnet_fwd.c, ONLY BY the other one
+#define NUM_TEST_CASES 2      // NOT READ BY nnet_fwd.c, ONLY BY the other one
 #define SIG_MIN -5            // lower input bound for sigmoid lookup table
 #define SIG_MAX +5            // upper input bound for sigmoid lookup table
 

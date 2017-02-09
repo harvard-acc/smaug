@@ -68,6 +68,7 @@ void convolution2d_kernel_no_padding(float* a,
     // Filter is k_width x k_width x k_height.
     const int k_width = curr_layer.c_kernel_size;
     const int k_height =  curr_layer.input_height;
+    const int num_kerns = curr_layer.output_height;
 
     // Convolution borders.
     const int start_i = 0;
@@ -91,7 +92,7 @@ conv2d_input_rows:
                 conv2d_kernel_cols:
                     for (l = 0; l < k_width; l++) {
                         a_val = conv_float2fixed(
-                                a[sub4ind(img, d, i + k, j + l, NUM_TEST_CASES,
+                                a[sub4ind(img, d, i + k, j + l, k_height,
                                           a_height, a_width)]);
                         kern_val = conv_float2fixed(
                                 kernels[sub4ind(kern, d, k, l, k_height,
@@ -100,7 +101,7 @@ conv2d_input_rows:
                     }
                 }
             }
-            result[sub4ind(img, kern, i, j, k_height, result_height,
+            result[sub4ind(img, kern, i, j, num_kerns, result_height,
                            result_width)] = partial_sum;
         }
     }
