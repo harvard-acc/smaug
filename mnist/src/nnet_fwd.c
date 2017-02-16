@@ -21,21 +21,17 @@
 
 #include "nnet_fwd.h"
 
-#define NUM_FC_LAYERS 3
-#define NUM_CONV_LAYERS 1
-#define MAX_LAYERS ((NUM_CONV_LAYERS)*2 + NUM_FC_LAYERS + 3)
-
 // Network layer configuration.
-layer_type LAYER_TYPES[MAX_LAYERS] = {
+layer_type LAYER_TYPES[] = {
     INPUT, CONV, POOL_MAX, FLATTEN, FC, FC, OUTPUT
 };
 // Fully connected layer config.
-int NUM_HIDDEN_UNITS[NUM_FC_LAYERS] = { 256, 256, 256 };
+int NUM_HIDDEN_UNITS[] = { 256, 256, 256 };
 
 // Conv layer config: (kernel size, number of kernels)
-int CONV_LAYERS[NUM_CONV_LAYERS][2] = { { 3, 2 } };
+int CONV_LAYERS[][2] = { { 3, 2 } };
 // Pool layer config: (pooling size, pooling stride)
-int POOL_LAYERS[NUM_CONV_LAYERS][2] = { { 2, 2 } };
+int POOL_LAYERS[][2] = { { 2, 2 } };
 
 // Grab matrix n out of the doubly flattened w
 // (w is a flattened collection of matrices, each flattened)
@@ -297,20 +293,22 @@ int configure_network(layer_t** layers_ptr) {
     int i, err;
     int last_conv_layer = 0, last_pool_layer = 0, last_fc_layer = 0;
     int next_input_width, next_input_height;
-    int total_layers = 0;
 
-    // I assume total layers is at most one pooling layer per conv layer, plus
-    // all FC layers, plus 1 (output).
+    size_t num_fc_layers = sizeof(NUM_HIDDEN_UNITS)/sizeof(int);
+    size_t num_conv_layers = sizeof(CONV_LAYERS)/sizeof(int)/2;
+    size_t num_pool_layers = sizeof(POOL_LAYERS)/sizeof(int)/2;
+    int total_layers = sizeof(LAYER_TYPES)/sizeof(layer_type);
+
     err = posix_memalign(
             (void**)layers_ptr, CACHELINE_SIZE,
-            next_multiple(sizeof(layer_t) * (MAX_LAYERS), CACHELINE_SIZE));
+            next_multiple(sizeof(layer_t) * total_layers, CACHELINE_SIZE));
     ASSERT_MEMALIGN(layers_ptr, err);
 
     layer_t* layers = *layers_ptr;
 
     next_input_width = INPUT_X;
     next_input_height = INPUT_Y;
-    for (i = 0; i < MAX_LAYERS; i ++) {
+    for (i = 0; i < total_layers; i ++) {
         layers[i].type = LAYER_TYPES[i];
         if (layers[i].type == INPUT) {
             assert(i == 0 && "Input layer must be the first layer!");
@@ -383,6 +381,7 @@ int configure_network(layer_t** layers_ptr) {
 
             // This is the last layer. Break.
             total_layers = ++i;
+            last_fc_layer++;
             break;
         } else if (layers[i].type == END) {
             total_layers = i;
@@ -392,6 +391,11 @@ int configure_network(layer_t** layers_ptr) {
             assert(false);
         }
     }
+
+    // Sanity check.
+    assert(last_conv_layer == num_conv_layers);
+    assert(last_pool_layer == num_pool_layers);
+    assert(last_fc_layer == num_fc_layers);
 
     // Helpfully print out the network topology. Skip the input layer.
     for (i = 1; i < total_layers; i++) {
