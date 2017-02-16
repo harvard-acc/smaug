@@ -21,9 +21,13 @@
 
 #include "nnet_fwd.h"
 
+#define NUM_FC_LAYERS 3
+#define NUM_CONV_LAYERS 1
+#define MAX_LAYERS ((NUM_CONV_LAYERS)*2 + NUM_FC_LAYERS + 3)
+
 // Network layer configuration.
 layer_type LAYER_TYPES[MAX_LAYERS] = {
-    INPUT, CONV, POOL_MAX, FLATTEN, FC, FC, FC, OUTPUT
+    INPUT, CONV, POOL_MAX, FLATTEN, FC, FC, OUTPUT
 };
 // Fully connected layer config.
 int NUM_HIDDEN_UNITS[NUM_FC_LAYERS] = { 256, 256, 256 };
@@ -439,8 +443,8 @@ int main(int argc, const char* argv[]) {
     int total_layers = configure_network(&layers);
     printf("Size of layer configuration: %lu\n", total_layers * sizeof(layer_t));
 
-    data_init_mode RANDOM_DATA = FIXED;
-    data_init_mode RANDOM_WEIGHTS = FIXED;
+    data_init_mode RANDOM_DATA = RANDOM;
+    data_init_mode RANDOM_WEIGHTS = RANDOM;
 
     // hid and hid_temp are the two primary buffers that will store the input
     // and output of each layer. They alternate in which one is input and which
@@ -458,8 +462,7 @@ int main(int argc, const char* argv[]) {
     size_t hid_temp_size = 0;
     for (i = 1; i < total_layers; i++) {
         size_t curr_layer_usage = calc_layer_intermediate_memory(layers[i]);
-        if (curr_layer_usage > hid_temp_size)
-            hid_temp_size = curr_layer_usage;
+        hid_temp_size = max(hid_temp_size, curr_layer_usage);
     }
     printf("  Largest intermediate output size is %lu\n", hid_temp_size);
     err = posix_memalign(
@@ -481,6 +484,15 @@ int main(int argc, const char* argv[]) {
     ASSERT_MEMALIGN(weights, err);
     printf("Total weights: %d\n", w_size);
     init_weights(weights, layers, total_layers, RANDOM_WEIGHTS, TRANSPOSE_WEIGHTS);
+
+    // Get the largest weights size for a single layer - this will be the size
+    // of the scratchpad.
+    size_t weights_temp_size = 0;
+    for (i = 1; i < total_layers; i++) {
+      size_t curr_layer_weights = get_num_weights_layer(layers, i);
+      weights_temp_size = max(weights_temp_size, curr_layer_weights);
+    }
+    printf("Largest weights per layer: %lu\n", weights_temp_size);
 
     int* labels;
     size_t label_size = NUM_TEST_CASES;

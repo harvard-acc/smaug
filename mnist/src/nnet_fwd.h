@@ -20,10 +20,6 @@
 #define SIG_MAX +5            // upper input bound for sigmoid lookup table
 
 // Parameters for optimization
-#define NUM_FC_LAYERS 3
-#define NUM_CONV_LAYERS 1
-#define MAX_LAYERS ((NUM_CONV_LAYERS)*2 + NUM_FC_LAYERS + 3)
-
 #define ACTIVATION_FUN 0  // categorical, 0=RELU 1=sigmoid lookup 2=true sigmoid
 #define NUM_OF_INT_BITS                                                        \
     6  // number of bits before the decimal pt in our representation
