@@ -296,7 +296,8 @@ int main(int argc, const char* argv[]) {
 
     layer_t* layers;
     int total_layers = configure_network_from_file(conf_file, &layers);
-    printf("Size of layer configuration: %lu\n", total_layers * sizeof(layer_t));
+    printf("Size of layer configuration: %lu bytes\n",
+           total_layers * sizeof(layer_t));
 
     data_init_mode RANDOM_DATA = RANDOM;
     data_init_mode RANDOM_WEIGHTS = RANDOM;
@@ -319,7 +320,8 @@ int main(int argc, const char* argv[]) {
         size_t curr_layer_usage = calc_layer_intermediate_memory(layers[i]);
         hid_temp_size = max(hid_temp_size, curr_layer_usage);
     }
-    printf("  Largest intermediate output size is %lu\n", hid_temp_size);
+    printf("  Largest intermediate output size is %lu elements\n",
+           hid_temp_size);
     err = posix_memalign(
             (void**)&hid_temp, CACHELINE_SIZE,
             next_multiple(hid_temp_size * sizeof(float), CACHELINE_SIZE));
@@ -337,9 +339,7 @@ int main(int argc, const char* argv[]) {
     err = posix_memalign((void**)&weights, CACHELINE_SIZE,
                          next_multiple(w_size * sizeof(float), CACHELINE_SIZE));
     ASSERT_MEMALIGN(weights, err);
-    printf("Total weights: %d\n", w_size);
-    init_weights(weights, layers, total_layers, RANDOM_WEIGHTS, TRANSPOSE_WEIGHTS);
-
+    printf("  Total weights: %d elements\n", w_size);
     // Get the largest weights size for a single layer - this will be the size
     // of the scratchpad.
     size_t weights_temp_size = 0;
@@ -347,7 +347,9 @@ int main(int argc, const char* argv[]) {
       size_t curr_layer_weights = get_num_weights_layer(layers, i);
       weights_temp_size = max(weights_temp_size, curr_layer_weights);
     }
-    printf("Largest weights per layer: %lu\n", weights_temp_size);
+    printf("  Largest weights per layer: %lu elements\n", weights_temp_size);
+
+    init_weights(weights, layers, total_layers, RANDOM_WEIGHTS, TRANSPOSE_WEIGHTS);
 
     int* labels;
     size_t label_size = NUM_TEST_CASES;

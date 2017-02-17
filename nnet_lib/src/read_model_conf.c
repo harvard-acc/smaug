@@ -204,5 +204,6 @@ int configure_network_from_file(const char* cfg_file, layer_t** layers_ptr) {
     INPUT_DIM = input_rows * input_cols * input_height;
 
     print_layer_config(*layers_ptr, num_layers);
+    cfg_free(all_opts);
     return num_layers;
 }
