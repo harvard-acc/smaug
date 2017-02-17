@@ -15,7 +15,7 @@
 #define NUM_CLASSES 10
 // number of stored points in sigmoid lookup table
 #define LG_SIGMOID_COARSENESS 4
-#define NUM_TEST_CASES 2      // NOT READ BY nnet_fwd.c, ONLY BY the other one
+#define NUM_TEST_CASES 1      // NOT READ BY nnet_fwd.c, ONLY BY the other one
 #define SIG_MIN -5            // lower input bound for sigmoid lookup table
 #define SIG_MAX +5            // upper input bound for sigmoid lookup table
 
@@ -168,12 +168,8 @@ typedef enum _layer_type {
     POOL_AVG,
     // Softmax output.
     SOFTMAX,
-    // Flatten previous output into a column vector (for FC layers).
-    FLATTEN,
     // Fully connected layer.
     FC,
-    // First layer (skipped during execution).
-    INPUT,
     // Output label layer, fully connected (the implicit last layer).
     OUTPUT,
     // End the network without a FC output layer.  This is mostly used for
@@ -223,6 +219,7 @@ typedef struct _layer_t {
 
   // for CONV layers only.
   int c_kernel_size;
+  int c_padding;
 
   // for POOL layers only.
   int p_size;

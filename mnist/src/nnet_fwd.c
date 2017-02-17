@@ -7,6 +7,7 @@
 #include "init_data.h"
 #include "matrix_multiply.h"
 #include "pooling.h"
+#include "read_model_conf.h"
 #include "utility.h"
 #include "zeropad.h"
 
@@ -20,18 +21,6 @@
 #endif
 
 #include "nnet_fwd.h"
-
-// Network layer configuration.
-layer_type LAYER_TYPES[] = {
-    INPUT, CONV, POOL_MAX, FLATTEN, FC, FC, OUTPUT
-};
-// Fully connected layer config.
-int NUM_HIDDEN_UNITS[] = { 256, 256, 256 };
-
-// Conv layer config: (kernel size, number of kernels)
-int CONV_LAYERS[][2] = { { 3, 2 } };
-// Pool layer config: (pooling size, pooling stride)
-int POOL_LAYERS[][2] = { { 2, 2 } };
 
 // Grab matrix n out of the doubly flattened w
 // (w is a flattened collection of matrices, each flattened)
@@ -51,9 +40,8 @@ void grab_matrix_dma(float* weights,
                      layer_t* layers) {
     size_t offset = 0;
     int i;
-    // Start from layer idx 1 (to skip the input layer).
 grab_matrix_dma_loop:
-    for (i = 1; i < layer; i++) {
+    for (i = 0; i < layer; i++) {
         offset += get_num_weights_layer(layers, i);
     }
     size_t size = get_num_weights_layer(layers, layer) * sizeof(float);
@@ -135,10 +123,6 @@ bool run_layer(float* activations,
         max_pooling(activations, result_temp, curr_layer);
         PRINT_DEBUG4D(result_temp, curr_layer.output_rows, curr_layer.output_cols,
                       curr_layer.output_height);
-    } else if (l_type == FLATTEN) {
-        // This is just a dummy layer. Return.
-        result_in_input = true;
-        do_activation_func = false;
     }
 
     if (do_activation_func) {
@@ -211,7 +195,7 @@ void nnet_fwd(float* hid,
     // FORMAT HERE IS H TIMES W, NOT W TIMES H!!!!!
     // SO EACH DATA POINT IS A ***ROW****
 
-    l = 1;  // Skip the input layer.
+    l = 0;
 #ifdef DMA_MODE
     dmaLoad(hid, 0, 0, NUM_TEST_CASES * INPUT_DIM * sizeof(float));
 #endif
@@ -221,7 +205,7 @@ void nnet_fwd(float* hid,
     //******************//
 
 nnet_fwd_outer:
-    for (l = 1; l < num_layers; l++) {
+    for (l = 0; l < num_layers; l++) {
         curr_layer = layers[l];
         // Don't run the activation function on the last layer.
         do_activation_func = (l != num_layers - 1);
@@ -256,16 +240,6 @@ nnet_fwd_outer:
 #endif
 }
 
-size_t next_multiple(size_t request, size_t align) {
-  size_t n = request/align;
-  if (n == 0)
-    return align;  // Return at least this many bytes.
-  size_t remainder = request - n*align;
-  if (remainder)
-      return (n+1)*align;
-  return request;
-}
-
 size_t calc_layer_intermediate_memory(layer_t layer) {
     size_t usage = 0;
 
@@ -289,162 +263,29 @@ size_t calc_layer_intermediate_memory(layer_t layer) {
     return usage * NUM_TEST_CASES;
 }
 
-int configure_network(layer_t** layers_ptr) {
-    int i, err;
-    int last_conv_layer = 0, last_pool_layer = 0, last_fc_layer = 0;
-    int next_input_width, next_input_height;
-
-    size_t num_fc_layers = sizeof(NUM_HIDDEN_UNITS)/sizeof(int);
-    size_t num_conv_layers = sizeof(CONV_LAYERS)/sizeof(int)/2;
-    size_t num_pool_layers = sizeof(POOL_LAYERS)/sizeof(int)/2;
-    int total_layers = sizeof(LAYER_TYPES)/sizeof(layer_type);
-
-    err = posix_memalign(
-            (void**)layers_ptr, CACHELINE_SIZE,
-            next_multiple(sizeof(layer_t) * total_layers, CACHELINE_SIZE));
-    ASSERT_MEMALIGN(layers_ptr, err);
-
-    layer_t* layers = *layers_ptr;
-
-    next_input_width = INPUT_X;
-    next_input_height = INPUT_Y;
-    for (i = 0; i < total_layers; i ++) {
-        layers[i].type = LAYER_TYPES[i];
-        if (layers[i].type == INPUT) {
-            assert(i == 0 && "Input layer must be the first layer!");
-            layers[i].input_rows = INPUT_Y;
-            layers[i].input_cols = INPUT_X;
-            layers[i].input_height = INPUT_Z;
-
-            if (LAYER_TYPES[i+1] == FC) {
-                layers[i].output_rows = 1;
-                layers[i].output_cols = INPUT_X * INPUT_Y;
-            } else {
-                layers[i].output_rows = INPUT_Y;
-                layers[i].output_cols = INPUT_X;
-            }
-            layers[i].output_height = INPUT_Z;
-        } else if (layers[i].type == CONV) {
-            layers[i].c_kernel_size = CONV_LAYERS[last_conv_layer][0];
-            layers[i].input_height = layers[i-1].output_height;
-            layers[i].output_height = CONV_LAYERS[last_conv_layer][1];
-            // Input rows/cols must include zero padding.
-            layers[i].input_rows =
-                    layers[i - 1].output_rows + layers[i].c_kernel_size - 1;
-            layers[i].input_cols =
-                    layers[i - 1].output_cols + layers[i].c_kernel_size - 1;
-            layers[i].output_rows = layers[i - 1].output_rows;
-            layers[i].output_cols = layers[i - 1].output_cols;
-            last_conv_layer++;
-        } else if (layers[i].type == POOL_MAX) {
-            // Assume that the first layer will not be a pooling layer.
-            layers[i].p_size = POOL_LAYERS[last_pool_layer][0];
-            layers[i].p_stride = POOL_LAYERS[last_pool_layer][1];
-            layers[i].input_rows = layers[i-1].output_rows;
-            layers[i].input_cols = layers[i-1].output_cols;
-            layers[i].input_height = layers[i - 1].output_height;
-            layers[i].output_rows = ((layers[i].input_rows - layers[i].p_size) /
-                                     layers[i].p_stride) + 1;
-            layers[i].output_cols = ((layers[i].input_cols - layers[i].p_size) /
-                                     layers[i].p_stride) + 1;
-            layers[i].output_height = layers[i].input_height;
-            last_pool_layer++;
-        } else if (layers[i].type == FLATTEN) {
-            layers[i].input_rows = layers[i-1].output_rows;
-            layers[i].input_cols = layers[i-1].output_cols;
-            layers[i].input_height = layers[i-1].output_height;
-            layers[i].output_rows = 1;
-            layers[i].output_cols = layers[i].input_rows *
-                                    layers[i].input_cols *
-                                    layers[i].input_height;
-            layers[i].output_height = 1;
-        } else if (layers[i].type == FC) {
-            layers[i].input_rows = layers[i-1].output_cols + 1;
-            layers[i].input_cols = NUM_HIDDEN_UNITS[last_fc_layer];
-            layers[i].input_height = layers[i-1].output_height;
-
-            // The next layer's input rows is the number of this layer's columns + 1.
-            layers[i].output_cols = layers[i].input_cols;
-            layers[i].output_rows = 1;
-            layers[i].output_height = 1;
-            last_fc_layer++;
-        } else if (layers[i].type == OUTPUT) {
-            // Assume that the last layer must be fully connected.
-            layers[i].type = FC;
-            layers[i].input_rows = layers[i-1].output_cols + 1;
-            layers[i].input_cols = NUM_CLASSES;
-            layers[i].input_height = layers[i-1].output_height;
-
-            layers[i].output_cols = NUM_CLASSES;
-            layers[i].output_rows = 1;
-            layers[i].output_height = 1;
-
-            // This is the last layer. Break.
-            total_layers = ++i;
-            last_fc_layer++;
-            break;
-        } else if (layers[i].type == END) {
-            total_layers = i;
-            break;
-        } else {
-            printf("Layer %d is an unsupported type!\n", i);
-            assert(false);
-        }
-    }
-
-    // Sanity check.
-    assert(last_conv_layer == num_conv_layers);
-    assert(last_pool_layer == num_pool_layers);
-    assert(last_fc_layer == num_fc_layers);
-
-    // Helpfully print out the network topology. Skip the input layer.
-    for (i = 1; i < total_layers; i++) {
-        layer_type type = layers[i].type;
-        printf("Layer %d: ", i);
-        if (type == CONV) {
-            printf("Convolutional\n");
-            printf("  Input size: %d x %d\n", layers[i].input_rows,
-                   layers[i].input_cols);
-            printf("  Output size: %d x %d\n", layers[i].output_rows,
-                   layers[i].output_cols);
-            printf("  Kernel size: %d x %d\n", layers[i].c_kernel_size,
-                   layers[i].c_kernel_size);
-            printf("  Num kernels: %d\n", layers[i].output_height);
-        } else if (type == FC) {
-            printf("Fully connected\n");
-            printf("  Weights: %d x %d\n", layers[i].input_rows,
-                   layers[i].input_cols);
-        } else if (type == POOL_MAX) {
-            printf("Max pooling\n");
-            printf("  Input size: %d x %d\n", layers[i].input_rows,
-                   layers[i].input_cols);
-            printf("  Output size: %d x %d\n", layers[i].output_rows,
-                   layers[i].output_cols);
-            printf("  Field size: %d\n", layers[i].p_size);
-            printf("  Stride: %d\n", layers[i].p_stride);
-            printf("  Height: %d\n", layers[i].output_height);
-        } else if (type == SOFTMAX) {
-            printf("Softmax\n");
-        } else if (type == FLATTEN) {
-            printf("Flatten\n");
-            printf("  Input size: %d x %d\n", layers[i].input_rows,
-                   layers[i].input_cols);
-            printf("  Output size: %d x %d\n", layers[i].output_rows,
-                   layers[i].output_cols);
-        }
-    }
-    return total_layers;
+void print_usage() {
+    printf("Usage:\n");
+    printf("  nnet_fwd path/to/model-config-file\n\n");
+    printf("The model configuration file is written in libconfuse syntax, "
+           "based loosely on the Caffe configuration style. It is case "
+           "sensitive.\n");
 }
 
 // This is the thing that we want to be good at in hardware
 int main(int argc, const char* argv[]) {
     int i, j, err;
 
+    if (argc != 2) {
+      print_usage();
+      return -1;
+    }
+    const char* conf_file = argv[1];
+
     // set random seed (need to #include <time.h>)
     srand(1);
 
     layer_t* layers;
-    int total_layers = configure_network(&layers);
+    int total_layers = configure_network_from_file(conf_file, &layers);
     printf("Size of layer configuration: %lu\n", total_layers * sizeof(layer_t));
 
     data_init_mode RANDOM_DATA = RANDOM;
@@ -464,7 +305,7 @@ int main(int argc, const char* argv[]) {
     // Get the dimensions of the biggest matrix that will ever come out of
     // run_layer.
     size_t hid_temp_size = 0;
-    for (i = 1; i < total_layers; i++) {
+    for (i = 0; i < total_layers; i++) {
         size_t curr_layer_usage = calc_layer_intermediate_memory(layers[i]);
         hid_temp_size = max(hid_temp_size, curr_layer_usage);
     }
@@ -492,7 +333,7 @@ int main(int argc, const char* argv[]) {
     // Get the largest weights size for a single layer - this will be the size
     // of the scratchpad.
     size_t weights_temp_size = 0;
-    for (i = 1; i < total_layers; i++) {
+    for (i = 0; i < total_layers; i++) {
       size_t curr_layer_weights = get_num_weights_layer(layers, i);
       weights_temp_size = max(weights_temp_size, curr_layer_weights);
     }

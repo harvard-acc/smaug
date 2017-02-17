@@ -111,13 +111,12 @@ int get_total_num_weights(layer_t* layers, int num_layers) {
     return w_size;
 }
 
-// Returns true if this layer is not actually supposed to be executed.
-bool is_dummy_layer(layer_t* layers, int l) {
-    switch (layers[l].type) {
-        case FLATTEN:
-        case INPUT:
-            return true;
-        default:
-            return false;
-    }
+size_t next_multiple(size_t request, size_t align) {
+  size_t n = request/align;
+  if (n == 0)
+    return align;  // Return at least this many bytes.
+  size_t remainder = request % align;
+  if (remainder)
+      return (n+1)*align;
+  return request;
 }

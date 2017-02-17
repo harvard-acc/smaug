@@ -20,8 +20,6 @@ void init_weights(float* weights,
         printf("Initializing weights randomly\n");
 
         for (l = 0; l < num_layers; l++) {
-            if (is_dummy_layer(layers, l))
-                continue;
             get_weights_dims_layer(layers, l, &w_rows, &w_cols, &w_height, &w_depth);
             for (d = 0; d < w_depth; d++) {
                 for (h = 0; h < w_height; h++) {
