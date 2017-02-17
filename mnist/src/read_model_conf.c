@@ -189,13 +189,19 @@ int configure_network_from_file(const char* cfg_file, layer_t** layers_ptr) {
     int err = posix_memalign(
             (void**)layers_ptr, CACHELINE_SIZE,
             next_multiple(sizeof(layer_t) * num_layers, CACHELINE_SIZE));
-    ASSERT_MEMALIGN(layers, err);
+    ASSERT_MEMALIGN(*layers_ptr, err);
 
-    read_top_level_config(*layers_ptr, network_opts);
+    layer_t* layers = *layers_ptr;
+
+    read_top_level_config(layers, network_opts);
 
     for (int i = 0; i < num_layers; i++) {
-        read_layer_config(*layers_ptr, network_opts, i);
+        read_layer_config(layers, network_opts, i);
     }
+
+    // Set some global variables.
+    NUM_CLASSES = layers[num_layers-1].output_cols;
+    INPUT_DIM = input_rows * input_cols * input_height;
 
     print_layer_config(*layers_ptr, num_layers);
     return num_layers;

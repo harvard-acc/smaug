@@ -22,6 +22,10 @@
 
 #include "nnet_fwd.h"
 
+int NUM_TEST_CASES;
+int NUM_CLASSES;
+int INPUT_DIM;
+
 // Grab matrix n out of the doubly flattened w
 // (w is a flattened collection of matrices, each flattened)
 float* grab_matrix(float* w, int n, int* n_rows, int* n_columns) {
@@ -265,21 +269,27 @@ size_t calc_layer_intermediate_memory(layer_t layer) {
 
 void print_usage() {
     printf("Usage:\n");
-    printf("  nnet_fwd path/to/model-config-file\n\n");
+    printf("  nnet_fwd path/to/model-config-file [num-inputs=1]\n\n");
     printf("The model configuration file is written in libconfuse syntax, "
            "based loosely on the Caffe configuration style. It is case "
-           "sensitive.\n");
+           "sensitive.\n\n");
+    printf("num-inputs specifies the number of input images to run th rough "
+           "the network. If not specified, it defaults to 1.\n");
 }
 
 // This is the thing that we want to be good at in hardware
 int main(int argc, const char* argv[]) {
     int i, j, err;
 
-    if (argc != 2) {
+    if (argc < 2 || argc > 3) {
       print_usage();
       return -1;
     }
     const char* conf_file = argv[1];
+    if (argc == 2)
+      NUM_TEST_CASES = 1;
+    else
+      NUM_TEST_CASES = strtol(argv[2], NULL, 10);
 
     // set random seed (need to #include <time.h>)
     srand(1);
