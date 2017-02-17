@@ -9,7 +9,7 @@
 GEM5_SRCS = aladdin_sys_connection.cpp aladdin_sys_constants.cpp dma_interface.c
 GEM5_FULL_SRCS = $(GEM5_SRCS:%=$(ALADDIN_HOME)/gem5/%)
 
-CFLAGS += -O3 -Wall -Wno-unused-label
+CFLAGS += -g -O3 -Wall -Wno-unused-label
 ALL_SRCS = $(patsubst %.c, $(SRC_DIR)/%.c, $(SRCS))
 _BUILD_VIEW_SRCS = $(patsubst %.c, ../$(SRC_DIR)/%.c, $(SRCS))
 
@@ -20,7 +20,7 @@ GEM5_CFLAGS = -static -O3 -mno-80387 -msoft-float \
 							-DDMA_MODE -DDMA_INTERFACE_V2
 
 INCLUDES += -I$(ALADDIN_HOME) -I$(ALADDIN_HOME)/gem5
-LFLAGS = -lm
+LFLAGS = -lm -lconfuse
 BMARK = $(ACCEL_NAME)
 
 # Output names:

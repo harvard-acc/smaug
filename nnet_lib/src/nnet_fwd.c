@@ -270,11 +270,11 @@ size_t calc_layer_intermediate_memory(layer_t layer) {
 void print_usage() {
     printf("Usage:\n");
     printf("  nnet_fwd path/to/model-config-file [num-inputs=1]\n\n");
-    printf("The model configuration file is written in libconfuse syntax, "
-           "based loosely on the Caffe configuration style. It is case "
-           "sensitive.\n\n");
-    printf("num-inputs specifies the number of input images to run th rough "
-           "the network. If not specified, it defaults to 1.\n");
+    printf("  The model configuration file is written in libconfuse syntax,\n "
+           "    based loosely on the Caffe configuration style. It is case\n"
+           "    sensitive.\n\n");
+    printf("  num-inputs specifies the number of input images to run through\n"
+           "    the network. If not specified, it defaults to 1.\n");
 }
 
 // This is the thing that we want to be good at in hardware

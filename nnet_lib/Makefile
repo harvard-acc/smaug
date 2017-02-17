@@ -6,7 +6,9 @@ SRCS = activation_functions.c \
 			 nnet_fwd.c \
 			 pooling.c \
 			 utility.c \
-			 zeropad.c
+			 zeropad.c \
+			 read_model_conf.c \
+			 model_conf_params.c
 
 CFLAGS = -Wno-unused-but-set-variable
 ACCEL_NAME = nnet
