@@ -118,10 +118,18 @@ bool run_layer(float* activations,
                       curr_layer.output_cols, curr_layer.output_height);
     } else if (l_type == CONV) {
         PRINT_MSG("\nconvolution2d\n");
-        convolution2d_zeropad(activations, weights, curr_layer, result_temp);
-        PRINT_DEBUG4D(activations, curr_layer.output_rows, curr_layer.output_cols,
-                      curr_layer.output_height);
-        result_in_input = true;
+        if (curr_layer.c_padding > 0) {
+            convolution2d_zeropad(
+                    activations, weights, curr_layer, result_temp);
+            PRINT_DEBUG4D(activations, curr_layer.output_rows,
+                          curr_layer.output_cols, curr_layer.output_height);
+            result_in_input = true;
+        } else {
+            convolution2d_no_padding(
+                    activations, weights, curr_layer, result_temp);
+            PRINT_DEBUG4D(result_temp, curr_layer.output_rows,
+                          curr_layer.output_cols, curr_layer.output_height);
+        }
     } else if (l_type == POOL_MAX) {
         PRINT_MSG("\nmax pooling\n");
         max_pooling(activations, result_temp, curr_layer);
