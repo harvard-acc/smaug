@@ -57,8 +57,8 @@ copy_zeropad_height:
         copy_zeropad_copy_cols:
             for (j = pad; j < a_cols + pad; j++) {
                 result[sub4ind(img, h, i, j, a_hgt, r_rows, r_cols)] =
-                        a[sub4ind(h,
-                                  img,
+                        a[sub4ind(img,
+                                  h,
                                   i - pad,
                                   j - pad,
                                   a_hgt,
