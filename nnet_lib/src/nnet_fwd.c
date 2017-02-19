@@ -162,6 +162,26 @@ bool run_layer(float* activations,
     return result_in_input;
 }
 
+void get_input_data(float* input) {
+#ifdef DMA_MODE
+    dmaLoad(input, 0, 0, NUM_TEST_CASES * INPUT_DIM * sizeof(float));
+#endif
+}
+
+void store_result(float* result,
+                  float* result_temp,
+                  layer_t* layers,
+                  int num_layers,
+                  bool result_in_temp) {
+#ifdef DMA_MODE
+    if (result_in_temp)
+        dmaStore(result_temp, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
+    else
+        dmaStore(result, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
+    dmaStore(layers, 0, 0, num_layers*sizeof(layer_t));
+#endif
+}
+
 // Does the forward predictive pass of a neural net.
 //
 // A float array of class predictions in row major format of size
@@ -208,9 +228,7 @@ void nnet_fwd(float* hid,
     // SO EACH DATA POINT IS A ***ROW****
 
     l = 0;
-#ifdef DMA_MODE
-    dmaLoad(hid, 0, 0, NUM_TEST_CASES * INPUT_DIM * sizeof(float));
-#endif
+    get_input_data(hid);
 
     //******************//
     //   PRIMARY LOOP   //
@@ -222,9 +240,7 @@ nnet_fwd_outer:
         // Don't run the activation function on the last layer.
         do_activation_func = (l != num_layers - 1);
 
-#ifdef DMA_MODE
         grab_matrix_dma(weights, l, layers);
-#endif
 
         if (result_in_temp) {
             result_in_input = run_layer(hid_temp, weights, curr_layer, hid,
@@ -238,18 +254,8 @@ nnet_fwd_outer:
            result_in_temp = !result_in_temp;
     }
 
-#ifdef DMA_MODE
-    if (result_in_temp)
-        dmaStore(hid_temp, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
-    else
-        dmaStore(hid, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
-#endif
-
     layers[num_layers - 1].result_in_temp = (int)result_in_temp;
-
-#ifdef DMA_MODE
-    dmaStore(layers, 0, 0, num_layers*sizeof(layer_t));
-#endif
+    store_result(hid, hid_temp, layers, num_layers, result_in_temp);
 }
 
 size_t calc_layer_intermediate_memory(layer_t layer) {
