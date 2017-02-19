@@ -103,8 +103,10 @@ static void set_layer_input_dims(layer_t* layers, cfg_t* layer_opts, int l) {
 static void set_layer_output_dims(layer_t* layers, cfg_t* layer_opts, int l) {
     if (layers[l].type == CONV) {
         cfg_t* conv_params = cfg_getsec(layer_opts, "convolution_param");
-        layers[l].output_rows = layers[l].input_rows - 2 * layers[l].c_padding;
-        layers[l].output_cols = layers[l].input_cols - 2 * layers[l].c_padding;
+        layers[l].output_rows =
+                layers[l].input_rows - layers[l].c_kernel_size + 1;
+        layers[l].output_cols =
+                layers[l].input_cols - layers[l].c_kernel_size + 1;
         // Number of kernels is the third dimension of the output.
         layers[l].output_height = cfg_getint(conv_params, "num_output");
     } else if (layers[l].type == POOL_MAX) {
