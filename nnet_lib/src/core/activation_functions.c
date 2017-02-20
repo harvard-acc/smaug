@@ -1,5 +1,6 @@
+#include "utility/utility.h"
 #include "nnet_fwd.h"
-#include "utility.h"
+
 #include "activation_functions.h"
 
 // The rectified linear activation function

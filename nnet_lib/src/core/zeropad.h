@@ -1,6 +1,8 @@
 #ifndef _ZEROPAD_H_
 #define _ZEROPAD_H_
 
+#include "nnet_fwd.h"
+
 void copy_zeropad(float* a, layer_t curr_layer, int pad, float* result);
 void copy_zeropad_image3d(float* a,
                           int pad,

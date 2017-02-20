@@ -1,4 +1,5 @@
 #include "nnet_fwd.h"
+
 #include "zeropad.h"
 
 // Zeropad each image in @a by @pad zeros.

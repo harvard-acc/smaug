@@ -1,9 +1,10 @@
 #include "nnet_fwd.h"
-#include "utility.h"
 
 #ifdef DMA_MODE
 #include "gem5_harness.h"
 #endif
+
+#include "utility.h"
 
 float randfloat() { return rand() / ((float)(RAND_MAX)); }
 

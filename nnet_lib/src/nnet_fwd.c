@@ -2,14 +2,14 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-#include "activation_functions.h"
-#include "convolution.h"
-#include "init_data.h"
-#include "matrix_multiply.h"
-#include "pooling.h"
-#include "read_model_conf.h"
-#include "utility.h"
-#include "zeropad.h"
+#include "core/activation_functions.h"
+#include "core/convolution.h"
+#include "core/matrix_multiply.h"
+#include "core/pooling.h"
+#include "core/zeropad.h"
+#include "utility/init_data.h"
+#include "utility/read_model_conf.h"
+#include "utility/utility.h"
 
 #ifdef DMA_MODE
 #include "gem5_harness.h"

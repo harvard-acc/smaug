@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <float.h>
+
 #include "nnet_fwd.h"
 
 #include "pooling.h"

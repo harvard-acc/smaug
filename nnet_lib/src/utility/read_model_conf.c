@@ -3,9 +3,11 @@
 #include <string.h>
 
 #include "confuse.h"
+
+#include "utility/utility.h"
 #include "nnet_fwd.h"
+
 #include "read_model_conf.h"
-#include "utility.h"
 
 extern cfg_opt_t convolution_param_cfg[];
 extern cfg_opt_t inner_product_param_cfg[];

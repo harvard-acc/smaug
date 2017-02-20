@@ -1,8 +1,9 @@
-#include "nnet_fwd.h"
 #include <stdbool.h>
 #include <stdio.h>
 
-#include "utility.h"
+#include "utility/utility.h"
+#include "nnet_fwd.h"
+
 #include "init_data.h"
 
 void init_weights(float* weights,

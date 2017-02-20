@@ -30,7 +30,7 @@ LOGGER = $(TRACER_HOME)/lib/trace_logger.llvm
 GET_LABELED_STMTS = $(TRACER_HOME)/bin/get-labeled-stmts
 
 MODE = LLVM_TRACE
-CPPFLAGS = -I$(ALADDIN_HOME) -I$(COMMON_DIR) -D$(MODE) -DTRACE_MODE
+CPPFLAGS = -I$(ALADDIN_HOME) -I$(COMMON_DIR) -D$(MODE) -DTRACE_MODE -I$(COMMON_DIR)/../$(SRC_DIR)
 CPPFLAGS += -DDMA_MODE -I$(ALADDIN_HOME)/gem5
 LDFLAGS = -lm -lz -lconfuse
 
@@ -69,7 +69,7 @@ $(BUILD_DIR)/full.s: $(BUILD_DIR)/full.llvm
 	llc -O0 -disable-fp-elim -filetype=asm -o $@ $<
 
 $(BUILD_DIR)/$(EXEC)-instrumented: $(BUILD_DIR)/full.s
-	$(CXX) -O0 -fno-inline -o $@ $< $(LDFLAGS)
+	$(CXX) -g -O0 -fno-inline -o $@ $< $(LDFLAGS)
 
 $(BUILD_DIR)/%-opt.llvm: $(BUILD_DIR)/%.c $(BUILD_DIR)/labelmap
 	clang -g -O1 -S -fno-slp-vectorize -fno-vectorize -fno-unroll-loops \
@@ -79,7 +79,7 @@ $(BUILD_DIR)/%-opt.llvm: $(BUILD_DIR)/%.c $(BUILD_DIR)/labelmap
         $(BMARK_SPECIFIC_CFLAGS) \
         -o $(BUILD_DIR)/$*.llvm $<; \
 	cd $(BUILD_DIR); \
-	opt -S -load=$(TRACER) -fulltrace -labelmapwriter $*.llvm -o $*-opt.llvm; \
+	opt -S -load=$(TRACER) -fulltrace -labelmapwriter -trace-all-callees $*.llvm -o $*-opt.llvm; \
 	cd ..
 
 clean-trace:

@@ -1,7 +1,7 @@
+#include "core/pooling.h"
+#include "core/zeropad.h"
+#include "utility/utility.h"
 #include "nnet_fwd.h"
-#include "pooling.h"
-#include "utility.h"
-#include "zeropad.h"
 
 #include "convolution.h"
 

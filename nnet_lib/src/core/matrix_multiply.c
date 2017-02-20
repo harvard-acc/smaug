@@ -1,5 +1,5 @@
+#include "utility/utility.h"
 #include "nnet_fwd.h"
-#include "utility.h"
 
 #include "matrix_multiply.h"
 
