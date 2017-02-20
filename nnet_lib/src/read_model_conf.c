@@ -48,18 +48,19 @@ static void set_layer_type(layer_t* layers, cfg_t* layer_opts, int l) {
 static void set_layer_aux_params(layer_t* layers, cfg_t* layer_opts, int l) {
     if (layers[l].type == CONV) {
         cfg_t* conv_params = cfg_getsec(layer_opts, "convolution_param");
-        layers[l].c_kernel_size = cfg_getint(conv_params, "kernel_size");
+        layers[l].field_size = cfg_getint(conv_params, "kernel_size");
+        layers[l].field_stride = cfg_getint(conv_params, "stride");
         layers[l].c_padding = cfg_getint(conv_params, "pad");
         layers[l].output_height = cfg_getint(conv_params, "num_output");
-        assert(layers[l].c_kernel_size != -1);
+        assert(layers[l].field_size != -1);
         assert(layers[l].c_padding != -1);
         assert(layers[l].output_height != -1);
     } else if (layers[l].type == POOL_MAX) {
         cfg_t* pool_params = cfg_getsec(layer_opts, "pooling_param");
-        layers[l].p_size = cfg_getint(pool_params, "size");
-        layers[l].p_stride = cfg_getint(pool_params, "stride");
-        assert(layers[l].p_size != -1);
-        assert(layers[l].p_stride != -1);
+        layers[l].field_size = cfg_getint(pool_params, "size");
+        layers[l].field_stride = cfg_getint(pool_params, "stride");
+        assert(layers[l].field_size != -1);
+        assert(layers[l].field_stride != -1);
     }
 }
 
@@ -103,18 +104,18 @@ static void set_layer_input_dims(layer_t* layers, cfg_t* layer_opts, int l) {
 static void set_layer_output_dims(layer_t* layers, cfg_t* layer_opts, int l) {
     if (layers[l].type == CONV) {
         cfg_t* conv_params = cfg_getsec(layer_opts, "convolution_param");
-        layers[l].output_rows =
-                layers[l].input_rows - layers[l].c_kernel_size + 1;
-        layers[l].output_cols =
-                layers[l].input_cols - layers[l].c_kernel_size + 1;
+        layers[l].output_rows = (layers[l].input_rows - layers[l].field_size) /
+                                        layers[l].field_stride + 1;
+        layers[l].output_cols = (layers[l].input_cols - layers[l].field_size) /
+                                        layers[l].field_stride + 1;
         // Number of kernels is the third dimension of the output.
         layers[l].output_height = cfg_getint(conv_params, "num_output");
     } else if (layers[l].type == POOL_MAX) {
         layers[l].output_rows =
-                (layers[l].input_rows - layers[l].p_size) / layers[l].p_stride +
+                (layers[l].input_rows - layers[l].field_size) / layers[l].field_stride +
                 1;
         layers[l].output_cols =
-                (layers[l].input_cols - layers[l].p_size) / layers[l].p_stride +
+                (layers[l].input_cols - layers[l].field_size) / layers[l].field_stride +
                 1;
         layers[l].output_height = layers[l].input_height;
     } else if (layers[l].type == FC) {
@@ -152,10 +153,11 @@ static void print_layer_config(layer_t* layers, int num_layers) {
                    layers[i].input_height);
             printf("    Output size: %d x %d x %d\n", layers[i].output_rows,
                    layers[i].output_cols, layers[i].output_height);
-            printf("    Kernel size: %d x %d x %d\n", layers[i].c_kernel_size,
-                   layers[i].c_kernel_size, layers[i].input_height);
+            printf("    Kernel size: %d x %d x %d\n", layers[i].field_size,
+                   layers[i].field_size, layers[i].input_height);
             printf("    Num kernels: %d\n", layers[i].output_height);
             printf("    Padding: %d\n", layers[i].c_padding);
+            printf("    Stride: %d\n", layers[i].field_stride);
         } else if (type == FC) {
             printf("  Fully connected\n");
             printf("    Weights: %d x %d\n", layers[i].input_rows,
@@ -166,8 +168,8 @@ static void print_layer_config(layer_t* layers, int num_layers) {
                    layers[i].input_cols, layers[i].input_height);
             printf("    Output size: %d x %d x %d\n", layers[i].output_rows,
                    layers[i].output_cols, layers[i].output_height);
-            printf("    Field size: %d\n", layers[i].p_size);
-            printf("    Stride: %d\n", layers[i].p_stride);
+            printf("    Field size: %d\n", layers[i].field_size);
+            printf("    Stride: %d\n", layers[i].field_stride);
             printf("    Height: %d\n", layers[i].output_height);
         } else if (type == SOFTMAX) {
             printf("  Softmax\n");

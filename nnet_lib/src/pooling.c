@@ -27,8 +27,8 @@ void max_pooling_image3d(float* input, int img, float* result, layer_t curr_laye
     int rows = curr_layer.input_rows;
     int cols = curr_layer.input_cols;
     int hgt = curr_layer.input_height;
-    int stride = curr_layer.p_stride;
-    int size = curr_layer.p_size;
+    int stride = curr_layer.field_stride;
+    int size = curr_layer.field_size;
 
 #if TREE_MAX == 1
     int total_pool_size = size * size;

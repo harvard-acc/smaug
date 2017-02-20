@@ -214,13 +214,12 @@ typedef struct _layer_t {
   int output_cols;
   int output_height;
 
-  // for CONV layers only.
-  int c_kernel_size;
-  int c_padding;
+  // For CONV and POOL layers
+  int field_size;
+  int field_stride;
 
-  // for POOL layers only.
-  int p_size;
-  int p_stride;
+  // CONV layers only.
+  int c_padding;
 
   // Where are the class predictions stored, hid or hid_temp?
   int result_in_temp;

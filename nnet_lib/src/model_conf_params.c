@@ -3,6 +3,7 @@
 cfg_opt_t convolution_param_cfg[] = { CFG_INT("num_output", -1, CFGF_NONE),
                                       CFG_INT("pad", -1, CFGF_NONE),
                                       CFG_INT("kernel_size", -1, CFGF_NONE),
+                                      CFG_INT("stride", 1, CFGF_NONE),
                                       CFG_END() };
 
 cfg_opt_t inner_product_param_cfg[] = { CFG_INT("num_output", -1, CFGF_NONE),

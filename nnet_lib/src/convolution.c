@@ -18,7 +18,7 @@ void convolution2d_zeropad(float* input,
                            float* kernels,
                            layer_t curr_layer,
                            float* result) {
-    int padding = (curr_layer.c_kernel_size - 1) / 2;
+    int padding = (curr_layer.field_size - 1) / 2;
     copy_zeropad(input, curr_layer, padding, result);
     convolution2d_no_padding(result, kernels, curr_layer, input);
 }
@@ -66,8 +66,9 @@ void convolution2d_kernel_no_padding(float* a,
     const int result_width = curr_layer.output_cols;
 
     // Filter is k_width x k_width x k_height.
-    const int k_width = curr_layer.c_kernel_size;
+    const int k_width = curr_layer.field_size;
     const int k_height =  curr_layer.input_height;
+    const int k_stride = curr_layer.field_stride;
     const int num_kerns = curr_layer.output_height;
 
     // Convolution borders.
@@ -80,9 +81,9 @@ void convolution2d_kernel_no_padding(float* a,
 
 conv2d_input_rows:
     // Convolution loop over the output pixels in this depth slice (kern).
-    for (i = start_i; i < end_i; i++) {
+    for (i = start_i; i < end_i; i+= k_stride) {
     conv2d_input_cols:
-        for (j = start_j; j < end_j; j++) {
+        for (j = start_j; j < end_j; j+= k_stride) {
             partial_sum = 0;
         conv2d_kernel_height:
             // Convolution loop over the kernel.
