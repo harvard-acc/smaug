@@ -11,7 +11,9 @@ UTILITY_SRCS = utility/init_data.c \
 							 utility/model_conf_params.c \
 							 utility/read_model_conf.c
 
-SRCS = $(CORE_SRCS) $(UTILITY_SRCS) nnet_fwd.c
+LAYER_SRCS = layers/per_layer.c
+
+SRCS = $(CORE_SRCS) $(UTILITY_SRCS) $(LAYER_SRCS) nnet_fwd.c
 
 CFLAGS = -Wno-unused-but-set-variable
 ACCEL_NAME = nnet

@@ -10,6 +10,7 @@
 #include "utility/init_data.h"
 #include "utility/read_model_conf.h"
 #include "utility/utility.h"
+#include "layers/per_layer.h"
 
 #ifdef DMA_MODE
 #include "gem5_harness.h"
@@ -132,66 +133,11 @@ void nnet_fwd(float* hid,
               int num_layers,
               float* hid_temp,
               float* sigmoid_table) {
-
-    int i, j, l;
-    layer_t curr_layer;
-
-    // Alternate between reading from/writing to hid and hid_temp so we can
-    // avoid copying matrices.
-    bool result_in_temp = false;
-    bool result_in_input = false;
-    bool do_activation_func = true;
-
-    if (PRINT_DATA_AND_WEIGHTS) {
-        printf("DATA:\n");
-        for (i = 0; i < NUM_TEST_CASES; i++) {
-            printf("Datum %d:\n", i);
-            for (j = 0; j < INPUT_DIM; j++) {
-                printf("%e, ", hid[sub2ind(i, j, INPUT_DIM)]);
-            }
-            printf("\n");
-        }
-        printf("\nWEIGHTS:\n");
-        for (i = 0; i < layers[1].input_rows; i++) {
-            for (j = 0; j < layers[1].input_cols; j++) {
-                printf("%f\n", weights[sub2ind(i, j, layers[1].input_cols)]);
-            }
-        }
-        printf("\nEND WEIGHTS\n");
-    }
-
-    // FORMAT HERE IS H TIMES W, NOT W TIMES H!!!!!
-    // SO EACH DATA POINT IS A ***ROW****
-
-    l = 0;
-    get_input_data(hid);
-
-    //******************//
-    //   PRIMARY LOOP   //
-    //******************//
-
-nnet_fwd_outer:
-    for (l = 0; l < num_layers; l++) {
-        curr_layer = layers[l];
-        // Don't run the activation function on the last layer.
-        do_activation_func = (l != num_layers - 1);
-
-        grab_matrix_dma(weights, l, layers);
-
-        if (result_in_temp) {
-            result_in_input = run_layer(hid_temp, weights, curr_layer, hid,
-                                        sigmoid_table, do_activation_func);
-        } else {
-            result_in_input = run_layer(hid, weights, curr_layer, hid_temp,
-                                        sigmoid_table, do_activation_func);
-        }
-
-        if (!result_in_input)
-           result_in_temp = !result_in_temp;
-    }
-
-    layers[num_layers - 1].result_in_temp = (int)result_in_temp;
-    store_result(hid, hid_temp, layers, num_layers, result_in_temp);
+#if DATA_LOAD == PER_LAYER
+  nnet_fwd_per_layer(hid, weights, layers, num_layers, hid_temp, sigmoid_table);
+#else
+  #error "No other supported form of data loading!"
+#endif
 }
 
 size_t calc_layer_intermediate_memory(layer_t layer) {

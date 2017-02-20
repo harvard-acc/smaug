@@ -23,6 +23,17 @@ extern int INPUT_DIM;
 #define NUM_OF_FRAC_BITS                                                       \
     26  // number of bits after the decimal pt in our representation
 
+// Possible values of DATA_LOAD (see below).
+// PER_LAYER: all activations and weights for a given layer are loaded before
+// the layer begins to run.
+// BLOCKED_LAYER: Data is loaded from within the layer based on how that layer
+// is blocked.
+#define PER_LAYER 0
+#define BLOCKED_LAYER 1
+
+// The granularity at which data is loaded.
+#define DATA_LOAD PER_LAYER
+
 // If 1, then this transposes the data in the weights matrix such that the
 // access pattern is strided in the same way as the activations, which is
 // beneficial for increasing memory level parallelism (by reducing the number
@@ -224,5 +235,12 @@ typedef struct _layer_t {
   // Where are the class predictions stored, hid or hid_temp?
   int result_in_temp;
 } layer_t;
+
+bool run_layer(float* activations,
+               float* weights,
+               layer_t curr_layer,
+               float* result_temp,
+               float* sigmoid_table,
+               bool do_activation_func);
 
 #endif
