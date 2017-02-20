@@ -1,6 +1,10 @@
 #include "nnet_fwd.h"
 #include "utility.h"
 
+#ifdef DMA_MODE
+#include "gem5_harness.h"
+#endif
+
 float randfloat() { return rand() / ((float)(RAND_MAX)); }
 
 #ifdef BITWIDTH_REDUCTION
@@ -19,6 +23,38 @@ float conv_float2fixed(float input) {
            (long_1 << NUM_OF_FRAC_BITS);
 }
 #endif
+
+// Grab matrix n out of the doubly flattened w
+// (w is a flattened collection of matrices, each flattened)
+float* grab_matrix(float* w, int n, int* n_rows, int* n_columns) {
+    int ind = 0;
+    int i;
+grab_matrix_loop:
+    for (i = 0; i < n; i++) {
+        ind += n_rows[i] * n_columns[i];
+    }
+    return w + ind;
+}
+
+#ifdef DMA_MODE
+void grab_matrix_dma(float* weights,
+                     int layer,
+                     layer_t* layers) {
+    size_t offset = 0;
+    int i;
+grab_matrix_dma_loop:
+    for (i = 0; i < layer; i++) {
+        offset += get_num_weights_layer(layers, i);
+    }
+    size_t size = get_num_weights_layer(layers, layer) * sizeof(float);
+#if DEBUG == 1
+    printf("dmaLoad weights, offset: %lu, size: %lu\n", offset*sizeof(float), size);
+#endif
+    if (size > 0)
+        dmaLoad(weights, offset*sizeof(float), 0, size);
+}
+#endif
+
 
 void clear_matrix(float* input, int size) {
     int i;
@@ -119,4 +155,36 @@ size_t next_multiple(size_t request, size_t align) {
   if (remainder)
       return (n+1)*align;
   return request;
+}
+
+void print_debug(float* array,
+                 int rows_to_print,
+                 int cols_to_print,
+                 int num_columns) {
+    int i, l;
+    printf("\nHidden units:\n");
+    for (i = 0; i < rows_to_print; i++) {
+        for (l = 0; l < cols_to_print; l++) {
+            printf("%f, ", array[sub2ind(i, l, num_columns)]);
+        }
+        printf("\n");
+    }
+}
+
+void print_debug4d(float* array, int rows, int cols, int height) {
+    int img, i, j, h;
+
+    for (img = 0; img < NUM_TEST_CASES; img++) {
+        printf("Input image: %d\n", img);
+        for (h = 0; h < height; h++) {
+            printf("Depth %d\n", h);
+            for (i = 0; i < rows; i++) {
+                for (j = 0; j < cols; j++) {
+                    printf("%f, ",
+                           array[sub4ind(img, h, i, j, height, rows, cols)]);
+                }
+                printf("\n");
+            }
+        }
+    }
 }

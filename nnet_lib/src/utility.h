@@ -3,6 +3,10 @@
 
 #include <stdbool.h>
 
+#include "nnet_fwd.h"
+
+float* grab_matrix(float* w, int n, int* n_rows, int* n_columns);
+void grab_matrix_dma(float* weights, int layer, layer_t* layers);
 float randfloat();
 void clear_matrix(float* input, int size);
 void copy_matrix(float* input, float* output, int size);
@@ -19,6 +23,12 @@ int get_num_weights_layer(layer_t* layers, int l);
 int get_total_num_weights(layer_t* layers, int num_layers);
 bool is_dummy_layer(layer_t* layers, int l);
 size_t next_multiple(size_t request, size_t align);
+
+void print_debug(float* array,
+                 int rows_to_print,
+                 int cols_to_print,
+                 int num_columns);
+void print_debug4d(float* array, int rows, int cols, int height);
 
 #ifdef BITWIDTH_REDUCTION
 // Don't add this function unless we want to model bit width quantization
