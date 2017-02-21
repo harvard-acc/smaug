@@ -29,6 +29,7 @@ void print_debug(float* array,
                  int cols_to_print,
                  int num_columns);
 void print_debug4d(float* array, int rows, int cols, int height);
+void print_data_and_weights(float* data, float* weights, layer_t first_layer);
 
 #ifdef BITWIDTH_REDUCTION
 // Don't add this function unless we want to model bit width quantization

@@ -17,7 +17,7 @@ void nnet_fwd_monolithic(float* hid,
                          float* hid_temp,
                          float* sigmoid_table) {
 
-    int i, j, l;
+    int l;
     layer_t curr_layer;
 
     // Alternate between reading from/writing to hid and hid_temp so we can
@@ -27,21 +27,7 @@ void nnet_fwd_monolithic(float* hid,
     bool do_activation_func = true;
 
     if (PRINT_DATA_AND_WEIGHTS) {
-        printf("DATA:\n");
-        for (i = 0; i < NUM_TEST_CASES; i++) {
-            printf("Datum %d:\n", i);
-            for (j = 0; j < INPUT_DIM; j++) {
-                printf("%e, ", hid[sub2ind(i, j, INPUT_DIM)]);
-            }
-            printf("\n");
-        }
-        printf("\nWEIGHTS:\n");
-        for (i = 0; i < layers[0].input_rows; i++) {
-            for (j = 0; j < layers[0].input_cols; j++) {
-                printf("%f\n", weights[sub2ind(i, j, layers[0].input_cols)]);
-            }
-        }
-        printf("\nEND WEIGHTS\n");
+        print_data_and_weights(hid, weights, layers[0]);
     }
 
     // FORMAT HERE IS H TIMES W, NOT W TIMES H!!!!!

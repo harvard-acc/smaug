@@ -189,3 +189,23 @@ void print_debug4d(float* array, int rows, int cols, int height) {
         }
     }
 }
+
+// Print data and weights of the first layer.
+void print_data_and_weights(float* data, float* weights, layer_t first_layer) {
+    int i, j;
+    printf("DATA:\n");
+    for (i = 0; i < NUM_TEST_CASES; i++) {
+        printf("Datum %d:\n", i);
+        for (j = 0; j < INPUT_DIM; j++) {
+            printf("%e, ", data[sub2ind(i, j, INPUT_DIM)]);
+        }
+        printf("\n");
+    }
+    printf("\nWEIGHTS:\n");
+    for (i = 0; i < first_layer.input_rows; i++) {
+        for (j = 0; j < first_layer.input_cols; j++) {
+            printf("%f\n", weights[sub2ind(i, j, first_layer.input_cols)]);
+        }
+    }
+    printf("\nEND WEIGHTS\n");
+}
