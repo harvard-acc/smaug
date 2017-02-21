@@ -36,9 +36,9 @@ void nnet_fwd_monolithic(float* hid,
             printf("\n");
         }
         printf("\nWEIGHTS:\n");
-        for (i = 0; i < layers[1].input_rows; i++) {
-            for (j = 0; j < layers[1].input_cols; j++) {
-                printf("%f\n", weights[sub2ind(i, j, layers[1].input_cols)]);
+        for (i = 0; i < layers[0].input_rows; i++) {
+            for (j = 0; j < layers[0].input_cols; j++) {
+                printf("%f\n", weights[sub2ind(i, j, layers[0].input_cols)]);
             }
         }
         printf("\nEND WEIGHTS\n");
