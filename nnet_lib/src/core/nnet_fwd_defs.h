@@ -90,15 +90,14 @@ bool run_layer(float* activations,
                float* sigmoid_table,
                bool do_activation_func);
 
-// Possible values of DATA_LOAD, which defines at what granularity data is
-// loaded.
+// Possible values of ARCHITECTURE.
 //
-// PER_LAYER: all activations and weights for a given layer are loaded before
-// the layer begins to run.
-// BLOCKED_LAYER: Data is loaded from within the layer based on how that layer
-// is blocked.
-#define PER_LAYER 0
-#define BLOCKED_LAYER 1
+// This defines the structure of the nnet accelerator - whether it is a
+// monolithic block or a collection of multiple blocks.
+//
+// Allowed values are: MONOLITHIC, COMPOSABLE.
+#define MONOLITHIC 0
+#define COMPOSABLE 1
 
 // Macros for computing the maximum of a group of elements.
 //

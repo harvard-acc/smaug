@@ -10,7 +10,7 @@
 #include "utility/init_data.h"
 #include "utility/read_model_conf.h"
 #include "utility/utility.h"
-#include "layers/per_layer.h"
+#include "layers/monolithic.h"
 
 #ifdef DMA_MODE
 #include "gem5_harness.h"
@@ -133,10 +133,12 @@ void nnet_fwd(float* hid,
               int num_layers,
               float* hid_temp,
               float* sigmoid_table) {
-#if DATA_LOAD == PER_LAYER
-  nnet_fwd_per_layer(hid, weights, layers, num_layers, hid_temp, sigmoid_table);
+#if ARCHITECTURE == MONOLITHIC
+  nnet_fwd_monolithic(hid, weights, layers, num_layers, hid_temp, sigmoid_table);
+#elif ARCHITECTURE == COMPOSABLE
+  #error "Composable architecture not yet implemented."
 #else
-  #error "No other supported form of data loading!"
+  #error "Unknown architecture!"
 #endif
 }
 

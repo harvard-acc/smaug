@@ -18,9 +18,9 @@
 #define NUM_OF_FRAC_BITS                                                       \
     26  // number of bits after the decimal pt in our representation
 
-// The granularity at which data is loaded.
-#ifndef DATA_LOAD
-#define DATA_LOAD PER_LAYER
+// The architecture of the accelerator
+#ifndef ARCHITECTURE
+#define ARCHITECTURE MONOLITHIC
 #endif
 
 // If 1, then this transposes the data in the weights matrix such that the

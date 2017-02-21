@@ -1,6 +1,6 @@
 #include "nnet_fwd.h"
 #include "utility/utility.h"
-#include "per_layer.h"
+#include "monolithic.h"
 
 #ifdef DMA_MODE
 #include "gem5_harness.h"
@@ -10,12 +10,12 @@
 //
 // This version loads weights on a per layer basis, and activations are
 // ping-ponged between two buffers, hid and hid_temp.
-void nnet_fwd_per_layer(float* hid,
-                        float* weights,
-                        layer_t* layers,
-                        int num_layers,
-                        float* hid_temp,
-                        float* sigmoid_table) {
+void nnet_fwd_monolithic(float* hid,
+                         float* weights,
+                         layer_t* layers,
+                         int num_layers,
+                         float* hid_temp,
+                         float* sigmoid_table) {
 
     int i, j, l;
     layer_t curr_layer;
