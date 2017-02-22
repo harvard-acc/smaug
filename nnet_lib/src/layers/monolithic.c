@@ -5,102 +5,83 @@
 #include "core/pooling.h"
 #include "core/zeropad.h"
 #include "utility/utility.h"
-#include "monolithic.h"
+#include "layers/common.h"
+#include "layers/interface.h"
 
 #ifdef DMA_MODE
 #include "gem5_harness.h"
 #endif
 
-bool run_layer_m(float* activations,
-                 float* weights,
-                 layer_t curr_layer,
-                 float* result_temp,
-                 float* sigmoid_table,
-                 bool do_activation_func) {
-    bool result_in_input = false;
-    layer_type l_type = curr_layer.type;
-    if (l_type == FC) {
-        PRINT_MSG("\nmatrix multiply with bias\n");
-        MATRIX_MULTIPLY_WITH_BIAS(activations, weights, NUM_TEST_CASES,
-                                  curr_layer.input_rows, curr_layer.input_cols,
-                                  result_temp);
-        PRINT_DEBUG4D(result_temp, curr_layer.output_rows,
-                      curr_layer.output_cols, curr_layer.output_height);
-    } else if (l_type == CONV) {
-        PRINT_MSG("\nconvolution2d\n");
-        if (curr_layer.c_padding > 0) {
-            convolution2d_zeropad(
-                    activations, weights, curr_layer, result_temp);
-            PRINT_DEBUG4D(activations, curr_layer.output_rows,
-                          curr_layer.output_cols, curr_layer.output_height);
-            result_in_input = true;
-        } else {
-            convolution2d_no_padding(
-                    activations, weights, curr_layer, result_temp);
-            PRINT_DEBUG4D(result_temp, curr_layer.output_rows,
-                          curr_layer.output_cols, curr_layer.output_height);
-        }
-    } else if (l_type == POOL_MAX) {
-        PRINT_MSG("\nmax pooling\n");
-        max_pooling(activations, result_temp, curr_layer);
-        PRINT_DEBUG4D(result_temp, curr_layer.output_rows, curr_layer.output_cols,
-                      curr_layer.output_height);
+#if ARCHITECTURE == MONOLITHIC
+
+// This is an architecture that runs an entire neural network in a single
+// block, where nnet_fwd is the top level function. nnet_fwd is thus
+// responsible for ensuring that all input and weights data is available when
+// each layer needs them.
+
+result_buf inner_product_layer(float* activations,
+                               float* weights,
+                               layer_t* layers,
+                               int lnum,
+                               float* result) {
+    MATRIX_MULTIPLY_WITH_BIAS(activations, weights, NUM_TEST_CASES,
+                              layers[lnum].input_rows, layers[lnum].input_cols,
+                              result);
+    return result;
+}
+
+result_buf convolution_layer(float* input,
+                             float* kernels,
+                             layer_t* layers,
+                             int lnum,
+                             float* result) {
+    layer_t curr_layer = layers[lnum];
+    if (curr_layer.c_padding > 0) {
+        convolution2d_zeropad(input, kernels, curr_layer, result);
+        return input;
     }
+    convolution2d_no_padding(input, kernels, curr_layer, result);
+    return result;
+}
 
-    if (do_activation_func) {
-        PRINT_MSG("\nactivation function\n");
-        // Pass through activation function
-        if (result_in_input) {
-            activation_fun(activations,
-                           curr_layer.output_rows * curr_layer.output_cols *
-                                   curr_layer.output_height,
-                           sigmoid_table);
-
-            PRINT_DEBUG4D(activations, curr_layer.output_rows,
-                          curr_layer.output_cols, curr_layer.output_height);
-        } else {
-            activation_fun(result_temp,
-                           curr_layer.output_rows * curr_layer.output_cols *
-                                   curr_layer.output_height,
-                           sigmoid_table);
-
-            PRINT_DEBUG4D(result_temp, curr_layer.output_rows,
-                          curr_layer.output_cols, curr_layer.output_height);
-        }
-
-    }
-    return result_in_input;
+result_buf max_pooling_layer(float* input,
+                             layer_t* layers,
+                             int lnum,
+                             float* result) {
+    layer_t curr_layer = layers[lnum];
+    max_pooling(input, result, curr_layer);
+    return result;
 }
 
 // Runs the forward pass of a neural network.
 //
 // This version loads weights on a per layer basis, and activations are
-// ping-ponged between two buffers, hid and hid_temp.
-void nnet_fwd_monolithic(float* hid,
-                         float* weights,
-                         layer_t* layers,
-                         int num_layers,
-                         float* hid_temp,
-                         float* sigmoid_table) {
+// ping-ponged between two buffers, input and result.
+void nnet_fwd(float* input,
+              float* weights,
+              layer_t* layers,
+              int num_layers,
+              float* result,
+              float* sigmoid_table) {
 
     int l;
     layer_t curr_layer;
 
-    // Alternate between reading from/writing to hid and hid_temp so we can
-    // avoid copying matrices.
-    bool result_in_temp = false;
-    bool result_in_input = false;
+    // Alternate between reading from/writing to input and result so we can
+    // avoid copying matrices. The initial input is obviously in "input",
+    // so that's where we start.
+    result_buf result_loc = input;
     bool do_activation_func = true;
 
     if (PRINT_DATA_AND_WEIGHTS) {
-        print_data_and_weights(hid, weights, layers[0]);
+        print_data_and_weights(input, weights, layers[0]);
     }
 
     // FORMAT HERE IS H TIMES W, NOT W TIMES H!!!!!
     // SO EACH DATA POINT IS A ***ROW****
 
     l = 0;
-    dmaLoad(hid, 0, 0, NUM_TEST_CASES * INPUT_DIM * sizeof(float));
+    dmaLoad(input, 0, 0, NUM_TEST_CASES * INPUT_DIM * sizeof(float));
 
     //******************//
     //   PRIMARY LOOP   //
@@ -114,23 +95,22 @@ nnet_fwd_outer:
 
         grab_matrix_dma(weights, l, layers);
 
-        if (result_in_temp) {
-            result_in_input = run_layer_m(hid_temp, weights, curr_layer, hid,
-                                          sigmoid_table, do_activation_func);
+        if (result_loc == result) {
+            result_loc = run_layer(result, weights, layers, l, input,
+                                   sigmoid_table, do_activation_func);
         } else {
-            result_in_input = run_layer_m(hid, weights, curr_layer, hid_temp,
-                                          sigmoid_table, do_activation_func);
+            result_loc = run_layer(input, weights, layers, l, result,
+                                   sigmoid_table, do_activation_func);
         }
-
-        if (!result_in_input)
-           result_in_temp = !result_in_temp;
     }
 
-    layers[num_layers - 1].result_in_temp = (int)result_in_temp;
+    layers[num_layers - 1].result_in_temp = result_loc == result;
 
-    if (result_in_temp)
-        dmaStore(hid_temp, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
+    if (result_loc == result)
+        dmaStore(result, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
     else
-        dmaStore(hid, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
+        dmaStore(input, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
     dmaStore(layers, 0, 0, num_layers*sizeof(layer_t));
 }
+
+#endif

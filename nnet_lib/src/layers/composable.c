@@ -5,11 +5,19 @@
 #include "core/pooling.h"
 #include "core/zeropad.h"
 #include "utility/utility.h"
-#include "composable.h"
+#include "layers/common.h"
+#include "layers/interface.h"
 
 #ifdef DMA_MODE
 #include "gem5_harness.h"
 #endif
+
+#if ARCHITECTURE == COMPOSABLE
+
+// This is an architecture that divides each layer type into a separate
+// hardware block. This is represented by ensuring that each layer is
+// responsible for loading its own input activations and weights. For clarity,
+// all functions to be turned into hardware are suffixed with _hw.
 
 void inner_product_layer_hw(float* activations,
                             float* weights,
@@ -24,11 +32,11 @@ void inner_product_layer_hw(float* activations,
     store_output_activations_dma(result, lnum, layers);
 }
 
-result_buf inner_product_layer_sw(float* activations,
-                                  float* weights,
-                                  layer_t* layers,
-                                  int lnum,
-                                  float* result) {
+result_buf inner_product_layer(float* activations,
+                               float* weights,
+                               layer_t* layers,
+                               int lnum,
+                               float* result) {
     inner_product_layer_hw(activations, weights, layers, lnum, result);
     return result;
 }
@@ -45,11 +53,11 @@ void convolution_layer_hw(float* input,
     store_output_activations_dma(result, lnum, layers);
 }
 
-result_buf convolution_layer_sw(float* input,
-                                float* kernels,
-                                layer_t* layers,
-                                int lnum,
-                                float* result) {
+result_buf convolution_layer(float* input,
+                             float* kernels,
+                             layer_t* layers,
+                             int lnum,
+                             float* result) {
     layer_t curr_layer = layers[lnum];
     if (curr_layer.c_padding > 0) {
         int padding = (curr_layer.field_size - 1) / 2;
@@ -72,7 +80,7 @@ void max_pooling_layer_hw(float* input,
     store_output_activations_dma(result, lnum, layers);
 }
 
-result_buf max_pooling_layer_sw(float* input,
+result_buf max_pooling_layer(float* input,
                                 layer_t* layers,
                                 int lnum,
                                 float* result) {
@@ -80,76 +88,16 @@ result_buf max_pooling_layer_sw(float* input,
     return result;
 }
 
-result_buf run_layer(float* activations,
-                     float* weights,
-                     layer_t* layers,
-                     int layer_num,
-                     float* result,
-                     float* sigmoid_table,
-                     bool do_activation_func) {
-    layer_t curr_layer = layers[layer_num];
-    layer_type l_type = curr_layer.type;
-    result_buf result_loc = result;
-
-    if (l_type == FC) {
-        PRINT_MSG("\nInner product.\n");
-        result_loc = inner_product_layer_sw(
-                activations, weights, layers, layer_num, result);
-    } else if (l_type == CONV) {
-        PRINT_MSG("\nConvolution.\n");
-        result_loc = convolution_layer_sw(
-                activations, weights, layers, layer_num, result);
-    } else if (l_type == POOL_MAX) {
-        PRINT_MSG("\nmax pooling\n");
-        result_loc = max_pooling_layer_sw(
-                activations, layers, layer_num, result);
-    }
-
-    if (result_loc == activations) {
-        PRINT_DEBUG4D(activations, curr_layer.output_rows,
-                      curr_layer.output_cols, curr_layer.output_height);
-    } else {
-        PRINT_DEBUG4D(result, curr_layer.output_rows,
-                      curr_layer.output_cols, curr_layer.output_height);
-    }
-
-    if (do_activation_func) {
-        PRINT_MSG("\nactivation function\n");
-        // Pass through activation function
-        if (result_loc == activations) {
-            activation_fun(activations,
-                           curr_layer.output_rows * curr_layer.output_cols *
-                                   curr_layer.output_height,
-                           sigmoid_table);
-        } else {
-            activation_fun(result,
-                           curr_layer.output_rows * curr_layer.output_cols *
-                                   curr_layer.output_height,
-                           sigmoid_table);
-        }
-    }
-
-    if (result_loc == activations) {
-        PRINT_DEBUG4D(activations, curr_layer.output_rows,
-                      curr_layer.output_cols, curr_layer.output_height);
-    } else {
-        PRINT_DEBUG4D(result, curr_layer.output_rows,
-                      curr_layer.output_cols, curr_layer.output_height);
-    }
-
-    return result_loc;
-}
-
 // Runs the forward pass of a neural network.
 //
 // This version loads weights on a per layer basis, and activations are
 // ping-ponged between two buffers, input and result.
-void nnet_fwd_composable(float* input,
-                         float* weights,
-                         layer_t* layers,
-                         int num_layers,
-                         float* result,
-                         float* sigmoid_table) {
+void nnet_fwd(float* input,
+              float* weights,
+              layer_t* layers,
+              int num_layers,
+              float* result,
+              float* sigmoid_table) {
 
     int l;
     layer_t curr_layer;
@@ -196,3 +144,5 @@ nnet_fwd_outer:
         dmaStore(input, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
     dmaStore(layers, 0, 0, num_layers*sizeof(layer_t));
 }
+
+#endif

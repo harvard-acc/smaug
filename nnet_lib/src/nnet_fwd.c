@@ -10,8 +10,8 @@
 #include "utility/init_data.h"
 #include "utility/read_model_conf.h"
 #include "utility/utility.h"
-#include "layers/composable.h"
-#include "layers/monolithic.h"
+#include "layers/interface.h"
+#include "layers/common.h"
 
 #ifdef DMA_MODE
 #include "gem5_harness.h"
@@ -45,29 +45,6 @@ void store_result(float* result,
     else
         dmaStore(result, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
     dmaStore(layers, 0, 0, num_layers*sizeof(layer_t));
-#endif
-}
-
-// Does the forward predictive pass of a neural net.
-//
-// A float array of class predictions in row major format of size
-// num_test_cases*num_labels will eventually be stored in either @hid or
-// @hid_temp.
-//
-// A bool indicating where the final result is stored into the layers
-// structure. If it is in @hid, then false, if in @hid_temp, true.
-void nnet_fwd(float* hid,
-              float* weights,
-              layer_t* layers,
-              int num_layers,
-              float* hid_temp,
-              float* sigmoid_table) {
-#if ARCHITECTURE == MONOLITHIC
-  nnet_fwd_monolithic(hid, weights, layers, num_layers, hid_temp, sigmoid_table);
-#elif ARCHITECTURE == COMPOSABLE
-  nnet_fwd_composable(hid, weights, layers, num_layers, hid_temp, sigmoid_table);
-#else
-  #error "Unknown architecture!"
 #endif
 }
 
