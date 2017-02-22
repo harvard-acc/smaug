@@ -11,7 +11,8 @@ UTILITY_SRCS = utility/init_data.c \
 							 utility/model_conf_params.c \
 							 utility/read_model_conf.c
 
-LAYER_SRCS = layers/monolithic.c
+LAYER_SRCS = layers/monolithic.c \
+						 layers/composable.c
 
 SRCS = $(CORE_SRCS) $(UTILITY_SRCS) $(LAYER_SRCS) nnet_fwd.c
 

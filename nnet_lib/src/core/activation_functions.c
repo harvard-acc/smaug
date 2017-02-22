@@ -3,6 +3,17 @@
 
 #include "activation_functions.h"
 
+// Dispatch to the appropriate activation function.
+void activation_fun(float* hid, int size, float* sigmoid_table) {
+    if (ACTIVATION_FUN == 0) {
+        RELU(hid, size * NUM_TEST_CASES);
+    } else if (ACTIVATION_FUN == 1) {
+        sigmoid_lookup(hid, size * NUM_TEST_CASES, sigmoid_table);
+    } else {
+        sigmoidn(hid, size * NUM_TEST_CASES);
+    }
+}
+
 // The rectified linear activation function
 // ** this function is in-place (modifies a) **
 void RELU(float* a, int num_units) {

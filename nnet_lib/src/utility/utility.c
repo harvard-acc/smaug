@@ -54,8 +54,19 @@ grab_matrix_dma_loop:
     if (size > 0)
         dmaLoad(weights, offset*sizeof(float), 0, size);
 }
-#endif
 
+// Fetch the input activations from DRAM.
+// Useful for an accelerator with separate computational blocks.
+void grab_input_activations_dma(float* activations, int layer, layer_t* layers) {
+    size_t activations_size = get_input_activations_size(layers, layer);
+    dmaLoad(activations, 0, 0, activations_size * sizeof(float));
+}
+
+void store_output_activations_dma(float* activations, int layer, layer_t* layers) {
+    size_t activations_size = get_output_activations_size(layers, layer);
+    dmaStore(activations, 0, 0, activations_size * sizeof(float));
+}
+#endif
 
 void clear_matrix(float* input, int size) {
     int i;
@@ -146,6 +157,22 @@ int get_total_num_weights(layer_t* layers, int num_layers) {
         w_size += get_num_weights_layer(layers, l);
     }
     return w_size;
+}
+
+int get_input_activations_size(layer_t* layers, int l) {
+    int size;
+    if (l == 0) {
+      size = INPUT_DIM;
+    } else {
+        size = layers[l - 1].output_rows * layers[l - 1].output_cols *
+               layers[l - 1].output_height;
+    }
+    return size * NUM_TEST_CASES;
+}
+
+int get_output_activations_size(layer_t* layers, int l) {
+    return (layers[l].output_rows * layers[l].output_cols *
+            layers[l].output_height * NUM_TEST_CASES);
 }
 
 size_t next_multiple(size_t request, size_t align) {

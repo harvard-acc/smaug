@@ -20,7 +20,7 @@
 
 // The architecture of the accelerator
 #ifndef ARCHITECTURE
-#define ARCHITECTURE MONOLITHIC
+#define ARCHITECTURE COMPOSABLE
 #endif
 
 // If 1, then this transposes the data in the weights matrix such that the

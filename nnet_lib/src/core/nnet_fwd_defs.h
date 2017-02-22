@@ -13,6 +13,10 @@ typedef enum _data_init_mode {
     READ_FILE  // Read data and weights from files.
 } data_init_mode;
 
+// When ping-ponging data between two buffers, use this to indicate which one
+// stores the last output (and the next input).
+typedef float* result_buf;
+
 typedef enum _layer_type {
     // 2D convolutional layer.
     CONV,
@@ -81,14 +85,6 @@ typedef struct _layer_t {
   // Where are the class predictions stored, hid or hid_temp?
   int result_in_temp;
 } layer_t;
-
-// Execute curr_layer on the provided activations and weights.
-bool run_layer(float* activations,
-               float* weights,
-               layer_t curr_layer,
-               float* result_temp,
-               float* sigmoid_table,
-               bool do_activation_func);
 
 // Possible values of ARCHITECTURE.
 //

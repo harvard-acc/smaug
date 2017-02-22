@@ -7,6 +7,8 @@
 
 float* grab_matrix(float* w, int n, int* n_rows, int* n_columns);
 void grab_matrix_dma(float* weights, int layer, layer_t* layers);
+void grab_input_activations_dma(float* activations, int layer, layer_t* layers);
+void store_output_activations_dma(float* activations, int layer, layer_t* layers);
 float randfloat();
 void clear_matrix(float* input, int size);
 void copy_matrix(float* input, float* output, int size);
@@ -21,6 +23,8 @@ void get_weights_dims_layer(layer_t* layers,
                             int* num_depth);
 int get_num_weights_layer(layer_t* layers, int l);
 int get_total_num_weights(layer_t* layers, int num_layers);
+int get_input_activations_size(layer_t* layers, int num_layers);
+int get_output_activations_size(layer_t* layers, int num_layers);
 bool is_dummy_layer(layer_t* layers, int l);
 size_t next_multiple(size_t request, size_t align);
 

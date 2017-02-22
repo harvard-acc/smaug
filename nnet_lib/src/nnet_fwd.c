@@ -10,6 +10,7 @@
 #include "utility/init_data.h"
 #include "utility/read_model_conf.h"
 #include "utility/utility.h"
+#include "layers/composable.h"
 #include "layers/monolithic.h"
 
 #ifdef DMA_MODE
@@ -26,78 +27,6 @@
 int NUM_TEST_CASES;
 int NUM_CLASSES;
 int INPUT_DIM;
-
-// Dispatch to the appropriate activation function.
-void activation_fun(float* hid, int size, float* sigmoid_table) {
-    if (ACTIVATION_FUN == 0) {
-        RELU(hid, size * NUM_TEST_CASES);
-    } else if (ACTIVATION_FUN == 1) {
-        sigmoid_lookup(hid, size * NUM_TEST_CASES, sigmoid_table);
-    } else {
-        sigmoidn(hid, size * NUM_TEST_CASES);
-    }
-}
-
-bool run_layer(float* activations,
-               float* weights,
-               layer_t curr_layer,
-               float* result_temp,
-               float* sigmoid_table,
-               bool do_activation_func) {
-    bool result_in_input = false;
-    layer_type l_type = curr_layer.type;
-    if (l_type == FC) {
-        PRINT_MSG("\nmatrix multiply with bias\n");
-        MATRIX_MULTIPLY_WITH_BIAS(activations, weights, NUM_TEST_CASES,
-                                  curr_layer.input_rows, curr_layer.input_cols,
-                                  result_temp);
-        PRINT_DEBUG4D(result_temp, curr_layer.output_rows,
-                      curr_layer.output_cols, curr_layer.output_height);
-    } else if (l_type == CONV) {
-        PRINT_MSG("\nconvolution2d\n");
-        if (curr_layer.c_padding > 0) {
-            convolution2d_zeropad(
-                    activations, weights, curr_layer, result_temp);
-            PRINT_DEBUG4D(activations, curr_layer.output_rows,
-                          curr_layer.output_cols, curr_layer.output_height);
-            result_in_input = true;
-        } else {
-            convolution2d_no_padding(
-                    activations, weights, curr_layer, result_temp);
-            PRINT_DEBUG4D(result_temp, curr_layer.output_rows,
-                          curr_layer.output_cols, curr_layer.output_height);
-        }
-    } else if (l_type == POOL_MAX) {
-        PRINT_MSG("\nmax pooling\n");
-        max_pooling(activations, result_temp, curr_layer);
-        PRINT_DEBUG4D(result_temp, curr_layer.output_rows, curr_layer.output_cols,
-                      curr_layer.output_height);
-    }
-
-    if (do_activation_func) {
-        PRINT_MSG("\nactivation function\n");
-        // Pass through activation function
-        if (result_in_input) {
-            activation_fun(activations,
-                           curr_layer.output_rows * curr_layer.output_cols *
-                                   curr_layer.output_height,
-                           sigmoid_table);
-
-            PRINT_DEBUG4D(activations, curr_layer.output_rows,
-                          curr_layer.output_cols, curr_layer.output_height);
-        } else {
-            activation_fun(result_temp,
-                           curr_layer.output_rows * curr_layer.output_cols *
-                                   curr_layer.output_height,
-                           sigmoid_table);
-
-            PRINT_DEBUG4D(result_temp, curr_layer.output_rows,
-                          curr_layer.output_cols, curr_layer.output_height);
-        }
-
-    }
-    return result_in_input;
-}
 
 void get_input_data(float* input) {
 #ifdef DMA_MODE
@@ -136,7 +65,7 @@ void nnet_fwd(float* hid,
 #if ARCHITECTURE == MONOLITHIC
   nnet_fwd_monolithic(hid, weights, layers, num_layers, hid_temp, sigmoid_table);
 #elif ARCHITECTURE == COMPOSABLE
-  #error "Composable architecture not yet implemented."
+  nnet_fwd_composable(hid, weights, layers, num_layers, hid_temp, sigmoid_table);
 #else
   #error "Unknown architecture!"
 #endif

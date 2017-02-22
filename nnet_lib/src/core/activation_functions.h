@@ -1,6 +1,7 @@
 #ifndef _ACTIVATION_FUNCTIONS_H_
 #define _ACTIVATION_FUNCTIONS_H_
 
+void activation_fun(float* hid, int size, float* sigmoid_table);
 void RELU(float* a, int num_units);
 float sigmoid(float a);
 void sigmoidn(float* a, int num_units);
