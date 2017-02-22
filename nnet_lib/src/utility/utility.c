@@ -57,14 +57,22 @@ grab_matrix_dma_loop:
 
 // Fetch the input activations from DRAM.
 // Useful for an accelerator with separate computational blocks.
-void grab_input_activations_dma(float* activations, int layer, layer_t* layers) {
+size_t grab_input_activations_dma(float* activations, int layer, layer_t* layers) {
     size_t activations_size = get_input_activations_size(layers, layer);
     dmaLoad(activations, 0, 0, activations_size * sizeof(float));
+    return activations_size;
 }
 
-void store_output_activations_dma(float* activations, int layer, layer_t* layers) {
+size_t grab_output_activations_dma(float* activations, int layer, layer_t* layers) {
+    size_t activations_size = get_output_activations_size(layers, layer);
+    dmaLoad(activations, 0, 0, activations_size * sizeof(float));
+    return activations_size;
+}
+
+size_t store_output_activations_dma(float* activations, int layer, layer_t* layers) {
     size_t activations_size = get_output_activations_size(layers, layer);
     dmaStore(activations, 0, 0, activations_size * sizeof(float));
+    return activations_size;
 }
 #endif
 

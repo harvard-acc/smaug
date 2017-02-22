@@ -21,6 +21,9 @@ const char FC_TYPE[] = "INNER_PRODUCT";
 const char POOLING_TYPE[] = "POOLING";
 const char MAX_POOL_TYPE[] = "MAX";
 const char AVG_POOL_TYPE[] = "AVG";
+const char NONE_TYPE[] = "NONE";
+const char RELU_TYPE[] = "RELU";
+const char SIGMOID_TYPE[] = "SIGMOID";
 
 static int input_rows;
 static int input_cols;
@@ -31,12 +34,13 @@ static void set_layer_type(layer_t* layers, cfg_t* layer_opts, int l) {
     if (strcmp(type, CONV_TYPE) == 0) {
         layers[l].type = CONV;
     } else if (strcmp(type, POOLING_TYPE) == 0) {
+        layers[l].type = POOLING;
         cfg_t* pool_cfg = cfg_getsec(layer_opts, "pooling_param");
-        const char* pool_type = cfg_getstr(pool_cfg, "pool");
-        if (strcmp(pool_type, MAX_POOL_TYPE) == 0) {
-            layers[l].type = POOL_MAX;
-        } else if (strcmp(pool_type, AVG_POOL_TYPE) == 0) {
-            layers[l].type = POOL_AVG;
+        const char* pool_type_str = cfg_getstr(pool_cfg, "pool");
+        if (strcmp(pool_type_str, MAX_POOL_TYPE) == 0) {
+            layers[l].pool = MAX;
+        } else if (strcmp(pool_type_str, AVG_POOL_TYPE) == 0) {
+            layers[l].pool = AVG;
         } else {
             assert(false && "Invalid type of pooling layer!");
         }
@@ -44,6 +48,17 @@ static void set_layer_type(layer_t* layers, cfg_t* layer_opts, int l) {
         layers[l].type = FC;
     } else {
         assert(false && "Invalid layer type!");
+    }
+
+    const char* activation = cfg_getstr(layer_opts, "activation");
+    if (strcmp(activation, RELU_TYPE) == 0) {
+        layers[l].activation = RELU;
+    } else if (strcmp(activation, SIGMOID_TYPE) == 0) {
+        layers[l].activation = SIGMOID;
+    } else if (strcmp(activation, NONE_TYPE) == 0) {
+        layers[l].activation = NONE;
+    } else {
+        assert(false && "Invalid activation type!");
     }
 }
 
@@ -57,7 +72,7 @@ static void set_layer_aux_params(layer_t* layers, cfg_t* layer_opts, int l) {
         assert(layers[l].field_size != -1);
         assert(layers[l].c_padding != -1);
         assert(layers[l].output_height != -1);
-    } else if (layers[l].type == POOL_MAX) {
+    } else if (layers[l].type == POOLING) {
         cfg_t* pool_params = cfg_getsec(layer_opts, "pooling_param");
         layers[l].field_size = cfg_getint(pool_params, "size");
         layers[l].field_stride = cfg_getint(pool_params, "stride");
@@ -98,7 +113,7 @@ static void set_layer_input_dims(layer_t* layers, cfg_t* layer_opts, int l) {
         // This is the number of hidden nodes in this layer.
         layers[l].input_cols = cfg_getint(fc_params, "num_output");
         layers[l].input_height = 1;
-    } else if (layers[l].type == POOL_MAX) {
+    } else if (layers[l].type == POOLING) {
         // Nothing more to do.
     }
 }
@@ -112,7 +127,7 @@ static void set_layer_output_dims(layer_t* layers, cfg_t* layer_opts, int l) {
                                         layers[l].field_stride + 1;
         // Number of kernels is the third dimension of the output.
         layers[l].output_height = cfg_getint(conv_params, "num_output");
-    } else if (layers[l].type == POOL_MAX) {
+    } else if (layers[l].type == POOLING) {
         layers[l].output_rows =
                 (layers[l].input_rows - layers[l].field_size) / layers[l].field_stride +
                 1;
@@ -147,6 +162,7 @@ static void print_layer_config(layer_t* layers, int num_layers) {
     printf("----------------------------------\n");
     for (int i = 0; i < num_layers; i++) {
         layer_type type = layers[i].type;
+        activation_type act = layers[i].activation;
         printf("  Layer %d: ", i);
         if (type == CONV) {
             printf("  Convolutional\n");
@@ -164,7 +180,7 @@ static void print_layer_config(layer_t* layers, int num_layers) {
             printf("  Fully connected\n");
             printf("    Weights: %d x %d\n", layers[i].input_rows,
                    layers[i].input_cols);
-        } else if (type == POOL_MAX) {
+        } else if (type == POOLING) {
             printf("  Max pooling\n");
             printf("    Input size: %d x %d x %d\n", layers[i].input_rows,
                    layers[i].input_cols, layers[i].input_height);
@@ -176,6 +192,8 @@ static void print_layer_config(layer_t* layers, int num_layers) {
         } else if (type == SOFTMAX) {
             printf("  Softmax\n");
         }
+        printf("    Activation: %s\n",
+               act == RELU ? "RELU" : act == SIGMOID ? "SIGMOID" : "NONE");
     }
     printf("==================================\n");
 }

@@ -17,13 +17,22 @@ typedef enum _data_init_mode {
 // stores the last output (and the next input).
 typedef float* result_buf;
 
+typedef enum _pool_type {
+    MAX,
+    AVG,
+} pool_type;
+
+typedef enum _activation_type {
+    NONE,
+    RELU,
+    SIGMOID,
+} activation_type;
+
 typedef enum _layer_type {
     // 2D convolutional layer.
     CONV,
-    // Max pooling layer.
-    POOL_MAX,
-    // Average pooling layer.
-    POOL_AVG,
+    // Pooling layer.
+    POOLING,
     // Softmax output.
     SOFTMAX,
     // Fully connected layer.
@@ -44,6 +53,9 @@ typedef enum _layer_type {
 typedef struct _layer_t {
   // Type of layer.
   layer_type type;
+
+  // Type of activation function.
+  activation_type activation;
 
   // Data input/output dimensions on a per iteration basis.
   //
@@ -81,6 +93,9 @@ typedef struct _layer_t {
 
   // CONV layers only.
   int c_padding;
+
+  // POOL layers only.
+  pool_type pool;
 
   // Where are the class predictions stored, hid or hid_temp?
   int result_in_temp;

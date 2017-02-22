@@ -57,8 +57,7 @@ size_t calc_layer_intermediate_memory(layer_t layer) {
             usage = layer.output_rows * layer.output_cols;
             break;
         case CONV:
-        case POOL_MAX:
-        case POOL_AVG:
+        case POOLING:
             usage = max(
                     layer.input_rows * layer.input_cols * layer.input_height,
                     layer.output_rows * layer.output_cols *

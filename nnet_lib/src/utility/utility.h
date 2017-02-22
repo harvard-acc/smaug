@@ -7,8 +7,9 @@
 
 float* grab_matrix(float* w, int n, int* n_rows, int* n_columns);
 void grab_matrix_dma(float* weights, int layer, layer_t* layers);
-void grab_input_activations_dma(float* activations, int layer, layer_t* layers);
-void store_output_activations_dma(float* activations, int layer, layer_t* layers);
+size_t grab_input_activations_dma(float* activations, int layer, layer_t* layers);
+size_t grab_output_activations_dma(float* activations, int layer, layer_t* layers);
+size_t store_output_activations_dma(float* activations, int layer, layer_t* layers);
 float randfloat();
 void clear_matrix(float* input, int size);
 void copy_matrix(float* input, float* output, int size);

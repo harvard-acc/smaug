@@ -3,11 +3,10 @@
 
 #include "nnet_fwd.h"
 
-result_buf run_layer(float* activations,
-                     float* weights,
-                     layer_t* layers,
-                     int layer_num,
-                     float* result,
-                     float* sigmoid_table,
-                     bool do_activation_func);
+result_buf run_layer_skip_activation_func(float* activations,
+                                          float* weights,
+                                          layer_t* layers,
+                                          int layer_num,
+                                          float* result,
+                                          float* sigmoid_table);
 #endif

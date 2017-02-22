@@ -23,10 +23,15 @@ result_buf inner_product_layer(float* activations,
 result_buf convolution_layer(
         float* input, float* kernels, layer_t* layers, int lnum, float* result);
 
-result_buf max_pooling_layer(float* input,
-                             layer_t* layers,
-                             int lnum,
-                             float* result);
+result_buf pooling_layer(float* input,
+                         layer_t* layers,
+                         int lnum,
+                         float* result);
+
+result_buf activation_sublayer(float* input,
+                               layer_t* layers,
+                               int lnum,
+                               float* result);
 
 // Does the forward predictive pass of a neural net.
 //

@@ -12,7 +12,6 @@
 #define SIG_MAX +5            // upper input bound for sigmoid lookup table
 
 // Parameters for optimization
-#define ACTIVATION_FUN 0  // categorical, 0=RELU 1=sigmoid lookup 2=true sigmoid
 #define NUM_OF_INT_BITS                                                        \
     6  // number of bits before the decimal pt in our representation
 #define NUM_OF_FRAC_BITS                                                       \
@@ -22,6 +21,9 @@
 #ifndef ARCHITECTURE
 #define ARCHITECTURE COMPOSABLE
 #endif
+
+// Define this to use a table approximation of the sigmoid activation function.
+// #define SIGMOID_TABLE
 
 // If 1, then this transposes the data in the weights matrix such that the
 // access pattern is strided in the same way as the activations, which is

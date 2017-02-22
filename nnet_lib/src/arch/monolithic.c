@@ -1,3 +1,5 @@
+#include <assert.h>
+
 #include "nnet_fwd.h"
 #include "core/activation_functions.h"
 #include "core/convolution.h"
@@ -44,13 +46,50 @@ result_buf convolution_layer(float* input,
     return result;
 }
 
-result_buf max_pooling_layer(float* input,
-                             layer_t* layers,
-                             int lnum,
-                             float* result) {
+result_buf pooling_layer(float* input,
+                         layer_t* layers,
+                         int lnum,
+                         float* result) {
     layer_t curr_layer = layers[lnum];
-    max_pooling(input, result, curr_layer);
+    if (curr_layer.pool == MAX)
+        max_pooling(input, result, curr_layer);
+    else
+        assert(false && "Unsupported pooling layer type!");
     return result;
+}
+
+result_buf activation_sublayer(float* activations,
+                               layer_t* layers,
+                               int lnum,
+                               float* sigmoid_table) {
+    int size = get_output_activations_size(layers, lnum);
+    activation_fun(activations, size, layers[lnum].activation, sigmoid_table);
+    return activations;
+}
+
+result_buf run_layer(float* activations,
+                     float* weights,
+                     layer_t* layers,
+                     int layer_num,
+                     float* result,
+                     float* sigmoid_table) {
+    layer_t curr_layer = layers[layer_num];
+    result_buf result_loc = run_layer_skip_activation_func(
+            activations, weights, layers, layer_num, result, sigmoid_table);
+
+    if (curr_layer.activation != NONE) {
+        PRINT_MSG("\nactivation function\n");
+        // Pass through activation function
+        if (result_loc == activations) {
+            activation_sublayer(activations, layers, layer_num, sigmoid_table);
+        } else {
+            activation_sublayer(result, layers, layer_num, sigmoid_table);
+        }
+
+        PRINT_DEBUG4D(result_loc, curr_layer.output_rows,
+                      curr_layer.output_cols, curr_layer.output_height);
+    }
+    return result_loc;
 }
 
 // Runs the forward pass of a neural network.
@@ -71,7 +110,6 @@ void nnet_fwd(float* input,
     // avoid copying matrices. The initial input is obviously in "input",
     // so that's where we start.
     result_buf result_loc = input;
-    bool do_activation_func = true;
 
     if (PRINT_DATA_AND_WEIGHTS) {
         print_data_and_weights(input, weights, layers[0]);
@@ -90,17 +128,15 @@ void nnet_fwd(float* input,
 nnet_fwd_outer:
     for (l = 0; l < num_layers; l++) {
         curr_layer = layers[l];
-        // Don't run the activation function on the last layer.
-        do_activation_func = (l != num_layers - 1);
 
         grab_matrix_dma(weights, l, layers);
 
         if (result_loc == result) {
-            result_loc = run_layer(result, weights, layers, l, input,
-                                   sigmoid_table, do_activation_func);
+            result_loc =
+                    run_layer(result, weights, layers, l, input, sigmoid_table);
         } else {
-            result_loc = run_layer(input, weights, layers, l, result,
-                                   sigmoid_table, do_activation_func);
+            result_loc =
+                    run_layer(input, weights, layers, l, result, sigmoid_table);
         }
     }
 

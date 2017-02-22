@@ -4,19 +4,20 @@
 #include "activation_functions.h"
 
 // Dispatch to the appropriate activation function.
-void activation_fun(float* hid, int size, float* sigmoid_table) {
-    if (ACTIVATION_FUN == 0) {
-        RELU(hid, size * NUM_TEST_CASES);
-    } else if (ACTIVATION_FUN == 1) {
-        sigmoid_lookup(hid, size * NUM_TEST_CASES, sigmoid_table);
-    } else {
-        sigmoidn(hid, size * NUM_TEST_CASES);
+void activation_fun(float* hid,
+                    int size,
+                    activation_type function,
+                    float* sigmoid_table) {
+    if (function == RELU) {
+        relu(hid, size * NUM_TEST_CASES);
+    } else if (function == SIGMOID) {
+        sigmoid_inplace(hid, size * NUM_TEST_CASES, sigmoid_table);
     }
 }
 
 // The rectified linear activation function
 // ** this function is in-place (modifies a) **
-void RELU(float* a, int num_units) {
+void relu(float* a, int num_units) {
     int i;
 relu_loop: for (i = 0; i < num_units; i++) {
         if (a[i] < 0.0) {
@@ -30,6 +31,15 @@ relu_loop: for (i = 0; i < num_units; i++) {
 // Operates on a single float.
 float sigmoid(float a) {
     return 1.0 / (1.0 + exp(-a));
+}
+
+
+void sigmoid_inplace(float* a, int num_units, float* sigmoid_table) {
+#ifdef SIGMOID_TABLE
+  sigmoid_table(a, num_units, sigmoid_table);
+#else
+  sigmoidn(a, num_units);
+#endif
 }
 
 // The logistic activation function

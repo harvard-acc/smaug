@@ -15,6 +15,7 @@ cfg_opt_t pooling_param_cfg[] = { CFG_STR("pool", "", CFGF_NONE),
 
 cfg_opt_t layer_cfg[] = {
     CFG_STR("type", "", CFGF_NODEFAULT),
+    CFG_STR("activation", "NONE", CFGF_NONE),
     CFG_SEC("convolution_param", convolution_param_cfg, CFGF_NONE),
     CFG_SEC("inner_product_param", inner_product_param_cfg, CFGF_NONE),
     CFG_SEC("pooling_param", pooling_param_cfg, CFGF_NONE),
