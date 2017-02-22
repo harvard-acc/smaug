@@ -11,11 +11,11 @@ UTILITY_SRCS = utility/init_data.c \
 							 utility/model_conf_params.c \
 							 utility/read_model_conf.c
 
-LAYER_SRCS = layers/monolithic.c \
-						 layers/composable.c \
-						 layers/common.c
+ARCH_SRCS = arch/monolithic.c \
+	 					arch/composable.c \
+					  arch/common.c
 
-SRCS = $(CORE_SRCS) $(UTILITY_SRCS) $(LAYER_SRCS) nnet_fwd.c
+SRCS = $(CORE_SRCS) $(UTILITY_SRCS) $(ARCH_SRCS) nnet_fwd.c
 
 CFLAGS = -Wno-unused-but-set-variable
 ACCEL_NAME = nnet

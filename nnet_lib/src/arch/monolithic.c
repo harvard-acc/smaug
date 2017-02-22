@@ -5,8 +5,8 @@
 #include "core/pooling.h"
 #include "core/zeropad.h"
 #include "utility/utility.h"
-#include "layers/common.h"
-#include "layers/interface.h"
+#include "arch/common.h"
+#include "arch/interface.h"
 
 #ifdef DMA_MODE
 #include "gem5_harness.h"

@@ -10,8 +10,8 @@
 #include "utility/init_data.h"
 #include "utility/read_model_conf.h"
 #include "utility/utility.h"
-#include "layers/interface.h"
-#include "layers/common.h"
+#include "arch/interface.h"
+#include "arch/common.h"
 
 #ifdef DMA_MODE
 #include "gem5_harness.h"
@@ -78,7 +78,11 @@ void print_usage() {
            "    based loosely on the Caffe configuration style. It is case\n"
            "    sensitive.\n\n");
     printf("  num-inputs specifies the number of input images to run through\n"
-           "    the network. If not specified, it defaults to 1.\n");
+           "    the network. If not specified, it defaults to 1.\n\n");
+    printf("Build type: %s\n",
+           ARCHITECTURE == MONOLITHIC
+                   ? "MONOLITHIC"
+                   : ARCHITECTURE == COMPOSABLE ? "COMPOSABLE" : "UNKNOWN");
 }
 
 // This is the thing that we want to be good at in hardware
