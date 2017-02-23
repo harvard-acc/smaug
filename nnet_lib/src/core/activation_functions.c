@@ -9,9 +9,9 @@ void activation_fun(float* activations,
                     activation_type function,
                     float* sigmoid_table) {
     if (function == RELU) {
-        relu(activations, size * NUM_TEST_CASES);
+        relu(activations, size);
     } else if (function == SIGMOID) {
-        sigmoid_inplace(activations, size * NUM_TEST_CASES, sigmoid_table);
+        sigmoid_inplace(activations, size, sigmoid_table);
     }
 }
 
