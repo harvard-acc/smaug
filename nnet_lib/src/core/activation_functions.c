@@ -4,14 +4,14 @@
 #include "activation_functions.h"
 
 // Dispatch to the appropriate activation function.
-void activation_fun(float* hid,
+void activation_fun(float* activations,
                     int size,
                     activation_type function,
                     float* sigmoid_table) {
     if (function == RELU) {
-        relu(hid, size * NUM_TEST_CASES);
+        relu(activations, size * NUM_TEST_CASES);
     } else if (function == SIGMOID) {
-        sigmoid_inplace(hid, size * NUM_TEST_CASES, sigmoid_table);
+        sigmoid_inplace(activations, size * NUM_TEST_CASES, sigmoid_table);
     }
 }
 

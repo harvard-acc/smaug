@@ -110,6 +110,61 @@ typedef struct _layer_t {
 #define MONOLITHIC 0
 #define COMPOSABLE 1
 
+#define STRING(arg) #arg
+
+// Convenience macros to switch between invoking an accelerator (if building a
+// binary for gem5) or just calling the kernel function in software.
+//
+// Usage:
+//
+//  These macros expand differently based on whether the GEM5_HARNESS macro is
+//  defined. If so, then this binary is meant to be run under gem5, invoking
+//  accelerators; if not, this binary should run the pure software version of
+//  the accelerated kernels.
+//
+//  If GEM5_HARNESS is defined:
+//
+//     MAP_ARRAY_TO_ACCEL(myReqCode, myArrayName, myArrayPtr, mySize)
+//        ===>   mapArrayToAccelerator(myReqCode, myArrayName, myArrayPtr, mySize)
+//
+//     INVOKE_KERNEL(myReqCode, kernelFuncName, args...)
+//        ===>   invokeAcceleratorAndBlock(myReqCode)
+//  
+//  Otherwise:
+//     MAP_ARRAY_TO_ACCEL(myReqCode, myArrayName, myArrayPtr, mySize)
+//        expands to nothing
+//
+//     INVOKE_KERNEL(myReqCode, kernelFuncName, args...)
+//        ===>  kernelFuncName(args)
+//
+#ifdef GEM5_HARNESS
+
+#define MAP_ARRAY_TO_ACCEL(req_code, name, base_addr, size)                    \
+    mapArrayToAccelerator(req_code, name, base_addr, size)
+#define INVOKE_KERNEL(req_code, kernel_ptr, args...)                           \
+    invokeAcceleratorAndBlock(req_code)
+
+#else
+
+#define MAP_ARRAY_TO_ACCEL(req_code, name, base_addr, size)
+#define INVOKE_KERNEL(req_code, kernel_ptr, args...) kernel_ptr(args)
+
+#endif
+
+// Simplified version of MAP_ARRAY_TO_ACCEL.
+//
+// This assumes that the current name of the base pointer is also the name of
+// the array in the top level function of the dynamic trace. THIS IS VERY
+// IMPORTANT - if the argument passed to a top level function has been renamed in
+// the function, then this WILL NOT WORK!
+//
+// MAP_ARRAY(myReqCode, myArray, mySize)
+//    ===>   MAP_ARRAY_TO_ACCEL(myReqCode, "myArray", myArray, mySize)
+#define MAP_ARRAY(req_code, name_and_base_addr, size)                          \
+    MAP_ARRAY_TO_ACCEL(                                                        \
+            req_code, STRING(name_and_base_addr), name_and_base_addr, size)
+
+
 // Macros for computing the maximum of a group of elements.
 //
 // Why macros and not functions (or a loop)? A loop takes O(n) cycles to

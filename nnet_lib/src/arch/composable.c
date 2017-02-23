@@ -14,6 +14,11 @@
 #include "gem5_harness.h"
 #endif
 
+unsigned kConvolutionHw = 0x0001;
+unsigned kPoolingHw = 0x0002;
+unsigned kActivationFuncHw = 0x0003;
+unsigned kInnerProductHw = 0x0004;
+
 #if ARCHITECTURE == COMPOSABLE
 
 // This is an architecture that divides each layer type into a separate
@@ -39,58 +44,73 @@ result_buf inner_product_layer(float* activations,
                                layer_t* layers,
                                int lnum,
                                float* result) {
-    inner_product_layer_hw(activations, weights, layers, lnum, result);
+    MAP_ARRAY(kInnerProductHw, activations, INPUT_BYTES(layers, lnum));
+    MAP_ARRAY(kInnerProductHw, weights, OUTPUT_BYTES(layers, lnum));
+    MAP_ARRAY(kInnerProductHw, result, WEIGHT_BYTES(layers, lnum));
+    INVOKE_KERNEL(kInnerProductHw, inner_product_layer_hw, activations, weights,
+                  layers, lnum, result);
     return result;
 }
 
-void convolution_layer_hw(float* input,
-                          float* kernels,
+void convolution_layer_hw(float* activations,
+                          float* weights,
                           layer_t* layers,
                           int lnum,
                           float* result) {
     layer_t curr_layer = layers[lnum];
-    grab_matrix_dma(kernels, lnum, layers);
-    grab_input_activations_dma(input, lnum, layers);
-    convolution2d_no_padding(input, kernels, curr_layer, result);
+    grab_matrix_dma(weights, lnum, layers);
+    grab_input_activations_dma(activations, lnum, layers);
+    convolution2d_no_padding(activations, weights, curr_layer, result);
     store_output_activations_dma(result, lnum, layers);
 }
 
-result_buf convolution_layer(float* input,
-                             float* kernels,
+result_buf convolution_layer(float* activations,
+                             float* weights,
                              layer_t* layers,
                              int lnum,
                              float* result) {
+    MAP_ARRAY(kConvolutionHw, activations, INPUT_BYTES(layers, lnum));
+    MAP_ARRAY(kConvolutionHw,  weights, OUTPUT_BYTES(layers, lnum));
+    MAP_ARRAY(kConvolutionHw,  result, WEIGHT_BYTES(layers, lnum));
+
     layer_t curr_layer = layers[lnum];
     if (curr_layer.c_padding > 0) {
         int padding = (curr_layer.field_size - 1) / 2;
         // TODO: Replace this with a memcpy implementation.
-        copy_zeropad(input, curr_layer, padding, result);
-        convolution_layer_hw(result, kernels, layers, lnum, input);
-        return input;
+        copy_zeropad(activations, curr_layer, padding, result);
+        INVOKE_KERNEL(kConvolutionHw, convolution_layer_hw, result, weights,
+                      layers, lnum, activations);
+
+        return activations;
     }
-    convolution_layer_hw(input, kernels, layers, lnum, result);
+    INVOKE_KERNEL(kConvolutionHw, convolution_layer_hw, activations, weights, layers,
+                  lnum, result);
     return result;
 }
 
-void max_pooling_layer_hw(float* input,
+void max_pooling_layer_hw(float* activations,
                           float* result,
                           layer_t* layers,
                           int lnum) {
     layer_t curr_layer = layers[lnum];
-    grab_input_activations_dma(input, lnum, layers);
-    max_pooling(input, result, curr_layer);
+    grab_input_activations_dma(activations, lnum, layers);
+    max_pooling(activations, result, curr_layer);
     store_output_activations_dma(result, lnum, layers);
 }
 
-result_buf pooling_layer(float* input,
+result_buf pooling_layer(float* activations,
                          layer_t* layers,
                          int lnum,
                          float* result) {
     layer_t curr_layer = layers[lnum];
-    if (curr_layer.pool == MAX)
-        max_pooling_layer_hw(input, result, layers, lnum);
-    else
+    MAP_ARRAY(kPoolingHw, activations, INPUT_BYTES(layers, lnum));
+    MAP_ARRAY(kPoolingHw, result, OUTPUT_BYTES(layers, lnum));
+    if (curr_layer.pool == MAX) {
+        INVOKE_KERNEL(kPoolingHw, max_pooling_layer_hw, activations, result,
+                      layers, lnum);
+    } else {
         assert(false && "Unsupported pooling layer type!");
+    }
     return result;
 }
 
@@ -108,7 +128,9 @@ result_buf activation_sublayer(float* activations,
                                layer_t* layers,
                                int lnum,
                                float* sigmoid_table) {
-    activation_hw(activations, layers, lnum, sigmoid_table);
+    MAP_ARRAY(kActivationFuncHw, activations, OUTPUT_BYTES(layers, lnum));
+    INVOKE_KERNEL(kActivationFuncHw, activation_hw, activations, layers, lnum,
+                  sigmoid_table);
     return activations;
 }
 
@@ -142,8 +164,8 @@ result_buf run_layer(float* activations,
 // Runs the forward pass of a neural network.
 //
 // This version loads weights on a per layer basis, and activations are
-// ping-ponged between two buffers, input and result.
-void nnet_fwd(float* input,
+// ping-ponged between two buffers, activations and result.
+void nnet_fwd(float* activations,
               float* weights,
               layer_t* layers,
               int num_layers,
@@ -153,13 +175,13 @@ void nnet_fwd(float* input,
     int l;
     layer_t curr_layer;
 
-    // Alternate between reading from/writing to input and result so we can
-    // avoid copying matrices. The initial input is obviously in "input", so
-    // that's where we start.
-    result_buf result_loc = input;
+    // Alternate between reading from/writing to activations and result so we
+    // can avoid copying matrices. The initial activations is obviously in
+    // "activations", so that's where we start.
+    result_buf result_loc = activations;
 
     if (PRINT_DATA_AND_WEIGHTS) {
-        print_data_and_weights(input, weights, layers[0]);
+        print_data_and_weights(activations, weights, layers[0]);
     }
 
     // FORMAT HERE IS H TIMES W, NOT W TIMES H!!!!!
@@ -176,11 +198,11 @@ nnet_fwd_outer:
         curr_layer = layers[l];
 
         if (result_loc == result) {
-            result_loc =
-                    run_layer(result, weights, layers, l, input, sigmoid_table);
+            result_loc = run_layer(
+                    result, weights, layers, l, activations, sigmoid_table);
         } else {
-            result_loc =
-                    run_layer(input, weights, layers, l, result, sigmoid_table);
+            result_loc = run_layer(
+                    activations, weights, layers, l, result, sigmoid_table);
         }
     }
 
@@ -189,8 +211,9 @@ nnet_fwd_outer:
     if (result_loc == result)
         dmaStore(result, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
     else
-        dmaStore(input, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
-    dmaStore(layers, 0, 0, num_layers*sizeof(layer_t));
+        dmaStore(activations, 0, 0,
+                 NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
+    dmaStore(layers, 0, 0, num_layers * sizeof(layer_t));
 }
 
 #endif
