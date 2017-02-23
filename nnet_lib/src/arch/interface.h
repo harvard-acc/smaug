@@ -55,11 +55,10 @@ result_buf activation_sublayer(float* activations,
 //
 // A bool indicating where the final result is stored into the layers
 // structure. If it is in @hid, then false, if in @hid_temp, true.
-void nnet_fwd(float* activations,
-              float* weights,
-              layer_t* layers,
-              int num_layers,
-              float* result,
+void nnet_fwd(farray_t activations,
+              farray_t weights,
+              farray_t result,
+              network_t network,
               float* sigmoid_table);
 
 #endif

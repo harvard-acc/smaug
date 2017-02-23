@@ -16,6 +16,8 @@
 
 #if ARCHITECTURE == MONOLITHIC
 
+unsigned kNnetFwdHw = 0x0001;
+
 // This is an architecture that runs an entire neural network in a single
 // block, where nnet_fwd is the top level function. nnet_fwd is thus
 // responsible for ensuring that all activations and weights data is available
@@ -93,17 +95,12 @@ result_buf run_layer(float* activations,
     return result_loc;
 }
 
-// Runs the forward pass of a neural network.
-//
-// This version loads weights on a per layer basis, and activations are
-// ping-ponged between two buffers, activations and result.
-void nnet_fwd(float* activations,
-              float* weights,
-              layer_t* layers,
-              int num_layers,
-              float* result,
-              float* sigmoid_table) {
-
+void nnet_fwd_hw(float* activations,
+                 float* weights,
+                 layer_t* layers,
+                 int num_layers,
+                 float* result,
+                 float* sigmoid_table) {
     int l;
     layer_t curr_layer;
 
@@ -114,19 +111,15 @@ void nnet_fwd(float* activations,
     // so that's where we start.
     result_buf result_loc = activations;
 
-    if (PRINT_DATA_AND_WEIGHTS) {
-        print_data_and_weights(activations, weights, layers[0]);
-    }
-
     // FORMAT HERE IS H TIMES W, NOT W TIMES H!!!!!
     // SO EACH DATA POINT IS A ***ROW****
 
     l = 0;
     dmaLoad(activations, 0, 0, NUM_TEST_CASES * INPUT_DIM * sizeof(float));
 
-//******************//
-//   PRIMARY LOOP   //
-//******************//
+    //******************//
+    //   PRIMARY LOOP   //
+    //******************//
 
 nnet_fwd_outer:
     for (l = 0; l < num_layers; l++) {
@@ -151,6 +144,33 @@ nnet_fwd_outer:
         dmaStore(activations, 0, 0,
                  NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
     dmaStore(layers, 0, 0, num_layers * sizeof(layer_t));
+}
+
+
+// Runs the forward pass of a neural network.
+//
+// This version loads weights on a per layer basis, and activations are
+// ping-ponged between two buffers, activations and result.
+void nnet_fwd(farray_t activations,
+              farray_t weights,
+              farray_t result,
+              network_t network,
+              float* sigmoid_table) {
+    if (PRINT_DATA_AND_WEIGHTS) {
+        print_data_and_weights(activations.d, weights.d, network.layers[0]);
+    }
+
+    MAP_ARRAY_TO_ACCEL(kNnetFwdHw, "activations", activations.d,
+                       activations.size * sizeof(float));
+    MAP_ARRAY_TO_ACCEL(
+            kNnetFwdHw, "weights", weights.d, weights.size * sizeof(float));
+    MAP_ARRAY_TO_ACCEL(
+            kNnetFwdHw, "result", result.d, result.size * sizeof(float));
+    MAP_ARRAY_TO_ACCEL(kNnetFwdHw, "layers", network.layers,
+                       network.depth * sizeof(layer_t));
+
+    INVOKE_KERNEL(kNnetFwdHw, nnet_fwd_hw, activations.d, weights.d, network.layers,
+                  network.depth, result.d, sigmoid_table);
 }
 
 #endif

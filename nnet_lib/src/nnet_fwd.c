@@ -101,10 +101,10 @@ int main(int argc, const char* argv[]) {
     // set random seed (need to #include <time.h>)
     srand(1);
 
-    layer_t* layers;
-    int total_layers = configure_network_from_file(conf_file, &layers);
+    network_t network;
+    network.depth = configure_network_from_file(conf_file, &network.layers);
     printf("Size of layer configuration: %lu bytes\n",
-           total_layers * sizeof(layer_t));
+           network.depth * sizeof(layer_t));
 
     data_init_mode RANDOM_DATA = RANDOM;
     data_init_mode RANDOM_WEIGHTS = RANDOM;
@@ -115,58 +115,60 @@ int main(int argc, const char* argv[]) {
     // reason, hid and hid_temp may not be the same size; hid must be large
     // enough to store the input activations, but this is not a concern for
     // hid_temp.
-    float* hid;
-    float* hid_temp;
+    farray_t hid = { NULL, 0 };
+    farray_t hid_temp = { NULL, 0 };
     size_t data_size = NUM_TEST_CASES * INPUT_DIM;
 
     printf("Setting up arrays\n");
     // Get the dimensions of the biggest matrix that will ever come out of
     // run_layer.
-    size_t hid_temp_size = 0;
-    for (i = 0; i < total_layers; i++) {
-        size_t curr_layer_usage = calc_layer_intermediate_memory(layers[i]);
-        hid_temp_size = max(hid_temp_size, curr_layer_usage);
+    for (i = 0; i < network.depth; i++) {
+        size_t curr_layer_usage =
+                calc_layer_intermediate_memory(network.layers[i]);
+        hid_temp.size = max(hid_temp.size, curr_layer_usage);
     }
     printf("  Largest intermediate output size is %lu elements\n",
-           hid_temp_size);
+           hid_temp.size);
     err = posix_memalign(
-            (void**)&hid_temp, CACHELINE_SIZE,
-            next_multiple(hid_temp_size * sizeof(float), CACHELINE_SIZE));
-    ASSERT_MEMALIGN(hid_temp, err);
-    size_t hid_size = max(data_size, hid_temp_size);
-    printf("  hid has %lu elements\n", hid_size);
+            (void**)&hid_temp.d, CACHELINE_SIZE,
+            next_multiple(hid_temp.size * sizeof(float), CACHELINE_SIZE));
+    ASSERT_MEMALIGN(hid_temp.d, err);
+    hid.size = max(data_size, hid_temp.size);
+    printf("  hid has %lu elements\n", hid.size);
     err = posix_memalign(
-            (void**)&hid, CACHELINE_SIZE,
-            next_multiple(hid_size * sizeof(float), CACHELINE_SIZE));
-    ASSERT_MEMALIGN(hid, err);
+            (void**)&hid.d, CACHELINE_SIZE,
+            next_multiple(hid.size * sizeof(float), CACHELINE_SIZE));
+    ASSERT_MEMALIGN(hid.d, err);
 
     // Initialize weights, data, and labels.
-    float* weights;
-    int w_size = get_total_num_weights(layers, total_layers);
-    err = posix_memalign((void**)&weights, CACHELINE_SIZE,
-                         next_multiple(w_size * sizeof(float), CACHELINE_SIZE));
-    ASSERT_MEMALIGN(weights, err);
-    printf("  Total weights: %d elements\n", w_size);
+    farray_t weights;
+    weights.size = get_total_num_weights(network.layers, network.depth);
+    err = posix_memalign(
+            (void**)&weights.d, CACHELINE_SIZE,
+            next_multiple(weights.size * sizeof(float), CACHELINE_SIZE));
+    ASSERT_MEMALIGN(weights.d, err);
+    printf("  Total weights: %lu elements\n", weights.size);
     // Get the largest weights size for a single layer - this will be the size
     // of the scratchpad.
     size_t weights_temp_size = 0;
-    for (i = 0; i < total_layers; i++) {
-      size_t curr_layer_weights = get_num_weights_layer(layers, i);
-      weights_temp_size = max(weights_temp_size, curr_layer_weights);
+    for (i = 0; i < network.depth; i++) {
+        size_t curr_layer_weights = get_num_weights_layer(network.layers, i);
+        weights_temp_size = max(weights_temp_size, curr_layer_weights);
     }
     printf("  Largest weights per layer: %lu elements\n", weights_temp_size);
 
-    init_weights(weights, layers, total_layers, RANDOM_WEIGHTS, TRANSPOSE_WEIGHTS);
+    init_weights(weights.d, network.layers, network.depth, RANDOM_WEIGHTS,
+                 TRANSPOSE_WEIGHTS);
 
-    int* labels;
-    size_t label_size = NUM_TEST_CASES;
+    iarray_t labels = { NULL, 0 };
+    labels.size = NUM_TEST_CASES;
     err = posix_memalign(
-            (void**)&labels, CACHELINE_SIZE,
-            next_multiple(label_size * sizeof(int), CACHELINE_SIZE));
-    ASSERT_MEMALIGN(labels, err);
+            (void**)&labels.d, CACHELINE_SIZE,
+            next_multiple(labels.size * sizeof(int), CACHELINE_SIZE));
+    ASSERT_MEMALIGN(labels.d, err);
 
-    init_data(hid, NUM_TEST_CASES, INPUT_DIM, RANDOM_DATA);
-    init_labels(labels, NUM_TEST_CASES, RANDOM_DATA);
+    init_data(hid.d, NUM_TEST_CASES, INPUT_DIM, RANDOM_DATA);
+    init_labels(labels.d, NUM_TEST_CASES, RANDOM_DATA);
 
     // This file is not looked at by aladdin so malloc is fine.
     // If I do the old version then I get a memory overflow, because the
@@ -194,19 +196,19 @@ int main(int argc, const char* argv[]) {
     // -------------------------------------------------------- //
 #ifdef GEM5_HARNESS
     mapArrayToAccelerator(
-            INTEGRATION_TEST, "hid", hid, hid_size * sizeof(float));
+            INTEGRATION_TEST, "hid", hid.d, hid.size * sizeof(float));
     mapArrayToAccelerator(
-            INTEGRATION_TEST, "hid_temp", hid_temp, hid_size * sizeof(float));
+            INTEGRATION_TEST, "hid_temp", hid_temp.d, hid_temp.size * sizeof(float));
     mapArrayToAccelerator(
-            INTEGRATION_TEST, "weights", weights, w_size * sizeof(float));
-    mapArrayToAccelerator(
-            INTEGRATION_TEST, "layers", layers, total_layers * sizeof(layer_t));
+            INTEGRATION_TEST, "weights", weights.d, weights.size * sizeof(float));
+    mapArrayToAccelerator(INTEGRATION_TEST, "layers", network.layers,
+                          network.depth * sizeof(layer_t));
     invokeAcceleratorAndBlock(INTEGRATION_TEST);
 #else
     // Run a forward pass through the neural net
     printf("Running forward pass\n");
     // The function being synthesized
-    nnet_fwd(hid, weights, layers, total_layers, hid_temp, sigmoid_table);
+    nnet_fwd(hid, weights, hid_temp, network, sigmoid_table);
 #endif
 
     // Print the result, maybe not all the test_cases
@@ -216,10 +218,12 @@ int main(int argc, const char* argv[]) {
             num_to_print < NUM_TEST_CASES ? num_to_print : NUM_TEST_CASES;
 
     // Compute the classification error rate
-    float* result = layers[total_layers-1].result_in_temp ? hid_temp : hid;
+    float* result = network.layers[network.depth - 1].result_in_temp
+                            ? hid_temp.d
+                            : hid.d;
     int num_errors = 0;
     for (i = 0; i < NUM_TEST_CASES; i++) {
-        if (arg_max(result + i * NUM_CLASSES, NUM_CLASSES, 1) != labels[i]) {
+        if (arg_max(result + i * NUM_CLASSES, NUM_CLASSES, 1) != labels.d[i]) {
             num_errors = num_errors + 1;
         }
     }
@@ -238,9 +242,9 @@ int main(int argc, const char* argv[]) {
     }
     fclose(output_labels);
 
-    free(hid);
-    free(hid_temp);
-    free(weights);
-    free(labels);
-    free(layers);
+    free(hid.d);
+    free(hid_temp.d);
+    free(weights.d);
+    free(labels.d);
+    free(network.layers);
 }

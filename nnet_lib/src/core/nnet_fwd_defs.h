@@ -101,6 +101,25 @@ typedef struct _layer_t {
   int result_in_temp;
 } layer_t;
 
+
+// A network is a stack of layers and a layer count.
+typedef struct _network_t {
+  layer_t* layers;
+  int depth;
+} network_t;
+
+// Wraps a dynamically allocated array (d for data) and its size (number of
+// elements, not bytes).
+typedef struct _farray_t {
+    float* d;
+    size_t size;
+} farray_t;
+
+typedef struct _iarray_t {
+    int* d;
+    size_t size;
+} iarray_t;
+
 // Possible values of ARCHITECTURE.
 //
 // This defines the structure of the nnet accelerator - whether it is a
@@ -129,7 +148,7 @@ typedef struct _layer_t {
 //
 //     INVOKE_KERNEL(myReqCode, kernelFuncName, args...)
 //        ===>   invokeAcceleratorAndBlock(myReqCode)
-//  
+//
 //  Otherwise:
 //     MAP_ARRAY_TO_ACCEL(myReqCode, myArrayName, myArrayPtr, mySize)
 //        expands to nothing

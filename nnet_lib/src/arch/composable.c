@@ -165,11 +165,10 @@ result_buf run_layer(float* activations,
 //
 // This version loads weights on a per layer basis, and activations are
 // ping-ponged between two buffers, activations and result.
-void nnet_fwd(float* activations,
-              float* weights,
-              layer_t* layers,
-              int num_layers,
-              float* result,
+void nnet_fwd(farray_t activations,
+              farray_t weights,
+              farray_t result,
+              network_t network,
               float* sigmoid_table) {
 
     int l;
@@ -178,10 +177,10 @@ void nnet_fwd(float* activations,
     // Alternate between reading from/writing to activations and result so we
     // can avoid copying matrices. The initial activations is obviously in
     // "activations", so that's where we start.
-    result_buf result_loc = activations;
+    result_buf result_loc = activations.d;
 
     if (PRINT_DATA_AND_WEIGHTS) {
-        print_data_and_weights(activations, weights, layers[0]);
+        print_data_and_weights(activations.d, weights.d, network.layers[0]);
     }
 
     // FORMAT HERE IS H TIMES W, NOT W TIMES H!!!!!
@@ -194,26 +193,26 @@ void nnet_fwd(float* activations,
     //******************//
 
 nnet_fwd_outer:
-    for (l = 0; l < num_layers; l++) {
-        curr_layer = layers[l];
+    for (l = 0; l < network.depth; l++) {
+        curr_layer = network.layers[l];
 
-        if (result_loc == result) {
-            result_loc = run_layer(
-                    result, weights, layers, l, activations, sigmoid_table);
+        if (result_loc == result.d) {
+            result_loc = run_layer(result.d, weights.d, network.layers, l,
+                                   activations.d, sigmoid_table);
         } else {
-            result_loc = run_layer(
-                    activations, weights, layers, l, result, sigmoid_table);
+            result_loc = run_layer(activations.d, weights.d, network.layers, l,
+                                   result.d, sigmoid_table);
         }
     }
 
-    layers[num_layers - 1].result_in_temp = result_loc == result;
+    network.layers[network.depth - 1].result_in_temp = (result_loc == result.d);
 
-    if (result_loc == result)
-        dmaStore(result, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
+    if (result_loc == result.d)
+        dmaStore(result.d, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
     else
-        dmaStore(activations, 0, 0,
+        dmaStore(activations.d, 0, 0,
                  NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
-    dmaStore(layers, 0, 0, num_layers * sizeof(layer_t));
+    dmaStore(network.layers, 0, 0, network.depth * sizeof(layer_t));
 }
 
 #endif
