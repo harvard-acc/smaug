@@ -84,7 +84,6 @@ void print_usage() {
                    : ARCHITECTURE == COMPOSABLE ? "COMPOSABLE" : "UNKNOWN");
 }
 
-// This is the thing that we want to be good at in hardware
 int main(int argc, const char* argv[]) {
     int i, j, err;
 
@@ -170,10 +169,6 @@ int main(int argc, const char* argv[]) {
     init_data(hid.d, NUM_TEST_CASES, INPUT_DIM, RANDOM_DATA);
     init_labels(labels.d, NUM_TEST_CASES, RANDOM_DATA);
 
-    // This file is not looked at by aladdin so malloc is fine.
-    // If I do the old version then I get a memory overflow, because the
-    // max stack size is not big enough for TIMIT stuff.
-
     // Build the sigmoid lookup table
     // May want to change this to be "non-centered"
     // to avoid (sigmoid_coarseness - 1.0)
@@ -191,25 +186,9 @@ int main(int argc, const char* argv[]) {
 
     fflush(stdout);
 
-    // -------------------------------------------------------- //
-    //     THIS IS THE FUNCTION BEING SIMULATED IN HARDWARE     //
-    // -------------------------------------------------------- //
-#ifdef GEM5_HARNESS
-    mapArrayToAccelerator(
-            INTEGRATION_TEST, "hid", hid.d, hid.size * sizeof(float));
-    mapArrayToAccelerator(
-            INTEGRATION_TEST, "hid_temp", hid_temp.d, hid_temp.size * sizeof(float));
-    mapArrayToAccelerator(
-            INTEGRATION_TEST, "weights", weights.d, weights.size * sizeof(float));
-    mapArrayToAccelerator(INTEGRATION_TEST, "layers", network.layers,
-                          network.depth * sizeof(layer_t));
-    invokeAcceleratorAndBlock(INTEGRATION_TEST);
-#else
     // Run a forward pass through the neural net
     printf("Running forward pass\n");
-    // The function being synthesized
     nnet_fwd(hid, weights, hid_temp, network, sigmoid_table);
-#endif
 
     // Print the result, maybe not all the test_cases
     int num_to_print = 1;
