@@ -52,6 +52,7 @@ def copy_function(main_trace, first_line, func, sub_trace):
       # Finish if we are returning from this top level function.
       if func_name == func and opcode == RET_OP:
         sub_trace.write(line)
+        sub_trace.write("\n")
         return
 
     sub_trace.write(line)
