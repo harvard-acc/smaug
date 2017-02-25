@@ -60,6 +60,11 @@ static void set_layer_type(layer_t* layers, cfg_t* layer_opts, int l) {
     } else {
         assert(false && "Invalid activation type!");
     }
+
+    if (layers[l].type == POOLING && layers[l].activation != NONE)
+        fprintf(stderr, "Pooling layer %d has an activation function, which is "
+                        "usually unnecessary.\n",
+                l);
 }
 
 static void set_layer_aux_params(layer_t* layers, cfg_t* layer_opts, int l) {
