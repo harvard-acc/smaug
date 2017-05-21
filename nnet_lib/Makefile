@@ -20,8 +20,8 @@ SRCS = $(CORE_SRCS) $(UTILITY_SRCS) $(ARCH_SRCS) nnet_fwd.c
 CFLAGS = -Wno-unused-but-set-variable
 ACCEL_NAME = nnet
 BMARK_SPECIFIC_CFLAGS = -DDMA_INTERFACE_V2
-export WORKLOAD=nnet_fwd_hw
-# export WORKLOAD=inner_product_layer_hw,convolution_layer_hw,max_pooling_layer_hw,activation_hw
+# export WORKLOAD=nnet_fwd_hw
+export WORKLOAD=inner_product_layer_hw,convolution_layer_hw,max_pooling_layer_hw,activation_hw
 
 include common/Makefile.tracer
 include common/Makefile.gem5

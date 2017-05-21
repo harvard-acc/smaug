@@ -14,12 +14,12 @@
 #include "gem5_harness.h"
 #endif
 
+#if ARCHITECTURE == COMPOSABLE
+
 unsigned kConvolutionHw = 0x0001;
 unsigned kPoolingHw = 0x0002;
 unsigned kActivationFuncHw = 0x0003;
 unsigned kInnerProductHw = 0x0004;
-
-#if ARCHITECTURE == COMPOSABLE
 
 // This is an architecture that divides each layer type into a separate
 // hardware block. This is represented by ensuring that each layer is
