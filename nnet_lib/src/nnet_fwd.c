@@ -79,9 +79,10 @@ void print_usage() {
     printf("  num-inputs specifies the number of input images to run through\n"
            "    the network. If not specified, it defaults to 1.\n\n");
     printf("Build type: %s\n",
-           ARCHITECTURE == MONOLITHIC
-                   ? "MONOLITHIC"
-                   : ARCHITECTURE == COMPOSABLE ? "COMPOSABLE" : "UNKNOWN");
+           ARCHITECTURE == MONOLITHIC ? "MONOLITHIC" :
+           ARCHITECTURE == COMPOSABLE ? "COMPOSABLE" :
+           ARCHITECTURE == SMIV ? "SMIV" :
+           "UNKNOWN");
 }
 
 int main(int argc, const char* argv[]) {

@@ -13,6 +13,7 @@ UTILITY_SRCS = utility/init_data.c \
 
 ARCH_SRCS = arch/monolithic.c \
 	 					arch/composable.c \
+						arch/smiv.c \
 					  arch/common.c
 
 SRCS = $(CORE_SRCS) $(UTILITY_SRCS) $(ARCH_SRCS) nnet_fwd.c
@@ -25,3 +26,5 @@ export WORKLOAD=inner_product_layer_hw,convolution_layer_hw,max_pooling_layer_hw
 
 include common/Makefile.tracer
 include common/Makefile.gem5
+
+clean: clean-native clean-trace

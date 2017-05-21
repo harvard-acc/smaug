@@ -19,7 +19,7 @@
 
 // The architecture of the accelerator
 #ifndef ARCHITECTURE
-#define ARCHITECTURE MONOLITHIC
+#define ARCHITECTURE SMIV
 #endif
 
 // Define this to use a table approximation of the sigmoid activation function.

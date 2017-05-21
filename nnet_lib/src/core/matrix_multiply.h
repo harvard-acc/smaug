@@ -31,4 +31,10 @@ void matrix_multiply_with_bias_and_copy(float* a,
                                         float* result_goes_here,
                                         float* result_temp);
 
+void matrix_multiply_with_bias_smiv(float* a,
+                                    float* b,
+                                    int a_height,
+                                    int b_height,
+                                    int b_width,
+                                    float* result);
 #endif

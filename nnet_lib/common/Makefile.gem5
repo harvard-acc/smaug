@@ -28,6 +28,9 @@ NATIVE = $(BUILD_DIR)/$(BMARK)-native
 GEM5_CPU = $(BUILD_DIR)/$(BMARK)-gem5
 GEM5_ACCEL = $(BUILD_DIR)/$(BMARK)-gem5-accel
 
+debug: CFLAGS+=-DDEBUG
+debug: native
+
 native: $(NATIVE)
 
 $(NATIVE): $(ALL_SRCS)

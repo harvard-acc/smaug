@@ -125,9 +125,10 @@ typedef struct _iarray_t {
 // This defines the structure of the nnet accelerator - whether it is a
 // monolithic block or a collection of multiple blocks.
 //
-// Allowed values are: MONOLITHIC, COMPOSABLE.
+// Allowed values are: MONOLITHIC, COMPOSABLE, SMIV
 #define MONOLITHIC 0
 #define COMPOSABLE 1
+#define SMIV 2
 
 #define STRING(arg) #arg
 

@@ -59,7 +59,7 @@ void matrix_multiply_with_bias(float* a,
     // a is hid, b is weights
     int i, j, k;
     float partial_sum;
-    float value;
+    float input, weight, product;
 
     int a_width = b_height - 1;
 
@@ -71,9 +71,11 @@ matmulb0:
             partial_sum = 0;
         matmulb2:
             for (k = 0; k < a_width; k++) {
-                value = conv_float2fixed(a[sub2ind(i, k, a_width)]) *
-                        conv_float2fixed(b[sub2ind(k, j, b_width)]);
-                partial_sum += value;
+                input = conv_float2fixed(a[sub2ind(i, k, a_width)]);
+                weight = conv_float2fixed(b[sub2ind(k, j, b_width)]);
+                product = input * weight;
+                partial_sum += product;
+                printf("%4.4f x %4.4f = %4.4f\n", input, weight, product);
             }
             // Add the bias (the index of the last row is the width of A).
             partial_sum += conv_float2fixed(b[sub2ind(a_width, j, b_width)]);
@@ -130,6 +132,68 @@ matmulbt0:
             // Add the bias.
             partial_sum += conv_float2fixed(b[sub2ind(j, a_width, b_height)]);
             result[sub2ind(i, j, b_width)] = partial_sum;
+        }
+    }
+}
+
+// A = activations
+// B = weights
+// B must NOT be transposed!
+void matrix_multiply_with_bias_smiv(float* a,
+                                    float* b,
+                                    int a_height,
+                                    int b_height,
+                                    int b_width,
+                                    float* result) {
+
+    int wgt_row, wgt_col, wgt_b;
+    int act_batch;
+    const int BLOCK_SIZE = 8;
+    const int MAX_BATCH = 8;
+    // TODO: Flatten this for Aladdin.
+    float partial_sums[MAX_BATCH][BLOCK_SIZE];
+    float input, weight, product, bias;
+
+    int a_width = b_height - 1;
+
+    printf("A = %dx%d, B=%dx%d (without biases)\n", a_height, a_width, b_height - 1, b_width);
+
+    for (wgt_col = 0; wgt_col < b_width; wgt_col+=BLOCK_SIZE) {
+        // Load in the bias.
+        for (act_batch = 0; act_batch < a_height; act_batch++) {
+            for (wgt_b = 0; wgt_b < BLOCK_SIZE && wgt_col + wgt_b < b_width; wgt_b++) {
+                bias = conv_float2fixed(
+                        b[sub2ind(a_width, wgt_col + wgt_b, b_width)]);
+                partial_sums[act_batch][wgt_b] = bias;
+            }
+            print_debug(&partial_sums[0][0], 1, BLOCK_SIZE, BLOCK_SIZE);
+        }
+
+        for (wgt_row = 0; wgt_row < a_width; wgt_row++) {
+            for (act_batch = 0; act_batch < a_height; act_batch++) {
+                // MACC datapath.
+                // Flatten this inner loop.
+                for (wgt_b = 0; wgt_b < BLOCK_SIZE && wgt_col + wgt_b < b_width; wgt_b++) {
+                    printf("Activation index: %d, %d, weight index: %d, %d\n",
+                           act_batch, wgt_row, wgt_row, wgt_col + wgt_b);
+                    input = conv_float2fixed(
+                            a[sub2ind(act_batch, wgt_row, a_width)]);
+                    weight = conv_float2fixed(
+                            b[sub2ind(wgt_row, wgt_col + wgt_b, b_width)]);
+                    product = input * weight;
+                    printf("%4.4f x %4.4f = %4.4f\n", input, weight, product);
+                    partial_sums[act_batch][wgt_b] += product;
+                }
+            }
+        }
+
+        print_debug(&partial_sums[0][0], 1, BLOCK_SIZE, BLOCK_SIZE);
+        // Store to scratchpad.
+        for (act_batch = 0; act_batch < a_height; act_batch++) {
+            for (wgt_b = 0; wgt_b < BLOCK_SIZE && wgt_col + wgt_b < b_width; wgt_b++) {
+                result[sub2ind(act_batch, wgt_col + wgt_b, b_width)] =
+                        partial_sums[act_batch][wgt_b];
+            }
         }
     }
 }
