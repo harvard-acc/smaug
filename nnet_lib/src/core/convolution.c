@@ -79,6 +79,10 @@ void convolution2d_kernel_no_padding(float* a,
 
     float partial_sum, a_val, kern_val;
 
+    ARRAY_4D(float, _a, a, k_height, a_height, a_width);
+    ARRAY_4D(float, _kernels, kernels, k_height, k_width, k_width);
+    ARRAY_4D(float, _result, result, num_kerns, result_height, result_width);
+
 conv2d_input_rows:
     // Convolution loop over the output pixels in this depth slice (kern).
     for (i = start_i; i < end_i; i+= k_stride) {
@@ -92,18 +96,13 @@ conv2d_input_rows:
                 for (k = 0; k < k_width; k++) {
                 conv2d_kernel_cols:
                     for (l = 0; l < k_width; l++) {
-                        a_val = conv_float2fixed(
-                                a[sub4ind(img, d, i + k, j + l, k_height,
-                                          a_height, a_width)]);
-                        kern_val = conv_float2fixed(
-                                kernels[sub4ind(kern, d, k, l, k_height,
-                                                k_width, k_width)]);
+                        a_val = conv_float2fixed(_a[img][d][i+k][j+l]);
+                        kern_val = conv_float2fixed(_kernels[kern][d][k][l]);
                         partial_sum += conv_float2fixed(a_val * kern_val);
                     }
                 }
             }
-            result[sub4ind(img, kern, i, j, num_kerns, result_height,
-                           result_width)] = partial_sum;
+            _result[img][kern][i][j] = partial_sum;
         }
     }
 }
