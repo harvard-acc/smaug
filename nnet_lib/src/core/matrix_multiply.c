@@ -20,6 +20,9 @@ void matrix_multiply(float* a,
 
     int i, j, k;
     float value;
+    ARRAY_2D(float, _a, a, a_width_b_height);
+    ARRAY_2D(float, _b, b, b_width);
+    ARRAY_2D(float, _result, result_temp, b_width);
 
     // Initialize to zero
     int size = a_height * b_width;
@@ -31,11 +34,10 @@ matmul0:
         for (j = 0; j < b_width; j++) {
         matmul2:
             for (k = 0; k < a_width_b_height; k++) {
-                value = conv_float2fixed(a[sub2ind(i, k, a_width_b_height)]) *
-                        conv_float2fixed(b[sub2ind(k, j, b_width)]);
-                result_temp[sub2ind(i, j, b_width)] =
-                        conv_float2fixed(result_temp[sub2ind(i, j, b_width)] +
-                                         conv_float2fixed(value));
+                value = conv_float2fixed(_a[i][k]) *
+                        conv_float2fixed(_b[k][j]);
+                _result[i][j] = conv_float2fixed(_result[i][j]) +
+                                conv_float2fixed(value);
             }
         }
     }
@@ -63,6 +65,10 @@ void matrix_multiply_with_bias(float* a,
 
     int a_width = b_height - 1;
 
+    ARRAY_2D(float, _a, a, a_width);
+    ARRAY_2D(float, _b, b, b_width);
+    ARRAY_2D(float, _result, result, b_width);
+
 matmulb0:
     for (i = 0; i < a_height; i++) {
     matmulb1:
@@ -71,15 +77,14 @@ matmulb0:
             partial_sum = 0;
         matmulb2:
             for (k = 0; k < a_width; k++) {
-                input = conv_float2fixed(a[sub2ind(i, k, a_width)]);
-                weight = conv_float2fixed(b[sub2ind(k, j, b_width)]);
+                input = conv_float2fixed(_a[i][k]);
+                weight = conv_float2fixed(_b[k][j]);
                 product = input * weight;
                 partial_sum += product;
-                printf("%4.4f x %4.4f = %4.4f\n", input, weight, product);
             }
             // Add the bias (the index of the last row is the width of A).
-            partial_sum += conv_float2fixed(b[sub2ind(a_width, j, b_width)]);
-            result[sub2ind(i, j, b_width)] = partial_sum;
+            partial_sum += conv_float2fixed(_b[a_width][j]);
+            _result[i][j] = partial_sum;
         }
     }
 }
@@ -101,13 +106,13 @@ void matrix_multiply_with_bias_and_copy(float* a,
 //
 // Args:
 //   a_height = height of the A matrix.
-//   b_height = height of the UNTRANSPOSED B matrix.
-//   b_width = width of the UNTRANSPOSED B matrix.
+//   b_height = height of the TRANSPOSED B matrix.
+//   b_width = width of the TRANSPOSED B matrix.
 void matrix_multiply_with_bias_transpose(float* a,
                                          float* b,
                                          int a_height,
-                                         int b_height,
                                          int b_width,
+                                         int b_height,
                                          float* result) {
 
     // a is hid, b is weights
@@ -115,23 +120,27 @@ void matrix_multiply_with_bias_transpose(float* a,
     float partial_sum;
     float value;
 
-    int a_width = b_height - 1;
+    int a_width = b_width - 1;
+
+    ARRAY_2D(float, _a, a, a_width);
+    ARRAY_2D(float, _b, b, b_width);
+    ARRAY_2D(float, _result, result, b_height);
 
 matmulbt0:
     for (i = 0; i < a_height; i++) {
     matmulbt1:
-        for (j = 0; j < b_width; j++) {
+        for (j = 0; j < b_height; j++) {
             // Initialize to zero
             partial_sum = 0;
         matmulbt2:
             for (k = 0; k < a_width; k++) {
-                value = conv_float2fixed(a[sub2ind(i, k, a_width)]) *
-                        conv_float2fixed(b[sub2ind(j, k, b_height)]);
+                value = conv_float2fixed(_a[i][k]) *
+                        conv_float2fixed(_b[j][k]);
                 partial_sum += value;
             }
             // Add the bias.
-            partial_sum += conv_float2fixed(b[sub2ind(j, a_width, b_height)]);
-            result[sub2ind(i, j, b_width)] = partial_sum;
+            partial_sum += conv_float2fixed(_b[j][a_width]);
+            _result[i][j] = partial_sum;
         }
     }
 }

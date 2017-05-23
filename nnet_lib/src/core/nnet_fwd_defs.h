@@ -255,6 +255,21 @@ typedef struct _iarray_t {
            n_rows, n_cols, (sub3ind(h, r, c, n_rows, n_cols) +                 \
                             (d) * ((n_rows) * (n_cols) * (n_hgt))))
 
+// Use these convenience macros to cast a raw pointer into a multidimensional
+// variable-length array, which lets us use [] notation inside of the ugly
+// sub2ind syntax!
+#define ARRAY_2D(TYPE, output_array_name, input_array_name, DIM_1)             \
+    TYPE(*output_array_name)[DIM_1] = (TYPE(*)[DIM_1])input_array_name
+
+#define ARRAY_3D(TYPE, output_array_name, input_array_name, DIM_1, DIM_2)      \
+    TYPE(*output_array_name)[DIM_1][DIM_2] =                                   \
+        (TYPE(*)[DIM_1][DIM_2])input_array_name
+
+#define ARRAY_4D(                                                              \
+    TYPE, output_array_name, input_array_name, DIM_1, DIM_2, DIM_3)            \
+        TYPE(*output_array_name)[DIM_1][DIM_2][DIM_3] =                        \
+            (TYPE(*)[DIM_1][DIM_2][DIM_3])input_array_name
+
 #if DEBUG == 1
 #define PRINT_DEBUG(hid, rows, cols, num_cols)                                 \
     print_debug(hid, rows, cols, num_cols)
