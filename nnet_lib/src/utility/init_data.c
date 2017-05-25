@@ -37,6 +37,10 @@ void init_weights(float* weights,
                                 // output.
                                 val = (d+1) * 0.1;
                             }
+                            // Use the subxind macros here instead of
+                            // multidimensional array indexing because the
+                            // dimensionality of the weights varies within this
+                            // single function.
                             if (layers[l].type == FC) {
                                 if (transpose)
                                     weights[sub3ind(h, j, i, w_cols, w_rows) +

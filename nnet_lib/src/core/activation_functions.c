@@ -83,19 +83,20 @@ sigmoid_table_loop: for (i = 0; i < num_units; i++) {
 // to sum to 1
 // ** this function is in-place (modifies a) **
 float* softmax(float* a, int num_test_cases, int num_classes) {
+    ARRAY_2D(float, _a, a, num_classes);
     int i, j;
     float numerator, normaliz;
 softmax_outer: for (i = 0; i < num_test_cases; i++) {
         // compute the normalization factor
         normaliz = 0.0;
 softmax_inner0: for (j = 0; j < num_classes; j++) {
-            numerator = sigmoid(a[sub2ind(i, j, num_classes)]);
+            numerator = sigmoid(_a[i][j]);
             // replace a[i,j] with exp(a[i,j])
-            a[sub2ind(i, j, num_classes)] = numerator;
+            _a[i][j] = numerator;
             normaliz += numerator;
         }
 softmax_inner1: for (j = 0; j < num_classes; j++) {
-            a[sub2ind(i, j, num_classes)] /= normaliz;
+            _a[i][j] /= normaliz;
         }
     }
     return a;

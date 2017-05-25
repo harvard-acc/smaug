@@ -37,6 +37,11 @@ void max_pooling_image3d(float* input, int img, float* result, layer_t curr_laye
     int elem_idx;
 #endif
 
+    ARRAY_4D(float, _input, input, hgt, rows, cols);
+    ARRAY_4D(float, _result, result,
+             hgt, curr_layer.output_rows, curr_layer.output_cols);
+
+
 maxpool_input_height:
     for (h = 0; h < hgt; h++) {
           oi = 0;
@@ -52,8 +57,7 @@ maxpool_input_height:
                 for (k = 0; k < size; k++) {
                 maxpool_tree_inner:
                     for (l = 0; l < size; l++) {
-                        elems[elem_idx] =
-                                input[sub4ind(img, h, i + k, j + l, hgt, rows, cols)];
+                        elems[elem_idx] = _input[img][h][i+k][j+l];
                         elem_idx++;
                     }
                 }
@@ -73,15 +77,13 @@ maxpool_input_height:
                 for (k = 0; k < size; k++) {
                 maxpool_iter_inner:
                     for (l = 0; l < size; l++) {
-                        float in_val =
-                                input[sub4ind(img, h, i + k, j + l, hgt, rows, cols)];
+                        float in_val = _input[img][h][i+k][j+l];
                         curr_max = max(in_val, curr_max);
                     }
                 }
 #endif
 
-                result[sub4ind(img, h, oi, oj, hgt, curr_layer.output_rows,
-                               curr_layer.output_cols)] = curr_max;
+                _result[img][h][oi][oj] = curr_max;
                 oj++;
             }
             oi++;

@@ -209,6 +209,7 @@ void print_debug(float* array,
 
 void print_debug4d(float* array, int rows, int cols, int height) {
     int img, i, j, h;
+    ARRAY_4D(float, _array, array, height, rows, cols);
 
     for (img = 0; img < NUM_TEST_CASES; img++) {
         printf("Input image: %d\n", img);
@@ -216,8 +217,7 @@ void print_debug4d(float* array, int rows, int cols, int height) {
             printf("Depth %d\n", h);
             for (i = 0; i < rows; i++) {
                 for (j = 0; j < cols; j++) {
-                    printf("%f, ",
-                           array[sub4ind(img, h, i, j, height, rows, cols)]);
+                    printf("%f, ", _array[img][h][i][j]);
                 }
                 printf("\n");
             }

@@ -4,8 +4,7 @@
 
 // Zeropad each image in @a by @pad zeros.
 //
-// a is a 4D matrix of flattened input feature maps, which is indexed with
-// sub5ind() -- see nnet_fwd.h for details..
+// a is a 4D matrix of flattened input feature maps.
 //
 // The result is placed in @result, which is an array that is assumed to be
 // large enough for this operation.
@@ -38,13 +37,17 @@ void copy_zeropad_image3d(float* a,
                           int r_rows,
                           int r_cols) {
     int h, i, j;
+
+    ARRAY_4D(float, _a, a, a_hgt, a_rows, a_cols);
+    ARRAY_4D(float, _result, result, a_hgt, r_rows, r_cols);
+
 copy_zeropad_height:
     for (h = 0; h < a_hgt; h++) {
     copy_zeropad_first_rows:
         for (i = 0; i < pad; i++) {
         copy_zeropad_first_cols:
             for (j = 0; j < r_cols; j++) {
-                result[sub4ind(img, h, i, j, a_hgt, r_rows, r_cols)] = 0;
+                _result[img][h][i][j] = 0;
             }
         }
 
@@ -52,23 +55,16 @@ copy_zeropad_height:
         for (i = pad; i < a_rows + pad; i++) {
         copy_zeropad_left_cols:
             for (j = 0; j < pad; j++) {
-                result[sub4ind(img, h, i, j, a_hgt, r_rows, r_cols)] = 0;
+                _result[img][h][i][j] = 0;
             }
         // Copy the original array.
         copy_zeropad_copy_cols:
             for (j = pad; j < a_cols + pad; j++) {
-                result[sub4ind(img, h, i, j, a_hgt, r_rows, r_cols)] =
-                        a[sub4ind(img,
-                                  h,
-                                  i - pad,
-                                  j - pad,
-                                  a_hgt,
-                                  a_rows,
-                                  a_cols)];
+                _result[img][h][i][j] = _a[img][h][i-pad][j-pad];
             }
         copy_zeropad_right_cols:
             for (j = a_cols + pad; j < r_cols; j++) {
-                result[sub4ind(img, h, i, j, a_hgt, r_rows, r_cols)] = 0;
+                _result[img][h][i][j] = 0;
             }
         }
 
@@ -76,7 +72,7 @@ copy_zeropad_height:
         for (i = a_rows + pad; i < r_rows; i++) {
         copy_zeropad_last_cols:
             for (j = 0; j < r_cols; j++) {
-                result[sub4ind(img, h, i, j, a_hgt, r_rows, r_cols)] = 0;
+                _result[img][h][i][j] = 0;
             }
         }
     }

@@ -270,6 +270,11 @@ typedef struct _iarray_t {
         TYPE(*output_array_name)[DIM_1][DIM_2][DIM_3] =                        \
             (TYPE(*)[DIM_1][DIM_2][DIM_3])input_array_name
 
+#define ARRAY_5D(                                                              \
+    TYPE, output_array_name, input_array_name, DIM_1, DIM_2, DIM_3, DIM_4)     \
+        TYPE(*output_array_name)[DIM_1][DIM_2][DIM_3][DIM_4] =                 \
+            (TYPE(*)[DIM_1][DIM_2][DIM_3][DIM_4])input_array_name
+
 #if DEBUG == 1
 #define PRINT_DEBUG(hid, rows, cols, num_cols)                                 \
     print_debug(hid, rows, cols, num_cols)
