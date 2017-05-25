@@ -51,4 +51,10 @@
 #define PRINT_DATA_AND_WEIGHTS 0
 #endif
 
+#if ARCHITECTURE == SMIV
+#if TRANSPOSE_WEIGHTS == 1
+#error "SMIV does not support transposed weights!"
+#endif
+#endif
+
 #endif
