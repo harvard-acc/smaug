@@ -165,14 +165,17 @@ void matrix_multiply_with_bias_smiv(float* a,
 
     int a_width = b_height - 1;
 
+    ARRAY_2D(float, _a, a, a_width);
+    ARRAY_2D(float, _b, b, b_width);
+    ARRAY_2D(float, _result, result, b_width);
+
     printf("A = %dx%d, B=%dx%d (without biases)\n", a_height, a_width, b_height - 1, b_width);
 
     for (wgt_col = 0; wgt_col < b_width; wgt_col+=BLOCK_SIZE) {
         // Load in the bias.
         for (act_batch = 0; act_batch < a_height; act_batch++) {
             for (wgt_b = 0; wgt_b < BLOCK_SIZE && wgt_col + wgt_b < b_width; wgt_b++) {
-                bias = conv_float2fixed(
-                        b[sub2ind(a_width, wgt_col + wgt_b, b_width)]);
+                bias = conv_float2fixed(_b[a_width][wgt_col + wgt_b]);
                 partial_sums[act_batch][wgt_b] = bias;
             }
             print_debug(&partial_sums[0][0], 1, BLOCK_SIZE, BLOCK_SIZE);
@@ -185,10 +188,9 @@ void matrix_multiply_with_bias_smiv(float* a,
                 for (wgt_b = 0; wgt_b < BLOCK_SIZE && wgt_col + wgt_b < b_width; wgt_b++) {
                     printf("Activation index: %d, %d, weight index: %d, %d\n",
                            act_batch, wgt_row, wgt_row, wgt_col + wgt_b);
-                    input = conv_float2fixed(
-                            a[sub2ind(act_batch, wgt_row, a_width)]);
-                    weight = conv_float2fixed(
-                            b[sub2ind(wgt_row, wgt_col + wgt_b, b_width)]);
+                    input = conv_float2fixed(_a[act_batch][wgt_row]);
+                    weight = conv_float2fixed(_b[wgt_row][wgt_col + wgt_b]);
+
                     product = input * weight;
                     printf("%4.4f x %4.4f = %4.4f\n", input, weight, product);
                     partial_sums[act_batch][wgt_b] += product;
@@ -200,8 +202,7 @@ void matrix_multiply_with_bias_smiv(float* a,
         // Store to scratchpad.
         for (act_batch = 0; act_batch < a_height; act_batch++) {
             for (wgt_b = 0; wgt_b < BLOCK_SIZE && wgt_col + wgt_b < b_width; wgt_b++) {
-                result[sub2ind(act_batch, wgt_col + wgt_b, b_width)] =
-                        partial_sums[act_batch][wgt_b];
+                _result[act_batch][wgt_col + wgt_b] = partial_sums[act_batch][wgt_b];
             }
         }
     }
