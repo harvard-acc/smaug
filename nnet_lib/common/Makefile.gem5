@@ -9,7 +9,7 @@
 GEM5_SRCS = aladdin_sys_connection.cpp aladdin_sys_constants.cpp dma_interface.c
 GEM5_FULL_SRCS = $(GEM5_SRCS:%=$(ALADDIN_HOME)/gem5/%)
 
-CFLAGS += -g -O3 -Wall -Wno-unused-label
+CFLAGS += -g -Wall -Wno-unused-label
 ALL_SRCS = $(patsubst %.c, $(SRC_DIR)/%.c, $(SRCS))
 _BUILD_VIEW_SRCS = $(patsubst %.c, ../$(SRC_DIR)/%.c, $(SRCS))
 
@@ -28,10 +28,13 @@ NATIVE = $(BUILD_DIR)/$(BMARK)-native
 GEM5_CPU = $(BUILD_DIR)/$(BMARK)-gem5
 GEM5_ACCEL = $(BUILD_DIR)/$(BMARK)-gem5-accel
 
-debug: CFLAGS+=-DDEBUG
-debug: native
+debug: CFLAGS+=-DDEBUG -O0
+debug: native-target
 
-native: $(NATIVE)
+native: CFLAGS+=-O3
+native: native-target
+
+native-target: $(NATIVE)
 
 $(NATIVE): $(ALL_SRCS)
 	@echo Building benchmark $(BMARK) for native platform.
