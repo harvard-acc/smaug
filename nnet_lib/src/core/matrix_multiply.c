@@ -169,38 +169,38 @@ void matrix_multiply_with_bias_smiv(float* a,
     ARRAY_2D(float, _b, b, b_width);
     ARRAY_2D(float, _result, result, b_width);
 
-    printf("A = %dx%d, B=%dx%d (without biases)\n", a_height, a_width, b_height - 1, b_width);
-
+    wgt_col:
     for (wgt_col = 0; wgt_col < b_width; wgt_col+=BLOCK_SIZE) {
         // Load in the bias.
+        load_bias:
         for (act_batch = 0; act_batch < a_height; act_batch++) {
             for (wgt_b = 0; wgt_b < BLOCK_SIZE && wgt_col + wgt_b < b_width; wgt_b++) {
                 bias = conv_float2fixed(_b[a_width][wgt_col + wgt_b]);
                 partial_sums[act_batch][wgt_b] = bias;
             }
-            print_debug(&partial_sums[0][0], 1, BLOCK_SIZE, BLOCK_SIZE);
         }
 
+        wgt_row:
         for (wgt_row = 0; wgt_row < a_width; wgt_row++) {
+            act_batch_macc:
             for (act_batch = 0; act_batch < a_height; act_batch++) {
                 // MACC datapath.
                 // Flatten this inner loop.
+                wgt_b_macc:
                 for (wgt_b = 0; wgt_b < BLOCK_SIZE && wgt_col + wgt_b < b_width; wgt_b++) {
-                    printf("Activation index: %d, %d, weight index: %d, %d\n",
-                           act_batch, wgt_row, wgt_row, wgt_col + wgt_b);
                     input = conv_float2fixed(_a[act_batch][wgt_row]);
                     weight = conv_float2fixed(_b[wgt_row][wgt_col + wgt_b]);
 
                     product = input * weight;
-                    printf("%4.4f x %4.4f = %4.4f\n", input, weight, product);
                     partial_sums[act_batch][wgt_b] += product;
                 }
             }
         }
 
-        print_debug(&partial_sums[0][0], 1, BLOCK_SIZE, BLOCK_SIZE);
         // Store to scratchpad.
+        act_batch_store:
         for (act_batch = 0; act_batch < a_height; act_batch++) {
+            wgt_b_store:
             for (wgt_b = 0; wgt_b < BLOCK_SIZE && wgt_col + wgt_b < b_width; wgt_b++) {
                 _result[act_batch][wgt_col + wgt_b] = partial_sums[act_batch][wgt_b];
             }
