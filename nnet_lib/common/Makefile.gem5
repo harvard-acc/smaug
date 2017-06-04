@@ -9,7 +9,11 @@
 GEM5_SRCS = aladdin_sys_connection.cpp aladdin_sys_constants.cpp dma_interface.c
 GEM5_FULL_SRCS = $(GEM5_SRCS:%=$(ALADDIN_HOME)/gem5/%)
 
-CFLAGS += -g -Wall -Wno-unused-label
+CFLAGS += -g -Wall -Wno-unused-label -std=gnu99
+ifneq ($(ARCH),)
+	CFLAGS += -DARCHITECTURE=$(ARCH)
+endif
+
 ALL_SRCS = $(patsubst %.c, $(SRC_DIR)/%.c, $(SRCS))
 _BUILD_VIEW_SRCS = $(patsubst %.c, ../$(SRC_DIR)/%.c, $(SRCS))
 
@@ -38,7 +42,8 @@ native-target: $(NATIVE)
 
 $(NATIVE): $(ALL_SRCS)
 	@echo Building benchmark $(BMARK) for native platform.
-	$(CC) $(CFLAGS) -DDMA_INTERFACE_V2 -DDMA_MODE $^ $(ALADDIN_HOME)/gem5/dma_interface.c $(INCLUDES) -o $@ $(LFLAGS)
+	@mkdir -p $(BUILD_DIR)
+	@$(CC) $(CFLAGS) -DDMA_INTERFACE_V2 -DDMA_MODE $^ $(ALADDIN_HOME)/gem5/dma_interface.c $(INCLUDES) -o $@ $(LFLAGS)
 #	$(CC) $(CFLAGS) $^ $(INCLUDES) -o $@ $(LFLAGS)
 
 # Builds both standalone CPU version and the HW accelerated version.
@@ -56,12 +61,14 @@ bench-gem5: $(GEM5_CPU)
 
 $(GEM5_CPU): $(ALL_SRCS) $(GEM5_FULL_SRCS)
 	@echo Building benchmark $(BMARK) for gem5.
-	@$(CC) $(GEM5_CFLAGS) $(CFLAGS) $^ $(INCLUDES) -o $@ $(LFLAGS)
+	@mkdir -p $(BUILD_DIR)
+	$(CC) $(GEM5_CFLAGS) $(CFLAGS) $^ $(INCLUDES) -o $@ $(LFLAGS)
 
 bench-gem5-accel: $(GEM5_ACCEL)
 
 $(GEM5_ACCEL): $(ALL_SRCS) $(GEM5_FULL_SRCS)
 	@echo Building benchmark $(BMARK) for gem5 with HW acceleration.
+	@mkdir -p $(BUILD_DIR)
 	@$(CC) $(GEM5_CFLAGS) $(CFLAGS) -DGEM5_HARNESS $^ $(INCLUDES) -o $@ $(LFLAGS)
 
 clean-gem5:

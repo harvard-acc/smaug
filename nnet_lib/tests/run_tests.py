@@ -105,6 +105,9 @@ def run_tests():
   test_loader = unittest.TestLoader()
   suite.addTests(test_loader.loadTestsFromName("__main__"))
   result = unittest.TextTestRunner(verbosity=2).run(suite)
+  if result.failures or result.errors:
+    return 1
+  return 0
 
 def main():
   parser = argparse.ArgumentParser()
@@ -114,7 +117,8 @@ def main():
   global BINARY
   BINARY = args.binary
 
-  run_tests()
+  result = run_tests()
+  sys.exit(result)
 
 if __name__ == "__main__":
   main()

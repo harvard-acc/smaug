@@ -1,0 +1,27 @@
+sudo: required
+dist: trusty
+
+before_install:
+  - mkdir -p deps
+  - cd deps
+  - git clone https://github.com/ysshao/aladdin
+  - cd ..
+  - sudo apt-get install -y libconfuse-dev
+
+env:
+  - ALADDIN_HOME=$PWD/deps/aladdin
+
+language: c
+compiler:
+  - gcc
+
+script:
+  - cd nnet_lib/tests
+  - make all
+
+notifications:
+  email:
+    on_success: never
+    on_failure: always
+    recipients:
+      - samxi@seas.harvard.edu

@@ -13,8 +13,8 @@ composable: ARCH=COMPOSABLE
 
 build:
 	@echo "Building test..."
-	@make -C .. clean-native;
-	@make -C .. native CFLAGS+=-DARCHITECTURE=$(ARCH);
+	@make -C .. clean-native
+	@make -C .. native ARCH=$(ARCH)
 
 smiv: build
 	@mv ../build/nnet-native ../build/nnet-native-smiv
@@ -31,4 +31,4 @@ composable: build
 all:
 	@make -C . monolithic
 	@make -C . composable
-	@make -C . smiv
+	# @make -C . smiv
