@@ -31,4 +31,4 @@ composable: build
 all:
 	@make -C . monolithic
 	@make -C . composable
-	# @make -C . smiv
+	@make -C . smiv

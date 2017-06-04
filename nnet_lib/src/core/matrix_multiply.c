@@ -73,8 +73,10 @@ matmulb0:
     for (i = 0; i < a_height; i++) {
     matmulb1:
         for (j = 0; j < b_width; j++) {
-            // Initialize to zero
-            partial_sum = 0;
+            // Preload partial_sum with the bias (the index of the last row is
+            // the width of A).
+            partial_sum = conv_float2fixed(_b[a_width][j]);
+
         matmulb2:
             for (k = 0; k < a_width; k++) {
                 input = conv_float2fixed(_a[i][k]);
@@ -82,8 +84,6 @@ matmulb0:
                 product = input * weight;
                 partial_sum += product;
             }
-            // Add the bias (the index of the last row is the width of A).
-            partial_sum += conv_float2fixed(_b[a_width][j]);
             _result[i][j] = partial_sum;
         }
     }
@@ -130,16 +130,14 @@ matmulbt0:
     for (i = 0; i < a_height; i++) {
     matmulbt1:
         for (j = 0; j < b_height; j++) {
-            // Initialize to zero
-            partial_sum = 0;
+            // Preload the bias.
+            partial_sum = conv_float2fixed(_b[j][a_width]);
         matmulbt2:
             for (k = 0; k < a_width; k++) {
                 value = conv_float2fixed(_a[i][k]) *
                         conv_float2fixed(_b[j][k]);
                 partial_sum += value;
             }
-            // Add the bias.
-            partial_sum += conv_float2fixed(_b[j][a_width]);
             _result[i][j] = partial_sum;
         }
     }
@@ -159,7 +157,6 @@ void matrix_multiply_with_bias_smiv(float* a,
     int act_batch;
     const int BLOCK_SIZE = 8;
     const int MAX_BATCH = 8;
-    // TODO: Flatten this for Aladdin.
     float partial_sums[MAX_BATCH][BLOCK_SIZE];
     float input, weight, product, bias;
 
