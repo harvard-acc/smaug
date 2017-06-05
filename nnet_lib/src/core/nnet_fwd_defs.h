@@ -202,6 +202,8 @@ typedef struct _iarray_t {
 #define max9(e0, e1, e2, e3, e4, e5, e6, e7, e8)                               \
     max(max8(e0, e1, e2, e3, e4, e5, e6, e7), e8)
 
+#define min(A, B) (((A) < (B)) ? (A) : (B))
+
 // Based on whether the weights matrix is transposed or not, use a different
 // multiplication kernel.
 #if TRANSPOSE_WEIGHTS == 1

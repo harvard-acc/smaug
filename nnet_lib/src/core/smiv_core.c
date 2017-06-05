@@ -3,11 +3,6 @@
 
 #include "smiv_core.h"
 
-const unsigned VECTOR_SIZE = 8;
-const unsigned DATAPATH_WIDTH = 4;
-const unsigned SHIFT_REG_SIZE = 16;
-const unsigned MAX_BATCH = 8;
-
 /* Shift a single shift register left by shamt. */
 static void shift_reg_lshift(float shift_reg[SHIFT_REG_SIZE], unsigned shamt) {
     unsigned sr;
@@ -49,27 +44,46 @@ static void shift_regs_lshift(float shift_reg0[SHIFT_REG_SIZE],
 static void conv_macc_datapath(float weights_buffer[VECTOR_SIZE],
                                float pipe0_shift_reg[SHIFT_REG_SIZE],
                                float pipe1_shift_reg[SHIFT_REG_SIZE],
-                               unsigned k_stride,
-                               float partial_sums[2][VECTOR_SIZE]) {
+                               unsigned dp_shamt,
+                               unsigned dp0_iters,
+                               unsigned dp1_iters,
+                               float psums_0[VECTOR_SIZE],
+                               float psums_1[VECTOR_SIZE]) {
     unsigned psum_reg, j;
 
-    for (psum_reg = 0; psum_reg < VECTOR_SIZE; psum_reg++) {
-        // Do the MACCs for datapath 0.
-        float accum_result_0 = partial_sums[0][psum_reg];
-        for (j = 0; j < DATAPATH_WIDTH; j += k_stride) {
+    for (psum_reg = 0; psum_reg < dp0_iters; psum_reg++) {
+        float accum_result_0 = psums_0[psum_reg];
+        float accum_result_1 = psums_1[psum_reg];
+        for (j = 0; j < DATAPATH_WIDTH; j++) {
             accum_result_0 += weights_buffer[j] * pipe0_shift_reg[j];
+            accum_result_1 +=
+                    weights_buffer[j + DATAPATH_WIDTH] * pipe1_shift_reg[j];
         }
+        psums_0[psum_reg] = accum_result_0;
+        // We have to shift the shift regs together in a single function call.
+        if (psum_reg < dp1_iters)
+          psums_1[psum_reg] = accum_result_1;
+        shift_regs_lshift(pipe0_shift_reg, pipe1_shift_reg, dp_shamt);
+    }
+}
 
-        // Now for datapath 1.
-        float accum_result_1 = partial_sums[1][psum_reg];
-        for (j = 0; j < DATAPATH_WIDTH; j += k_stride) {
-            accum_result_1 += weights_buffer[j] * pipe1_shift_reg[j];
+static void merge_psums(float psums_0[VECTOR_SIZE],
+                        float psums_1[VECTOR_SIZE],
+                        bool double_tp,
+                        float result[VECTOR_SIZE]) {
+
+    int i;
+
+    // TODO: Should we consider num_valid_accum? It's a lot of complexity...
+    if (double_tp) {
+        for (i = 0; i < VECTOR_SIZE; i += 2) {
+            result[i] = psums_0[i];
+            result[i + 1] = psums_1[i];
         }
-
-        partial_sums[0][psum_reg] = accum_result_0;
-        partial_sums[1][psum_reg] = accum_result_1;
-
-        shift_regs_lshift(pipe0_shift_reg, pipe1_shift_reg, k_stride);
+    } else {
+        for (i = 0; i < VECTOR_SIZE; i++) {
+            result[i] = psums_0[i] + psums_1[i];
+        }
     }
 }
 
@@ -95,61 +109,95 @@ static void convolution2d_kernel_smiv_1channel(float* a,
     const int num_kerns = curr_layer.output_height;
 
     // Convolution borders.
-    const int start_row = 0;
-    const int start_col = 0;
     const int end_row = result_width;
-    const unsigned init_shamt = VECTOR_SIZE;
-    // const int end_col = result_height;
+    const int end_col = result_height;
+    const int end_kern = k_height;
 
+    // Convolution control parameters.
+    // TODO: Refactor this into a scheduling pass.
     const int row_stride = k_stride;
     const int col_stride = VECTOR_SIZE;
+    const bool double_tp = k_width < DATAPATH_WIDTH;
+    const unsigned init_shamt = double_tp ? k_stride : DATAPATH_WIDTH;
+    const unsigned dp_shamt = double_tp ? k_stride * 2 : k_stride;
+    const unsigned max_psums_per_act =
+            double_tp ? DATAPATH_WIDTH : DATAPATH_WIDTH * 2;
 
     ARRAY_4D(float, _a, a, k_height, a_height, a_width);
     ARRAY_4D(float, _kernels, kernels, k_height, k_width, k_width);
     ARRAY_4D(float, _result, result, num_kerns, result_height, result_width);
 
-    float pipe0_shift_reg[SHIFT_REG_SIZE];
-    float pipe1_shift_reg[SHIFT_REG_SIZE];
-    float weights_buffer[VECTOR_SIZE];
-    // Two partial sum regs, one for each pipe.
-    float partial_sums[2][VECTOR_SIZE];
+    for (out_row = 0; out_row < end_row; out_row += row_stride) {
+        for (out_col = 0; out_col < end_col; out_col += col_stride) {
+            // Compute schedule.
+            // TODO: Refactor this...
+            unsigned remaining_cols = result_width - out_col;
+            unsigned remaining_per_dp = remaining_cols / 2;
+            unsigned remainder = remaining_cols % 2;
+            unsigned dp0_iters = min(max_psums_per_act, remaining_per_dp + remainder);
+            unsigned dp1_iters = min(max_psums_per_act, remaining_per_dp);
 
-    for (out_row = start_row; out_row < end_row; out_row += row_stride) {
-        for (out_col = start_col; out_col < VECTOR_SIZE;
-             out_col += col_stride) {
-            for (kern_row = 0; kern_row < k_height; kern_row += k_stride) {
+            for (kern_row = 0; kern_row < end_kern; kern_row ++) {
+                float weights_buffer[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+                float pipe0_shift_reg[SHIFT_REG_SIZE] = {
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                };
+                float pipe1_shift_reg[SHIFT_REG_SIZE] = {
+                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                };
+
+                // Two partial sum regs, one for each pipe.
+                float psums_0[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+                float psums_1[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+
                 // Load activations into shift registers.
-                for (sr = 0; sr < max(VECTOR_SIZE, a_width); sr++) {
+                for (sr = 0; sr < max(VECTOR_SIZE, a_width - out_col); sr++) {
                     pipe0_shift_reg[sr] =
                             _a[img][chan][out_row + kern_row][out_col + sr];
                     pipe1_shift_reg[sr] =
                             _a[img][chan][out_row + kern_row][out_col + sr];
                 }
-                for (sr = 8; sr < max(SHIFT_REG_SIZE, a_width); sr++) {
+                for (sr = 8; sr < max(SHIFT_REG_SIZE, a_width - out_col); sr++) {
                     pipe0_shift_reg[sr] =
                             _a[img][chan][out_row + kern_row][out_col + sr];
                     pipe1_shift_reg[sr] =
                             _a[img][chan][out_row + kern_row][out_col + sr];
                 }
 
-                // Load weights into weights buffer.
-                for (int w = 0; w < VECTOR_SIZE; w++) {
-                    weights_buffer[w] = _kernels[kern][chan][kern_row][w];
+                // Load weights into weights buffer, accounting for double tp
+                // mode.
+                if (double_tp) {
+                  for (int w = 0; w < DATAPATH_WIDTH; w++) {
+                      float weight = _kernels[kern][chan][kern_row][w];
+                      weights_buffer[w] = weight;
+                      weights_buffer[DATAPATH_WIDTH + w] = weight;
+                  }
+                } else {
+                  int bound = min(k_width, VECTOR_SIZE);
+                  for (int w = 0; w < bound; w++) {
+                      weights_buffer[w] = _kernels[kern][chan][kern_row][w];;
+                  }
                 }
 
-                // TODO: Initial shifts of shift registers...
-                shift_reg_lshift(pipe0_shift_reg, init_shamt);
+                shift_reg_lshift(pipe1_shift_reg, init_shamt);
 
                 // Primary datapath.
                 conv_macc_datapath(weights_buffer,
                                    pipe0_shift_reg,
                                    pipe1_shift_reg,
-                                   k_stride,
-                                   partial_sums);
+                                   dp_shamt,
+                                   dp0_iters,
+                                   dp1_iters,
+                                   psums_0,
+                                   psums_1);
+
+                float final_psums[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+                merge_psums(psums_0, psums_1, double_tp, final_psums);
 
                 // TODO: This is the unreduced data!
-                for (j = 0; j < VECTOR_SIZE; j++)
-                  _result[img][chan][out_row][out_col + j] = partial_sums[0][j];
+                // TODO: Is dp0_iters the correct bound?
+                for (j = 0; j < dp0_iters; j++)
+                  _result[img][chan][out_row][out_col + j] = final_psums[j];
             }
         }
     }

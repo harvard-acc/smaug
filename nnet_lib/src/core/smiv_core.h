@@ -1,10 +1,10 @@
 #ifndef _SMIV_CORE_H_
 #define _SMIV_CORE_H_
 
-extern const unsigned VECTOR_SIZE;
-extern const unsigned DATAPATH_WIDTH;
-extern const unsigned SHIFT_REG_SIZE;
-extern const unsigned MAX_BATCH;
+#define VECTOR_SIZE 8
+#define DATAPATH_WIDTH 4
+#define SHIFT_REG_SIZE 16
+#define MAX_BATCH 8
 
 void matrix_multiply_with_bias_smiv(float* a,
                                     float* b,
