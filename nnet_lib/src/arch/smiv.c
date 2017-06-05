@@ -62,7 +62,8 @@ void convolution_layer_hw(float* activations,
     layer_t curr_layer = layers[lnum];
     grab_matrix_dma(weights, lnum, layers);
     grab_input_activations_dma(activations, lnum, layers);
-    convolution2d_no_padding(activations, weights, curr_layer, result);
+    // convolution2d_no_padding(activations, weights, curr_layer, result);
+    convolution2d_kernel_smiv(activations, weights, curr_layer, result);
     store_output_activations_dma(result, lnum, layers);
 }
 

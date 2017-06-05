@@ -4,7 +4,8 @@ CORE_SRCS = core/activation_functions.c \
 						core/convolution.c \
 						core/matrix_multiply.c \
 						core/zeropad.c \
-						core/pooling.c
+						core/pooling.c \
+						core/smiv_core.c
 
 UTILITY_SRCS = utility/init_data.c \
 							 utility/utility.c \
