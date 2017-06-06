@@ -136,6 +136,7 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
             unsigned remainder = remaining_cols % 2;
             unsigned dp0_iters = min(max_psums_per_act, remaining_per_dp + remainder);
             unsigned dp1_iters = min(max_psums_per_act, remaining_per_dp);
+            unsigned total_outpx = double_tp ? dp0_iters + dp1_iters : dp0_iters;
 
             for (kern_row = 0; kern_row < end_kern; kern_row ++) {
                 float weights_buffer[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -151,13 +152,13 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
                 float psums_1[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
                 // Load activations into shift registers.
-                for (sr = 0; sr < max(VECTOR_SIZE, a_width - out_col); sr++) {
+                for (sr = 0; sr < min(VECTOR_SIZE, a_width - out_col); sr++) {
                     pipe0_shift_reg[sr] =
                             _a[img][chan][out_row + kern_row][out_col + sr];
                     pipe1_shift_reg[sr] =
                             _a[img][chan][out_row + kern_row][out_col + sr];
                 }
-                for (sr = 8; sr < max(SHIFT_REG_SIZE, a_width - out_col); sr++) {
+                for (sr = 8; sr < min(SHIFT_REG_SIZE, a_width - out_col); sr++) {
                     pipe0_shift_reg[sr] =
                             _a[img][chan][out_row + kern_row][out_col + sr];
                     pipe1_shift_reg[sr] =
@@ -167,7 +168,7 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
                 // Load weights into weights buffer, accounting for double tp
                 // mode.
                 if (double_tp) {
-                  for (int w = 0; w < DATAPATH_WIDTH; w++) {
+                  for (int w = 0; w < k_width; w++) {
                       float weight = _kernels[kern][chan][kern_row][w];
                       weights_buffer[w] = weight;
                       weights_buffer[DATAPATH_WIDTH + w] = weight;
@@ -195,9 +196,8 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
                 merge_psums(psums_0, psums_1, double_tp, final_psums);
 
                 // TODO: This is the unreduced data!
-                // TODO: Is dp0_iters the correct bound?
-                for (j = 0; j < dp0_iters; j++)
-                  _result[img][chan][out_row][out_col + j] = final_psums[j];
+                for (j = 0; j < total_outpx; j++)
+                  _result[img][kern][out_row][out_col + j] = final_psums[j];
             }
         }
     }
