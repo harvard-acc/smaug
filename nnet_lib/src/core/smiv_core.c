@@ -76,9 +76,9 @@ static void merge_psums(float psums_0[VECTOR_SIZE],
 
     // TODO: Should we consider num_valid_accum? It's a lot of complexity...
     if (double_tp) {
-        for (i = 0; i < VECTOR_SIZE; i += 2) {
-            result[i] = psums_0[i];
-            result[i + 1] = psums_1[i];
+        for (i = 0; i < VECTOR_SIZE/2; i ++) {
+            result[2 * i] = psums_0[i];
+            result[2 * i + 1] = psums_1[i];
         }
     } else {
         for (i = 0; i < VECTOR_SIZE; i++) {
@@ -109,8 +109,8 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
     const int num_kerns = curr_layer.output_height;
 
     // Convolution borders.
-    const int end_row = result_width;
-    const int end_col = result_height;
+    const int end_row = result_height;
+    const int end_col = FRAC_CEIL(result_width, VECTOR_SIZE) * VECTOR_SIZE;
     const int end_kern = k_height;
 
     // Convolution control parameters.
@@ -129,6 +129,11 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
 
     for (out_row = 0; out_row < end_row; out_row += row_stride) {
         for (out_col = 0; out_col < end_col; out_col += col_stride) {
+            // TODO: This is the boundary case that needs to be handled
+            // carefully!  Good thing is that we don't pack our data in
+            // vectors, so maybe this will be much easier.
+            bool needs_second_col = (out_col + col_stride < end_col);
+
             // Compute schedule.
             // TODO: Refactor this...
             unsigned remaining_cols = result_width - out_col;
@@ -158,11 +163,14 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
                     pipe1_shift_reg[sr] =
                             _a[img][chan][out_row + kern_row][out_col + sr];
                 }
-                for (sr = 8; sr < min(SHIFT_REG_SIZE, a_width - out_col); sr++) {
-                    pipe0_shift_reg[sr] =
-                            _a[img][chan][out_row + kern_row][out_col + sr];
-                    pipe1_shift_reg[sr] =
-                            _a[img][chan][out_row + kern_row][out_col + sr];
+                if (needs_second_col) {
+                    for (sr = 8; sr < min(SHIFT_REG_SIZE, a_width - out_col);
+                         sr++) {
+                        pipe0_shift_reg[sr] =
+                                _a[img][chan][out_row + kern_row][out_col + sr];
+                        pipe1_shift_reg[sr] =
+                                _a[img][chan][out_row + kern_row][out_col + sr];
+                    }
                 }
 
                 // Load weights into weights buffer, accounting for double tp

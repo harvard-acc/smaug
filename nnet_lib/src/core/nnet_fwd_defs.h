@@ -204,6 +204,8 @@ typedef struct _iarray_t {
 
 #define min(A, B) (((A) < (B)) ? (A) : (B))
 
+#define FRAC_CEIL(A, B) ((A) / (B) + ((A) % (B) != 0))
+
 // Based on whether the weights matrix is transposed or not, use a different
 // multiplication kernel.
 #if TRANSPOSE_WEIGHTS == 1
