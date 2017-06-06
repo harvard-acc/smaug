@@ -5,6 +5,7 @@
 #include "core/convolution.h"
 #include "core/matrix_multiply.h"
 #include "core/pooling.h"
+#include "core/smiv_core.h"
 #include "core/zeropad.h"
 #include "utility/utility.h"
 #include "arch/common.h"
@@ -62,8 +63,7 @@ void convolution_layer_hw(float* activations,
     layer_t curr_layer = layers[lnum];
     grab_matrix_dma(weights, lnum, layers);
     grab_input_activations_dma(activations, lnum, layers);
-    // convolution2d_no_padding(activations, weights, curr_layer, result);
-    convolution2d_kernel_smiv(activations, weights, curr_layer, result);
+    convolution2d_smiv(activations, weights, curr_layer, result);
     store_output_activations_dma(result, lnum, layers);
 }
 

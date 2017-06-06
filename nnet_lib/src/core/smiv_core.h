@@ -13,11 +13,9 @@ void matrix_multiply_with_bias_smiv(float* a,
                                     int b_width,
                                     float* result);
 
-void convolution2d_kernel_smiv(float* a,
-                               float* kernels,
-                               int img,
-                               int kern,
-                               layer_t curr_layer,
-                               float* result);
+void convolution2d_smiv(float* a,
+                        float* kernels,
+                        layer_t curr_layer,
+                        float* result);
 
 #endif

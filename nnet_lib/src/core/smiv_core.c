@@ -87,13 +87,13 @@ static void merge_psums(float psums_0[VECTOR_SIZE],
     }
 }
 
-static void convolution2d_kernel_smiv_1channel(float* a,
-                                               float* kernels,
-                                               int img,
-                                               int kern,
-                                               int chan,
-                                               layer_t curr_layer,
-                                               float* result) {
+static void convolution2d_smiv_1kernel_1channel(float* a,
+                                                float* kernels,
+                                                int img,
+                                                int kern,
+                                                int chan,
+                                                layer_t curr_layer,
+                                                float* result) {
     int out_row, out_col, sr, kern_row, j;
 
     const int a_height = curr_layer.input_rows;
@@ -263,16 +263,27 @@ void matrix_multiply_with_bias_smiv(float* a,
     }
 }
 
-void convolution2d_kernel_smiv(float* a,
-                               float* kernels,
-                               int img,
-                               int kern,
-                               layer_t curr_layer,
-                               float* result) {
-    int d;
+void convolution2d_smiv(float* a,
+                        float* kernels,
+                        layer_t curr_layer,
+                        float* result) {
+    int ni, nk, nc;
 
-    for (d = 0; d < curr_layer.input_height; d++) {
-        convolution2d_kernel_smiv_1channel(
-                a, kernels, img, kern, d, curr_layer, result);
+    print_debug4d(a,
+                  curr_layer.input_rows,
+                  curr_layer.input_cols,
+                  curr_layer.input_height);
+
+conv2d_per_image:
+    for (ni = 0; ni < NUM_TEST_CASES; ni++) {
+        // Loop over all inputs in this batch.
+    conv2d_per_kernel:
+        for (nk = 0; nk < curr_layer.output_height; nk++) {
+        conv2d_per_chan:
+            for (nc = 0; nc < curr_layer.input_height; nc++) {
+                convolution2d_smiv_1kernel_1channel(
+                        a, kernels, ni, nk, nc, curr_layer, result);
+            }
+        }
     }
 }
