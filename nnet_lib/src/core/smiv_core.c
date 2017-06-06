@@ -63,7 +63,14 @@ static void conv_macc_datapath(float weights_buffer[VECTOR_SIZE],
         // We have to shift the shift regs together in a single function call.
         if (psum_reg < dp1_iters)
           psums_1[psum_reg] = accum_result_1;
+        PRINT_MSG("psums\n");
+        PRINT_DEBUG(&psums_0[0], 1, VECTOR_SIZE, VECTOR_SIZE);
+        PRINT_DEBUG(&psums_1[0], 1, VECTOR_SIZE, VECTOR_SIZE);
+
         shift_regs_lshift(pipe0_shift_reg, pipe1_shift_reg, dp_shamt);
+        PRINT_MSG("\nshift regs\n");
+        PRINT_DEBUG(&pipe0_shift_reg[0], 1, SHIFT_REG_SIZE, SHIFT_REG_SIZE);
+        PRINT_DEBUG(&pipe1_shift_reg[0], 1, SHIFT_REG_SIZE, SHIFT_REG_SIZE);
     }
 }
 
@@ -85,6 +92,8 @@ static void merge_psums(float psums_0[VECTOR_SIZE],
             result[i] = psums_0[i] + psums_1[i];
         }
     }
+    PRINT_MSG("merged psums\n");
+    PRINT_DEBUG(&result[0], 1, VECTOR_SIZE, VECTOR_SIZE);
 }
 
 static void convolution2d_smiv_1kernel_1channel(float* a,
@@ -173,6 +182,10 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
                     }
                 }
 
+                PRINT_MSG("Shift registers after loading activations\n");
+                PRINT_DEBUG(&pipe0_shift_reg[0], 1, SHIFT_REG_SIZE, SHIFT_REG_SIZE);
+                PRINT_DEBUG(&pipe1_shift_reg[0], 1, SHIFT_REG_SIZE, SHIFT_REG_SIZE);
+
                 // Load weights into weights buffer, accounting for double tp
                 // mode.
                 if (double_tp) {
@@ -188,7 +201,12 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
                   }
                 }
 
+                PRINT_MSG("Weights buffer\n");
+                PRINT_DEBUG(&weights_buffer[0], 1, VECTOR_SIZE, VECTOR_SIZE);
+
                 shift_reg_lshift(pipe1_shift_reg, init_shamt);
+                PRINT_MSG("After initial shift of pipe1\n");
+                PRINT_DEBUG(&pipe1_shift_reg[0], 1, SHIFT_REG_SIZE, SHIFT_REG_SIZE);
 
                 // Primary datapath.
                 conv_macc_datapath(weights_buffer,
@@ -207,6 +225,9 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
                 for (j = 0; j < total_outpx; j++)
                   _result[img][kern][out_row][out_col + j] = final_psums[j];
             }
+
+            PRINT_MSG("\nResult of row %d\n", out_row);
+            PRINT_DEBUG(&_result[img][kern][out_row][0], 1, result_width, result_width);
         }
     }
 }
@@ -277,7 +298,7 @@ void convolution2d_smiv(float* a,
                         float* result) {
     int ni, nk, nc;
 
-    print_debug4d(a,
+    PRINT_DEBUG4D(a,
                   curr_layer.input_rows,
                   curr_layer.input_cols,
                   curr_layer.input_height);
