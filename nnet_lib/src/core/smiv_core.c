@@ -141,16 +141,24 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
             // TODO: This is the boundary case that needs to be handled
             // carefully!  Good thing is that we don't pack our data in
             // vectors, so maybe this will be much easier.
-            bool needs_second_col = (out_col + col_stride < end_col);
+            bool needs_second_col = (out_col + col_stride <= end_col);
 
             // Compute schedule.
             // TODO: Refactor this...
             unsigned remaining_cols = result_width - out_col;
-            unsigned remaining_per_dp = remaining_cols / 2;
-            unsigned remainder = remaining_cols % 2;
-            unsigned dp0_iters = min(max_psums_per_act, remaining_per_dp + remainder);
-            unsigned dp1_iters = min(max_psums_per_act, remaining_per_dp);
-            unsigned total_outpx = double_tp ? dp0_iters + dp1_iters : dp0_iters;
+            unsigned remaining_per_dp, remainder, dp0_iters, dp1_iters, total_outpx;
+            if (double_tp) {
+              remaining_per_dp = remaining_cols / 2;
+              remainder = remaining_cols % 2;
+              dp0_iters = min(max_psums_per_act, remaining_per_dp + remainder);
+              dp1_iters = min(max_psums_per_act, remaining_per_dp);
+              total_outpx = dp0_iters + dp1_iters;
+            } else {
+              remaining_per_dp = remaining_cols;
+              dp0_iters = min(max_psums_per_act, remaining_per_dp);
+              dp1_iters = min(max_psums_per_act, remaining_per_dp);
+              total_outpx = dp0_iters;
+            }
 
             float final_psums[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
             for (kern_row = 0; kern_row < end_kern; kern_row ++) {
