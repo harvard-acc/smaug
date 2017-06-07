@@ -84,12 +84,12 @@ static void merge_psums(float psums_0[VECTOR_SIZE],
     // TODO: Should we consider num_valid_accum? It's a lot of complexity...
     if (double_tp) {
         for (i = 0; i < VECTOR_SIZE/2; i ++) {
-            result[2 * i] = psums_0[i];
-            result[2 * i + 1] = psums_1[i];
+            result[2 * i] += psums_0[i];
+            result[2 * i + 1] += psums_1[i];
         }
     } else {
         for (i = 0; i < VECTOR_SIZE; i++) {
-            result[i] = psums_0[i] + psums_1[i];
+            result[i] += psums_0[i] + psums_1[i];
         }
     }
     PRINT_MSG("merged psums\n");
@@ -120,7 +120,7 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
     // Convolution borders.
     const int end_row = result_height;
     const int end_col = FRAC_CEIL(result_width, VECTOR_SIZE) * VECTOR_SIZE;
-    const int end_kern = k_height;
+    const int end_kern = k_width;
 
     // Convolution control parameters.
     // TODO: Refactor this into a scheduling pass.
@@ -152,6 +152,7 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
             unsigned dp1_iters = min(max_psums_per_act, remaining_per_dp);
             unsigned total_outpx = double_tp ? dp0_iters + dp1_iters : dp0_iters;
 
+            float final_psums[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
             for (kern_row = 0; kern_row < end_kern; kern_row ++) {
                 float weights_buffer[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
                 float pipe0_shift_reg[SHIFT_REG_SIZE] = {
@@ -218,17 +219,15 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
                                    psums_0,
                                    psums_1);
 
-                float final_psums[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
                 merge_psums(psums_0, psums_1, double_tp, final_psums);
-
-                // TODO: This is the unreduced data!
-                for (j = 0; j < total_outpx; j++)
-                  _result[img][kern][out_row][out_col + j] = final_psums[j];
             }
-
-            PRINT_MSG("\nResult of row %d\n", out_row);
-            PRINT_DEBUG(&_result[img][kern][out_row][0], 1, result_width, result_width);
+            // TODO: This is the unreduced data!
+            for (j = 0; j < total_outpx; j++)
+              _result[img][kern][out_row][out_col + j] = final_psums[j];
         }
+        PRINT_MSG("\nResult of row %d\n", out_row);
+        PRINT_DEBUG(
+                &_result[img][kern][out_row][0], 1, result_width, result_width);
     }
 }
 
