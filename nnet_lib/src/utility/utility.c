@@ -198,7 +198,6 @@ void print_debug(float* array,
                  int cols_to_print,
                  int num_columns) {
     int i, l;
-    printf("\nHidden units:\n");
     for (i = 0; i < rows_to_print; i++) {
         for (l = 0; l < cols_to_print; l++) {
             printf("%f, ", array[sub2ind(i, l, num_columns)]);
