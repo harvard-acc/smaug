@@ -117,11 +117,6 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
     const int k_stride = curr_layer.field_stride;
     const int num_kerns = curr_layer.output_height;
 
-    // Convolution borders.
-    const int end_row = result_height;
-    const int end_col = FRAC_CEIL(result_width, VECTOR_SIZE) * VECTOR_SIZE;
-    const int end_kern = k_width;
-
     // Convolution control parameters.
     // TODO: Refactor this into a scheduling pass.
     const int row_stride = k_stride;
@@ -131,17 +126,25 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
     const unsigned dp_shamt = double_tp ? k_stride * 2 : k_stride;
     const unsigned max_psums_per_act =
             double_tp ? DATAPATH_WIDTH : DATAPATH_WIDTH * 2;
+    const unsigned input_fetches_per_row = FRAC_CEIL(a_width, VECTOR_SIZE);
+    const unsigned last_input_pixel_start_col = result_width * k_stride;
+    const bool has_boundary_case = last_input_pixel_start_col >
+                             (input_fetches_per_row - 1) * VECTOR_SIZE;
+
+    const int end_row = result_height;
+    const int end_col = (has_boundary_case ? input_fetches_per_row
+                                           : input_fetches_per_row - 1) *
+                        VECTOR_SIZE;
+    const int end_kern = k_width;
 
     ARRAY_4D(float, _a, a, k_height, a_height, a_width);
     ARRAY_4D(float, _kernels, kernels, k_height, k_width, k_width);
     ARRAY_4D(float, _result, result, num_kerns, result_height, result_width);
 
+    int end_col_marker = (input_fetches_per_row - 1) * 8;
+
     for (out_row = 0; out_row < end_row; out_row += row_stride) {
         for (out_col = 0; out_col < end_col; out_col += col_stride) {
-            // TODO: This is the boundary case that needs to be handled
-            // carefully!  Good thing is that we don't pack our data in
-            // vectors, so maybe this will be much easier.
-            bool needs_second_col = (out_col + col_stride <= end_col);
 
             // Compute schedule.
             // TODO: Refactor this...
@@ -181,7 +184,7 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
                     pipe1_shift_reg[sr] =
                             _a[img][chan][out_row + kern_row][out_col + sr];
                 }
-                if (needs_second_col) {
+                if (!(has_boundary_case && out_col == end_col_marker)) {
                     for (sr = 8; sr < min(SHIFT_REG_SIZE, a_width - out_col);
                          sr++) {
                         pipe0_shift_reg[sr] =
