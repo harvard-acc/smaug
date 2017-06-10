@@ -81,7 +81,6 @@ static void merge_psums(float psums_0[VECTOR_SIZE],
 
     int i;
 
-    // TODO: Should we consider num_valid_accum? It's a lot of complexity...
     if (double_tp) {
         for (i = 0; i < VECTOR_SIZE/2; i ++) {
             result[2 * i] += psums_0[i];
@@ -115,7 +114,7 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
                                                 int chan,
                                                 layer_t curr_layer,
                                                 float* result) {
-    int out_row, out_col, sr, kern_row, j;
+    int in_row, in_col, out_row, out_col, sr, kern_row, j;
 
     const int a_height = curr_layer.input_rows;
     const int a_width = curr_layer.input_cols;
@@ -135,14 +134,24 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
     const bool double_tp = k_width < DATAPATH_WIDTH;
     const unsigned init_shamt = double_tp ? k_stride : DATAPATH_WIDTH;
     const unsigned dp_shamt = double_tp ? k_stride * 2 : k_stride;
-    const unsigned max_psums_per_act =
-            double_tp ? DATAPATH_WIDTH : DATAPATH_WIDTH * 2;
     const unsigned input_fetches_per_row = FRAC_CEIL(a_width, VECTOR_SIZE);
     const unsigned last_input_pixel_start_col = result_width * k_stride;
     const bool has_boundary_case = last_input_pixel_start_col >
                              (input_fetches_per_row - 1) * VECTOR_SIZE;
 
-    const int end_row = result_height;
+    // Calculate max number of psums produced per VECTOR_SIZE activations per
+    // datapath.
+    unsigned max_psums_per_act;
+    if (k_stride == 1)
+        max_psums_per_act = double_tp ? DATAPATH_WIDTH : DATAPATH_WIDTH * 2;
+    else if (k_stride == 2)
+        max_psums_per_act = double_tp ? DATAPATH_WIDTH / 2: DATAPATH_WIDTH;
+    else if (k_stride == 4)
+        max_psums_per_act = DATAPATH_WIDTH / 2;
+    else
+        max_psums_per_act = 0;
+
+    const int end_row = a_height;
     const int end_col = (has_boundary_case ? input_fetches_per_row
                                            : input_fetches_per_row - 1) *
                         VECTOR_SIZE;
@@ -154,9 +163,10 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
 
     int end_col_marker = (input_fetches_per_row - 1) * 8;
 
-    for (out_row = 0; out_row < end_row; out_row += row_stride) {
-        for (out_col = 0; out_col < end_col; out_col += col_stride) {
-
+    out_row = 0;
+    for (in_row = 0; in_row < end_row; in_row += row_stride) {
+        out_col = 0;
+        for (in_col = 0; in_col < end_col; in_col += col_stride) {
             // Compute schedule.
             // TODO: Refactor this...
             unsigned remaining_cols = result_width - out_col;
@@ -173,6 +183,7 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
               dp1_iters = min(max_psums_per_act, remaining_per_dp);
               total_outpx = dp0_iters;
             }
+            PRINT_MSG("dp0_iters: %d, dp1_iters: %d\n", dp0_iters, dp1_iters);
 
             float final_psums[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
             for (kern_row = 0; kern_row < end_kern; kern_row ++) {
@@ -189,19 +200,19 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
                 float psums_1[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
                 // Load activations into shift registers.
-                for (sr = 0; sr < min(VECTOR_SIZE, a_width - out_col); sr++) {
+                for (sr = 0; sr < min(VECTOR_SIZE, a_width - in_col); sr++) {
                     pipe0_shift_reg[sr] =
-                            _a[img][chan][out_row + kern_row][out_col + sr];
+                            _a[img][chan][in_row + kern_row][in_col + sr];
                     pipe1_shift_reg[sr] =
-                            _a[img][chan][out_row + kern_row][out_col + sr];
+                            _a[img][chan][in_row + kern_row][in_col + sr];
                 }
-                if (!(has_boundary_case && out_col == end_col_marker)) {
-                    for (sr = 8; sr < min(SHIFT_REG_SIZE, a_width - out_col);
+                if (!(has_boundary_case && in_col == end_col_marker)) {
+                    for (sr = 8; sr < min(SHIFT_REG_SIZE, a_width - in_col);
                          sr++) {
                         pipe0_shift_reg[sr] =
-                                _a[img][chan][out_row + kern_row][out_col + sr];
+                                _a[img][chan][in_row + kern_row][in_col + sr];
                         pipe1_shift_reg[sr] =
-                                _a[img][chan][out_row + kern_row][out_col + sr];
+                                _a[img][chan][in_row + kern_row][in_col + sr];
                     }
                 }
 
@@ -247,9 +258,13 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
             // This is the unreduced data!
             for (j = 0; j < total_outpx; j++)
                 _result[chan][out_row][out_col + j] = final_psums[j];
+            out_col += total_outpx;
+            if (out_col >= result_width)
+                out_col = 0;
         }
         PRINT_MSG("\nResult of row %d\n", out_row);
         PRINT_DEBUG(&_result[chan][out_row][0], 1, result_width, result_width);
+        out_row++;
     }
 }
 
