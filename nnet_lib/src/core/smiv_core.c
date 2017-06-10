@@ -96,6 +96,18 @@ static void merge_psums(float psums_0[VECTOR_SIZE],
     PRINT_DEBUG(&result[0], 1, VECTOR_SIZE, VECTOR_SIZE);
 }
 
+// Perform a 2D convolution with one kernel and one input channel of one image.
+//
+// Args:
+//   a: 4D array, indexed as [img][channel][row][col].
+//   kernels: A stack of 3D kernels, indexed as [input_kern][channel][row][col].
+//   img: Which input image this function is working on.
+//   chan: Which channel of the input image.
+//   curr_layer: Layer configuration.
+//   result: a 3D array indexed as [input_chan][row][col].
+//
+// Returns:
+//   The 2D convolution in result[chan].
 static void convolution2d_smiv_1kernel_1channel(float* a,
                                                 float* kernels,
                                                 int img,
@@ -115,7 +127,6 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
     const int k_width = curr_layer.field_size;
     const int k_height =  curr_layer.input_height;
     const int k_stride = curr_layer.field_stride;
-    const int num_kerns = curr_layer.output_height;
 
     // Convolution control parameters.
     // TODO: Refactor this into a scheduling pass.
@@ -139,7 +150,7 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
 
     ARRAY_4D(float, _a, a, k_height, a_height, a_width);
     ARRAY_4D(float, _kernels, kernels, k_height, k_width, k_width);
-    ARRAY_4D(float, _result, result, num_kerns, result_height, result_width);
+    ARRAY_3D(float, _result, result, result_height, result_width);
 
     int end_col_marker = (input_fetches_per_row - 1) * 8;
 
@@ -232,13 +243,78 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
 
                 merge_psums(psums_0, psums_1, double_tp, final_psums);
             }
-            // TODO: This is the unreduced data!
+
+            // This is the unreduced data!
             for (j = 0; j < total_outpx; j++)
-              _result[img][kern][out_row][out_col + j] = final_psums[j];
+                _result[chan][out_row][out_col + j] = final_psums[j];
         }
         PRINT_MSG("\nResult of row %d\n", out_row);
-        PRINT_DEBUG(
-                &_result[img][kern][out_row][0], 1, result_width, result_width);
+        PRINT_DEBUG(&_result[chan][out_row][0], 1, result_width, result_width);
+    }
+}
+
+void reduction_smiv(float *a,
+                    layer_t curr_layer,
+                    int img,
+                    int kern,
+                    float *result) {
+    unsigned row, col, chan, c;
+
+    const int result_height = curr_layer.output_rows;
+    const int result_width = curr_layer.output_cols;
+    const int padded_width = FRAC_CEIL(result_width, VECTOR_SIZE) * VECTOR_SIZE;
+
+    const int k_height =  curr_layer.input_height;
+    const int num_kerns = curr_layer.output_height;
+
+    ARRAY_3D(float, _a, a, result_height, result_width);
+    ARRAY_4D(float, _result, result, num_kerns, result_height, result_width);
+
+    for (row = 0; row < result_height; row++) {
+        for (col = 0; col < padded_width; col += VECTOR_SIZE) {
+            float partial_sums[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+            for (chan = 0; chan < k_height; chan++) {
+                // TODO: Check for edge cases.
+                for (c = 0; (c < VECTOR_SIZE) && (col + c < result_width); c++) {
+                    partial_sums[c] += _a[chan][row][col + c];
+                }
+            }
+            for (c = 0; (c < VECTOR_SIZE) && (col + c < result_width); c++) {
+                _result[img][kern][row][col + c] = partial_sums[c];
+            }
+        }
+    }
+}
+
+void convolution2d_smiv(float* a,
+                        float* kernels,
+                        layer_t curr_layer,
+                        float* result) {
+    int ni, nk, nc;
+
+    const int input_height = curr_layer.input_height;
+    const int input_rows = curr_layer.input_rows;
+    const int input_cols = curr_layer.input_cols;
+    const int num_kerns = curr_layer.output_height;
+
+    // Stores the unreduced convolution output.
+    // TODO: This may become an issue with the stack size.
+    float temp[input_height][input_rows][input_cols];
+
+    PRINT_DEBUG4D(a, input_rows, input_cols, input_height);
+
+conv2d_per_image:
+    for (ni = 0; ni < NUM_TEST_CASES; ni++) {
+        // Loop over all inputs in this batch.
+    conv2d_per_kernel:
+        for (nk = 0; nk < num_kerns; nk++) {
+        conv2d_per_chan:
+            for (nc = 0; nc < input_height; nc++) {
+                convolution2d_smiv_1kernel_1channel(
+                        a, kernels, ni, nk, nc, curr_layer, &temp[0][0][0]);
+            }
+            reduction_smiv(&temp[0][0][0], curr_layer, ni, nk, result);
+        }
     }
 }
 
@@ -297,31 +373,6 @@ void matrix_multiply_with_bias_smiv(float* a,
             wgt_b_store:
             for (wgt_b = 0; wgt_b < VECTOR_SIZE && wgt_col + wgt_b < b_width; wgt_b++) {
                 _result[act_batch][wgt_col + wgt_b] = partial_sums[act_batch][wgt_b];
-            }
-        }
-    }
-}
-
-void convolution2d_smiv(float* a,
-                        float* kernels,
-                        layer_t curr_layer,
-                        float* result) {
-    int ni, nk, nc;
-
-    PRINT_DEBUG4D(a,
-                  curr_layer.input_rows,
-                  curr_layer.input_cols,
-                  curr_layer.input_height);
-
-conv2d_per_image:
-    for (ni = 0; ni < NUM_TEST_CASES; ni++) {
-        // Loop over all inputs in this batch.
-    conv2d_per_kernel:
-        for (nk = 0; nk < curr_layer.output_height; nk++) {
-        conv2d_per_chan:
-            for (nc = 0; nc < curr_layer.input_height; nc++) {
-                convolution2d_smiv_1kernel_1channel(
-                        a, kernels, ni, nk, nc, curr_layer, result);
             }
         }
     }

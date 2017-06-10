@@ -13,6 +13,12 @@ void matrix_multiply_with_bias_smiv(float* a,
                                     int b_width,
                                     float* result);
 
+void reduction_smiv(float *a,
+                    layer_t curr_layer,
+                    int img,
+                    int kern,
+                    float *result);
+
 void convolution2d_smiv(float* a,
                         float* kernels,
                         layer_t curr_layer,
