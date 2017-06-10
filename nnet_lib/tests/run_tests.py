@@ -13,6 +13,10 @@ import subprocess
 import unittest
 import tempfile
 import shutil
+import re
+
+# Floating point equality comparison tolerance in percent.
+FP_ERR = 0.0005
 
 # This gets set by the command line argument.
 BINARY = ""
@@ -39,6 +43,21 @@ class BaseTest(unittest.TestCase):
     shutil.rmtree(self.run_dir)
     os.remove("output_labels.out")
 
+  def parseOutput(self, output_file):
+    test_pred = []
+    test_soft = []
+    with open(output_file, "r") as f:
+      for line in f:
+        line = line.strip()
+        if "Test" in line:
+          # Format is Test N: M, where M is the prediction.
+          m = re.findall("\d+", line)
+          test_pred.append(int(m[1]))
+        else:
+          m = re.findall("\d+\.\d+", line)
+          test_soft.append([float(v) for v in m])
+    return test_pred, test_soft
+
   def launchSubprocess(self, cmd):
     with open(self.output_filename, "w") as f:
       returncode = subprocess.call(
@@ -54,15 +73,46 @@ class BaseTest(unittest.TestCase):
 
     return returncode
 
+  def almostEqual(self, val, ref):
+    """ Returns true if val and ref are within FP_ERR percent of each other. """
+    if ((isinstance(val, float) or isinstance(val, int)) and
+        (isinstance(ref, float) or isinstance(ref, int))):
+      if ref == 0:
+        return val == 0
+      return ((float(val)-ref)/float(ref)) * 100 < FP_ERR
+    elif isinstance(val, list) and isinstance(ref, list):
+      is_equal = True
+      for val_v, ref_v in zip(val, ref):
+        is_equal = is_equal and self.almostEqual(val_v, ref_v)
+      return is_equal
+    else:
+      assert("Unsupported types %s, %s for almostEqual comparison" %
+             (type(val).__name__, type(ref).__name__))
+
   def runAndValidate(self, model_file, correct_output):
     returncode = self.launchSubprocess(
           "%s %s" % (BINARY, os.path.join(MODEL_DIR, model_file)))
 
     self.assertEqual(returncode, 0, msg="Test returned nonzero exit code!")
 
-    returncode = self.launchSubprocess(
-          "diff output_labels.out %s" % os.path.join(
-              CORRECT_OUTPUT_DIR, correct_output))
+    correct_pred, correct_soft = self.parseOutput(
+        os.path.join(CORRECT_OUTPUT_DIR, correct_output))
+    test_pred, test_soft = self.parseOutput("output_labels.out")
+    for i, (this, correct) in enumerate(zip(test_pred, correct_pred)):
+      if this != correct:
+        print "\nFAILURE ON TEST %d" % i
+        print "  Output label: %s" % this
+        print "  Expected:     %s" % correct
+      self.assertEqual(this, correct,
+                       msg="Test output label does not match!")
+    for i, (this, correct) in enumerate(zip(test_soft, correct_soft)):
+      is_equal = self.almostEqual(this, correct)
+      if not is_equal:
+        print "\nFAILURE ON TEST %d" % i
+        print "  Got:      %s" % this
+        print "  Expected: %s" % correct
+      self.assertTrue(is_equal,
+                       msg="Test soft output does not match!")
 
     self.assertEqual(returncode, 0, msg="Test output does not match!")
 
