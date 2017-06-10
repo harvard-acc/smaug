@@ -151,7 +151,7 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
     else
         max_psums_per_act = 0;
 
-    const int end_row = a_height;
+    const int end_row = a_height - k_width + 1;
     const int end_col = (has_boundary_case ? input_fetches_per_row
                                            : input_fetches_per_row - 1) *
                         VECTOR_SIZE;
