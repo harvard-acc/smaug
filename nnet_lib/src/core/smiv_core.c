@@ -7,6 +7,7 @@
 static void shift_reg_lshift(float shift_reg[SHIFT_REG_SIZE], unsigned shamt) {
     unsigned sr;
     float temp_shift_reg[SHIFT_REG_SIZE];
+    shift_reg_lshift_stage1:
     for (sr = 0; sr < SHIFT_REG_SIZE; sr++) {
         if (sr + shamt < SHIFT_REG_SIZE) {
             temp_shift_reg[sr] = shift_reg[sr + shamt];
@@ -14,6 +15,7 @@ static void shift_reg_lshift(float shift_reg[SHIFT_REG_SIZE], unsigned shamt) {
             temp_shift_reg[sr] = 0;
         }
     }
+    shift_reg_lshift_stage2:
     for (sr = 0; sr < SHIFT_REG_SIZE; sr++) {
         shift_reg[sr] = temp_shift_reg[sr];
     }
@@ -26,6 +28,7 @@ static void shift_regs_lshift(float shift_reg0[SHIFT_REG_SIZE],
     unsigned sr;
     float temp_shift_reg0[SHIFT_REG_SIZE];
     float temp_shift_reg1[SHIFT_REG_SIZE];
+    shift_regs_lshift_stage1:
     for (sr = 0; sr < SHIFT_REG_SIZE; sr++) {
         if (sr + shamt < SHIFT_REG_SIZE) {
             temp_shift_reg0[sr] = shift_reg0[sr + shamt];
@@ -35,6 +38,7 @@ static void shift_regs_lshift(float shift_reg0[SHIFT_REG_SIZE],
             temp_shift_reg1[sr] = 0;
         }
     }
+    shift_regs_lshift_stage2:
     for (sr = 0; sr < SHIFT_REG_SIZE; sr++) {
         shift_reg0[sr] = temp_shift_reg0[sr];
         shift_reg1[sr] = temp_shift_reg1[sr];
@@ -51,9 +55,11 @@ static void conv_macc_datapath(float weights_buffer[VECTOR_SIZE],
                                float psums_1[VECTOR_SIZE]) {
     unsigned psum_reg, j;
 
+    conv2d_dp_outer:
     for (psum_reg = 0; psum_reg < dp0_iters; psum_reg++) {
         float accum_result_0 = psums_0[psum_reg];
         float accum_result_1 = psums_1[psum_reg];
+        conv2d_dp_core:
         for (j = 0; j < DATAPATH_WIDTH; j++) {
             accum_result_0 += weights_buffer[j] * pipe0_shift_reg[j];
             accum_result_1 +=
@@ -82,11 +88,13 @@ static void merge_psums(float psums_0[VECTOR_SIZE],
     int i;
 
     if (double_tp) {
+        merge_psums_double_tp:
         for (i = 0; i < VECTOR_SIZE/2; i ++) {
             result[2 * i] += psums_0[i];
             result[2 * i + 1] += psums_1[i];
         }
     } else {
+        merge_psums_single_tp:
         for (i = 0; i < VECTOR_SIZE; i++) {
             result[i] += psums_0[i] + psums_1[i];
         }
@@ -164,8 +172,10 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
     int end_col_marker = (input_fetches_per_row - 1) * 8;
 
     out_row = 0;
+    conv2d_row:
     for (in_row = 0; in_row < end_row; in_row += row_stride) {
         out_col = 0;
+        conv2d_col:
         for (in_col = 0; in_col < end_col; in_col += col_stride) {
             // Compute schedule.
             // TODO: Refactor this...
@@ -186,6 +196,7 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
             PRINT_MSG("dp0_iters: %d, dp1_iters: %d\n", dp0_iters, dp1_iters);
 
             float final_psums[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+            conv2d_kern_row:
             for (kern_row = 0; kern_row < end_kern; kern_row ++) {
                 float weights_buffer[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
                 float pipe0_shift_reg[SHIFT_REG_SIZE] = {
@@ -200,6 +211,7 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
                 float psums_1[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
                 // Load activations into shift registers.
+                conv2d_load_sr_pipe0:
                 for (sr = 0; sr < min(VECTOR_SIZE, a_width - in_col); sr++) {
                     pipe0_shift_reg[sr] =
                             _a[img][chan][in_row + kern_row][in_col + sr];
@@ -207,6 +219,7 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
                             _a[img][chan][in_row + kern_row][in_col + sr];
                 }
                 if (!(has_boundary_case && in_col == end_col_marker)) {
+                    conv2d_load_sr_pipe1:
                     for (sr = 8; sr < min(SHIFT_REG_SIZE, a_width - in_col);
                          sr++) {
                         pipe0_shift_reg[sr] =
@@ -223,6 +236,7 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
                 // Load weights into weights buffer, accounting for double tp
                 // mode.
                 if (double_tp) {
+                  conv2d_load_wgts_double_tp:
                   for (int w = 0; w < k_width; w++) {
                       float weight = _kernels[kern][chan][kern_row][w];
                       weights_buffer[w] = weight;
@@ -230,6 +244,7 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
                   }
                 } else {
                   int bound = min(k_width, VECTOR_SIZE);
+                  conv2d_load_wgts_single_tp:
                   for (int w = 0; w < bound; w++) {
                       weights_buffer[w] = _kernels[kern][chan][kern_row][w];;
                   }
@@ -256,6 +271,7 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
             }
 
             // This is the unreduced data!
+            conv2d_commit:
             for (j = 0; j < total_outpx; j++)
                 _result[chan][out_row][out_col + j] = final_psums[j];
             out_col += total_outpx;
@@ -285,15 +301,19 @@ void reduction_smiv(float *a,
     ARRAY_3D(float, _a, a, result_height, result_width);
     ARRAY_4D(float, _result, result, num_kerns, result_height, result_width);
 
+    reduction_row:
     for (row = 0; row < result_height; row++) {
+        reduction_col:
         for (col = 0; col < padded_width; col += VECTOR_SIZE) {
             float partial_sums[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+            reduction_chan:
             for (chan = 0; chan < k_height; chan++) {
-                // TODO: Check for edge cases.
+                reduction_core:
                 for (c = 0; (c < VECTOR_SIZE) && (col + c < result_width); c++) {
                     partial_sums[c] += _a[chan][row][col + c];
                 }
             }
+            reduction_commit:
             for (c = 0; (c < VECTOR_SIZE) && (col + c < result_width); c++) {
                 _result[img][kern][row][col + c] = partial_sums[c];
             }
@@ -318,12 +338,12 @@ void convolution2d_smiv(float* a,
 
     PRINT_DEBUG4D(a, input_rows, input_cols, input_height);
 
-conv2d_per_image:
+    conv2d_per_image:
     for (ni = 0; ni < NUM_TEST_CASES; ni++) {
         // Loop over all inputs in this batch.
-    conv2d_per_kernel:
+        conv2d_per_kernel:
         for (nk = 0; nk < num_kerns; nk++) {
-        conv2d_per_chan:
+            conv2d_per_chan:
             for (nc = 0; nc < input_height; nc++) {
                 convolution2d_smiv_1kernel_1channel(
                         a, kernels, ni, nk, nc, curr_layer, &temp[0][0][0]);
