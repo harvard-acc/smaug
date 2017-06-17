@@ -385,8 +385,9 @@ void matrix_multiply_with_bias_smiv(float* a,
     wgt_col:
     for (wgt_col = 0; wgt_col < b_width; wgt_col+=VECTOR_SIZE) {
         // Load in the bias.
-        load_bias:
+        load_bias_batch:
         for (act_batch = 0; act_batch < a_height; act_batch++) {
+            load_bias:
             for (wgt_b = 0; wgt_b < VECTOR_SIZE && wgt_col + wgt_b < b_width; wgt_b++) {
                 bias = conv_float2fixed(_b[a_width][wgt_col + wgt_b]);
                 partial_sums[act_batch][wgt_b] = bias;
