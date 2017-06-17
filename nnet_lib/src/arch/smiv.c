@@ -18,7 +18,6 @@
 #if ARCHITECTURE == SMIV
 
 unsigned kConvolutionHw = 0x0001;
-unsigned kPoolingHw = 0x0002;
 unsigned kActivationFuncHw = 0x0003;
 unsigned kInnerProductHw = 0x0004;
 
@@ -91,26 +90,14 @@ result_buf convolution_layer(float* activations,
     return result;
 }
 
-void max_pooling_layer_hw(float* activations,
-                          float* result,
-                          layer_t* layers,
-                          int lnum) {
-    layer_t curr_layer = layers[lnum];
-    grab_input_activations_dma(activations, lnum, layers);
-    max_pooling(activations, result, curr_layer);
-    store_output_activations_dma(result, lnum, layers);
-}
-
+// Software implementation. SMIV doesn't accelerate pooling.
 result_buf pooling_layer(float* activations,
                          layer_t* layers,
                          int lnum,
                          float* result) {
     layer_t curr_layer = layers[lnum];
-    MAP_ARRAY(kPoolingHw, activations, INPUT_BYTES(layers, lnum));
-    MAP_ARRAY(kPoolingHw, result, OUTPUT_BYTES(layers, lnum));
     if (curr_layer.pool == MAX) {
-        INVOKE_KERNEL(kPoolingHw, max_pooling_layer_hw, activations, result,
-                      layers, lnum);
+        max_pooling(activations, result, layers[lnum]);
     } else {
         assert(false && "Unsupported pooling layer type!");
     }
