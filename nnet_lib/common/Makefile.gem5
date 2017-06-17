@@ -35,7 +35,8 @@ GEM5_ACCEL = $(BUILD_DIR)/$(BMARK)-gem5-accel
 debug: CFLAGS+=-DDEBUG -O0
 debug: native-target
 
-native: CFLAGS+=-O3
+# NOTE: Do not remove -std=gnu99! Required for Travis CI toolchain.
+native: CFLAGS+=-O3 -std=gnu99
 native: native-target
 
 native-target: $(NATIVE)
