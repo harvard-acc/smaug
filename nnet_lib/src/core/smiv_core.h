@@ -11,6 +11,7 @@ void matrix_multiply_with_bias_smiv(float* a,
                                     int a_height,
                                     int b_height,
                                     int b_width,
+                                    bool run_activation,
                                     float* result);
 
 void reduction_smiv(float *a,

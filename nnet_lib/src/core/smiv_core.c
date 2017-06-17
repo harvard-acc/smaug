@@ -1,3 +1,4 @@
+#include "core/activation_functions.h"
 #include "utility/utility.h"
 #include "nnet_fwd.h"
 
@@ -297,6 +298,7 @@ void reduction_smiv(float *a,
 
     const int k_height =  curr_layer.input_height;
     const int num_kerns = curr_layer.output_height;
+    const bool run_activation = curr_layer.activation != NONE;
 
     ARRAY_3D(float, _a, a, result_height, result_width);
     ARRAY_4D(float, _result, result, num_kerns, result_height, result_width);
@@ -313,6 +315,11 @@ void reduction_smiv(float *a,
                     partial_sums[c] += _a[chan][row][col + c];
                 }
             }
+
+            if (run_activation) {
+                activation_fun(&partial_sums[0], VECTOR_SIZE, RELU, NULL);
+            }
+
             reduction_commit:
             for (c = 0; (c < VECTOR_SIZE) && (col + c < result_width); c++) {
                 _result[img][kern][row][col + c] = partial_sums[c];
@@ -361,6 +368,7 @@ void matrix_multiply_with_bias_smiv(float* a,
                                     int a_height,
                                     int b_height,
                                     int b_width,
+                                    bool run_activation,
                                     float* result) {
 
     int wgt_row, wgt_col, wgt_b;
@@ -400,6 +408,13 @@ void matrix_multiply_with_bias_smiv(float* a,
                     partial_sums[act_batch][wgt_b] += product;
                 }
             }
+        }
+
+        // Run through activation function.
+        if (run_activation) {
+            run_activation_func:
+            for (act_batch = 0; act_batch < a_height; act_batch++)
+                activation_fun(&partial_sums[act_batch][0], VECTOR_SIZE, RELU, NULL);
         }
 
         // Store to scratchpad.

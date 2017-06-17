@@ -18,8 +18,7 @@
 #if ARCHITECTURE == SMIV
 
 unsigned kConvolutionHw = 0x0001;
-unsigned kActivationFuncHw = 0x0003;
-unsigned kInnerProductHw = 0x0004;
+unsigned kInnerProductHw = 0x0002;
 
 // This is an architecture that divides each layer type into a separate
 // hardware block. This is represented by ensuring that each layer is
@@ -31,13 +30,12 @@ void inner_product_layer_hw(float* activations,
                             layer_t* layers,
                             int lnum,
                             float* result) {
+    bool run_activation = layers[lnum].activation != NONE;
     grab_matrix_dma(weights, lnum, layers);
     grab_input_activations_dma(activations, lnum, layers);
-    // TODO: For now, use the standard Minerva format which is reversed from
-    // what we typically think of (inputs are are rows rather than columns)...
     matrix_multiply_with_bias_smiv(activations, weights, NUM_TEST_CASES,
                                    layers[lnum].input_rows, layers[lnum].input_cols,
-                                   result);
+                                   run_activation, result);
     store_output_activations_dma(result, lnum, layers);
 }
 
@@ -104,50 +102,17 @@ result_buf pooling_layer(float* activations,
     return result;
 }
 
-void activation_hw(float* activations,
-                   layer_t* layers,
-                   int lnum,
-                   float* sigmoid_table) {
-    layer_t curr_layer = layers[lnum];
-    int size = grab_output_activations_dma(activations, lnum, layers);
-    activation_fun(activations, size, curr_layer.activation, sigmoid_table);
-    store_output_activations_dma(activations, lnum, layers);
-}
-
-result_buf activation_sublayer(float* activations,
-                               layer_t* layers,
-                               int lnum,
-                               float* sigmoid_table) {
-    MAP_ARRAY(kActivationFuncHw, activations, OUTPUT_BYTES(layers, lnum));
-    INVOKE_KERNEL(kActivationFuncHw, activation_hw, activations, layers, lnum,
-                  sigmoid_table);
-    return activations;
-}
-
 result_buf run_layer(float* activations,
                      float* weights,
                      layer_t* layers,
                      int layer_num,
                      float* result,
                      float* sigmoid_table) {
-    layer_t curr_layer = layers[layer_num];
-
     result_buf result_loc = run_layer_skip_activation_func(
             activations, weights, layers, layer_num, result, sigmoid_table);
 
-    if (curr_layer.activation != NONE) {
-        PRINT_MSG("\nactivation function\n");
-        // Pass through activation function
-        if (result_loc == activations) {
-            activation_sublayer(activations, layers, layer_num, sigmoid_table);
-        } else {
-            activation_sublayer(result, layers, layer_num, sigmoid_table);
-        }
-
-        PRINT_DEBUG4D(result_loc, curr_layer.output_rows,
-                      curr_layer.output_cols, curr_layer.output_height);
-    }
-
+    // Activation functions are handled as part of the matrix multiply /
+    // convolution, rather than being treated as a separate block.
     return result_loc;
 }
 
