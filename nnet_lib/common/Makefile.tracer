@@ -32,6 +32,9 @@ GET_LABELED_STMTS = $(TRACER_HOME)/bin/get-labeled-stmts
 MODE = LLVM_TRACE
 CPPFLAGS = -I$(ALADDIN_HOME) -I$(COMMON_DIR) -D$(MODE) -DTRACE_MODE -I$(COMMON_DIR)/../$(SRC_DIR)
 CPPFLAGS += -DDMA_MODE -I$(ALADDIN_HOME)/gem5
+ifneq ($(ARCH),)
+	CPPFLAGS += -DARCHITECTURE=$(ARCH)
+endif
 LDFLAGS = -lm -lz -lconfuse
 
 ALL_SRCS = $(patsubst %, $(SRC_DIR)/%, $(SRCS))
