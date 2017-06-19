@@ -12,7 +12,7 @@ void init_weights(float* weights,
                   data_init_mode mode,
                   bool transpose) {
     int d, h, i, j, l, w_size, ret_f_scanf;
-    int w_rows, w_cols, w_height, w_depth, w_offset;
+    int w_rows, w_cols, w_height, w_depth, w_offset, w_pad;
     float val;
 
     w_offset = 0;
@@ -21,21 +21,28 @@ void init_weights(float* weights,
         printf("Initializing weights randomly\n");
 
         for (l = 0; l < num_layers; l++) {
-            get_weights_dims_layer(layers, l, &w_rows, &w_cols, &w_height, &w_depth);
+            get_weights_dims_layer(
+                    layers, l, &w_rows, &w_cols, &w_height, &w_depth, &w_pad);
+            unsigned w_tot_cols = w_cols + w_pad;
             for (d = 0; d < w_depth; d++) {
                 for (h = 0; h < w_height; h++) {
                     for (i = 0; i < w_rows; i++) {
-                        for (j = 0; j < w_cols; j++) {
-                            if (mode == RANDOM) {
-                                val = conv_float2fixed(
-                                        (randfloat() - 0.5) *
-                                        10);  // Question: does nan output
-                                              // take longer in simulation?
-                            } else {
-                                // Give each depth slice a different weight so
-                                // we don't get all the same value in the
-                                // output.
-                                val = (d+1) * 0.1;
+                        for (j = 0; j < w_tot_cols; j++) {
+                            if (j < w_cols) {
+                                if (mode == RANDOM) {
+                                    val = conv_float2fixed(
+                                            (randfloat() - 0.5) *
+                                            10);  // Question: does nan output
+                                                  // take longer in simulation?
+                                } else {
+                                    // Give each depth slice a different weight
+                                    // so
+                                    // we don't get all the same value in the
+                                    // output.
+                                    val = (d + 1) * 0.1;
+                                }
+                            } else {  // extra zero padding.
+                                val = 0;
                             }
                             // Use the subxind macros here instead of
                             // multidimensional array indexing because the
@@ -43,21 +50,21 @@ void init_weights(float* weights,
                             // single function.
                             if (layers[l].type == FC) {
                                 if (transpose)
-                                    weights[sub3ind(h, j, i, w_cols, w_rows) +
+                                    weights[sub3ind(h, j, i, w_tot_cols, w_rows) +
                                             w_offset] = val;
                                 else
-                                    weights[sub3ind(h, i, j, w_rows, w_cols) +
+                                    weights[sub3ind(h, i, j, w_rows, w_tot_cols) +
                                             w_offset] = val;
                             } else {
                                 weights[sub4ind(d, h, i, j, w_height, w_rows,
-                                                w_cols) +
+                                                w_tot_cols) +
                                         w_offset] = val;
                             }
                         }
                     }
                 }
             }
-            w_offset += w_rows * w_cols * w_height * w_depth;
+            w_offset += w_rows * w_tot_cols * w_height * w_depth;
         }
         // NOTE: FOR SIGMOID ACTIVATION FUNCTION, WEIGHTS SHOULD BE BIG
         // Otherwise everything just becomes ~0.5 after sigmoid, and results are
@@ -84,24 +91,47 @@ void init_weights(float* weights,
 }
 
 void init_data(float* data,
+               network_t* network,
                size_t num_test_cases,
-               size_t input_dim,
                data_init_mode mode) {
-    int i, j, ret_f_scanf;
+    int i, j, k, l, ret_f_scanf;
+    int input_rows, input_cols, input_height, input_padding;
+    unsigned input_dim;
+
+    get_unpadded_inputs_dims_layer(network->layers, 0, &input_rows, &input_cols,
+                                   &input_height, &input_padding);
+    input_dim = input_rows * input_cols * input_height;
+
+    ARRAY_4D(float, _data, data, input_height, input_rows, input_cols + input_padding);
     if (mode == RANDOM || mode == FIXED) {
         printf("Initializing data randomly\n");
         // Generate random input data, size num_test_cases by num_units[0]
         // (input dimensionality)
-        for (i = 0; i < num_test_cases * input_dim; i++) {
-            if (mode == RANDOM) {
-                data[i] = conv_float2fixed(randfloat() - 0.5);
-            } else {
-                // Make each input image distinguishable.
-                data[i] = 1.0 * (i/input_dim + 1);
+        for (i = 0; i < num_test_cases; i++) {
+            for (j = 0; j < input_height; j++) {
+                for (k = 0; k < input_rows; k++) {
+                    for (l = 0; l < input_cols; l++) {
+                        if (mode == RANDOM) {
+                            _data[i][j][k][l] =
+                                    conv_float2fixed(randfloat() - 0.5);
+                        } else {
+                            // Make each input image distinguishable.
+                            unsigned long addr = (unsigned long)(&_data[i][j][k][l]);
+                            addr -= (unsigned long)data;
+                            unsigned offset = addr/sizeof(float);
+                            _data[i][j][k][l] = 1.0 * i + (float)offset/input_dim;
+                        }
+                    }
+                    for (l = input_cols; l < input_cols + input_padding; l++) {
+                        _data[i][j][k][l] = 0;
+                    }
+                }
             }
         }
+        PRINT_MSG("Input activations:\n");
+        PRINT_DEBUG4D(data, input_rows, input_cols + input_padding, input_height);
     } else {
-        printf("Reading in %lu data of dimensionality %lu from %s\n",
+        printf("Reading in %lu data of dimensionality %u from %s\n",
                num_test_cases, input_dim, INPUTS_FILENAME);
 
         FILE* data_file;

@@ -29,9 +29,10 @@ result_buf inner_product_layer(float* activations,
                                layer_t* layers,
                                int lnum,
                                float* result) {
-    MATRIX_MULTIPLY_WITH_BIAS(activations, weights, NUM_TEST_CASES,
-                              layers[lnum].input_rows, layers[lnum].input_cols,
-                              result);
+    MATRIX_MULTIPLY_WITH_BIAS(
+            activations, weights, NUM_TEST_CASES, layers[lnum].input_rows,
+            layers[lnum].input_cols + layers[lnum].input_data_align_pad,
+            result);
     return result;
 }
 
@@ -90,7 +91,8 @@ result_buf run_layer(float* activations,
         }
 
         PRINT_DEBUG4D(result_loc, curr_layer.output_rows,
-                      curr_layer.output_cols, curr_layer.output_height);
+                      curr_layer.output_cols + curr_layer.output_data_align_pad,
+                      curr_layer.output_height);
     }
     return result_loc;
 }

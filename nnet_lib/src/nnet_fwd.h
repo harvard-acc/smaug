@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "config.h"
 #include "core/nnet_fwd_defs.h"
+#include "config.h"
 
 #endif

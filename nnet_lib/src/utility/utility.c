@@ -118,38 +118,75 @@ arg_min_loop:    for (i = 1; i < size; i++) {
     return min_ind;
 }
 
-// Get the dimensions of this layer's weights.
+// Get the unpadded input size to this layer.
 //
-// Store them into @num_rows and @num_cols.
+// Returns the input dimensions as well as the amount of padding required to
+// achieve both zeropadding for CONV layers and data alignment.
+void get_unpadded_inputs_dims_layer(layer_t* layers,
+                                    int l,
+                                    int* num_rows,
+                                    int* num_cols,
+                                    int* num_height,
+                                    int* pad_amt) {
+    layer_t curr_layer = layers[l];
+    if (curr_layer.type == FC) {
+        *num_rows = NUM_TEST_CASES;
+        *num_cols = curr_layer.input_rows;
+        *num_height = 1;
+        *pad_amt = curr_layer.input_data_align_pad;
+    } else if (curr_layer.type == CONV) {
+        *num_rows = curr_layer.input_rows - curr_layer.c_padding * 2;
+        *num_cols = curr_layer.input_cols - curr_layer.c_padding * 2;
+        *num_height = curr_layer.input_height;
+        *pad_amt = curr_layer.input_data_align_pad; // + curr_layer.c_padding * 2;
+    } else if (l != 0) {
+        *num_rows = layers[l - 1].output_rows;
+        *num_cols = layers[l - 1].output_cols;
+        *num_height = layers[l - 1].output_height;
+        *pad_amt = layers[l - 1].output_data_align_pad;
+    } else {
+        *num_rows = layers[l].input_rows;
+        *num_cols = layers[l].input_cols;
+        *num_height = layers[l].input_height;
+        *pad_amt = layers[l].input_data_align_pad;
+    }
+}
+
+// Get the dimensions of this layer's weights.
 void get_weights_dims_layer(layer_t* layers,
-                           int l,
-                           int* num_rows,
-                           int* num_cols,
-                           int* num_height,
-                           int* num_depth) {
+                            int l,
+                            int* num_rows,
+                            int* num_cols,
+                            int* num_height,
+                            int* num_depth,
+                            int* num_pad) {
 
     if (layers[l].type == FC) {
         *num_rows = layers[l].input_rows;
         *num_cols = layers[l].input_cols;
         *num_height = 1;
         *num_depth = 1;
+        *num_pad = layers[l].input_data_align_pad;
     } else if (layers[l].type == CONV) {
         *num_rows = layers[l].field_size;
         *num_cols = layers[l].field_size;
         *num_height = layers[l].input_height;  // 3rd dim of input.
         *num_depth = layers[l].output_height;  // # of this layer's kernels.
+        *num_pad = 0;
     } else {
         *num_rows = 0;
         *num_cols = 0;
         *num_height = 0;
         *num_depth = 0;
+        *num_pad = 0;
     }
 }
 
 // Get the total number of weights for layer @l in the network.
 int get_num_weights_layer(layer_t* layers, int l) {
     if (layers[l].type == FC)
-        return layers[l].input_rows * layers[l].input_cols;
+        return layers[l].input_rows *
+               (layers[l].input_cols + layers[l].input_data_align_pad);
     else if (layers[l].type == CONV)
         return layers[l].output_height * layers[l].input_height *
                layers[l].field_size * layers[l].field_size;
@@ -179,7 +216,8 @@ int get_input_activations_size(layer_t* layers, int l) {
 }
 
 int get_output_activations_size(layer_t* layers, int l) {
-    return (layers[l].output_rows * layers[l].output_cols *
+    return (layers[l].output_rows *
+            (layers[l].output_cols + layers[l].output_data_align_pad) *
             layers[l].output_height * NUM_TEST_CASES);
 }
 

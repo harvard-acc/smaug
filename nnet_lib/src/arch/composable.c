@@ -33,9 +33,10 @@ void inner_product_layer_hw(float* activations,
                             float* result) {
     grab_matrix_dma(weights, lnum, layers);
     grab_input_activations_dma(activations, lnum, layers);
-    MATRIX_MULTIPLY_WITH_BIAS(activations, weights, NUM_TEST_CASES,
-                              layers[lnum].input_rows, layers[lnum].input_cols,
-                              result);
+    MATRIX_MULTIPLY_WITH_BIAS(
+            activations, weights, NUM_TEST_CASES, layers[lnum].input_rows,
+            layers[lnum].input_cols + layers[lnum].input_data_align_pad,
+            result);
     store_output_activations_dma(result, lnum, layers);
 }
 
@@ -75,6 +76,7 @@ result_buf convolution_layer(float* activations,
 
     layer_t curr_layer = layers[lnum];
     if (curr_layer.c_padding > 0) {
+        // TODO: Why not use c_padding directly??
         int padding = (curr_layer.field_size - 1) / 2;
         // TODO: Replace this with a memcpy implementation.
         copy_zeropad(activations, curr_layer, padding, result);
@@ -155,7 +157,8 @@ result_buf run_layer(float* activations,
         }
 
         PRINT_DEBUG4D(result_loc, curr_layer.output_rows,
-                      curr_layer.output_cols, curr_layer.output_height);
+                      curr_layer.output_cols + curr_layer.output_data_align_pad,
+                      curr_layer.output_height);
     }
 
     return result_loc;

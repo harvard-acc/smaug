@@ -1,6 +1,8 @@
 #ifndef _CONFIG_H_
 #define _CONFIG_H_
 
+#include "core/nnet_fwd_defs.h"
+
 ////////////////////////////////////////
 /////// USER TUNABLE PARAMETERS ////////
 ////////////////////////////////////////
@@ -55,6 +57,9 @@
 #if TRANSPOSE_WEIGHTS == 1
 #error "SMIV does not support transposed weights!"
 #endif
+#define DATA_ALIGNMENT 8
+#else
+#define DATA_ALIGNMENT 0
 #endif
 
 #endif

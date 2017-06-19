@@ -28,6 +28,7 @@ const char SIGMOID_TYPE[] = "SIGMOID";
 static int input_rows;
 static int input_cols;
 static int input_height;
+static int data_alignment;
 
 static void set_layer_type(layer_t* layers, cfg_t* layer_opts, int l) {
     const char* type = cfg_getstr(layer_opts, "type");
@@ -151,6 +152,7 @@ static void read_top_level_config(layer_t* layers, cfg_t* network_opts) {
     input_rows = cfg_getint(network_opts, "input_rows");
     input_cols = cfg_getint(network_opts, "input_cols");
     input_height = cfg_getint(network_opts, "input_height");
+    data_alignment = DATA_ALIGNMENT;
 }
 
 static void read_layer_config(layer_t* layers, cfg_t* network_opts, int l) {
@@ -159,6 +161,20 @@ static void read_layer_config(layer_t* layers, cfg_t* network_opts, int l) {
     set_layer_aux_params(layers, current_layer_opts, l);
     set_layer_input_dims(layers, current_layer_opts, l);
     set_layer_output_dims(layers, current_layer_opts, l);
+}
+
+static void handle_data_alignment(layer_t* layers, int l) {
+    if (data_alignment == 0) {
+        layers[l].input_data_align_pad = 0;
+        layers[l].output_data_align_pad = 0;
+        return;
+    }
+    int input_remainder = layers[l].input_cols % data_alignment;
+    int output_remainder = layers[l].output_cols % data_alignment;
+    layers[l].input_data_align_pad =
+            input_remainder == 0 ? 0 : data_alignment - input_remainder;
+    layers[l].output_data_align_pad =
+            output_remainder == 0 ? 0 : data_alignment - output_remainder;
 }
 
 static void print_layer_config(layer_t* layers, int num_layers) {
@@ -197,6 +213,8 @@ static void print_layer_config(layer_t* layers, int num_layers) {
         } else if (type == SOFTMAX) {
             printf("  Softmax\n");
         }
+        printf("    Input data padding: %d\n", layers[i].input_data_align_pad);
+        printf("    Output data padding: %d\n", layers[i].output_data_align_pad);
         printf("    Activation: %s\n",
                act == RELU ? "RELU" : act == SIGMOID ? "SIGMOID" : "NONE");
     }
@@ -226,6 +244,10 @@ int configure_network_from_file(const char* cfg_file, layer_t** layers_ptr) {
 
     for (int i = 0; i < num_layers; i++) {
         read_layer_config(layers, network_opts, i);
+    }
+
+    for (int i = 0; i < num_layers; i++) {
+        handle_data_alignment(layers, i);
     }
 
     // Set some global variables.

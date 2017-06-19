@@ -21,7 +21,14 @@ void get_weights_dims_layer(layer_t* layers,
                             int* num_rows,
                             int* num_cols,
                             int* num_height,
-                            int* num_depth);
+                            int* num_depth,
+                            int* num_pad);
+void get_unpadded_inputs_dims_layer(layer_t* layers,
+                                    int l,
+                                    int* num_rows,
+                                    int* num_cols,
+                                    int* num_height,
+                                    int* pad_amt);
 int get_num_weights_layer(layer_t* layers, int l);
 int get_total_num_weights(layer_t* layers, int num_layers);
 int get_input_activations_size(layer_t* layers, int num_layers);

@@ -27,6 +27,7 @@ void max_pooling_image3d(float* input, int img, float* result, layer_t curr_laye
 
     int rows = curr_layer.input_rows;
     int cols = curr_layer.input_cols;
+    int in_pad = curr_layer.input_data_align_pad;
     int hgt = curr_layer.input_height;
     int stride = curr_layer.field_stride;
     int size = curr_layer.field_size;
@@ -37,10 +38,9 @@ void max_pooling_image3d(float* input, int img, float* result, layer_t curr_laye
     int elem_idx;
 #endif
 
-    ARRAY_4D(float, _input, input, hgt, rows, cols);
-    ARRAY_4D(float, _result, result,
-             hgt, curr_layer.output_rows, curr_layer.output_cols);
-
+    ARRAY_4D(float, _input, input, hgt, rows, cols + in_pad);
+    ARRAY_4D(float, _result, result, hgt, curr_layer.output_rows,
+             curr_layer.output_cols + curr_layer.output_data_align_pad);
 
 maxpool_input_height:
     for (h = 0; h < hgt; h++) {

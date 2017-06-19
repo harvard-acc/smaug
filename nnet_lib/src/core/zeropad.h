@@ -10,8 +10,10 @@ void copy_zeropad_image3d(float* a,
                           int fmap,
                           int a_width,
                           int a_height,
+                          int a_data_pad,
                           float* result,
                           int r_width,
-                          int r_height);
+                          int r_height,
+                          int r_data_pad);
 
 #endif

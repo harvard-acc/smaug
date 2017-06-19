@@ -99,6 +99,9 @@ typedef struct _layer_t {
 
   // Where are the class predictions stored, hid or hid_temp?
   int result_in_temp;
+
+  int input_data_align_pad;
+  int output_data_align_pad;
 } layer_t;
 
 

@@ -10,8 +10,8 @@ void init_weights(float* weights,
                   data_init_mode mode,
                   bool transpose);
 void init_data(float* data,
+               network_t* network,
                size_t num_test_cases,
-               size_t input_dim,
                data_init_mode mode);
 void init_labels(int* labels, size_t label_size, data_init_mode mode);
 void init_kernels(float* kernels, size_t kernel_size);

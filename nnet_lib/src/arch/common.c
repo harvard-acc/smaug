@@ -36,9 +36,10 @@ result_buf run_layer_skip_activation_func(float* activations,
         result_loc = pooling_layer(activations, layers, layer_num, result);
     }
 
-    PRINT_DEBUG4D(result_loc, curr_layer.output_rows, curr_layer.output_cols,
+    PRINT_MSG("Result of layer %d:\n", layer_num);
+    PRINT_DEBUG4D(result_loc, curr_layer.output_rows,
+                  curr_layer.output_cols + curr_layer.output_data_align_pad,
                   curr_layer.output_height);
-
 
     return result_loc;
 }

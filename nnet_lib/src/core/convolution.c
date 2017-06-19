@@ -20,6 +20,11 @@ void convolution2d_zeropad(float* input,
                            float* result) {
     int padding = (curr_layer.field_size - 1) / 2;
     copy_zeropad(input, curr_layer, padding, result);
+    PRINT_MSG("After zeropadding:\n");
+    PRINT_DEBUG4D(result,
+                  curr_layer.input_rows,
+                  curr_layer.input_cols,
+                  curr_layer.input_height);
     convolution2d_no_padding(result, kernels, curr_layer, input);
 }
 
@@ -60,10 +65,11 @@ void convolution2d_kernel_no_padding(float* a,
     int d, i, j, k, l;
 
     const int a_height = curr_layer.input_rows;
-    const int a_width = curr_layer.input_cols;
+    const int a_width = curr_layer.input_cols + curr_layer.input_data_align_pad;
 
     const int result_height = curr_layer.output_rows;
-    const int result_width = curr_layer.output_cols;
+    const int result_width =
+            curr_layer.output_cols + curr_layer.output_data_align_pad;
 
     // Filter is k_width x k_width x k_height.
     const int k_width = curr_layer.field_size;
@@ -74,7 +80,7 @@ void convolution2d_kernel_no_padding(float* a,
     // Convolution borders.
     const int start_i = 0;
     const int start_j = 0;
-    const int end_i = result_width;
+    const int end_i = curr_layer.output_cols;
     const int end_j = result_height;
 
     float partial_sum, a_val, kern_val;

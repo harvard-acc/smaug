@@ -54,13 +54,17 @@ size_t calc_layer_intermediate_memory(layer_t layer) {
     switch (layer.type) {
         case FC:
         case SOFTMAX:
-            usage = layer.output_rows * layer.output_cols;
+            usage = layer.output_rows *
+                    (layer.output_cols + layer.output_data_align_pad);
             break;
         case CONV:
         case POOLING:
             usage = max(
-                    layer.input_rows * layer.input_cols * layer.input_height,
-                    layer.output_rows * layer.output_cols *
+                    layer.input_rows *
+                            (layer.input_cols + layer.input_data_align_pad) *
+                            layer.input_height,
+                    layer.output_rows *
+                            (layer.output_cols + layer.output_data_align_pad) *
                             layer.output_height);
             break;
         default:
@@ -117,7 +121,11 @@ int main(int argc, const char* argv[]) {
     // hid_temp.
     farray_t hid = { NULL, 0 };
     farray_t hid_temp = { NULL, 0 };
-    size_t data_size = NUM_TEST_CASES * INPUT_DIM;
+    layer_t input_layer = network.layers[0];
+    size_t data_size =
+            NUM_TEST_CASES * input_layer.input_rows *
+            (input_layer.input_cols + input_layer.input_data_align_pad) *
+            input_layer.input_height;
 
     printf("Setting up arrays\n");
     // Get the dimensions of the biggest matrix that will ever come out of
@@ -167,7 +175,7 @@ int main(int argc, const char* argv[]) {
             next_multiple(labels.size * sizeof(int), CACHELINE_SIZE));
     ASSERT_MEMALIGN(labels.d, err);
 
-    init_data(hid.d, NUM_TEST_CASES, INPUT_DIM, RANDOM_DATA);
+    init_data(hid.d, &network, NUM_TEST_CASES, RANDOM_DATA);
     init_labels(labels.d, NUM_TEST_CASES, RANDOM_DATA);
 
     // Build the sigmoid lookup table
