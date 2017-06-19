@@ -54,7 +54,7 @@ class BaseTest(unittest.TestCase):
           m = re.findall("\d+", line)
           test_pred.append(int(m[1]))
         else:
-          m = re.findall("\d+\.\d+", line)
+          m = re.findall("-?\d+(?:.\d+)", line)
           test_soft.append([float(v) for v in m])
     return test_pred, test_soft
 
