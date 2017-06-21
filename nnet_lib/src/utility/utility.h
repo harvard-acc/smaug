@@ -15,6 +15,7 @@ void clear_matrix(float* input, int size);
 void copy_matrix(float* input, float* output, int size);
 int arg_max(float* input, int size, int increment);
 int arg_min(float* input, int size, int increment);
+int calc_padding(int value, unsigned alignment);
 int get_weights_offset_layer(layer_t* layers, int l);
 void get_weights_dims_layer(layer_t* layers,
                             int l,

@@ -118,6 +118,13 @@ arg_min_loop:    for (i = 1; i < size; i++) {
     return min_ind;
 }
 
+// Return the difference between @value and the next multiple of @alignment.
+int calc_padding(int value, unsigned alignment) {
+    if (alignment == 0 || value % alignment == 0)
+        return 0;
+    return (alignment - (value % alignment));
+}
+
 // Get the unpadded input size to this layer.
 //
 // Returns the input dimensions as well as the amount of padding required to
@@ -133,23 +140,20 @@ void get_unpadded_inputs_dims_layer(layer_t* layers,
         *num_rows = NUM_TEST_CASES;
         *num_cols = curr_layer.input_rows;
         *num_height = 1;
-        *pad_amt = curr_layer.input_data_align_pad;
     } else if (curr_layer.type == CONV) {
         *num_rows = curr_layer.input_rows - curr_layer.c_padding * 2;
         *num_cols = curr_layer.input_cols - curr_layer.c_padding * 2;
         *num_height = curr_layer.input_height;
-        *pad_amt = curr_layer.input_data_align_pad; // + curr_layer.c_padding * 2;
     } else if (l != 0) {
         *num_rows = layers[l - 1].output_rows;
         *num_cols = layers[l - 1].output_cols;
         *num_height = layers[l - 1].output_height;
-        *pad_amt = layers[l - 1].output_data_align_pad;
     } else {
         *num_rows = layers[l].input_rows;
         *num_cols = layers[l].input_cols;
         *num_height = layers[l].input_height;
-        *pad_amt = layers[l].input_data_align_pad;
     }
+    *pad_amt = calc_padding(*num_cols, DATA_ALIGNMENT);
 }
 
 // Get the dimensions of this layer's weights.

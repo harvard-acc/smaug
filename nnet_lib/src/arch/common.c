@@ -1,6 +1,7 @@
 #include "nnet_fwd.h"
 #include "core/activation_functions.h"
 #include "core/convolution.h"
+#include "core/flatten.h"
 #include "core/matrix_multiply.h"
 #include "core/pooling.h"
 #include "arch/common.h"
@@ -25,8 +26,24 @@ result_buf run_layer_skip_activation_func(float* activations,
 
     if (l_type == FC) {
         PRINT_MSG("\nInner product.\n");
-        result_loc = inner_product_layer(
-                activations, weights, layers, layer_num, result);
+        if (curr_layer.flatten_input) {
+            result_loc = flatten_input(activations, layers, layer_num, result);
+        }
+        if (curr_layer.flatten_input && result_loc == result) {
+            PRINT_MSG("After flattening:\n");
+            // TODO: This is wrong - the input activation has a different
+            // padding than the weights!
+            PRINT_DEBUG(result_loc, NUM_TEST_CASES,
+                        layers[layer_num].input_rows - 1 +
+                                layers[layer_num].input_data_align_pad,
+                        layers[layer_num].input_rows - 1 +
+                                layers[layer_num].input_data_align_pad);
+            result_loc = inner_product_layer(
+                    result, weights, layers, layer_num, activations);
+        } else {
+            result_loc = inner_product_layer(
+                    activations, weights, layers, layer_num, result);
+        }
     } else if (l_type == CONV) {
         PRINT_MSG("\nConvolution.\n");
         result_loc = convolution_layer(
