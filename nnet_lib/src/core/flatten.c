@@ -39,8 +39,14 @@ void im2row(float* input,
             int input_pad,
             float* result) {
     int img, hgt, row;
+
+#if 0
+    // Disable padding at the ends of row vectors for now. We need to revamp
+    // the core layer_t structure to clearly distinguish between weight and
+    // input dimensions for FC before we can do this.
     int output_pad = calc_padding(
             input_height * input_rows * input_cols, DATA_ALIGNMENT);
+#endif
 
     ARRAY_4D(float, _input, input, input_height, input_rows,
              input_cols + input_pad);
@@ -52,7 +58,9 @@ void im2row(float* input,
                 result += input_cols;
             }
         }
+#if 0
         memset((void*)result, 0, output_pad * sizeof(float));
         result += output_pad;
+#endif
     }
 }

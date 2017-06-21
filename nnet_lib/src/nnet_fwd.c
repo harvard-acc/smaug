@@ -48,28 +48,38 @@ void store_result(float* result,
 #endif
 }
 
-size_t calc_layer_intermediate_memory(layer_t layer) {
-    size_t usage = 0;
+size_t calc_layer_intermediate_memory(layer_t* layers, int lnum) {
+    size_t usage = 0, flattened_usage = 0;
+    layer_t layer = layers[lnum];
 
-    switch (layer.type) {
-        case FC:
-        case SOFTMAX:
+    if (layer.type == INPUT) {
+        usage = layer.input_rows *
+                (layer.input_cols + layer.input_data_align_pad) *
+                layer.input_height;
+    } else if (layer.type == FC || layer.type == SOFTMAX) {
+        usage = layer.output_rows *
+                (layer.output_cols + layer.output_data_align_pad);
+        if (layer.flatten_input) {
+            // Flattening the input will require the second buffer.
+            layer_t prev_layer = layers[lnum];
+            flattened_usage = prev_layer.output_rows *
+                              (prev_layer.output_cols +
+                               prev_layer.output_data_align_pad) *
+                              prev_layer.output_height;
+            usage = max(usage, flattened_usage);
+        } else {
             usage = layer.output_rows *
                     (layer.output_cols + layer.output_data_align_pad);
-            break;
-        case CONV:
-        case POOLING:
-            usage = max(
-                    layer.input_rows *
+        }
+    } else if (layer.type == CONV || layer.type == POOLING) {
+        usage = max(layer.input_rows *
                             (layer.input_cols + layer.input_data_align_pad) *
                             layer.input_height,
                     layer.output_rows *
                             (layer.output_cols + layer.output_data_align_pad) *
                             layer.output_height);
-            break;
-        default:
-            usage = 0;
-            break;
+    } else {
+        usage = 0;
     }
     return usage * NUM_TEST_CASES;
 }
@@ -132,7 +142,7 @@ int main(int argc, const char* argv[]) {
     // run_layer.
     for (i = 0; i < network.depth; i++) {
         size_t curr_layer_usage =
-                calc_layer_intermediate_memory(network.layers[i]);
+                calc_layer_intermediate_memory(network.layers, i);
         hid_temp.size = max(hid_temp.size, curr_layer_usage);
     }
     printf("  Largest intermediate output size is %lu elements\n",

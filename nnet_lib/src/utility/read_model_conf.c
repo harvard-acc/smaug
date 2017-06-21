@@ -150,6 +150,13 @@ static void set_layer_output_dims(layer_t* layers, cfg_t* layer_opts, int l) {
     }
 }
 
+static void handle_data_alignment(layer_t* layers, int l) {
+    layers[l].input_data_align_pad =
+            calc_padding(layers[l].input_cols, data_alignment);
+    layers[l].output_data_align_pad =
+            calc_padding(layers[l].output_cols, data_alignment);
+}
+
 static void read_top_level_config(layer_t* layers, cfg_t* network_opts) {
     layers[0].input_rows = cfg_getint(network_opts, "input_rows");
     layers[0].input_cols = cfg_getint(network_opts, "input_cols");
@@ -160,6 +167,7 @@ static void read_top_level_config(layer_t* layers, cfg_t* network_opts) {
     layers[0].output_cols = layers[0].input_cols;
     layers[0].output_height = layers[0].input_height;
     data_alignment = DATA_ALIGNMENT;
+    handle_data_alignment(layers, 0);
 }
 
 static void read_layer_config(layer_t* layers, cfg_t* network_opts, int l) {
@@ -168,13 +176,6 @@ static void read_layer_config(layer_t* layers, cfg_t* network_opts, int l) {
     set_layer_aux_params(layers, current_layer_opts, l);
     set_layer_input_dims(layers, current_layer_opts, l);
     set_layer_output_dims(layers, current_layer_opts, l);
-}
-
-static void handle_data_alignment(layer_t* layers, int l) {
-    layers[l].input_data_align_pad =
-            calc_padding(layers[l].input_cols, data_alignment);
-    layers[l].output_data_align_pad =
-            calc_padding(layers[l].output_cols, data_alignment);
 }
 
 static void print_layer_config(layer_t* layers, int num_layers) {
