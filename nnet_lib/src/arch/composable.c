@@ -189,14 +189,14 @@ void nnet_fwd(farray_t activations,
     // FORMAT HERE IS H TIMES W, NOT W TIMES H!!!!!
     // SO EACH DATA POINT IS A ***ROW****
 
-    l = 0;
+    l = 1;
 
     //******************//
     //   PRIMARY LOOP   //
     //******************//
 
 nnet_fwd_outer:
-    for (l = 0; l < network.depth; l++) {
+    for (l = 1; l < network.depth; l++) {
         curr_layer = network.layers[l];
 
         if (result_loc == result.d) {

@@ -51,6 +51,10 @@ result_buf run_layer_skip_activation_func(float* activations,
     } else if (l_type == POOLING) {
         PRINT_MSG("\nPooling.\n");
         result_loc = pooling_layer(activations, layers, layer_num, result);
+    } else if (l_type == INPUT) {
+        // No work needs to be done.
+        result_loc = activations;
+        return result_loc;
     }
 
     PRINT_MSG("Result of layer %d:\n", layer_num);

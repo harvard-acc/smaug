@@ -85,10 +85,12 @@ static void set_layer_aux_params(layer_t* layers, cfg_t* layer_opts, int l) {
         assert(layers[l].field_size != -1);
         assert(layers[l].field_stride != -1);
     }
+    layers[l].flatten_input = false;
 }
 
 static void set_layer_input_dims(layer_t* layers, cfg_t* layer_opts, int l) {
     if (l == 0) {
+        // TODO: This can go if we have an input layer.
         layers[l].input_rows = input_rows;
         layers[l].input_cols = input_cols;
         layers[l].input_height = input_height;
@@ -149,14 +151,19 @@ static void set_layer_output_dims(layer_t* layers, cfg_t* layer_opts, int l) {
 }
 
 static void read_top_level_config(layer_t* layers, cfg_t* network_opts) {
-    input_rows = cfg_getint(network_opts, "input_rows");
-    input_cols = cfg_getint(network_opts, "input_cols");
-    input_height = cfg_getint(network_opts, "input_height");
+    layers[0].input_rows = cfg_getint(network_opts, "input_rows");
+    layers[0].input_cols = cfg_getint(network_opts, "input_cols");
+    layers[0].input_height = cfg_getint(network_opts, "input_height");
+    layers[0].type = INPUT;
+    layers[0].activation = NONE;
+    layers[0].output_rows = layers[0].input_rows;
+    layers[0].output_cols = layers[0].input_cols;
+    layers[0].output_height = layers[0].input_height;
     data_alignment = DATA_ALIGNMENT;
 }
 
 static void read_layer_config(layer_t* layers, cfg_t* network_opts, int l) {
-    cfg_t* current_layer_opts = cfg_getnsec(network_opts, "layer", l);
+    cfg_t* current_layer_opts = cfg_getnsec(network_opts, "layer", l - 1);
     set_layer_type(layers, current_layer_opts, l);
     set_layer_aux_params(layers, current_layer_opts, l);
     set_layer_input_dims(layers, current_layer_opts, l);
@@ -164,17 +171,10 @@ static void read_layer_config(layer_t* layers, cfg_t* network_opts, int l) {
 }
 
 static void handle_data_alignment(layer_t* layers, int l) {
-    if (data_alignment == 0) {
-        layers[l].input_data_align_pad = 0;
-        layers[l].output_data_align_pad = 0;
-        return;
-    }
-    int input_remainder = layers[l].input_cols % data_alignment;
-    int output_remainder = layers[l].output_cols % data_alignment;
     layers[l].input_data_align_pad =
-            input_remainder == 0 ? 0 : data_alignment - input_remainder;
+            calc_padding(layers[l].input_cols, data_alignment);
     layers[l].output_data_align_pad =
-            output_remainder == 0 ? 0 : data_alignment - output_remainder;
+            calc_padding(layers[l].output_cols, data_alignment);
 }
 
 static void print_layer_config(layer_t* layers, int num_layers) {
@@ -212,6 +212,11 @@ static void print_layer_config(layer_t* layers, int num_layers) {
             printf("    Height: %d\n", layers[i].output_height);
         } else if (type == SOFTMAX) {
             printf("  Softmax\n");
+        } else if (type == INPUT) {
+            printf("  Input layer\n");
+            printf("    Input size: %d x %d x %d\n",
+                   layers[i].input_rows, layers[i].input_cols,
+                   layers[i].input_height);
         }
         printf("    Input data padding: %d\n", layers[i].input_data_align_pad);
         printf("    Output data padding: %d\n", layers[i].output_data_align_pad);
@@ -231,7 +236,7 @@ int configure_network_from_file(const char* cfg_file, layer_t** layers_ptr) {
     }
 
     cfg_t* network_opts = cfg_getsec(all_opts, "network");
-    int num_layers = cfg_size(network_opts, "layer");
+    int num_layers = cfg_size(network_opts, "layer") + 1;  // +1 for input layer.
 
     int err = posix_memalign(
             (void**)layers_ptr, CACHELINE_SIZE,
@@ -242,12 +247,17 @@ int configure_network_from_file(const char* cfg_file, layer_t** layers_ptr) {
 
     read_top_level_config(layers, network_opts);
 
-    for (int i = 0; i < num_layers; i++) {
+    for (int i = 1; i < num_layers; i++) {
         read_layer_config(layers, network_opts, i);
+        handle_data_alignment(layers, i);
     }
 
-    for (int i = 0; i < num_layers; i++) {
-        handle_data_alignment(layers, i);
+    bool found_first_fc_layer = false;
+    for (int i = 1; i < num_layers && !found_first_fc_layer; i++) {
+        if (layers[i].type == FC) {
+            layers[i].flatten_input = true;
+            found_first_fc_layer = true;
+        }
     }
 
     // Set some global variables.

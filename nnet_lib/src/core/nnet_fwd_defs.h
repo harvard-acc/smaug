@@ -39,6 +39,8 @@ typedef enum _layer_type {
     FC,
     // Output label layer, fully connected (the implicit last layer).
     OUTPUT,
+    // Input layer. No actual work is done on this layer.
+    INPUT,
     // End the network without a FC output layer.  This is mostly used for
     // debugging.
     END
@@ -102,6 +104,10 @@ typedef struct _layer_t {
 
   int input_data_align_pad;
   int output_data_align_pad;
+
+  // If this layer is the first classifier layer, then flatten the input into
+  // row vectors first.
+  int flatten_input;
 } layer_t;
 
 

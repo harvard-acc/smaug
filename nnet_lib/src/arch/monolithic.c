@@ -124,7 +124,7 @@ void nnet_fwd_hw(float* activations,
     //******************//
 
 nnet_fwd_outer:
-    for (l = 0; l < num_layers; l++) {
+    for (l = 1; l < num_layers; l++) {
         curr_layer = layers[l];
 
         grab_matrix_dma(weights, l, layers);
