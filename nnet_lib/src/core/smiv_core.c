@@ -1,3 +1,5 @@
+#include <assert.h>
+
 #include "core/activation_functions.h"
 #include "utility/utility.h"
 #include "nnet_fwd.h"
@@ -127,9 +129,11 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
 
     const int a_height = curr_layer.input_rows;
     const int a_width = curr_layer.input_cols;
+    const int a_pad = curr_layer.input_data_align_pad;
 
     const int result_height = curr_layer.output_rows;
     const int result_width = curr_layer.output_cols;
+    const int result_pad = curr_layer.output_data_align_pad;
 
     // Filter is k_width x k_width x k_height.
     const int k_width = curr_layer.field_size;
@@ -166,9 +170,9 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
                         VECTOR_SIZE;
     const int end_kern = k_width;
 
-    ARRAY_4D(float, _a, a, k_height, a_height, a_width);
+    ARRAY_4D(float, _a, a, k_height, a_height, a_width + a_pad);
     ARRAY_4D(float, _kernels, kernels, k_height, k_width, k_width);
-    ARRAY_3D(float, _result, result, result_height, result_width);
+    ARRAY_3D(float, _result, result, result_height, result_width + result_pad);
 
     int end_col_marker = (input_fetches_per_row - 1) * 8;
 
@@ -294,14 +298,20 @@ void reduction_smiv(float *a,
 
     const int result_height = curr_layer.output_rows;
     const int result_width = curr_layer.output_cols;
-    const int padded_width = FRAC_CEIL(result_width, VECTOR_SIZE) * VECTOR_SIZE;
+    const int result_pad = curr_layer.output_data_align_pad;
+    const int padded_width = result_width + result_pad;
 
     const int k_height =  curr_layer.input_height;
     const int num_kerns = curr_layer.output_height;
     const bool run_activation = curr_layer.activation != NONE;
 
-    ARRAY_3D(float, _a, a, result_height, result_width);
-    ARRAY_4D(float, _result, result, num_kerns, result_height, result_width);
+#ifdef TRACE_MODE
+    assert(padded_width % VECTOR_SIZE &&
+           "Padded width must be multiple of VECTOR_SIZE!");
+#endif
+
+    ARRAY_3D(float, _a, a, result_height, padded_width);
+    ARRAY_4D(float, _result, result, num_kerns, result_height, padded_width);
 
     reduction_row:
     for (row = 0; row < result_height; row++) {
@@ -310,6 +320,7 @@ void reduction_smiv(float *a,
             float partial_sums[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
             reduction_chan:
             for (chan = 0; chan < k_height; chan++) {
+                // TODO: Remove the additional col + c check.
                 reduction_core:
                 for (c = 0; (c < VECTOR_SIZE) && (col + c < result_width); c++) {
                     partial_sums[c] += _a[chan][row][col + c];
@@ -337,13 +348,14 @@ void convolution2d_smiv(float* a,
     const int input_height = curr_layer.input_height;
     const int input_rows = curr_layer.input_rows;
     const int input_cols = curr_layer.input_cols;
+    const int input_pad = curr_layer.input_data_align_pad;
     const int num_kerns = curr_layer.output_height;
 
     // Stores the unreduced convolution output.
     // TODO: This may become an issue with the stack size.
-    float temp[input_height][input_rows][input_cols];
+    float temp[input_height][input_rows][input_cols + input_pad];
 
-    PRINT_DEBUG4D(a, input_rows, input_cols, input_height);
+    // PRINT_DEBUG4D(a, input_rows, input_cols + input_pad, input_height);
 
     conv2d_per_image:
     for (ni = 0; ni < NUM_TEST_CASES; ni++) {
@@ -382,13 +394,18 @@ void matrix_multiply_with_bias_smiv(float* a,
     ARRAY_2D(float, _b, b, b_width);
     ARRAY_2D(float, _result, result, b_width);
 
+#ifndef TRACE_MODE
+    assert(b_width % VECTOR_SIZE == 0 &&
+           "Width of weights must be a multiple of VECTOR_SIZE!");
+#endif
+
     wgt_col:
     for (wgt_col = 0; wgt_col < b_width; wgt_col+=VECTOR_SIZE) {
         // Load in the bias.
         load_bias_batch:
         for (act_batch = 0; act_batch < a_height; act_batch++) {
             load_bias:
-            for (wgt_b = 0; wgt_b < VECTOR_SIZE && wgt_col + wgt_b < b_width; wgt_b++) {
+            for (wgt_b = 0; wgt_b < VECTOR_SIZE; wgt_b++) {
                 bias = conv_float2fixed(_b[a_width][wgt_col + wgt_b]);
                 partial_sums[act_batch][wgt_b] = bias;
             }
@@ -401,7 +418,7 @@ void matrix_multiply_with_bias_smiv(float* a,
                 // MACC datapath.
                 // Flatten this inner loop.
                 wgt_b_macc:
-                for (wgt_b = 0; wgt_b < VECTOR_SIZE && wgt_col + wgt_b < b_width; wgt_b++) {
+                for (wgt_b = 0; wgt_b < VECTOR_SIZE; wgt_b++) {
                     input = conv_float2fixed(_a[act_batch][wgt_row]);
                     weight = conv_float2fixed(_b[wgt_row][wgt_col + wgt_b]);
 
@@ -422,7 +439,7 @@ void matrix_multiply_with_bias_smiv(float* a,
         act_batch_store:
         for (act_batch = 0; act_batch < a_height; act_batch++) {
             wgt_b_store:
-            for (wgt_b = 0; wgt_b < VECTOR_SIZE && wgt_col + wgt_b < b_width; wgt_b++) {
+            for (wgt_b = 0; wgt_b < VECTOR_SIZE; wgt_b++) {
                 _result[act_batch][wgt_col + wgt_b] = partial_sums[act_batch][wgt_b];
             }
         }

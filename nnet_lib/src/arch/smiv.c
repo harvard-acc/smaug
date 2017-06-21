@@ -33,9 +33,10 @@ void inner_product_layer_hw(float* activations,
     bool run_activation = layers[lnum].activation != NONE;
     grab_matrix_dma(weights, lnum, layers);
     grab_input_activations_dma(activations, lnum, layers);
-    matrix_multiply_with_bias_smiv(activations, weights, NUM_TEST_CASES,
-                                   layers[lnum].input_rows, layers[lnum].input_cols,
-                                   run_activation, result);
+    matrix_multiply_with_bias_smiv(
+            activations, weights, NUM_TEST_CASES, layers[lnum].input_rows,
+            layers[lnum].input_cols + layers[lnum].input_data_align_pad,
+            run_activation, result);
     store_output_activations_dma(result, lnum, layers);
 }
 
@@ -78,6 +79,11 @@ result_buf convolution_layer(float* activations,
         int padding = (curr_layer.field_size - 1) / 2;
         // TODO: Replace this with a memcpy implementation.
         copy_zeropad(activations, curr_layer, padding, result);
+        PRINT_MSG("After zeropadding:\n");
+        PRINT_DEBUG4D(result,
+                      curr_layer.input_rows,
+                      curr_layer.input_cols + curr_layer.input_data_align_pad,
+                      curr_layer.input_height);
         INVOKE_KERNEL(kConvolutionHw, convolution_layer_hw, result, weights,
                       layers, lnum, activations);
 

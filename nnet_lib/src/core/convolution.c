@@ -23,7 +23,7 @@ void convolution2d_zeropad(float* input,
     PRINT_MSG("After zeropadding:\n");
     PRINT_DEBUG4D(result,
                   curr_layer.input_rows,
-                  curr_layer.input_cols,
+                  curr_layer.input_cols + curr_layer.input_data_align_pad,
                   curr_layer.input_height);
     convolution2d_no_padding(result, kernels, curr_layer, input);
 }

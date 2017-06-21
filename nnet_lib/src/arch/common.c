@@ -31,13 +31,9 @@ result_buf run_layer_skip_activation_func(float* activations,
         }
         if (curr_layer.flatten_input && result_loc == result) {
             PRINT_MSG("After flattening:\n");
-            // TODO: This is wrong - the input activation has a different
-            // padding than the weights!
             PRINT_DEBUG(result_loc, NUM_TEST_CASES,
-                        layers[layer_num].input_rows - 1 +
-                                layers[layer_num].input_data_align_pad,
-                        layers[layer_num].input_rows - 1 +
-                                layers[layer_num].input_data_align_pad);
+                        layers[layer_num].input_rows - 1,
+                        layers[layer_num].input_rows - 1);
             result_loc = inner_product_layer(
                     result, weights, layers, layer_num, activations);
         } else {
