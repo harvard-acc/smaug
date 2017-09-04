@@ -4,6 +4,7 @@
 #include "activation_functions.h"
 
 // Dispatch to the appropriate activation function.
+ALWAYS_INLINE
 void activation_fun(float* activations,
                     int size,
                     activation_type function,
@@ -17,6 +18,7 @@ void activation_fun(float* activations,
 
 // The rectified linear activation function
 // ** this function is in-place (modifies a) **
+ALWAYS_INLINE
 void relu(float* a, int num_units) {
     int i;
 relu_loop: for (i = 0; i < num_units; i++) {
@@ -34,6 +36,7 @@ float sigmoid(float a) {
 }
 
 
+ALWAYS_INLINE
 void sigmoid_inplace(float* a, int num_units, float* sigmoid_table) {
 #ifdef SIGMOID_TABLE
   sigmoid_table(a, num_units, sigmoid_table);

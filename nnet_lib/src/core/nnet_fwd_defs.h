@@ -317,6 +317,13 @@ typedef struct _iarray_t {
 #define ASSERT_MEMALIGN(ptr, err) \
     assert(err == 0 && "Failed to allocate memory for " #ptr ".\n");
 
+// We have to disable all function inlining at the global level for Aladdin +
+// LLVM-Tracer to work, but sometimes we do want to force inline functions
+// (otherwise we run into all the issues of function call barriers in Aladdin).
+// Add this macro before the function declaration to force inlining on this
+// function.
+#define ALWAYS_INLINE __attribute__ ((always_inline))
+
 #define INPUTS_FILENAME                                                        \
     "/home/jmh/projects/pesc_hardware/HardwareNets/../mnist/"                  \
     "validation_data_textual_all_10000.txt"
