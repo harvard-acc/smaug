@@ -43,6 +43,9 @@
 #define TREE_MAX 1
 #endif
 
+// Disable batching for FC layers in SMIV.
+#define DISABLE_SMIV_INPUT_BATCHING
+
 // Turns out debugging output, which prints out the results of operations.
 #ifndef DEBUG
 #define DEBUG 0
