@@ -9,18 +9,13 @@
 /* Shift a single shift register left by shamt. */
 static void shift_reg_lshift(float shift_reg[SHIFT_REG_SIZE], unsigned shamt) {
     unsigned sr;
-    float temp_shift_reg[SHIFT_REG_SIZE];
     shift_reg_lshift_stage1:
     for (sr = 0; sr < SHIFT_REG_SIZE; sr++) {
         if (sr + shamt < SHIFT_REG_SIZE) {
-            temp_shift_reg[sr] = shift_reg[sr + shamt];
+            shift_reg[sr] = shift_reg[sr + shamt];
         } else {
-            temp_shift_reg[sr] = 0;
+            shift_reg[sr] = 0;
         }
-    }
-    shift_reg_lshift_stage2:
-    for (sr = 0; sr < SHIFT_REG_SIZE; sr++) {
-        shift_reg[sr] = temp_shift_reg[sr];
     }
 }
 
@@ -29,33 +24,26 @@ static void shift_regs_lshift(float shift_reg0[SHIFT_REG_SIZE],
                               float shift_reg1[SHIFT_REG_SIZE],
                               unsigned shamt) {
     unsigned sr;
-    float temp_shift_reg0[SHIFT_REG_SIZE];
-    float temp_shift_reg1[SHIFT_REG_SIZE];
     shift_regs_lshift_stage1:
     for (sr = 0; sr < SHIFT_REG_SIZE; sr++) {
         if (sr + shamt < SHIFT_REG_SIZE) {
-            temp_shift_reg0[sr] = shift_reg0[sr + shamt];
-            temp_shift_reg1[sr] = shift_reg1[sr + shamt];
+            shift_reg0[sr] = shift_reg0[sr + shamt];
+            shift_reg1[sr] = shift_reg1[sr + shamt];
         } else {
-            temp_shift_reg0[sr] = 0;
-            temp_shift_reg1[sr] = 0;
+            shift_reg0[sr] = 0;
+            shift_reg1[sr] = 0;
         }
-    }
-    shift_regs_lshift_stage2:
-    for (sr = 0; sr < SHIFT_REG_SIZE; sr++) {
-        shift_reg0[sr] = temp_shift_reg0[sr];
-        shift_reg1[sr] = temp_shift_reg1[sr];
     }
 }
 
-static void conv_macc_datapath(float weights_buffer[VECTOR_SIZE],
-                               float pipe0_shift_reg[SHIFT_REG_SIZE],
-                               float pipe1_shift_reg[SHIFT_REG_SIZE],
-                               unsigned dp_shamt,
-                               unsigned dp0_iters,
-                               unsigned dp1_iters,
-                               float psums_0[VECTOR_SIZE],
-                               float psums_1[VECTOR_SIZE]) {
+static void conv_macc_datapath_fxp(float weights_buffer[VECTOR_SIZE],
+                                   float pipe0_shift_reg[SHIFT_REG_SIZE],
+                                   float pipe1_shift_reg[SHIFT_REG_SIZE],
+                                   unsigned dp_shamt,
+                                   unsigned dp0_iters,
+                                   unsigned dp1_iters,
+                                   float psums_0[VECTOR_SIZE],
+                                   float psums_1[VECTOR_SIZE]) {
     unsigned psum_reg, j;
 
     conv2d_dp_outer:
@@ -83,10 +71,10 @@ static void conv_macc_datapath(float weights_buffer[VECTOR_SIZE],
     }
 }
 
-static void merge_psums(float psums_0[VECTOR_SIZE],
-                        float psums_1[VECTOR_SIZE],
-                        bool double_tp,
-                        float result[VECTOR_SIZE]) {
+static void merge_psums_fxp(float psums_0[VECTOR_SIZE],
+                            float psums_1[VECTOR_SIZE],
+                            bool double_tp,
+                            float result[VECTOR_SIZE]) {
 
     int i;
 
@@ -263,16 +251,16 @@ static void convolution2d_smiv_1kernel_1channel(float* a,
                 PRINT_DEBUG(&pipe1_shift_reg[0], 1, SHIFT_REG_SIZE, SHIFT_REG_SIZE);
 
                 // Primary datapath.
-                conv_macc_datapath(weights_buffer,
-                                   pipe0_shift_reg,
-                                   pipe1_shift_reg,
-                                   dp_shamt,
-                                   dp0_iters,
-                                   dp1_iters,
-                                   psums_0,
-                                   psums_1);
+                conv_macc_datapath_fxp(weights_buffer,
+                                       pipe0_shift_reg,
+                                       pipe1_shift_reg,
+                                       dp_shamt,
+                                       dp0_iters,
+                                       dp1_iters,
+                                       psums_0,
+                                       psums_1);
 
-                merge_psums(psums_0, psums_1, double_tp, final_psums);
+                merge_psums_fxp(psums_0, psums_1, double_tp, final_psums);
             }
 
             // This is the unreduced data!
@@ -306,7 +294,7 @@ void reduction_smiv(float *a,
     const bool run_activation = curr_layer.activation != NONE;
 
 #ifdef TRACE_MODE
-    assert(padded_width % VECTOR_SIZE &&
+    assert(padded_width % VECTOR_SIZE == 0 &&
            "Padded width must be multiple of VECTOR_SIZE!");
 #endif
 
