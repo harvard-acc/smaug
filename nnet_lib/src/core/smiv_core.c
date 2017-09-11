@@ -38,6 +38,7 @@ static void shift_regs_lshift(float shift_reg0[SHIFT_REG_SIZE],
     }
 }
 
+ALWAYS_INLINE
 static void conv_macc_datapath_fxp(float weights_buffer[VECTOR_SIZE],
                                    float pipe0_shift_reg[SHIFT_REG_SIZE],
                                    float pipe1_shift_reg[SHIFT_REG_SIZE],
@@ -73,6 +74,7 @@ static void conv_macc_datapath_fxp(float weights_buffer[VECTOR_SIZE],
     }
 }
 
+ALWAYS_INLINE
 static void merge_psums_fxp(float psums_0[VECTOR_SIZE],
                             float psums_1[VECTOR_SIZE],
                             bool double_tp,
@@ -108,13 +110,13 @@ static void merge_psums_fxp(float psums_0[VECTOR_SIZE],
 //
 // Returns:
 //   The 2D convolution in result[chan].
-static void convolution2d_smiv_1kernel_1channel(float* a,
-                                                float* kernels,
-                                                int img,
-                                                int kern,
-                                                int chan,
-                                                layer_t curr_layer,
-                                                float* result) {
+static void convolution2d_smiv_1kernel_1channel_fxp(float* a,
+                                                    float* kernels,
+                                                    int img,
+                                                    int kern,
+                                                    int chan,
+                                                    layer_t curr_layer,
+                                                    float* result) {
     int in_row, in_col, out_row, out_col, sr, kern_row, j;
 
     const int a_height = curr_layer.input_rows;
@@ -354,7 +356,7 @@ void convolution2d_smiv(float* a,
         for (nk = 0; nk < num_kerns; nk++) {
             conv2d_per_chan:
             for (nc = 0; nc < input_height; nc++) {
-                convolution2d_smiv_1kernel_1channel(
+                convolution2d_smiv_1kernel_1channel_fxp(
                         a, kernels, ni, nk, nc, curr_layer, &temp[0][0][0]);
             }
             reduction_smiv(&temp[0][0][0], curr_layer, ni, nk, result);
