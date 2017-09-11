@@ -7,6 +7,7 @@
 #include "smiv_core.h"
 
 /* Shift a single shift register left by shamt. */
+ALWAYS_INLINE
 static void shift_reg_lshift(float shift_reg[SHIFT_REG_SIZE], unsigned shamt) {
     unsigned sr;
     shift_reg_lshift_stage1:
@@ -20,6 +21,7 @@ static void shift_reg_lshift(float shift_reg[SHIFT_REG_SIZE], unsigned shamt) {
 }
 
 /* Shift a two shift registers in parallel left by shamt. */
+ALWAYS_INLINE
 static void shift_regs_lshift(float shift_reg0[SHIFT_REG_SIZE],
                               float shift_reg1[SHIFT_REG_SIZE],
                               unsigned shamt) {
