@@ -281,11 +281,8 @@ static void convolution2d_smiv_1kernel_1channel_fxp(float* a,
     }
 }
 
-void reduction_smiv(float *a,
-                    layer_t curr_layer,
-                    int img,
-                    int kern,
-                    float *result) {
+static void reduction_smiv_fxp(
+        float* a, layer_t curr_layer, int img, int kern, float* result) {
     unsigned row, col, chan, c;
 
     const int result_height = curr_layer.output_rows;
@@ -312,9 +309,8 @@ void reduction_smiv(float *a,
             float partial_sums[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
             reduction_chan:
             for (chan = 0; chan < k_height; chan++) {
-                // TODO: Remove the additional col + c check.
                 reduction_core:
-                for (c = 0; (c < VECTOR_SIZE) && (col + c < result_width); c++) {
+                for (c = 0; c < VECTOR_SIZE; c++) {
                     partial_sums[c] += _a[chan][row][col + c];
                 }
             }
@@ -324,11 +320,19 @@ void reduction_smiv(float *a,
             }
 
             reduction_commit:
-            for (c = 0; (c < VECTOR_SIZE) && (col + c < result_width); c++) {
+            for (c = 0; c < VECTOR_SIZE; c++) {
                 _result[img][kern][row][col + c] = partial_sums[c];
             }
         }
     }
+}
+
+void reduction_smiv(float *a,
+                    layer_t curr_layer,
+                    int img,
+                    int kern,
+                    float *result) {
+    reduction_smiv_fxp(a, curr_layer, img, kern, result);
 }
 
 void convolution2d_smiv(float* a,
