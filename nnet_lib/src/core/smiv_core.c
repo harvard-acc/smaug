@@ -74,7 +74,7 @@ static void conv_macc_datapath_fxp(float weights_buffer[VECTOR_SIZE],
     }
 }
 
-ALWAYS_INLINE
+// ALWAYS_INLINE
 static void merge_psums_fxp(float psums_0[VECTOR_SIZE],
                             float psums_1[VECTOR_SIZE],
                             bool double_tp,
@@ -192,7 +192,9 @@ static void convolution2d_smiv_1kernel_1channel_fxp(float* a,
             }
             PRINT_MSG("dp0_iters: %d, dp1_iters: %d\n", dp0_iters, dp1_iters);
 
-            float final_psums[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+            // Two partial sum regs, one for each pipe.
+            float psums_0[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+            float psums_1[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
             conv2d_kern_row:
             for (kern_row = 0; kern_row < end_kern; kern_row ++) {
                 float weights_buffer[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -202,10 +204,6 @@ static void convolution2d_smiv_1kernel_1channel_fxp(float* a,
                 float pipe1_shift_reg[SHIFT_REG_SIZE] = {
                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
                 };
-
-                // Two partial sum regs, one for each pipe.
-                float psums_0[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-                float psums_1[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
                 // Load activations into shift registers.
                 conv2d_load_sr_pipe0:
@@ -264,8 +262,10 @@ static void convolution2d_smiv_1kernel_1channel_fxp(float* a,
                                        psums_0,
                                        psums_1);
 
-                merge_psums_fxp(psums_0, psums_1, double_tp, final_psums);
             }
+
+            float final_psums[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+            merge_psums_fxp(psums_0, psums_1, double_tp, final_psums);
 
             // This is the unreduced data!
             conv2d_commit:
