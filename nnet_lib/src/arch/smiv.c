@@ -17,13 +17,16 @@
 
 #if ARCHITECTURE == SMIV
 
-unsigned kConvolutionHw = 0x0001;
-unsigned kInnerProductHw = 0x0002;
-
-// This is an architecture that divides each layer type into a separate
-// hardware block. This is represented by ensuring that each layer is
-// responsible for loading its own input activations and weights. For clarity,
-// all functions to be turned into hardware are suffixed with _hw.
+// Use the same accelerator id for both the convolutional and FC blocks. This
+// means we will simulate only ONE datapath instead of two, which means that
+// the two blocks can share the scratchpads (without any more infrastructure
+// changes). The key is that we still trace the functions at the _hw level, so
+// that Aladdin will exit after simulating each block, and we can return
+// control to the CPU at the right places.  In contrast, if we used two
+// different ids, we would have two different datapaths that could not share
+// data directly.
+unsigned kConvolutionHw = 0x0003;
+unsigned kInnerProductHw = 0x0003;
 
 void inner_product_layer_hw(float* activations,
                             float* weights,
