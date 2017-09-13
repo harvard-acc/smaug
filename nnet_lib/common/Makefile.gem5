@@ -17,11 +17,13 @@ endif
 ALL_SRCS = $(patsubst %.c, $(SRC_DIR)/%.c, $(SRCS))
 _BUILD_VIEW_SRCS = $(patsubst %.c, ../$(SRC_DIR)/%.c, $(SRCS))
 
-# -mno-sse
-GEM5_CFLAGS = -static -O3 -mno-80387 -msoft-float \
-              -march=nocona -msse -mfpmath=sse \
-              -fno-exceptions -fno-inline \
+GEM5_CFLAGS = -static -O3 -fno-exceptions \
 							-DDMA_MODE -DDMA_INTERFACE_V2
+
+# GEM5_CFLAGS = -static -O3 -mno-80387 -msoft-float \
+#               -march=nocona -msse -mfpmath=sse \
+#               -fno-exceptions -fno-inline \
+# 							-DDMA_MODE -DDMA_INTERFACE_V2
 
 INCLUDES += -I$(ALADDIN_HOME) -I$(ALADDIN_HOME)/gem5 -Isrc
 LFLAGS = -lm -lconfuse
