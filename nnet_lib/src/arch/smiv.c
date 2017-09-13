@@ -32,12 +32,14 @@ void inner_product_layer_hw(float* activations,
                             float* result) {
     bool run_activation = layers[lnum].activation != NONE;
     grab_matrix_dma(weights, lnum, layers);
-    grab_input_activations_dma(activations, lnum, layers);
+    if (layers[lnum].needs_input_dma_load)
+        grab_input_activations_dma(activations, lnum, layers);
     matrix_multiply_with_bias_smiv(
             activations, weights, NUM_TEST_CASES, layers[lnum].input_rows,
             layers[lnum].input_cols + layers[lnum].input_data_align_pad,
             run_activation, result);
-    store_output_activations_dma(result, lnum, layers);
+    if (layers[lnum].needs_output_dma_store)
+        store_output_activations_dma(result, lnum, layers);
 }
 
 result_buf inner_product_layer(float* activations,
@@ -60,9 +62,11 @@ void convolution_layer_hw(float* activations,
                           float* result) {
     layer_t curr_layer = layers[lnum];
     grab_matrix_dma(weights, lnum, layers);
-    grab_input_activations_dma(activations, lnum, layers);
+    if (layers[lnum].needs_input_dma_load)
+        grab_input_activations_dma(activations, lnum, layers);
     convolution2d_smiv(activations, weights, curr_layer, result);
-    store_output_activations_dma(result, lnum, layers);
+    if (layers[lnum].needs_output_dma_store)
+        store_output_activations_dma(result, lnum, layers);
 }
 
 result_buf convolution_layer(float* activations,
@@ -122,6 +126,43 @@ result_buf run_layer(float* activations,
     return result_loc;
 }
 
+// Set the dmaLoad/dmaStore required flags for each layer.
+//
+// Since SMIV can share scratchpads between the conv/fc blocks, we only need
+// DMA if we need to send data back to the CPU.
+void set_dma_requirements(network_t* network) {
+    for (int layer_num = 0; layer_num < network->depth; layer_num++) {
+        // The input layer is easy.
+        if (layer_num == 0) {
+            network->layers[layer_num].needs_input_dma_load = false;
+            network->layers[layer_num].needs_output_dma_store = true;
+            continue;
+        }
+        // First, determine if we need to dma store the output.
+        if (layer_num == network->depth - 1 ||
+            network->layers[layer_num].activation == SIGMOID ||
+            network->layers[layer_num].type == POOLING ||
+            network->layers[layer_num + 1].type == POOLING ||
+            network->layers[layer_num + 1].type == SOFTMAX) {
+            network->layers[layer_num].needs_output_dma_store = true;
+        } else {
+            network->layers[layer_num].needs_output_dma_store = false;
+        }
+
+        // Whether we need to load the input on this layer is just whether we
+        // had to store the outputs in the previous layer.
+        network->layers[layer_num].needs_input_dma_load =
+                network->layers[layer_num - 1].needs_output_dma_store;
+    }
+
+    for (int layer_num = 0; layer_num < network->depth; layer_num++) {
+        printf("Layer %d: dmaLoad = %d, dmaStore = %d\n", layer_num,
+               network->layers[layer_num].needs_input_dma_load,
+               network->layers[layer_num].needs_output_dma_store);
+    }
+
+}
+
 // Runs the forward pass of a neural network.
 //
 // This version loads weights on a per layer basis, and activations are
@@ -148,6 +189,8 @@ void nnet_fwd(farray_t activations,
     // SO EACH DATA POINT IS A ***ROW****
 
     l = 0;
+
+    set_dma_requirements(&network);
 
     //******************//
     //   PRIMARY LOOP   //

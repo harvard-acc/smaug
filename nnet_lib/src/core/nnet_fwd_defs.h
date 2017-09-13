@@ -102,12 +102,16 @@ typedef struct _layer_t {
   // Where are the class predictions stored, hid or hid_temp?
   int result_in_temp;
 
+  // Zeropadding for data alignment on input and output.
   int input_data_align_pad;
   int output_data_align_pad;
 
   // If this layer is the first classifier layer, then flatten the input into
   // row vectors first.
   int flatten_input;
+
+  int needs_input_dma_load;
+  int needs_output_dma_store;
 } layer_t;
 
 
