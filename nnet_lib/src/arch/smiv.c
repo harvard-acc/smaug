@@ -145,6 +145,7 @@ void set_dma_requirements(network_t* network) {
         if (layer_num == network->depth - 1 ||
             network->layers[layer_num].activation == SIGMOID ||
             network->layers[layer_num].type == POOLING ||
+            network->layers[layer_num].flatten_input ||
             network->layers[layer_num + 1].type == POOLING ||
             network->layers[layer_num + 1].type == SOFTMAX) {
             network->layers[layer_num].needs_output_dma_store = true;

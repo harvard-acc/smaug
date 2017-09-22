@@ -27,6 +27,7 @@ result_buf run_layer_skip_activation_func(float* activations,
     if (l_type == FC) {
         PRINT_MSG("\nInner product.\n");
         if (curr_layer.flatten_input) {
+            PRINT_MSG("Flattening the input.\n");
             result_loc = flatten_input(activations, layers, layer_num, result);
         }
         if (curr_layer.flatten_input && result_loc == result) {
