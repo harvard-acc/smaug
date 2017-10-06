@@ -5,7 +5,7 @@
 #include "core/convolution.h"
 #include "core/matrix_multiply.h"
 #include "core/pooling.h"
-#include "core/smiv_core.h"
+#include "core/smiv.h"
 #include "core/zeropad.h"
 #include "utility/utility.h"
 #include "arch/common.h"
