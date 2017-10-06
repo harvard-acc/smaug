@@ -12,4 +12,9 @@ typedef float fp_t;
 typedef fp_t v8fp_t
         __attribute__((__vector_size__(VECTOR_SIZE * sizeof(fp_t))));
 
+#define VEC_ARRAY_2D(TYPE, OUTPUT_NAME, INPUT_NAME, INPUT_WIDTH) \
+    TYPE (*OUTPUT_NAME)[(INPUT_WIDTH)/(VECTOR_SIZE)] =           \
+        (TYPE(*)[(INPUT_WIDTH)/(VECTOR_SIZE)])INPUT_NAME
+
+
 #endif

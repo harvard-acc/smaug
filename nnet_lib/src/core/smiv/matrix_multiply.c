@@ -152,3 +152,64 @@ void matrix_multiply_with_bias_smiv_nobatch_fxp(float* a,
     }
 }
 
+void matrix_multiply_with_bias_smiv_nobatch_vec_fxp(float* a,
+                                                    float* b,
+                                                    int a_height,
+                                                    int b_height,
+                                                    int b_width,
+                                                    bool run_activation,
+                                                    float* result) {
+    int wgt_row, wgt_col, wgt_b, input_act;
+    float input;
+    v8fp_t weights, product;
+
+    int a_width = b_height - 1;
+
+#ifndef TRACE_MODE
+    assert(b_width % VECTOR_SIZE == 0 &&
+           "Width of weights must be a multiple of VECTOR_SIZE!");
+    assert(a_width % VECTOR_SIZE == 0 &&
+           "Activation dimensions must be a multiple of VECTOR_SIZE!");
+#endif
+
+    int b_width_vec = b_width / VECTOR_SIZE;
+
+    VEC_ARRAY_2D(v8fp_t, _a, a, a_width);
+    VEC_ARRAY_2D(v8fp_t, _b, b, b_width);
+    VEC_ARRAY_2D(v8fp_t, _result, result, b_width);
+    v8fp_t partial_sums;
+
+    input_act:
+    for (input_act = 0; input_act < a_height; input_act++) {
+        wgt_col:
+        for (wgt_col = 0; wgt_col < b_width_vec; wgt_col++) {
+            // Load in the bias.
+            partial_sums = _b[a_width][wgt_col];
+
+            wgt_row:
+            for (wgt_row = 0; wgt_row < a_width; wgt_row+=VECTOR_SIZE) {
+                v8fp_t activation_reg = _a[input_act][wgt_row / VECTOR_SIZE];
+
+                // Since we're doing SIMD operations here, this is actually TWO
+                // loops in one; the implicit loop is over the SIMD width, and
+                // the explicit loop goes over the vector of input activations.
+                wgt_b_macc:
+                for (wgt_b = 0; wgt_b < VECTOR_SIZE; wgt_b++) {
+                    input = activation_reg[wgt_b];
+                    weights = _b[wgt_row + wgt_b][wgt_col];
+                    product = weights * input;
+                    partial_sums += product;
+                }
+            }
+
+            // Run through activation function.
+            if (run_activation) {
+                v8fp_t mask = partial_sums > 0;
+                partial_sums *= mask;
+            }
+
+            // Store to scratchpad.
+            _result[input_act][wgt_col] = partial_sums;
+        }
+    }
+}

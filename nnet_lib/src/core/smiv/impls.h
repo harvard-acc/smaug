@@ -29,4 +29,12 @@ void matrix_multiply_with_bias_smiv_nobatch_fxp(float* a,
                                                 bool run_activation,
                                                 float* result);
 
+void matrix_multiply_with_bias_smiv_nobatch_vec_fxp(float* a,
+                                                    float* b,
+                                                    int a_height,
+                                                    int b_height,
+                                                    int b_width,
+                                                    bool run_activation,
+                                                    float* result);
+
 #endif
