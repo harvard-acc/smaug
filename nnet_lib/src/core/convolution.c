@@ -18,13 +18,12 @@ void convolution2d_zeropad(float* input,
                            float* kernels,
                            layer_t curr_layer,
                            float* result) {
-    int padding = (curr_layer.field_size - 1) / 2;
-    copy_zeropad(input, curr_layer, padding, result);
+    copy_zeropad(input, curr_layer, result);
     PRINT_MSG("After zeropadding:\n");
     PRINT_DEBUG4D(result,
-                  curr_layer.input_rows,
-                  curr_layer.input_cols + curr_layer.input_data_align_pad,
-                  curr_layer.input_height);
+                  curr_layer.inputs.rows,
+                  curr_layer.inputs.cols + curr_layer.inputs.align_pad,
+                  curr_layer.inputs.height);
     convolution2d_no_padding(result, kernels, curr_layer, input);
 }
 
@@ -49,7 +48,7 @@ conv2d_per_image:
     for (ni = 0; ni < NUM_TEST_CASES; ni++) {
         // Loop over all inputs in this batch.
     conv2d_per_kernel:
-        for (nk = 0; nk < curr_layer.output_height; nk++) {
+        for (nk = 0; nk < curr_layer.outputs.height; nk++) {
             convolution2d_kernel_no_padding(a, kernels, ni, nk, curr_layer, result);
         }
     }
@@ -64,23 +63,23 @@ void convolution2d_kernel_no_padding(float* a,
                                      float* result) {
     int d, i, j, k, l;
 
-    const int a_height = curr_layer.input_rows;
-    const int a_width = curr_layer.input_cols + curr_layer.input_data_align_pad;
+    const int a_height = curr_layer.inputs.rows;
+    const int a_width = curr_layer.inputs.cols + curr_layer.inputs.align_pad;
 
-    const int result_height = curr_layer.output_rows;
+    const int result_height = curr_layer.outputs.rows;
     const int result_width =
-            curr_layer.output_cols + curr_layer.output_data_align_pad;
+            curr_layer.outputs.cols + curr_layer.outputs.align_pad;
 
     // Filter is k_width x k_width x k_height.
-    const int k_width = curr_layer.field_size;
-    const int k_height =  curr_layer.input_height;
+    const int k_width = curr_layer.weights.cols;
+    const int k_height =  curr_layer.inputs.height;
     const int k_stride = curr_layer.field_stride;
-    const int num_kerns = curr_layer.output_height;
+    const int num_kerns = curr_layer.outputs.height;
 
     // Convolution borders.
     const int start_i = 0;
     const int start_j = 0;
-    const int end_i = curr_layer.output_cols;
+    const int end_i = curr_layer.outputs.cols;
     const int end_j = result_height;
 
     float partial_sum, a_val, kern_val;

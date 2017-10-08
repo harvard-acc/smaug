@@ -2,25 +2,26 @@
 
 #include "zeropad.h"
 
-// Zeropad each image in @a by @pad zeros.
+// Zeropad each image in @a by layer.c_padding zeros.
 //
 // a is a 4D matrix of flattened input feature maps.
 //
 // The result is placed in @result, which is an array that is assumed to be
 // large enough for this operation.
-void copy_zeropad(float* a, layer_t curr_layer, int pad, float* result) {
+void copy_zeropad(float* a, layer_t curr_layer, float* result) {
     int ni;
 
-    // Yes, "output_rows" and "output_cols". "input_rows" and "input_cols" is
-    // the dimensions of the data AFTER zeropadding because this is considered
-    // as the "input" to the convolution itself.
-    int a_rows = curr_layer.output_rows;
-    int a_cols = curr_layer.output_cols;
-    int a_height = curr_layer.input_height;
-    int a_data_pad = curr_layer.output_data_align_pad;
-    int r_rows = curr_layer.input_rows;
-    int r_cols = curr_layer.input_cols;
-    int r_data_pad = curr_layer.input_data_align_pad;
+    // "input_rows" and "input_cols" are the dimensions of the data AFTER
+    // zeropadding because this is considered as the "input" to the convolution
+    // itself.
+    int pad = curr_layer.c_padding;
+    int a_rows = curr_layer.inputs.rows - 2 * pad;
+    int a_cols = curr_layer.inputs.cols - 2 * pad;
+    int a_height = curr_layer.inputs.height;
+    int a_data_pad = curr_layer.outputs.align_pad;
+    int r_rows = curr_layer.inputs.rows;
+    int r_cols = curr_layer.inputs.cols;
+    int r_data_pad = curr_layer.inputs.align_pad;
 
 copy_zeropad_per_image:
     for (ni = 0; ni < NUM_TEST_CASES; ni++) {

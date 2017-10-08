@@ -95,14 +95,17 @@ void init_data(float* data,
                size_t num_test_cases,
                data_init_mode mode) {
     int i, j, k, l, ret_f_scanf;
-    int input_rows, input_cols, input_height, input_padding;
+    int input_rows, input_cols, input_height, input_align_pad;
     unsigned input_dim;
 
-    get_unpadded_inputs_dims_layer(network->layers, 0, &input_rows, &input_cols,
-                                   &input_height, &input_padding);
+    input_rows = network->layers[0].inputs.rows;
+    input_cols = network->layers[0].inputs.cols;
+    input_height = network->layers[0].inputs.height;
+    input_align_pad = network->layers[0].inputs.align_pad;
     input_dim = input_rows * input_cols * input_height;
 
-    ARRAY_4D(float, _data, data, input_height, input_rows, input_cols + input_padding);
+    ARRAY_4D(float, _data, data, input_height, input_rows,
+             input_cols + input_align_pad);
     if (mode == RANDOM || mode == FIXED) {
         printf("Initializing data randomly\n");
         // Generate random input data, size num_test_cases by num_units[0]
@@ -122,14 +125,14 @@ void init_data(float* data,
                             _data[i][j][k][l] = 1.0 * i + (float)offset/input_dim;
                         }
                     }
-                    for (l = input_cols; l < input_cols + input_padding; l++) {
+                    for (l = input_cols; l < input_cols + input_align_pad; l++) {
                         _data[i][j][k][l] = 0;
                     }
                 }
             }
         }
         PRINT_MSG("Input activations:\n");
-        PRINT_DEBUG4D(data, input_rows, input_cols + input_padding, input_height);
+        PRINT_DEBUG4D(data, input_rows, input_cols + input_align_pad, input_height);
     } else {
         printf("Reading in %lu data of dimensionality %u from %s\n",
                num_test_cases, input_dim, INPUTS_FILENAME);

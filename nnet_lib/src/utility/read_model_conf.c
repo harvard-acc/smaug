@@ -68,114 +68,136 @@ static void set_layer_type(layer_t* layers, cfg_t* layer_opts, int l) {
                 l);
 }
 
-static void set_layer_aux_params(layer_t* layers, cfg_t* layer_opts, int l) {
+static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
     if (layers[l].type == CONV) {
+        layers[l].inputs.rows = layers[l - 1].outputs.rows;
+        layers[l].inputs.cols = layers[l - 1].outputs.cols;
+        layers[l].inputs.height = layers[l - 1].outputs.height;
+
         cfg_t* conv_params = cfg_getsec(layer_opts, "convolution_param");
-        layers[l].field_size = cfg_getint(conv_params, "kernel_size");
+        layers[l].weights.rows = cfg_getint(conv_params, "kernel_size");
+        layers[l].weights.cols = cfg_getint(conv_params, "kernel_size");
+        layers[l].weights.height = layers[l].inputs.height;
         layers[l].field_stride = cfg_getint(conv_params, "stride");
+
         layers[l].c_padding = cfg_getint(conv_params, "pad");
-        layers[l].output_height = cfg_getint(conv_params, "num_output");
-        assert(layers[l].field_size != -1);
-        assert(layers[l].c_padding != -1);
-        assert(layers[l].output_height != -1);
-    } else if (layers[l].type == POOLING) {
-        cfg_t* pool_params = cfg_getsec(layer_opts, "pooling_param");
-        layers[l].field_size = cfg_getint(pool_params, "size");
-        layers[l].field_stride = cfg_getint(pool_params, "stride");
-        assert(layers[l].field_size != -1);
-        assert(layers[l].field_stride != -1);
-    }
-    layers[l].flatten_input = false;
-}
+        layers[l].inputs.rows += layers[l].c_padding * 2;
+        layers[l].inputs.cols += layers[l].c_padding * 2;
 
-static void set_layer_input_dims(layer_t* layers, cfg_t* layer_opts, int l) {
-    if (l == 0) {
-        // TODO: This can go if we have an input layer.
-        layers[l].input_rows = input_rows;
-        layers[l].input_cols = input_cols;
-        layers[l].input_height = input_height;
-    } else {
-        layers[l].input_rows = layers[l - 1].output_rows;
-        layers[l].input_cols = layers[l - 1].output_cols;
-        layers[l].input_height = layers[l - 1].output_height;
-    }
-
-    // Make some adjustments.
-    if (layers[l].type == CONV) {
-        // Add padding.
-        layers[l].input_rows += layers[l].c_padding * 2;
-        layers[l].input_cols += layers[l].c_padding * 2;
-    } else if (layers[l].type == FC) {
-        cfg_t* fc_params = cfg_getsec(layer_opts, "inner_product_param");
-        if (l == 0 || (l > 0 && layers[l - 1].type != FC)) {
-            // If this is the first layer, or this layer is a transition from a
-            // CONV or POOL to a FC layer, we have to flatten the previous
-            // layer's output.
-            layers[l].input_rows = layers[l].input_rows *
-                                   layers[l].input_cols *
-                                   layers[l].input_height;
-        } else {
-            layers[l].input_rows = layers[l-1].output_cols;
-        }
-        layers[l].input_rows += 1;  // For the bias.
-        // This is the number of hidden nodes in this layer.
-        layers[l].input_cols = cfg_getint(fc_params, "num_output");
-        layers[l].input_height = 1;
-    } else if (layers[l].type == POOLING) {
-        // Nothing more to do.
-    }
-}
-
-static void set_layer_output_dims(layer_t* layers, cfg_t* layer_opts, int l) {
-    if (layers[l].type == CONV) {
-        cfg_t* conv_params = cfg_getsec(layer_opts, "convolution_param");
-        layers[l].output_rows = (layers[l].input_rows - layers[l].field_size) /
-                                        layers[l].field_stride + 1;
-        layers[l].output_cols = (layers[l].input_cols - layers[l].field_size) /
-                                        layers[l].field_stride + 1;
+        layers[l].outputs.rows =
+                (layers[l].inputs.rows - layers[l].weights.cols) /
+                        layers[l].field_stride + 1;
+        layers[l].outputs.cols =
+                (layers[l].inputs.cols - layers[l].weights.cols) /
+                        layers[l].field_stride + 1;
         // Number of kernels is the third dimension of the output.
-        layers[l].output_height = cfg_getint(conv_params, "num_output");
-    } else if (layers[l].type == POOLING) {
-        layers[l].output_rows =
-                (layers[l].input_rows - layers[l].field_size) / layers[l].field_stride +
-                1;
-        layers[l].output_cols =
-                (layers[l].input_cols - layers[l].field_size) / layers[l].field_stride +
-                1;
-        layers[l].output_height = layers[l].input_height;
-    } else if (layers[l].type == FC) {
-        layers[l].output_cols = layers[l].input_cols;
-        layers[l].output_rows = 1;
-        layers[l].output_height = 1;
+        layers[l].outputs.height = cfg_getint(conv_params, "num_output");
+
+        assert(layers[l].weights.rows != -1);
+        assert(layers[l].c_padding != -1);
+        assert(layers[l].outputs.height != -1);
+        return;
+    }
+
+    if (layers[l].type == FC) {
+        cfg_t* fc_params = cfg_getsec(layer_opts, "inner_product_param");
+        layers[l].inputs.rows = 1;
+        if (layers[l - 1].type != FC) {
+            // If the previous layer was not an FC layer, we have to flatten
+            // the previous layer's output.
+            layers[l].inputs.cols = layers[l-1].outputs.rows *
+                                    layers[l-1].outputs.cols *
+                                    layers[l-1].outputs.height;
+        } else {
+            layers[l].inputs.cols = layers[l-1].outputs.cols;
+        }
+
+        layers[l].weights.rows = layers[l].inputs.cols + 1;  // for bias.
+        layers[l].weights.cols = cfg_getint(fc_params, "num_output");
+
+        layers[l].outputs.rows = layers[l].inputs.rows;
+        layers[l].outputs.cols = layers[l].weights.cols;
+
+        layers[l].inputs.height = 1;
+        layers[l].outputs.height = 1;
+        layers[l].weights.height = 1;
+        return;
+    }
+
+    if (layers[l].type == POOLING) {
+      layers[l].inputs.rows = layers[l - 1].outputs.rows;
+      layers[l].inputs.cols = layers[l - 1].outputs.cols;
+      layers[l].inputs.height = layers[l - 1].outputs.height;
+
+      cfg_t* pool_params = cfg_getsec(layer_opts, "pooling_param");
+      layers[l].weights.rows = cfg_getint(pool_params, "size");
+      layers[l].weights.cols = cfg_getint(pool_params, "size");
+      layers[l].weights.height = 0;  // Not used.
+      layers[l].field_stride = cfg_getint(pool_params, "stride");
+
+      layers[l].outputs.rows = (layers[l].inputs.rows - layers[l].weights.cols) /
+                                       layers[l].field_stride +
+                               1;
+      layers[l].outputs.cols = (layers[l].inputs.cols - layers[l].weights.cols) /
+                                       layers[l].field_stride +
+                               1;
+      layers[l].outputs.height = layers[l].inputs.height;
+      assert(layers[l].weights.rows != -1);
+      assert(layers[l].field_stride != -1);
+      return;
+    }
+
+    if (layers[l].type == SOFTMAX) {
+      layers[l].inputs.rows = layers[l - 1].outputs.rows;
+      layers[l].inputs.cols = layers[l - 1].outputs.cols;
+      layers[l].inputs.height = layers[l - 1].outputs.height;
+      layers[l].weights.rows = 0;
+      layers[l].weights.cols = 0;
+      layers[l].weights.height = 0;
+      layers[l].outputs.rows = layers[l].inputs.rows;
+      layers[l].outputs.cols = layers[l].inputs.cols;
+      layers[l].outputs.height = layers[l].inputs.height;
+      return;
     }
 }
 
 static void handle_data_alignment(layer_t* layers, int l) {
-    layers[l].input_data_align_pad =
-            calc_padding(layers[l].input_cols, data_alignment);
-    layers[l].output_data_align_pad =
-            calc_padding(layers[l].output_cols, data_alignment);
+    if (layers[l].input_preprocessing == UNFLATTEN) {
+        // When unflattening, we need to align each row, not the flattened
+        // dimension, of the input.
+        layers[l].inputs.align_pad =
+                calc_padding(layers[l - 1].outputs.cols, data_alignment);
+        // The output is aligned as usual.
+        layers[l].outputs.align_pad =
+                calc_padding(layers[l].outputs.cols, data_alignment);
+    } else {
+        // The input pad amount is determined by the number of
+        // desired cols for this layer.
+        layers[l].inputs.align_pad =
+                calc_padding(layers[l].inputs.cols, data_alignment);
+        layers[l].outputs.align_pad =
+                calc_padding(layers[l].outputs.cols, data_alignment);
+    }
+    layers[l].weights.align_pad =
+            calc_padding(layers[l].weights.cols, data_alignment);
 }
 
 static void read_top_level_config(layer_t* layers, cfg_t* network_opts) {
-    layers[0].input_rows = cfg_getint(network_opts, "input_rows");
-    layers[0].input_cols = cfg_getint(network_opts, "input_cols");
-    layers[0].input_height = cfg_getint(network_opts, "input_height");
+    layers[0].inputs.rows = cfg_getint(network_opts, "input_rows");
+    layers[0].inputs.cols = cfg_getint(network_opts, "input_cols");
+    layers[0].inputs.height = cfg_getint(network_opts, "input_height");
     layers[0].type = INPUT;
     layers[0].activation = NONE;
-    layers[0].output_rows = layers[0].input_rows;
-    layers[0].output_cols = layers[0].input_cols;
-    layers[0].output_height = layers[0].input_height;
+    layers[0].outputs.rows = layers[0].inputs.rows;
+    layers[0].outputs.cols = layers[0].inputs.cols;
+    layers[0].outputs.height = layers[0].inputs.height;
     data_alignment = DATA_ALIGNMENT;
-    handle_data_alignment(layers, 0);
 }
 
 static void read_layer_config(layer_t* layers, cfg_t* network_opts, int l) {
     cfg_t* current_layer_opts = cfg_getnsec(network_opts, "layer", l - 1);
     set_layer_type(layers, current_layer_opts, l);
-    set_layer_aux_params(layers, current_layer_opts, l);
-    set_layer_input_dims(layers, current_layer_opts, l);
-    set_layer_output_dims(layers, current_layer_opts, l);
+    set_layer_dims(layers, current_layer_opts, l);
 }
 
 static void print_layer_config(layer_t* layers, int num_layers) {
@@ -189,38 +211,39 @@ static void print_layer_config(layer_t* layers, int num_layers) {
         if (type == CONV) {
             printf("  Convolutional\n");
             printf("    Input size: %d x %d x %d (after padding)\n",
-                   layers[i].input_rows, layers[i].input_cols,
-                   layers[i].input_height);
-            printf("    Output size: %d x %d x %d\n", layers[i].output_rows,
-                   layers[i].output_cols, layers[i].output_height);
-            printf("    Kernel size: %d x %d x %d\n", layers[i].field_size,
-                   layers[i].field_size, layers[i].input_height);
-            printf("    Num kernels: %d\n", layers[i].output_height);
+                   layers[i].inputs.rows, layers[i].inputs.cols,
+                   layers[i].inputs.height);
+            printf("    Output size: %d x %d x %d\n", layers[i].outputs.rows,
+                   layers[i].outputs.cols, layers[i].outputs.height);
+            printf("    Kernel size: %d x %d x %d\n", layers[i].weights.cols,
+                   layers[i].weights.cols, layers[i].inputs.height);
+            printf("    Num kernels: %d\n", layers[i].outputs.height);
             printf("    Padding: %d\n", layers[i].c_padding);
             printf("    Stride: %d\n", layers[i].field_stride);
         } else if (type == FC) {
             printf("  Fully connected\n");
-            printf("    Weights: %d x %d\n", layers[i].input_rows,
-                   layers[i].input_cols);
+            printf("    Input size: %d x %d\n", layers[i].inputs.rows,
+                   layers[i].inputs.cols);
+            printf("    Weights: %d x %d\n", layers[i].weights.rows,
+                   layers[i].weights.cols);
         } else if (type == POOLING) {
             printf("  Max pooling\n");
-            printf("    Input size: %d x %d x %d\n", layers[i].input_rows,
-                   layers[i].input_cols, layers[i].input_height);
-            printf("    Output size: %d x %d x %d\n", layers[i].output_rows,
-                   layers[i].output_cols, layers[i].output_height);
-            printf("    Field size: %d\n", layers[i].field_size);
+            printf("    Input size: %d x %d x %d\n", layers[i].inputs.rows,
+                   layers[i].inputs.cols, layers[i].inputs.height);
+            printf("    Output size: %d x %d x %d\n", layers[i].outputs.rows,
+                   layers[i].outputs.cols, layers[i].outputs.height);
+            printf("    Field size: %d\n", layers[i].weights.cols);
             printf("    Stride: %d\n", layers[i].field_stride);
-            printf("    Height: %d\n", layers[i].output_height);
+            printf("    Height: %d\n", layers[i].outputs.height);
         } else if (type == SOFTMAX) {
             printf("  Softmax\n");
         } else if (type == INPUT) {
             printf("  Input layer\n");
-            printf("    Input size: %d x %d x %d\n",
-                   layers[i].input_rows, layers[i].input_cols,
-                   layers[i].input_height);
+            printf("    Input size: %d x %d x %d\n", layers[i].inputs.rows,
+                   layers[i].inputs.cols, layers[i].inputs.height);
         }
-        printf("    Input data padding: %d\n", layers[i].input_data_align_pad);
-        printf("    Output data padding: %d\n", layers[i].output_data_align_pad);
+        printf("    Input data padding: %d\n", layers[i].inputs.align_pad);
+        printf("    Output data padding: %d\n", layers[i].outputs.align_pad);
         printf("    Activation: %s\n",
                act == RELU ? "RELU" : act == SIGMOID ? "SIGMOID" : "NONE");
     }
@@ -246,23 +269,40 @@ int configure_network_from_file(const char* cfg_file, layer_t** layers_ptr) {
 
     layer_t* layers = *layers_ptr;
 
-    read_top_level_config(layers, network_opts);
+    //=---------------------  STEP 1 -----------------------=//
+    // First, read in all the parameters from the configuration
+    // file for each layer.
 
+    read_top_level_config(layers, network_opts);
     for (int i = 1; i < num_layers; i++) {
         read_layer_config(layers, network_opts, i);
-        handle_data_alignment(layers, i);
     }
 
-    bool found_first_fc_layer = false;
-    for (int i = 1; i < num_layers && !found_first_fc_layer; i++) {
-        if (layers[i].type == FC) {
-            layers[i].flatten_input = true;
-            found_first_fc_layer = true;
+    //=---------------------  STEP 2 -----------------------=//
+    // Identify layers that require their input to be flattened
+    // (CONV/INPUT to FC) or unflattened (FC to CONV).
+
+    layers[0].input_preprocessing = NO_PREPROCESSING;
+    for (int i = 1; i < num_layers; i++) {
+        if (layers[i].type == FC && layers[i-1].type != FC) {
+            layers[i].input_preprocessing = FLATTEN;
+        } else if (layers[i].type == CONV && layers[i-1].type == FC) {
+            layers[i].input_preprocessing = UNFLATTEN;
+        } else {
+            layers[i].input_preprocessing = NO_PREPROCESSING;
         }
     }
 
+    //=---------------------  STEP 3 -----------------------=//
+    // Compute data alignment requirements for each layer's
+    // inputs and weights. This needs to account for flattening.
+
+    for (int i = 0; i < num_layers; i++) {
+        handle_data_alignment(layers, i);
+    }
+
     // Set some global variables.
-    NUM_CLASSES = layers[num_layers-1].output_cols;
+    NUM_CLASSES = layers[num_layers-1].outputs.cols;
     INPUT_DIM = input_rows * input_cols * input_height;
 
     print_layer_config(*layers_ptr, num_layers);

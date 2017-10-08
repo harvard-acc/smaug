@@ -18,6 +18,7 @@ void matrix_multiply_with_bias_smiv_batch_fxp(float* a,
                                               int a_height,
                                               int b_height,
                                               int b_width,
+                                              int a_pad,
                                               bool run_activation,
                                               float* result);
 
@@ -26,6 +27,7 @@ void matrix_multiply_with_bias_smiv_nobatch_fxp(float* a,
                                                 int a_height,
                                                 int b_height,
                                                 int b_width,
+                                                int a_pad,
                                                 bool run_activation,
                                                 float* result);
 

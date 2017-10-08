@@ -11,6 +11,7 @@ void im2row(float* input,
             int input_cols,
             int input_height,
             int input_pad,
+            int output_pad,
             float* result);
 
 #endif

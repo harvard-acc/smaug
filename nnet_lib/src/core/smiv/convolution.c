@@ -119,17 +119,18 @@ void convolution2d_smiv_1kernel_1channel_fxp(float* a,
                                              float* result) {
     int in_row, in_col, out_row, out_col, sr, kern_row, j;
 
-    const int a_height = curr_layer.input_rows;
-    const int a_width = curr_layer.input_cols;
-    const int a_pad = curr_layer.input_data_align_pad;
+    const int a_height = curr_layer.inputs.rows;
+    const int a_width = curr_layer.inputs.cols;
+    const int a_pad = curr_layer.inputs.align_pad;
 
-    const int result_height = curr_layer.output_rows;
-    const int result_width = curr_layer.output_cols;
-    const int result_pad = curr_layer.output_data_align_pad;
+    const int result_height = curr_layer.outputs.rows;
+    const int result_width = curr_layer.outputs.cols;
+    const int result_pad = curr_layer.outputs.align_pad;
 
     // Filter is k_width x k_width x k_height.
-    const int k_width = curr_layer.field_size;
-    const int k_height =  curr_layer.input_height;
+    const int k_width = curr_layer.weights.cols;
+    const int k_height =  curr_layer.inputs.height;
+    const int k_pad = curr_layer.weights.align_pad;
     const int k_stride = curr_layer.field_stride;
 
     // Convolution control parameters.
@@ -163,7 +164,7 @@ void convolution2d_smiv_1kernel_1channel_fxp(float* a,
     const int end_kern = k_width;
 
     ARRAY_4D(float, _a, a, k_height, a_height, a_width + a_pad);
-    ARRAY_4D(float, _kernels, kernels, k_height, k_width, k_width);
+    ARRAY_4D(float, _kernels, kernels, k_height, k_width, k_width + k_pad);
     ARRAY_3D(float, _result, result, result_height, result_width + result_pad);
 
     int end_col_marker = (input_fetches_per_row - 1) * 8;

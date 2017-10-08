@@ -26,15 +26,15 @@ result_buf run_layer_skip_activation_func(float* activations,
 
     if (l_type == FC) {
         PRINT_MSG("\nInner product.\n");
-        if (curr_layer.flatten_input) {
+        if (curr_layer.input_preprocessing == FLATTEN) {
             PRINT_MSG("Flattening the input.\n");
             result_loc = flatten_input(activations, layers, layer_num, result);
         }
-        if (curr_layer.flatten_input && result_loc == result) {
+        if (curr_layer.input_preprocessing == FLATTEN && result_loc == result) {
             PRINT_MSG("After flattening:\n");
             PRINT_DEBUG(result_loc, NUM_TEST_CASES,
-                        layers[layer_num].input_rows - 1,
-                        layers[layer_num].input_rows - 1);
+                        layers[layer_num].inputs.cols,
+                        layers[layer_num].inputs.cols);
             result_loc = inner_product_layer(
                     result, weights, layers, layer_num, activations);
         } else {
@@ -55,9 +55,9 @@ result_buf run_layer_skip_activation_func(float* activations,
     }
 
     PRINT_MSG("Result of layer %d:\n", layer_num);
-    PRINT_DEBUG4D(result_loc, curr_layer.output_rows,
-                  curr_layer.output_cols + curr_layer.output_data_align_pad,
-                  curr_layer.output_height);
+    PRINT_DEBUG4D(result_loc, curr_layer.outputs.rows,
+                  curr_layer.outputs.cols + curr_layer.outputs.align_pad,
+                  curr_layer.outputs.height);
 
     return result_loc;
 }

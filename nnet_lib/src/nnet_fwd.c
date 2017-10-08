@@ -53,31 +53,31 @@ size_t calc_layer_intermediate_memory(layer_t* layers, int lnum) {
     layer_t layer = layers[lnum];
 
     if (layer.type == INPUT) {
-        usage = layer.input_rows *
-                (layer.input_cols + layer.input_data_align_pad) *
-                layer.input_height;
+        usage = layer.inputs.rows *
+                (layer.inputs.cols + layer.inputs.align_pad) *
+                layer.inputs.height;
     } else if (layer.type == FC || layer.type == SOFTMAX) {
-        usage = layer.output_rows *
-                (layer.output_cols + layer.output_data_align_pad);
-        if (layer.flatten_input) {
+        usage = layer.outputs.rows *
+                (layer.outputs.cols + layer.outputs.align_pad);
+        if (layer.input_preprocessing == FLATTEN) {
             // Flattening the input will require the second buffer.
             layer_t prev_layer = layers[lnum];
-            flattened_usage = prev_layer.output_rows *
-                              (prev_layer.output_cols +
-                               prev_layer.output_data_align_pad) *
-                              prev_layer.output_height;
+            flattened_usage =
+                    prev_layer.outputs.rows *
+                    (prev_layer.outputs.cols + prev_layer.outputs.align_pad) *
+                    prev_layer.outputs.height;
             usage = max(usage, flattened_usage);
         } else {
-            usage = layer.output_rows *
-                    (layer.output_cols + layer.output_data_align_pad);
+            usage = layer.outputs.rows *
+                    (layer.outputs.cols + layer.outputs.align_pad);
         }
     } else if (layer.type == CONV || layer.type == POOLING) {
-        usage = max(layer.input_rows *
-                            (layer.input_cols + layer.input_data_align_pad) *
-                            layer.input_height,
-                    layer.output_rows *
-                            (layer.output_cols + layer.output_data_align_pad) *
-                            layer.output_height);
+        usage = max(layer.inputs.rows *
+                            (layer.inputs.cols + layer.inputs.align_pad) *
+                            layer.inputs.height,
+                    layer.outputs.rows *
+                            (layer.outputs.cols + layer.outputs.align_pad) *
+                            layer.outputs.height);
     } else {
         usage = 0;
     }
@@ -133,9 +133,9 @@ int main(int argc, const char* argv[]) {
     farray_t hid_temp = { NULL, 0 };
     layer_t input_layer = network.layers[0];
     size_t data_size =
-            NUM_TEST_CASES * input_layer.input_rows *
-            (input_layer.input_cols + input_layer.input_data_align_pad) *
-            input_layer.input_height;
+            NUM_TEST_CASES * input_layer.inputs.rows *
+            (input_layer.inputs.cols + input_layer.inputs.align_pad) *
+            input_layer.inputs.height;
 
     printf("Setting up arrays\n");
     // Get the dimensions of the biggest matrix that will ever come out of

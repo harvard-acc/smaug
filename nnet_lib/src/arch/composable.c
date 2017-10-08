@@ -34,8 +34,8 @@ void inner_product_layer_hw(float* activations,
     grab_matrix_dma(weights, lnum, layers);
     grab_input_activations_dma(activations, lnum, layers);
     MATRIX_MULTIPLY_WITH_BIAS(
-            activations, weights, NUM_TEST_CASES, layers[lnum].input_rows,
-            layers[lnum].input_cols + layers[lnum].input_data_align_pad,
+            activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows,
+            layers[lnum].weights.cols + layers[lnum].weights.align_pad,
             result);
     store_output_activations_dma(result, lnum, layers);
 }
@@ -76,10 +76,8 @@ result_buf convolution_layer(float* activations,
 
     layer_t curr_layer = layers[lnum];
     if (curr_layer.c_padding > 0) {
-        // TODO: Why not use c_padding directly??
-        int padding = (curr_layer.field_size - 1) / 2;
         // TODO: Replace this with a memcpy implementation.
-        copy_zeropad(activations, curr_layer, padding, result);
+        copy_zeropad(activations, curr_layer, result);
         INVOKE_KERNEL(kConvolutionHw, convolution_layer_hw, result, weights,
                       layers, lnum, activations);
 
@@ -156,9 +154,9 @@ result_buf run_layer(float* activations,
             activation_sublayer(result, layers, layer_num, sigmoid_table);
         }
 
-        PRINT_DEBUG4D(result_loc, curr_layer.output_rows,
-                      curr_layer.output_cols + curr_layer.output_data_align_pad,
-                      curr_layer.output_height);
+        PRINT_DEBUG4D(result_loc, curr_layer.outputs.rows,
+                      curr_layer.outputs.cols + curr_layer.outputs.align_pad,
+                      curr_layer.outputs.height);
     }
 
     return result_loc;

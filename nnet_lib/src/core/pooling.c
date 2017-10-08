@@ -25,12 +25,12 @@ void max_pooling_image3d(float* input, int img, float* result, layer_t curr_laye
     int h, i, j, k, l, oi, oj;
     float curr_max;
 
-    int rows = curr_layer.input_rows;
-    int cols = curr_layer.input_cols;
-    int in_pad = curr_layer.input_data_align_pad;
-    int hgt = curr_layer.input_height;
+    int rows = curr_layer.inputs.rows;
+    int cols = curr_layer.inputs.cols;
+    int in_pad = curr_layer.inputs.align_pad;
+    int hgt = curr_layer.inputs.height;
     int stride = curr_layer.field_stride;
-    int size = curr_layer.field_size;
+    int size = curr_layer.weights.cols;
 
 #if TREE_MAX == 1
     int total_pool_size = size * size;
@@ -39,8 +39,8 @@ void max_pooling_image3d(float* input, int img, float* result, layer_t curr_laye
 #endif
 
     ARRAY_4D(float, _input, input, hgt, rows, cols + in_pad);
-    ARRAY_4D(float, _result, result, hgt, curr_layer.output_rows,
-             curr_layer.output_cols + curr_layer.output_data_align_pad);
+    ARRAY_4D(float, _result, result, hgt, curr_layer.outputs.rows,
+             curr_layer.outputs.cols + curr_layer.outputs.align_pad);
 
 maxpool_input_height:
     for (h = 0; h < hgt; h++) {

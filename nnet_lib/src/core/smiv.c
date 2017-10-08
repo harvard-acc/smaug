@@ -21,11 +21,11 @@ void convolution2d_smiv(float* a,
                         float* result) {
     int ni, nk, nc;
 
-    const int input_height = curr_layer.input_height;
-    const int input_rows = curr_layer.input_rows;
-    const int input_cols = curr_layer.input_cols;
-    const int input_pad = curr_layer.input_data_align_pad;
-    const int num_kerns = curr_layer.output_height;
+    const int input_height = curr_layer.inputs.height;
+    const int input_rows = curr_layer.inputs.rows;
+    const int input_cols = curr_layer.inputs.cols;
+    const int input_pad = curr_layer.inputs.align_pad;
+    const int num_kerns = curr_layer.outputs.height;
 
     // Stores the unreduced convolution output.
     // TODO: This may become an issue with the stack size.
@@ -53,6 +53,7 @@ void matrix_multiply_with_bias_smiv(float* a,
                                     int a_height,
                                     int b_height,
                                     int b_width,
+                                    int a_pad,
                                     bool run_activation,
                                     float* result) {
 #ifdef ENABLE_SIMD_IMPL
@@ -61,10 +62,10 @@ void matrix_multiply_with_bias_smiv(float* a,
 #else
 #ifdef DISABLE_SMIV_INPUT_BATCHING
     matrix_multiply_with_bias_smiv_nobatch_fxp(
-            a, b, a_height, b_height, b_width, run_activation, result);
+            a, b, a_height, b_height, b_width, a_pad, run_activation, result);
 #else
     matrix_multiply_with_bias_smiv_batch_fxp(
-            a, b, a_height, b_height, b_width, run_activation, result);
+            a, b, a_height, b_height, b_width, a_pad, run_activation, result);
 #endif
 #endif
 }

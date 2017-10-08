@@ -10,13 +10,13 @@ void reduction_smiv_fxp(
         float* a, layer_t curr_layer, int img, int kern, float* result) {
     unsigned row, col, chan, c;
 
-    const int result_height = curr_layer.output_rows;
-    const int result_width = curr_layer.output_cols;
-    const int result_pad = curr_layer.output_data_align_pad;
+    const int result_height = curr_layer.outputs.rows;
+    const int result_width = curr_layer.outputs.cols;
+    const int result_pad = curr_layer.outputs.align_pad;
     const int padded_width = result_width + result_pad;
 
-    const int k_height =  curr_layer.input_height;
-    const int num_kerns = curr_layer.output_height;
+    const int k_height =  curr_layer.inputs.height;
+    const int num_kerns = curr_layer.outputs.height;
     const bool run_activation = curr_layer.activation != NONE;
 
 #ifdef TRACE_MODE

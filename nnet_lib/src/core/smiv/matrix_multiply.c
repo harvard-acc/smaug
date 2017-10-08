@@ -16,6 +16,7 @@ void matrix_multiply_with_bias_smiv_batch_fxp(float* a,
                                               int a_height,
                                               int b_height,
                                               int b_width,
+                                              int a_pad,
                                               bool run_activation,
                                               float* result) {
     int wgt_row, wgt_col, wgt_b;
@@ -25,7 +26,7 @@ void matrix_multiply_with_bias_smiv_batch_fxp(float* a,
 
     int a_width = b_height - 1;
 
-    ARRAY_2D(float, _a, a, a_width);
+    ARRAY_2D(float, _a, a, a_width + a_pad);
     ARRAY_2D(float, _b, b, b_width);
     ARRAY_2D(float, _result, result, b_width);
 
@@ -96,6 +97,7 @@ void matrix_multiply_with_bias_smiv_nobatch_fxp(float* a,
                                                 int a_height,
                                                 int b_height,
                                                 int b_width,
+                                                int a_pad,
                                                 bool run_activation,
                                                 float* result) {
     int wgt_row, wgt_col, wgt_b, input_act;
@@ -104,7 +106,7 @@ void matrix_multiply_with_bias_smiv_nobatch_fxp(float* a,
 
     int a_width = b_height - 1;
 
-    ARRAY_2D(float, _a, a, a_width);
+    ARRAY_2D(float, _a, a, a_width + a_pad);
     ARRAY_2D(float, _b, b, b_width);
     ARRAY_2D(float, _result, result, b_width);
 

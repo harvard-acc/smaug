@@ -38,9 +38,9 @@ void inner_product_layer_hw(float* activations,
     if (layers[lnum].needs_input_dma_load)
         grab_input_activations_dma(activations, lnum, layers);
     matrix_multiply_with_bias_smiv(
-            activations, weights, NUM_TEST_CASES, layers[lnum].input_rows,
-            layers[lnum].input_cols + layers[lnum].input_data_align_pad,
-            run_activation, result);
+            activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows,
+            layers[lnum].weights.cols + layers[lnum].weights.align_pad,
+            layers[lnum].inputs.align_pad, run_activation, result);
     if (layers[lnum].needs_output_dma_store)
         store_output_activations_dma(result, lnum, layers);
 }
@@ -83,14 +83,13 @@ result_buf convolution_layer(float* activations,
 
     layer_t curr_layer = layers[lnum];
     if (curr_layer.c_padding > 0) {
-        int padding = (curr_layer.field_size - 1) / 2;
         // TODO: Replace this with a memcpy implementation.
-        copy_zeropad(activations, curr_layer, padding, result);
+        copy_zeropad(activations, curr_layer, result);
         PRINT_MSG("After zeropadding:\n");
         PRINT_DEBUG4D(result,
-                      curr_layer.input_rows,
-                      curr_layer.input_cols + curr_layer.input_data_align_pad,
-                      curr_layer.input_height);
+                      curr_layer.inputs.rows,
+                      curr_layer.inputs.cols + curr_layer.inputs.align_pad,
+                      curr_layer.inputs.height);
         INVOKE_KERNEL(kConvolutionHw, convolution_layer_hw, result, weights,
                       layers, lnum, activations);
 
@@ -145,7 +144,7 @@ void set_dma_requirements(network_t* network) {
         if (layer_num == network->depth - 1 ||
             network->layers[layer_num].activation == SIGMOID ||
             network->layers[layer_num].type == POOLING ||
-            network->layers[layer_num].flatten_input ||
+            network->layers[layer_num].input_preprocessing == FLATTEN ||
             network->layers[layer_num + 1].type == POOLING ||
             network->layers[layer_num + 1].type == SOFTMAX) {
             network->layers[layer_num].needs_output_dma_store = true;

@@ -28,6 +28,12 @@ typedef enum _activation_type {
     SIGMOID,
 } activation_type;
 
+typedef enum _input_pp {
+    FLATTEN,
+    UNFLATTEN,
+    NO_PREPROCESSING,
+} input_pp;
+
 typedef enum _layer_type {
     // 2D convolutional layer.
     CONV,
@@ -46,6 +52,13 @@ typedef enum _layer_type {
     END
 } layer_type;
 
+typedef struct dims_t {
+  int rows;
+  int cols;
+  int height;
+  int align_pad;
+} dims_t;
+
 // Description of a layer in a neural network.
 //
 // TODO: Due to Aladdin's requirement to specify a word size for arrays, all
@@ -58,6 +71,10 @@ typedef struct _layer_t {
 
   // Type of activation function.
   activation_type activation;
+
+  dims_t inputs;
+  dims_t weights;
+  dims_t outputs;
 
   // Data input/output dimensions on a per iteration basis.
   //
@@ -82,15 +99,8 @@ typedef struct _layer_t {
   //      of output feature maps).
   //    Pool layers: input/output heights are equal to number of input feature maps.
   //    All other layers: 1.
-  int input_rows;
-  int input_cols;
-  int input_height;
-  int output_rows;
-  int output_cols;
-  int output_height;
 
   // For CONV and POOL layers
-  int field_size;
   int field_stride;
 
   // CONV layers only.
@@ -106,9 +116,7 @@ typedef struct _layer_t {
   int input_data_align_pad;
   int output_data_align_pad;
 
-  // If this layer is the first classifier layer, then flatten the input into
-  // row vectors first.
-  int flatten_input;
+  input_pp input_preprocessing;
 
   int needs_input_dma_load;
   int needs_output_dma_store;
