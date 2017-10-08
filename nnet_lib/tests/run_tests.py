@@ -68,7 +68,7 @@ class BaseTest(unittest.TestCase):
       print "--------------------------------\n"
       with open(self.output_filename, "r") as f:
         for line in f:
-          print line
+          print line.strip()
       print "--------------------------------"
 
     return returncode
