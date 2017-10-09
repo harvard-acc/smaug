@@ -163,7 +163,7 @@ void matrix_multiply_with_bias_smiv_nobatch_vec_fxp(float* a,
                                                     bool run_activation,
                                                     float* result) {
     int wgt_row, wgt_col, wgt_b, input_act;
-    float input;
+    // float input;
     v8fp_t weights, product;
 
     int a_width = b_height - 1;
@@ -198,9 +198,14 @@ void matrix_multiply_with_bias_smiv_nobatch_vec_fxp(float* a,
                 // the explicit loop goes over the vector of input activations.
                 wgt_b_macc:
                 for (wgt_b = 0; wgt_b < VECTOR_SIZE; wgt_b++) {
-                    input = activation_reg[wgt_b];
                     weights = _b[wgt_row + wgt_b][wgt_col];
-                    product = weights * input;
+                    // clang 3.4 doesn't support vector * scalar binary
+                    // operations, or automatically splatting a scalar across a
+                    // vector during initialization.
+                    float input = activation_reg[wgt_b];
+                    v8fp_t input_vec = (v8fp_t){ input, input, input, input,
+                                                 input, input, input, input };
+                    product = weights * input_vec;
                     partial_sums += product;
                 }
             }

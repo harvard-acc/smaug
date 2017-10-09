@@ -79,7 +79,7 @@ void reduction_smiv_vec_fxp(
     for (row = 0; row < result_height; row++) {
         reduction_col:
         for (col = 0; col < vec_padded_width; col++) {
-            v8fp_t partial_sums = (v8fp_t){0};
+            v8fp_t partial_sums = (v8fp_t){ 0, 0, 0, 0, 0, 0, 0, 0 };
             reduction_chan:
             for (chan = 0; chan < k_height; chan++) {
                 partial_sums += _a[chan][row][col];
