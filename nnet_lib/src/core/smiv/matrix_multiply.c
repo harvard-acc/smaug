@@ -181,7 +181,6 @@ void matrix_multiply_with_bias_smiv_nobatch_vec_fxp(float* a,
     VEC_ARRAY_2D(v8fp_t, _b, b, b_width);
     VEC_ARRAY_2D(v8fp_t, _result, result, b_width);
     v8fp_t partial_sums;
-    v8fp_t zero = (v8fp_t){0};
 
     input_act:
     for (input_act = 0; input_act < a_height; input_act++) {
@@ -208,13 +207,7 @@ void matrix_multiply_with_bias_smiv_nobatch_vec_fxp(float* a,
 
             // Run through activation function.
             if (run_activation) {
-                // With vector literals, the comparison returns a vector of
-                // signed ints, each of which are either all zero or all one.
-                // An easy way to implement RELU is just to bitwise AND the
-                // comparison result with the partial sums, which requires some
-                // casting to and from integer and fp vector types.
-                v8sfx_t mask = (partial_sums > zero);
-                partial_sums = ((v8fp_t)((v8sfx_t)partial_sums & mask));
+                RELU_VEC_SMIV(partial_sums);
             }
 
             // Store to scratchpad.

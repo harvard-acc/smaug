@@ -43,7 +43,11 @@ void convolution2d_smiv(float* a,
                 convolution2d_smiv_1kernel_1channel_fxp(
                         a, kernels, ni, nk, nc, curr_layer, &temp[0][0][0]);
             }
+#ifdef ENABLE_SIMD_IMPL
+            reduction_smiv_vec_fxp(&temp[0][0][0], curr_layer, ni, nk, result);
+#else
             reduction_smiv(&temp[0][0][0], curr_layer, ni, nk, result);
+#endif
         }
     }
 }

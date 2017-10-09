@@ -13,6 +13,9 @@ void convolution2d_smiv_1kernel_1channel_fxp(float* a,
 void reduction_smiv_fxp(
         float* a, layer_t curr_layer, int img, int kern, float* result);
 
+void reduction_smiv_vec_fxp(
+        float* a, layer_t curr_layer, int img, int kern, float* result);
+
 void matrix_multiply_with_bias_smiv_batch_fxp(float* a,
                                               float* b,
                                               int a_height,
@@ -39,5 +42,24 @@ void matrix_multiply_with_bias_smiv_nobatch_vec_fxp(float* a,
                                                     int a_pad,
                                                     bool run_activation,
                                                     float* result);
+
+// Compute a RELU with vector literals.
+//
+// With vector literals, the comparison returns a vector of signed ints, each
+// of which are either all zero or all one.  An easy way to implement RELU is
+// just to bitwise AND the comparison result with the partial sums, which
+// requires some casting to and from integer and fp vector types.
+//
+// If we made this an actual function, we would need to return a vector literal
+// by value (we can't use pointers with Aladdin since this is not a pre-declared
+// array), and returning a vector by value requires support for AVX on the
+// host, which we're not guaranteed to have. Instead, make this a macro so we can
+// get code reuse.
+#define RELU_VEC_SMIV(activations)                                             \
+    do {                                                                       \
+        v8fp_t zero = (v8fp_t){ 0 };                                           \
+        v8sfx_t mask = (activations > zero);                                   \
+        activations = ((v8fp_t)((v8sfx_t)activations & mask));                 \
+    } while (0)
 
 #endif

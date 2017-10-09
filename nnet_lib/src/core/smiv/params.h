@@ -17,9 +17,16 @@ typedef fp_t v8fp_t
 typedef sfx_t v8sfx_t
         __attribute__((__vector_size__(VECTOR_SIZE * sizeof(sfx_t))));
 
-#define VEC_ARRAY_2D(TYPE, OUTPUT_NAME, INPUT_NAME, INPUT_WIDTH) \
-    TYPE (*OUTPUT_NAME)[(INPUT_WIDTH)/(VECTOR_SIZE)] =           \
-        (TYPE(*)[(INPUT_WIDTH)/(VECTOR_SIZE)])INPUT_NAME
+#define VEC_ARRAY_2D(type, output_name, input_name, cols)                      \
+    type(*output_name)[(cols) / (VECTOR_SIZE)] =                               \
+            (type(*)[(cols) / (VECTOR_SIZE)])input_name
 
+#define VEC_ARRAY_3D(type, output_name, input_name, rows, cols)                \
+    type(*output_name)[(rows)][(cols) / (VECTOR_SIZE)] =                       \
+            (type(*)[(rows)][(cols) / (VECTOR_SIZE)])input_name
+
+#define VEC_ARRAY_4D(type, output_name, input_name, height, rows, cols)        \
+    type(*output_name)[(height)][(rows)][(cols) / (VECTOR_SIZE)] =             \
+            (type(*)[(height)][(rows)][(cols) / (VECTOR_SIZE)])input_name
 
 #endif
