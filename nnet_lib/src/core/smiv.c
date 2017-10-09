@@ -58,7 +58,7 @@ void matrix_multiply_with_bias_smiv(float* a,
                                     float* result) {
 #ifdef ENABLE_SIMD_IMPL
     matrix_multiply_with_bias_smiv_nobatch_vec_fxp(
-            a, b, a_height, b_height, b_width, run_activation, result);
+            a, b, a_height, b_height, b_width, a_pad, run_activation, result);
 #else
 #ifdef DISABLE_SMIV_INPUT_BATCHING
     matrix_multiply_with_bias_smiv_nobatch_fxp(

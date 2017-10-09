@@ -159,6 +159,7 @@ void matrix_multiply_with_bias_smiv_nobatch_vec_fxp(float* a,
                                                     int a_height,
                                                     int b_height,
                                                     int b_width,
+                                                    int a_pad,
                                                     bool run_activation,
                                                     float* result) {
     int wgt_row, wgt_col, wgt_b, input_act;
@@ -170,16 +171,17 @@ void matrix_multiply_with_bias_smiv_nobatch_vec_fxp(float* a,
 #ifndef TRACE_MODE
     assert(b_width % VECTOR_SIZE == 0 &&
            "Width of weights must be a multiple of VECTOR_SIZE!");
-    assert(a_width % VECTOR_SIZE == 0 &&
+    assert((a_width + a_pad) % VECTOR_SIZE == 0 &&
            "Activation dimensions must be a multiple of VECTOR_SIZE!");
 #endif
 
     int b_width_vec = b_width / VECTOR_SIZE;
 
-    VEC_ARRAY_2D(v8fp_t, _a, a, a_width);
+    VEC_ARRAY_2D(v8fp_t, _a, a, a_width + a_pad);
     VEC_ARRAY_2D(v8fp_t, _b, b, b_width);
     VEC_ARRAY_2D(v8fp_t, _result, result, b_width);
     v8fp_t partial_sums;
+    v8fp_t zero = (v8fp_t){0};
 
     input_act:
     for (input_act = 0; input_act < a_height; input_act++) {
@@ -206,8 +208,13 @@ void matrix_multiply_with_bias_smiv_nobatch_vec_fxp(float* a,
 
             // Run through activation function.
             if (run_activation) {
-                v8fp_t mask = partial_sums > 0;
-                partial_sums *= mask;
+                // With vector literals, the comparison returns a vector of
+                // signed ints, each of which are either all zero or all one.
+                // An easy way to implement RELU is just to bitwise AND the
+                // comparison result with the partial sums, which requires some
+                // casting to and from integer and fp vector types.
+                v8sfx_t mask = (partial_sums > zero);
+                partial_sums = ((v8fp_t)((v8sfx_t)partial_sums & mask));
             }
 
             // Store to scratchpad.
