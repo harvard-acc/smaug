@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "core/activation_functions.h"
 #include "core/convolution.h"
@@ -151,12 +152,15 @@ int main(int argc, const char* argv[]) {
             (void**)&hid_temp.d, CACHELINE_SIZE,
             next_multiple(hid_temp.size * sizeof(float), CACHELINE_SIZE));
     ASSERT_MEMALIGN(hid_temp.d, err);
+    memset(hid_temp.d, 0, hid_temp.size * sizeof(float));
+
     hid.size = max(data_size, hid_temp.size);
     printf("  hid has %lu elements\n", hid.size);
     err = posix_memalign(
             (void**)&hid.d, CACHELINE_SIZE,
             next_multiple(hid.size * sizeof(float), CACHELINE_SIZE));
     ASSERT_MEMALIGN(hid.d, err);
+    memset(hid.d, 0, hid.size * sizeof(float));
 
     // Initialize weights, data, and labels.
     farray_t weights;
@@ -165,6 +169,7 @@ int main(int argc, const char* argv[]) {
             (void**)&weights.d, CACHELINE_SIZE,
             next_multiple(weights.size * sizeof(float), CACHELINE_SIZE));
     ASSERT_MEMALIGN(weights.d, err);
+    memset(weights.d, 0, weights.size * sizeof(float));
     printf("  Total weights: %lu elements\n", weights.size);
     // Get the largest weights size for a single layer - this will be the size
     // of the scratchpad.
@@ -184,6 +189,7 @@ int main(int argc, const char* argv[]) {
             (void**)&labels.d, CACHELINE_SIZE,
             next_multiple(labels.size * sizeof(int), CACHELINE_SIZE));
     ASSERT_MEMALIGN(labels.d, err);
+    memset(labels.d, 0, labels.size * sizeof(float));
 
     init_data(hid.d, &network, NUM_TEST_CASES, RANDOM_DATA);
     init_labels(labels.d, NUM_TEST_CASES, RANDOM_DATA);

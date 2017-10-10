@@ -191,6 +191,9 @@ static void read_top_level_config(layer_t* layers, cfg_t* network_opts) {
     layers[0].outputs.rows = layers[0].inputs.rows;
     layers[0].outputs.cols = layers[0].inputs.cols;
     layers[0].outputs.height = layers[0].inputs.height;
+    layers[0].weights.rows = 0;
+    layers[0].weights.cols = 0;
+    layers[0].weights.height = 0;
 
     // Set the global variables.
     data_alignment = DATA_ALIGNMENT;
