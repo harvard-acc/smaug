@@ -191,7 +191,12 @@ static void read_top_level_config(layer_t* layers, cfg_t* network_opts) {
     layers[0].outputs.rows = layers[0].inputs.rows;
     layers[0].outputs.cols = layers[0].inputs.cols;
     layers[0].outputs.height = layers[0].inputs.height;
+
+    // Set the global variables.
     data_alignment = DATA_ALIGNMENT;
+    input_rows = layers[0].inputs.rows;
+    input_cols = layers[0].inputs.cols;
+    input_height = layers[0].inputs.height;
 }
 
 static void read_layer_config(layer_t* layers, cfg_t* network_opts, int l) {
@@ -304,6 +309,9 @@ int configure_network_from_file(const char* cfg_file, layer_t** layers_ptr) {
     // Set some global variables.
     NUM_CLASSES = layers[num_layers-1].outputs.cols;
     INPUT_DIM = input_rows * input_cols * input_height;
+
+    assert(INPUT_DIM > 0);
+    assert(NUM_CLASSES > 0);
 
     print_layer_config(*layers_ptr, num_layers);
     cfg_free(all_opts);
