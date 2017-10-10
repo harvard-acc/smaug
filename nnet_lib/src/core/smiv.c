@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <string.h>
 
 #include "core/activation_functions.h"
 #include "core/smiv/impls.h"
@@ -12,7 +13,11 @@ void reduction_smiv(float *a,
                     int img,
                     int kern,
                     float *result) {
+#ifdef ENABLE_SIMD_IMPL
+    reduction_smiv_vec_fxp(a, curr_layer, img, kern, result);
+#else
     reduction_smiv_fxp(a, curr_layer, img, kern, result);
+#endif
 }
 
 void convolution2d_smiv(float* a,
@@ -28,8 +33,13 @@ void convolution2d_smiv(float* a,
     const int num_kerns = curr_layer.outputs.height;
 
     // Stores the unreduced convolution output.
-    // TODO: This may become an issue with the stack size.
-    float temp[input_height][input_rows][input_cols + input_pad];
+    // TODO: Obviously this doesn't work for HW!
+    float* temp = (float*)malloc(input_height * input_rows *
+                                 (input_cols + input_pad) * sizeof(float));
+    memset(temp,
+           0,
+           input_height * input_rows * (input_cols + input_pad) *
+                   sizeof(float));
 
     // PRINT_DEBUG4D(a, input_rows, input_cols + input_pad, input_height);
 
@@ -40,16 +50,18 @@ void convolution2d_smiv(float* a,
         for (nk = 0; nk < num_kerns; nk++) {
             conv2d_per_chan:
             for (nc = 0; nc < input_height; nc++) {
-                convolution2d_smiv_1kernel_1channel_fxp(
-                        a, kernels, ni, nk, nc, curr_layer, &temp[0][0][0]);
-            }
 #ifdef ENABLE_SIMD_IMPL
-            reduction_smiv_vec_fxp(&temp[0][0][0], curr_layer, ni, nk, result);
+                convolution2d_smiv_1kernel_1channel_simd_fxp(
+                        a, kernels, ni, nk, nc, curr_layer, temp);
 #else
-            reduction_smiv(&temp[0][0][0], curr_layer, ni, nk, result);
+                convolution2d_smiv_1kernel_1channel_fxp(
+                        a, kernels, ni, nk, nc, curr_layer, temp);
 #endif
+            }
+            reduction_smiv(temp, curr_layer, ni, nk, result);
         }
     }
+    free(temp);
 }
 
 void matrix_multiply_with_bias_smiv(float* a,
