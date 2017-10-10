@@ -9,7 +9,7 @@
 GEM5_SRCS = aladdin_sys_connection.cpp aladdin_sys_constants.cpp dma_interface.c
 GEM5_FULL_SRCS = $(GEM5_SRCS:%=$(ALADDIN_HOME)/gem5/%)
 
-CFLAGS += -g -Wall -Wno-unused-label
+CFLAGS += -g -Wall -Wno-unused-label -mavx
 ifneq ($(ARCH),)
 	CFLAGS += -DARCHITECTURE=$(ARCH)
 endif

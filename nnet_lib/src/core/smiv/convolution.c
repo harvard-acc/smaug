@@ -167,7 +167,7 @@ void convolution2d_smiv_1kernel_1channel_fxp(float* a,
     ARRAY_4D(float, _kernels, kernels, k_height, k_width, k_width + k_pad);
     ARRAY_3D(float, _result, result, result_height, result_width + result_pad);
 
-    int end_col_marker = (input_fetches_per_row - 1) * 8;
+    int end_col_marker = (input_fetches_per_row - 1) * VECTOR_SIZE;
 
     out_row = 0;
     conv2d_row:

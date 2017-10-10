@@ -10,6 +10,14 @@ void convolution2d_smiv_1kernel_1channel_fxp(float* a,
                                              int chan,
                                              layer_t curr_layer,
                                              float* result);
+
+void convolution2d_smiv_1kernel_1channel_simd_fxp(float* a,
+                                                  float* kernels,
+                                                  int img,
+                                                  int kern,
+                                                  int chan,
+                                                  layer_t curr_layer,
+                                                  float* result);
 void reduction_smiv_fxp(
         float* a, layer_t curr_layer, int img, int kern, float* result);
 

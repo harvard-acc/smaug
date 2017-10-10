@@ -8,6 +8,7 @@ CORE_SRCS = core/activation_functions.c \
 						core/flatten.c \
 						core/smiv.c \
 						core/smiv/convolution.c \
+						core/smiv/convolution_simd.c \
 						core/smiv/matrix_multiply.c \
 						core/smiv/reduction.c
 
