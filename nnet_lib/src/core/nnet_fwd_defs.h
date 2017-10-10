@@ -325,7 +325,7 @@ typedef struct _iarray_t {
 #define PRINT_MSG(args...)
 #endif
 
-#define CACHELINE_SIZE 32
+#define CACHELINE_SIZE 64
 
 #define ASSERT_MEMALIGN(ptr, err) \
     assert(err == 0 && "Failed to allocate memory for " #ptr ".\n");
