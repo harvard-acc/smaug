@@ -110,14 +110,13 @@ static void merge_psums_fxp(float psums_0[VECTOR_SIZE],
 //
 // Returns:
 //   The 2D convolution in result[chan].
+//
+// TODO: Rename this to 3d.
 void convolution2d_smiv_1kernel_1channel_fxp(float* a,
                                              float* kernels,
-                                             int img,
-                                             int kern,
-                                             int chan,
                                              layer_t curr_layer,
                                              float* result) {
-    int in_row, in_col, out_row, out_col, sr, kern_row, j;
+    int in_row, in_col, in_chan, out_row, out_col, sr, kern_row, j;
 
     const int a_height = curr_layer.inputs.rows;
     const int a_width = curr_layer.inputs.cols;
@@ -129,7 +128,6 @@ void convolution2d_smiv_1kernel_1channel_fxp(float* a,
 
     // Filter is k_width x k_width x k_height.
     const int k_width = curr_layer.weights.cols;
-    const int k_height =  curr_layer.inputs.height;
     const int k_pad = curr_layer.weights.align_pad;
     const int k_stride = curr_layer.field_stride;
 
@@ -137,6 +135,7 @@ void convolution2d_smiv_1kernel_1channel_fxp(float* a,
     // TODO: Refactor this into a scheduling pass.
     const int row_stride = k_stride;
     const int col_stride = VECTOR_SIZE;
+    const int chan_stride = 1;
     const bool double_tp = k_width < DATAPATH_WIDTH;
     const unsigned init_shamt = double_tp ? k_stride : DATAPATH_WIDTH;
     const unsigned dp_shamt = double_tp ? k_stride * 2 : k_stride;
@@ -162,122 +161,127 @@ void convolution2d_smiv_1kernel_1channel_fxp(float* a,
                                            : input_fetches_per_row - 1) *
                         VECTOR_SIZE;
     const int end_kern = k_width;
+    const int end_chan = curr_layer.inputs.height;
 
-    ARRAY_4D(float, _a, a, k_height, a_height, a_width + a_pad);
-    ARRAY_4D(float, _kernels, kernels, k_height, k_width, k_width + k_pad);
+    ARRAY_3D(float, _a, a, a_height, a_width + a_pad);
+    ARRAY_3D(float, _kernels, kernels, k_width, k_width + k_pad);
     ARRAY_3D(float, _result, result, result_height, result_width + result_pad);
 
     int end_col_marker = (input_fetches_per_row - 1) * VECTOR_SIZE;
 
-    out_row = 0;
-    conv2d_row:
-    for (in_row = 0; in_row < end_row; in_row += row_stride) {
-        out_col = 0;
-        conv2d_col:
-        for (in_col = 0; in_col < end_col; in_col += col_stride) {
-            // Compute schedule.
-            // TODO: Refactor this...
-            unsigned remaining_cols = result_width - out_col;
-            unsigned remaining_per_dp, remainder, dp0_iters, dp1_iters, total_outpx;
-            if (double_tp) {
-              remaining_per_dp = remaining_cols / 2;
-              remainder = remaining_cols % 2;
-              dp0_iters = min(max_psums_per_act, remaining_per_dp + remainder);
-              dp1_iters = min(max_psums_per_act, remaining_per_dp);
-              total_outpx = dp0_iters + dp1_iters;
-            } else {
-              remaining_per_dp = remaining_cols;
-              dp0_iters = min(max_psums_per_act, remaining_per_dp);
-              dp1_iters = min(max_psums_per_act, remaining_per_dp);
-              total_outpx = dp0_iters;
-            }
-            PRINT_MSG("dp0_iters: %d, dp1_iters: %d\n", dp0_iters, dp1_iters);
-
-            // Two partial sum regs, one for each pipe.
-            float psums_0[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-            float psums_1[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-            conv2d_kern_row:
-            for (kern_row = 0; kern_row < end_kern; kern_row ++) {
-                float weights_buffer[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-                float pipe0_shift_reg[SHIFT_REG_SIZE] = {
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-                };
-                float pipe1_shift_reg[SHIFT_REG_SIZE] = {
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-                };
-
-                // Load activations into shift registers.
-                conv2d_load_sr_pipe0:
-                for (sr = 0; sr < min(VECTOR_SIZE, a_width - in_col); sr++) {
-                    pipe0_shift_reg[sr] =
-                            _a[img][chan][in_row + kern_row][in_col + sr];
-                    pipe1_shift_reg[sr] =
-                            _a[img][chan][in_row + kern_row][in_col + sr];
-                }
-                if (!(has_boundary_case && in_col == end_col_marker)) {
-                    conv2d_load_sr_pipe1:
-                    for (sr = 8; sr < min(SHIFT_REG_SIZE, a_width - in_col);
-                         sr++) {
-                        pipe0_shift_reg[sr] =
-                                _a[img][chan][in_row + kern_row][in_col + sr];
-                        pipe1_shift_reg[sr] =
-                                _a[img][chan][in_row + kern_row][in_col + sr];
-                    }
-                }
-
-                PRINT_MSG("Shift registers after loading activations\n");
-                PRINT_DEBUG(&pipe0_shift_reg[0], 1, SHIFT_REG_SIZE, SHIFT_REG_SIZE);
-                PRINT_DEBUG(&pipe1_shift_reg[0], 1, SHIFT_REG_SIZE, SHIFT_REG_SIZE);
-
-                // Load weights into weights buffer, accounting for double tp
-                // mode.
+    conv2d_chan:
+    for (in_chan = 0; in_chan < end_chan; in_chan += chan_stride) {
+        PRINT_MSG("Input channel %d\n", in_chan);
+        out_row = 0;
+        conv2d_row:
+        for (in_row = 0; in_row < end_row; in_row += row_stride) {
+            out_col = 0;
+            conv2d_col:
+            for (in_col = 0; in_col < end_col; in_col += col_stride) {
+                // Compute schedule.
+                // TODO: Refactor this...
+                unsigned remaining_cols = result_width - out_col;
+                unsigned remaining_per_dp, remainder, dp0_iters, dp1_iters, total_outpx;
                 if (double_tp) {
-                  conv2d_load_wgts_double_tp:
-                  for (int w = 0; w < k_width; w++) {
-                      float weight = _kernels[kern][chan][kern_row][w];
-                      weights_buffer[w] = weight;
-                      weights_buffer[DATAPATH_WIDTH + w] = weight;
-                  }
+                  remaining_per_dp = remaining_cols / 2;
+                  remainder = remaining_cols % 2;
+                  dp0_iters = min(max_psums_per_act, remaining_per_dp + remainder);
+                  dp1_iters = min(max_psums_per_act, remaining_per_dp);
+                  total_outpx = dp0_iters + dp1_iters;
                 } else {
-                  int bound = min(k_width, VECTOR_SIZE);
-                  conv2d_load_wgts_single_tp:
-                  for (int w = 0; w < bound; w++) {
-                      weights_buffer[w] = _kernels[kern][chan][kern_row][w];;
-                  }
+                  remaining_per_dp = remaining_cols;
+                  dp0_iters = min(max_psums_per_act, remaining_per_dp);
+                  dp1_iters = min(max_psums_per_act, remaining_per_dp);
+                  total_outpx = dp0_iters;
+                }
+                PRINT_MSG("dp0_iters: %d, dp1_iters: %d\n", dp0_iters, dp1_iters);
+
+                // Two partial sum regs, one for each pipe.
+                float psums_0[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+                float psums_1[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+                conv2d_kern_row:
+                for (kern_row = 0; kern_row < end_kern; kern_row ++) {
+                    float weights_buffer[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+                    float pipe0_shift_reg[SHIFT_REG_SIZE] = {
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                    };
+                    float pipe1_shift_reg[SHIFT_REG_SIZE] = {
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                    };
+
+                    // Load activations into shift registers.
+                    conv2d_load_sr_pipe0:
+                    for (sr = 0; sr < min(VECTOR_SIZE, a_width - in_col); sr++) {
+                        pipe0_shift_reg[sr] =
+                                _a[in_chan][in_row + kern_row][in_col + sr];
+                        pipe1_shift_reg[sr] =
+                                _a[in_chan][in_row + kern_row][in_col + sr];
+                    }
+                    if (!(has_boundary_case && in_col == end_col_marker)) {
+                        conv2d_load_sr_pipe1:
+                        for (sr = 8; sr < min(SHIFT_REG_SIZE, a_width - in_col);
+                             sr++) {
+                            pipe0_shift_reg[sr] =
+                                    _a[in_chan][in_row + kern_row][in_col + sr];
+                            pipe1_shift_reg[sr] =
+                                    _a[in_chan][in_row + kern_row][in_col + sr];
+                        }
+                    }
+
+                    PRINT_MSG("Shift registers after loading activations\n");
+                    PRINT_DEBUG(&pipe0_shift_reg[0], 1, SHIFT_REG_SIZE, SHIFT_REG_SIZE);
+                    PRINT_DEBUG(&pipe1_shift_reg[0], 1, SHIFT_REG_SIZE, SHIFT_REG_SIZE);
+
+                    // Load weights into weights buffer, accounting for double tp
+                    // mode.
+                    if (double_tp) {
+                      conv2d_load_wgts_double_tp:
+                      for (int w = 0; w < k_width; w++) {
+                          float weight = _kernels[in_chan][kern_row][w];
+                          weights_buffer[w] = weight;
+                          weights_buffer[DATAPATH_WIDTH + w] = weight;
+                      }
+                    } else {
+                      int bound = min(k_width, VECTOR_SIZE);
+                      conv2d_load_wgts_single_tp:
+                      for (int w = 0; w < bound; w++) {
+                          weights_buffer[w] = _kernels[in_chan][kern_row][w];
+                      }
+                    }
+
+                    PRINT_MSG("Weights buffer\n");
+                    PRINT_DEBUG(&weights_buffer[0], 1, VECTOR_SIZE, VECTOR_SIZE);
+
+                    shift_reg_lshift(pipe1_shift_reg, init_shamt);
+                    PRINT_MSG("After initial shift of pipe1\n");
+                    PRINT_DEBUG(&pipe1_shift_reg[0], 1, SHIFT_REG_SIZE, SHIFT_REG_SIZE);
+
+                    // Primary datapath.
+                    conv_macc_datapath_fxp(weights_buffer,
+                                           pipe0_shift_reg,
+                                           pipe1_shift_reg,
+                                           dp_shamt,
+                                           dp0_iters,
+                                           dp1_iters,
+                                           psums_0,
+                                           psums_1);
+
                 }
 
-                PRINT_MSG("Weights buffer\n");
-                PRINT_DEBUG(&weights_buffer[0], 1, VECTOR_SIZE, VECTOR_SIZE);
+                float final_psums[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+                merge_psums_fxp(psums_0, psums_1, double_tp, final_psums);
 
-                shift_reg_lshift(pipe1_shift_reg, init_shamt);
-                PRINT_MSG("After initial shift of pipe1\n");
-                PRINT_DEBUG(&pipe1_shift_reg[0], 1, SHIFT_REG_SIZE, SHIFT_REG_SIZE);
-
-                // Primary datapath.
-                conv_macc_datapath_fxp(weights_buffer,
-                                       pipe0_shift_reg,
-                                       pipe1_shift_reg,
-                                       dp_shamt,
-                                       dp0_iters,
-                                       dp1_iters,
-                                       psums_0,
-                                       psums_1);
-
+                // This is the unreduced data!
+                conv2d_commit:
+                for (j = 0; j < total_outpx; j++)
+                    _result[in_chan][out_row][out_col + j] = final_psums[j];
+                out_col += total_outpx;
+                if (out_col >= result_width)
+                    out_col = 0;
             }
-
-            float final_psums[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
-            merge_psums_fxp(psums_0, psums_1, double_tp, final_psums);
-
-            // This is the unreduced data!
-            conv2d_commit:
-            for (j = 0; j < total_outpx; j++)
-                _result[chan][out_row][out_col + j] = final_psums[j];
-            out_col += total_outpx;
-            if (out_col >= result_width)
-                out_col = 0;
+            PRINT_MSG("\nResult of row %d\n", out_row);
+            PRINT_DEBUG(&_result[in_chan][out_row][0], 1, result_width, result_width);
+            out_row++;
         }
-        PRINT_MSG("\nResult of row %d\n", out_row);
-        PRINT_DEBUG(&_result[chan][out_row][0], 1, result_width, result_width);
-        out_row++;
     }
 }

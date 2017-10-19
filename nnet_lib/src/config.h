@@ -47,7 +47,7 @@
 #define DISABLE_SMIV_INPUT_BATCHING
 
 // Use the SIMD implementation.
-#define ENABLE_SIMD_IMPL
+// #define ENABLE_SIMD_IMPL
 
 // Turns out debugging output, which prints out the results of operations.
 #ifndef DEBUG

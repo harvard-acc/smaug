@@ -7,8 +7,7 @@
 
 #include "impls.h"
 
-void reduction_smiv_fxp(
-        float* a, layer_t curr_layer, int img, int kern, float* result) {
+void reduction_smiv_fxp(float* a, layer_t curr_layer, float* result) {
     unsigned row, col, chan, c;
 
     const int result_height = curr_layer.outputs.rows;
@@ -17,7 +16,6 @@ void reduction_smiv_fxp(
     const int padded_width = result_width + result_pad;
 
     const int k_height =  curr_layer.inputs.height;
-    const int num_kerns = curr_layer.outputs.height;
     const bool run_activation = curr_layer.activation != NONE;
 
 #ifdef TRACE_MODE
@@ -26,7 +24,7 @@ void reduction_smiv_fxp(
 #endif
 
     ARRAY_3D(float, _a, a, result_height, padded_width);
-    ARRAY_4D(float, _result, result, num_kerns, result_height, padded_width);
+    ARRAY_2D(float, _result, result, padded_width);
 
     reduction_row:
     for (row = 0; row < result_height; row++) {
@@ -47,7 +45,7 @@ void reduction_smiv_fxp(
 
             reduction_commit:
             for (c = 0; c < VECTOR_SIZE; c++) {
-                _result[img][kern][row][col + c] = partial_sums[c];
+                _result[row][col + c] = partial_sums[c];
             }
         }
     }
