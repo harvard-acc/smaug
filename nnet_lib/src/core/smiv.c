@@ -24,7 +24,7 @@ void convolution3d_smiv(float* a,
     convolution2d_smiv_1kernel_1channel_simd_fxp(
             a, kernels, curr_layer, result);
 #else
-    convolution2d_smiv_1kernel_1channel_fxp(a, kernels, curr_layer, result);
+    convolution3d_smiv_1kernel_noreduce_fxp(a, kernels, curr_layer, result);
 #endif
 }
 

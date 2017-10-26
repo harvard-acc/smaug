@@ -31,7 +31,7 @@ void inner_product_layer_hw(float* activations,
                             layer_t* layers,
                             int lnum,
                             float* result) {
-    grab_matrix_dma(weights, lnum, layers);
+    grab_weights_dma(weights, lnum, layers);
     grab_input_activations_dma(activations, lnum, layers);
     MATRIX_MULTIPLY_WITH_BIAS(
             activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows,
@@ -59,7 +59,7 @@ void convolution_layer_hw(float* activations,
                           int lnum,
                           float* result) {
     layer_t curr_layer = layers[lnum];
-    grab_matrix_dma(weights, lnum, layers);
+    grab_weights_dma(weights, lnum, layers);
     grab_input_activations_dma(activations, lnum, layers);
     convolution2d_no_padding(activations, weights, curr_layer, result);
     store_output_activations_dma(result, lnum, layers);
@@ -77,7 +77,7 @@ result_buf convolution_layer(float* activations,
     layer_t curr_layer = layers[lnum];
     if (curr_layer.c_padding > 0) {
         // TODO: Replace this with a memcpy implementation.
-        copy_zeropad(activations, curr_layer, result);
+        copy_zeropad(activations, layers, lnum, result);
         INVOKE_KERNEL(kConvolutionHw, convolution_layer_hw, result, weights,
                       layers, lnum, activations);
 

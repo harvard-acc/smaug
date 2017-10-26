@@ -28,16 +28,23 @@ void reduction_smiv_fxp(float* a, layer_t curr_layer, float* result) {
 
     reduction_row:
     for (row = 0; row < result_height; row++) {
+        PRINT_MSG("Reduction of row %d\n", row);
         reduction_col:
         for (col = 0; col < padded_width; col += VECTOR_SIZE) {
+            PRINT_MSG("Col %d\n  ", col);
             float partial_sums[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
             reduction_chan:
             for (chan = 0; chan < k_height; chan++) {
                 reduction_core:
                 for (c = 0; c < VECTOR_SIZE; c++) {
                     partial_sums[c] += _a[chan][row][col + c];
+                    PRINT_MSG("%9.5f\t", _a[chan][row][col + c]);
                 }
+                PRINT_MSG("\n  ");
             }
+
+            PRINT_MSG("---------------\n  ");
+            PRINT_DEBUG(&partial_sums[0], 1, VECTOR_SIZE, VECTOR_SIZE);
 
             if (run_activation) {
                 activation_fun(&partial_sums[0], VECTOR_SIZE, RELU, NULL);

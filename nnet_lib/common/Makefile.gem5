@@ -9,7 +9,7 @@
 GEM5_SRCS = aladdin_sys_connection.cpp aladdin_sys_constants.cpp dma_interface.c
 GEM5_FULL_SRCS = $(GEM5_SRCS:%=$(ALADDIN_HOME)/gem5/%)
 
-CFLAGS += -g -Wall -Wno-unused-label -mavx
+CFLAGS += -g -Wall -Wno-unused-label -mavx -Wno-attributes
 ifneq ($(ARCH),)
 	CFLAGS += -DARCHITECTURE=$(ARCH)
 endif
@@ -46,7 +46,7 @@ native-target: $(NATIVE)
 $(NATIVE): $(ALL_SRCS)
 	@echo Building benchmark $(BMARK) for native platform.
 	@mkdir -p $(BUILD_DIR)
-	@$(CC) $(CFLAGS) -DDMA_INTERFACE_V2 -DDMA_MODE $^ $(ALADDIN_HOME)/gem5/dma_interface.c $(INCLUDES) -o $@ $(LFLAGS)
+	@$(CC) $(CFLAGS) $(BMARK_SPECIFIC_CFLAGS) -DDMA_MODE $^ $(ALADDIN_HOME)/gem5/dma_interface.c $(INCLUDES) -o $@ $(LFLAGS)
 #	$(CC) $(CFLAGS) $^ $(INCLUDES) -o $@ $(LFLAGS)
 
 # Builds both standalone CPU version and the HW accelerated version.

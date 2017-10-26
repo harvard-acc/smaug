@@ -6,10 +6,26 @@
 #include "nnet_fwd.h"
 
 float* grab_matrix(float* w, int n, int* n_rows, int* n_columns);
-void grab_matrix_dma(float* weights, int layer, layer_t* layers);
+size_t get_weights_loc_for_layer(layer_t* layers, int layer);
+
+#if defined(DMA_INTERFACE_V2)
+void grab_weights_dma(float* weights, int layer, layer_t* layers);
 size_t grab_input_activations_dma(float* activations, int layer, layer_t* layers);
 size_t grab_output_activations_dma(float* activations, int layer, layer_t* layers);
 size_t store_output_activations_dma(float* activations, int layer, layer_t* layers);
+#elif defined(DMA_INTERFACE_V3)
+void grab_weights_dma(float* host_weights,
+                      float* accel_weights,
+                      int layer,
+                      layer_t* layers);
+size_t grab_input_activations_dma(float* host_activations,
+                                  float* accel_activations,
+                                  layer_t layer);
+size_t store_output_activations_dma(float* host_activations,
+                                    float* accel_activations,
+                                    layer_t layer);
+#endif
+
 float randfloat();
 void clear_matrix(float* input, int size);
 void copy_matrix(float* input, float* output, int size);

@@ -3,7 +3,7 @@
 
 #include "core/smiv/params.h"
 
-void convolution2d_smiv_1kernel_1channel_fxp(float* a,
+void convolution3d_smiv_1kernel_noreduce_fxp(float* a,
                                              float* kernels,
                                              layer_t curr_layer,
                                              float* result);

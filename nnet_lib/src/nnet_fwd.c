@@ -29,26 +29,6 @@ int NUM_TEST_CASES;
 int NUM_CLASSES;
 int INPUT_DIM;
 
-void get_input_data(float* input) {
-#ifdef DMA_MODE
-    dmaLoad(input, 0, 0, NUM_TEST_CASES * INPUT_DIM * sizeof(float));
-#endif
-}
-
-void store_result(float* result,
-                  float* result_temp,
-                  layer_t* layers,
-                  int num_layers,
-                  bool result_in_temp) {
-#ifdef DMA_MODE
-    if (result_in_temp)
-        dmaStore(result_temp, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
-    else
-        dmaStore(result, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
-    dmaStore(layers, 0, 0, num_layers*sizeof(layer_t));
-#endif
-}
-
 size_t calc_layer_intermediate_memory(layer_t* layers, int lnum) {
     size_t usage = 0, flattened_usage = 0;
     layer_t layer = layers[lnum];

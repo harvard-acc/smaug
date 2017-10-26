@@ -37,16 +37,22 @@ grab_matrix_loop:
     return w + ind;
 }
 
-#ifdef DMA_MODE
-void grab_matrix_dma(float* weights,
-                     int layer,
-                     layer_t* layers) {
+size_t get_weights_loc_for_layer(layer_t* layers, int layer) {
     size_t offset = 0;
     int i;
-grab_matrix_dma_loop:
+    grab_matrix_dma_loop:
     for (i = 0; i < layer; i++) {
         offset += get_num_weights_layer(layers, i);
     }
+    return offset;
+}
+
+#ifdef DMA_MODE
+
+#if defined(DMA_INTERFACE_V2)
+
+void grab_weights_dma(float* weights, int layer, layer_t* layers) {
+    size_t offset = get_weights_loc_for_layer(layers, layer);
     size_t size = get_num_weights_layer(layers, layer) * sizeof(float);
 #if DEBUG == 1
     printf("dmaLoad weights, offset: %lu, size: %lu\n", offset*sizeof(float), size);
@@ -74,6 +80,48 @@ size_t store_output_activations_dma(float* activations, int layer, layer_t* laye
     dmaStore(activations, 0, 0, activations_size * sizeof(float));
     return activations_size;
 }
+
+#elif defined(DMA_INTERFACE_V3)
+
+void grab_weights_dma(float* host_weights,
+                      float* accel_weights,
+                      int layer,
+                      layer_t* layers) {
+    size_t offset = get_weights_loc_for_layer(layers, layer);
+    size_t size = get_num_weights_layer(layers, layer) * sizeof(float);
+#if DEBUG == 1
+    printf("dmaLoad weights, offset: %lu, size: %lu\n", offset*sizeof(float), size);
+#endif
+    if (size > 0)
+        dmaLoad(accel_weights, &host_weights[offset], size);
+}
+
+size_t grab_input_activations_dma(float* host_activations,
+                                  float* accel_activations,
+                                  layer_t layer) {
+    size_t activations_size = get_input_activations_size(&layer, 0);
+    dmaLoad(accel_activations, host_activations, activations_size * sizeof(float));
+    return activations_size;
+}
+
+size_t grab_output_activations_dma(float* host_activations,
+                                   float* accel_activations,
+                                   layer_t layer) {
+    size_t activations_size = get_output_activations_size(&layer, 0);
+    dmaLoad(accel_activations, host_activations, activations_size * sizeof(float));
+    return activations_size;
+}
+
+size_t store_output_activations_dma(float* host_activations,
+                                    float* accel_activations,
+                                    layer_t layer) {
+    size_t activations_size = get_output_activations_size(&layer, 0);
+    dmaStore(host_activations, accel_activations, activations_size * sizeof(float));
+    return activations_size;
+}
+
+#endif
+
 #endif
 
 void clear_matrix(float* input, int size) {
@@ -179,13 +227,8 @@ int get_total_num_weights(layer_t* layers, int num_layers) {
 }
 
 int get_input_activations_size(layer_t* layers, int l) {
-    int size;
-    if (l == 0) {
-      size = INPUT_DIM;
-    } else {
-        size = layers[l].inputs.rows * layers[l].inputs.height *
+    int size = layers[l].inputs.rows * layers[l].inputs.height *
                (layers[l].inputs.cols + layers[l].inputs.align_pad);
-    }
     return size * NUM_TEST_CASES;
 }
 

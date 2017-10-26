@@ -3,7 +3,7 @@
 
 #include "nnet_fwd.h"
 
-void copy_zeropad(float* a, layer_t curr_layer, float* result);
+void copy_zeropad(float* a, layer_t* layers, int lnum, float* result);
 void copy_zeropad_image3d(float* a,
                           int pad,
                           int img,

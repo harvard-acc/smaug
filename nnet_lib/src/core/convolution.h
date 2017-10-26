@@ -5,7 +5,8 @@
 
 void convolution2d_zeropad(float* input,
                            float* kernels,
-                           layer_t curr_layer,
+                           layer_t* layers,
+                           int lnum,
                            float* result);
 void convolution2d_no_padding(float* a,
                               float* kernels,

@@ -8,17 +8,19 @@
 //
 // The result is placed in @result, which is an array that is assumed to be
 // large enough for this operation.
-void copy_zeropad(float* a, layer_t curr_layer, float* result) {
+void copy_zeropad(float* a, layer_t* layers, int lnum, float* result) {
     int ni;
 
+    layer_t curr_layer = layers[lnum];
+    layer_t prev_layer = layers[lnum - 1];
     // "input_rows" and "input_cols" are the dimensions of the data AFTER
     // zeropadding because this is considered as the "input" to the convolution
     // itself.
     int pad = curr_layer.c_padding;
-    int a_rows = curr_layer.inputs.rows - 2 * pad;
-    int a_cols = curr_layer.inputs.cols - 2 * pad;
-    int a_height = curr_layer.inputs.height;
-    int a_data_pad = curr_layer.outputs.align_pad;
+    int a_rows = prev_layer.outputs.rows;
+    int a_cols = prev_layer.outputs.cols;
+    int a_height = prev_layer.outputs.height;
+    int a_data_pad = prev_layer.outputs.align_pad;
     int r_rows = curr_layer.inputs.rows;
     int r_cols = curr_layer.inputs.cols;
     int r_data_pad = curr_layer.inputs.align_pad;

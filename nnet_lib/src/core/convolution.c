@@ -16,9 +16,11 @@
 // @result as the input array instead.
 void convolution2d_zeropad(float* input,
                            float* kernels,
-                           layer_t curr_layer,
+                           layer_t* layers,
+                           int lnum,
                            float* result) {
-    copy_zeropad(input, curr_layer, result);
+    layer_t curr_layer = layers[lnum];
+    copy_zeropad(input, layers, lnum, result);
     PRINT_MSG("After zeropadding:\n");
     PRINT_DEBUG4D(result,
                   curr_layer.inputs.rows,

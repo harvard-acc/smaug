@@ -335,7 +335,7 @@ typedef struct _iarray_t {
 // (otherwise we run into all the issues of function call barriers in Aladdin).
 // Add this macro before the function declaration to force inlining on this
 // function.
-#define ALWAYS_INLINE __attribute__ ((always_inline))
+#define ALWAYS_INLINE __attribute__((__always_inline__))
 
 #define INPUTS_FILENAME                                                        \
     "/home/jmh/projects/pesc_hardware/HardwareNets/../mnist/"                  \

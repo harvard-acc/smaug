@@ -43,7 +43,7 @@ result_buf convolution_layer(float* activations,
                              float* result) {
     layer_t curr_layer = layers[lnum];
     if (curr_layer.c_padding > 0) {
-        convolution2d_zeropad(activations, kernels, curr_layer, result);
+        convolution2d_zeropad(activations, kernels, layers, lnum, result);
         return activations;
     }
     convolution2d_no_padding(activations, kernels, curr_layer, result);
@@ -127,7 +127,7 @@ nnet_fwd_outer:
     for (l = 1; l < num_layers; l++) {
         curr_layer = layers[l];
 
-        grab_matrix_dma(weights, l, layers);
+        grab_weights_dma(weights, l, layers);
 
         if (result_loc == result) {
             result_loc = run_layer(

@@ -53,15 +53,15 @@ void inner_product_layer_hw(float* activations,
                             int lnum,
                             float* result) {
     bool run_activation = layers[lnum].activation != NONE;
-    grab_matrix_dma(weights, lnum, layers);
+    grab_weights_dma(weights, weights, lnum, layers);
     if (layers[lnum].needs_input_dma_load)
-        grab_input_activations_dma(activations, lnum, layers);
+        grab_input_activations_dma(activations, activations, layers[lnum]);
     matrix_multiply_with_bias_smiv(
             activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows,
             layers[lnum].weights.cols + layers[lnum].weights.align_pad,
             layers[lnum].inputs.align_pad, run_activation, result);
     if (layers[lnum].needs_output_dma_store)
-        store_output_activations_dma(result, lnum, layers);
+        store_output_activations_dma(result, result, layers[lnum]);
 }
 
 result_buf inner_product_layer(float* activations,
@@ -78,33 +78,59 @@ result_buf inner_product_layer(float* activations,
 }
 
 void reduction_hw(float* unreduced_activations,
-                  layer_t curr_layer,
-                  float* result) {
-    reduction_smiv(unreduced_activations, curr_layer, result);
-    if (curr_layer.needs_output_dma_store) {
-        int size = curr_layer.outputs.rows *
-                   (curr_layer.outputs.cols + curr_layer.outputs.align_pad) *
-                   curr_layer.outputs.height;
-        dmaStore(result, 0, 0, size);
-    }
+                  layer_t partial_layer,
+                  float* local_result,
+                  size_t result_size,
+                  float* host_result) {
+    reduction_smiv(unreduced_activations, partial_layer, local_result);
+    // TODO: The current implementation requires us to DMA store the result
+    // back to the host, even though in theory this could be kept in the
+    // accelerator local memory. We need to make all the accelerator scratchpad
+    // arrays global instead of local to the convolution_runner function; then,
+    // we can continue to reference those results after the convolution is
+    // finished.
+    dmaStore(host_result, local_result, result_size * sizeof(float));
 }
 
-void convolution_layer_hw(float* activations,
-                          float* weights,
-                          layer_t curr_layer,
+void convolution_layer_hw(float* host_activations,
+                          float* host_weights,
+                          float* local_activations,
+                          float* local_weights,
+                          layer_t* all_layers,
+                          layer_t partial_layer,
+                          int layer_num,
+                          int img,
+                          int kern,
+                          int start_chan,
                           float* result) {
-    int kernel_size = curr_layer.weights.rows *
-                      (curr_layer.weights.cols + curr_layer.weights.align_pad) *
-                      curr_layer.weights.height;
-    dmaLoad(weights, 0, 0, kernel_size);
-    if (curr_layer.needs_input_dma_load) {
-        int size = curr_layer.inputs.rows *
-                   (curr_layer.inputs.cols + curr_layer.inputs.align_pad) *
-                   curr_layer.inputs.height;
-        dmaLoad(activations, 0, 0, size);
+    layer_t curr_layer = all_layers[layer_num];
+    const int input_height = curr_layer.inputs.height;
+    const int input_rows= curr_layer.inputs.rows;
+    const int input_cols = curr_layer.inputs.cols;
+    const int input_pad = curr_layer.inputs.align_pad;
+    const int k_width = curr_layer.weights.cols;
+    const int k_pad = curr_layer.weights.align_pad;
+
+    ARRAY_4D(float, _a, host_activations, input_height, input_rows,
+             input_cols + input_pad);
+    ARRAY_4D(float, _kernels, host_weights, input_height, k_width,
+             k_width + k_pad);
+
+    // We should only DMA part of the weights.
+    size_t num_weights =
+            partial_layer.weights.rows * partial_layer.weights.height *
+            (partial_layer.weights.cols + partial_layer.weights.align_pad);
+    dmaLoad(local_weights, &_kernels[kern][start_chan][0][0],
+            num_weights * sizeof(float));
+    if (partial_layer.needs_input_dma_load) {
+        size_t num_input_pixels =
+                partial_layer.inputs.rows * partial_layer.inputs.height *
+                (partial_layer.inputs.cols + partial_layer.inputs.align_pad);
+        dmaLoad(local_activations, &_a[img][start_chan][0][0],
+                num_input_pixels * sizeof(float));
     }
 
-    convolution3d_smiv(activations, weights, curr_layer, result);
+    convolution3d_smiv(local_activations, local_weights, partial_layer, result);
 }
 
 // Find a good way to pack the convolution into the accelerator.
@@ -176,42 +202,32 @@ void convolution_runner(float* host_activations,
                         float* host_result) {
 
     layer_t curr_layer = layers[lnum];
-    const int input_height = curr_layer.inputs.height;
-    const int input_rows= curr_layer.inputs.rows;
-    const int input_cols = curr_layer.inputs.cols;
-    const int input_pad = curr_layer.inputs.align_pad;
     const int result_height = curr_layer.outputs.rows;
     const int result_width = curr_layer.outputs.cols;
     const int result_pad = curr_layer.outputs.align_pad;
-    const int k_width = curr_layer.weights.cols;
-    const int k_pad = curr_layer.weights.align_pad;
     const int num_kerns = curr_layer.outputs.height;
     const int result_2d_size = result_height * (result_width + result_pad);
-
-    ARRAY_4D(float, _a, host_activations, input_height, input_rows,
-             input_cols + input_pad);
-    ARRAY_4D(float, _kernels, host_weights, input_height, k_width,
-             k_width + k_pad);
     ARRAY_4D(float, _result, host_result, num_kerns, result_height,
              result_width + result_pad);
+
+#if DEBUG == 1
+    const int input_height = curr_layer.inputs.height;
+    const int k_width = curr_layer.weights.cols;
+    const int k_pad = curr_layer.weights.align_pad;
+    ARRAY_4D(float, _kernels, host_weights, input_height, k_width,
+             k_width + k_pad);
+#endif
 
     float* umem = (float*)malloc(UMEM_SIZE);
     float* spad0 = (float*)malloc(SPAD_SIZE);
     float* spad1 = (float*)malloc(SPAD_SIZE);
 
-    MAP_ARRAY_TO_ACCEL(kConvolutionHw, "activations", umem, UMEM_SIZE);
-    MAP_ARRAY_TO_ACCEL(kConvolutionHw, "weights", spad0, SPAD_SIZE);
-    MAP_ARRAY_TO_ACCEL(kConvolutionHw, "result", spad1, SPAD_SIZE);
-    MAP_ARRAY_TO_ACCEL(kReductionHw, "unreduced_activations", spad1, SPAD_SIZE);
-
     conv_cfg_t conv_cfgs = convolution_divide_work(layers, lnum);
     // temp_result stores the partially reduced results of each iteration.
-    float* temp_result = (float*)malloc(
-            result_2d_size * conv_cfgs.num_iterations * sizeof(float));
+    size_t temp_result_size =
+            result_2d_size * conv_cfgs.num_iterations * sizeof(float);
+    float* temp_result = (float*)malloc(temp_result_size);
 
-    // TODO: Fix this - we shouldn't use this function outside of an
-    // accelerated kernel.
-    grab_matrix_dma(host_weights, lnum, layers);
     for (int img = 0; img < NUM_TEST_CASES; img++) {
         for (int kern = 0; kern < num_kerns; kern++) {
             PRINT_MSG("Kernel %d\n", kern);
@@ -222,42 +238,29 @@ void convolution_runner(float* host_activations,
             unsigned start_chan = 0;
             float* result_loc = temp_result;
             for (int iter = 0; iter < conv_cfgs.num_iterations; iter++) {
+                MAP_ARRAY_TO_ACCEL(kReductionHw, "host_result", result_loc,
+                                   result_2d_size);
+
                 PRINT_MSG("Iteration %d\n", iter);
                 dims_t iter_cfg = conv_cfgs.iteration[iter];
-                // Fake the DMA until I get the chance to do DMA v3.
-                unsigned input_size = iter_cfg.rows *
-                                      (iter_cfg.cols + iter_cfg.align_pad) *
-                                      iter_cfg.height;
-                unsigned kernel_size = curr_layer.weights.rows *
-                                       (curr_layer.weights.cols +
-                                        curr_layer.weights.align_pad) *
-                                       iter_cfg.height;
-                // TODO: Eliminate this extra memcpy once we have proper DMA
-                // to/from arbitrary memory addresses working.
-                memcpy(umem, &_a[img][start_chan][0][0],
-                       input_size * sizeof(float));
-                memcpy(spad0, &_kernels[kern][start_chan][0][0],
-                       kernel_size * sizeof(float));
 
                 // Create a new layer description for this iteration.
                 layer_t partial_layer = curr_layer;
                 partial_layer.inputs.height = iter_cfg.height;
                 partial_layer.outputs.height = iter_cfg.height;
+                partial_layer.weights.height = iter_cfg.height;
                 partial_layer.activation = conv_cfgs.num_iterations == 1
                                                    ? curr_layer.activation
                                                    : NONE;
-                INVOKE_KERNEL(kConvolutionHw, convolution_layer_hw, umem, spad0,
-                              partial_layer, spad1);
+                INVOKE_KERNEL(kConvolutionHw, convolution_layer_hw,
+                              host_activations, host_weights, umem, spad0,
+                              layers, partial_layer, lnum, img, kern,
+                              start_chan, spad1);
 
                 // Reduce the results.
                 INVOKE_KERNEL(kReductionHw, reduction_hw, spad1, partial_layer,
-                              umem);
+                              umem, result_2d_size, result_loc);
 
-                // Copy the partially reduced results to result.
-                // TODO: Eliminate this extra step once we have proper DMA
-                // to/from arbitrary memory addresses working...or just put it
-                // into the UMEM.
-                memcpy(result_loc, umem, result_2d_size * sizeof(float));
                 result_loc += result_2d_size;
                 start_chan += iter_cfg.height;
             }
@@ -279,12 +282,12 @@ void convolution_runner(float* host_activations,
                 partial_layer.inputs.height = num_result_chans;
                 partial_layer.outputs.height = 1;
                 for (int iter = 0; iter < result_iter; iter++) {
-                    memcpy(spad1, result_loc,
-                           result_2d_size * num_result_chans * sizeof(float));
                     PRINT_MSG("Final reduction round %d\n", iter);
+                    MAP_ARRAY_TO_ACCEL(kReductionHw, "host_result", result_loc,
+                                       result_2d_size);
                     INVOKE_KERNEL(kReductionHw, reduction_hw, spad1,
-                                  partial_layer, umem);
-                    memcpy(result_loc, umem, result_2d_size * sizeof(float));
+                                  partial_layer, umem, result_2d_size,
+                                  result_loc);
                     result_loc += result_2d_size;
                 }
             }
@@ -305,10 +308,15 @@ result_buf convolution_layer(float* activations,
                              int lnum,
                              float* result) {
 
+    float* current_layer_weights =
+            weights + get_weights_loc_for_layer(layers, lnum);
+    size_t weights_size = get_num_weights_layer(layers, lnum);
+    MAP_ARRAY_TO_ACCEL(kConvolutionHw, "host_weights", current_layer_weights,
+                       weights_size * sizeof(float));
     layer_t curr_layer = layers[lnum];
     if (curr_layer.c_padding > 0) {
         // TODO: Replace this with a memcpy implementation.
-        copy_zeropad(activations, curr_layer, result);
+        copy_zeropad(activations, layers, lnum, result);
         PRINT_MSG("After zeropadding:\n");
         PRINT_DEBUG4D(result,
                       curr_layer.inputs.rows,
@@ -317,11 +325,13 @@ result_buf convolution_layer(float* activations,
         PRINT_DEBUG4D(weights, curr_layer.weights.rows,
                       curr_layer.weights.cols + curr_layer.weights.align_pad,
                       curr_layer.weights.height);
-        convolution_runner(result, weights, layers, lnum, activations);
+        convolution_runner(
+                result, current_layer_weights, layers, lnum, activations);
 
         return activations;
     }
-    convolution_runner(activations, weights, layers, lnum, result);
+    convolution_runner(
+            activations, current_layer_weights, layers, lnum, result);
     return result;
 }
 
@@ -369,6 +379,8 @@ void set_dma_requirements(network_t* network) {
         if (layer_num == network->depth - 1 ||
             network->layers[layer_num].activation == SIGMOID ||
             network->layers[layer_num].type == POOLING ||
+            // For now, conv layers also do not support local caching.
+            network->layers[layer_num].type == CONV ||
             network->layers[layer_num].input_preprocessing == FLATTEN ||
             network->layers[layer_num + 1].type == POOLING ||
             network->layers[layer_num + 1].type == SOFTMAX) {
@@ -420,6 +432,9 @@ void nnet_fwd(farray_t activations,
 
     set_dma_requirements(&network);
 
+    MAP_ARRAY_TO_ACCEL(kConvolutionHw, "host_activations", activations.d,
+                       activations.size);
+
     //******************//
     //   PRIMARY LOOP   //
     //******************//
@@ -440,11 +455,11 @@ nnet_fwd_outer:
     network.layers[network.depth - 1].result_in_temp = (result_loc == result.d);
 
     if (result_loc == result.d)
-        dmaStore(result.d, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
+        dmaStore(result.d, result.d, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
     else
-        dmaStore(activations.d, 0, 0,
+        dmaStore(activations.d, activations.d,
                  NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
-    dmaStore(network.layers, 0, 0, network.depth * sizeof(layer_t));
+    dmaStore(network.layers, network.layers, network.depth * sizeof(layer_t));
 }
 
 #endif

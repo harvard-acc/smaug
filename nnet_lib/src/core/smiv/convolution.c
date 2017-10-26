@@ -98,21 +98,17 @@ static void merge_psums_fxp(float psums_0[VECTOR_SIZE],
     PRINT_DEBUG(&result[0], 1, VECTOR_SIZE, VECTOR_SIZE);
 }
 
-// Perform a 2D convolution with one kernel and one input channel of one image.
+// Perform a 3D convolution with one kernel on an image, without reduction.
 //
 // Args:
-//   a: 4D array, indexed as [img][channel][row][col].
-//   kernels: A stack of 3D kernels, indexed as [input_kern][channel][row][col].
-//   img: Which input image this function is working on.
-//   chan: Which channel of the input image.
-//   curr_layer: Layer configuration.
-//   result: a 3D array indexed as [input_chan][row][col].
+//   a: 3D array, indexed as [channel][row][col].
+//   kernels: A 3D kernel, indexed as [channel][row][col].
+//   curr_layer: Layer (or partial layer) configuration.
+//   result: a 3D array indexed as [channel][row][col].
 //
 // Returns:
-//   The 2D convolution in result[chan].
-//
-// TODO: Rename this to 3d.
-void convolution2d_smiv_1kernel_1channel_fxp(float* a,
+//   The unreduced 3D partial sums in result.
+void convolution3d_smiv_1kernel_noreduce_fxp(float* a,
                                              float* kernels,
                                              layer_t curr_layer,
                                              float* result) {

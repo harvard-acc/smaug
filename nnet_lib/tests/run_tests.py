@@ -139,6 +139,7 @@ class GenericTests(BaseTest):
     self.runAndValidate(model_file, correct_output)
 
 class ImageNetTests(BaseTest):
+  @unittest.skip("SMIV doesn't support tiling the input image yet.")
   def test_simple(self):
     model_file = "imagenet/simple.conf"
     correct_output = "imagenet-simple.out"
