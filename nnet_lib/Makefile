@@ -24,13 +24,10 @@ ARCH_SRCS = arch/monolithic.c \
 
 SRCS = $(CORE_SRCS) $(UTILITY_SRCS) $(ARCH_SRCS) nnet_fwd.c
 
-CFLAGS = -Wno-unused-but-set-variable
 ACCEL_NAME = nnet
-BMARK_SPECIFIC_CFLAGS = -DDMA_INTERFACE_V3
 
-export WORKLOAD=inner_product_layer_hw,convolution_layer_hw,activation_hw
-
+include common/Makefile.arch
 include common/Makefile.tracer
 include common/Makefile.gem5
 
-clean: clean-native clean-trace
+clean: clean-native clean-trace clean-gem5

@@ -1,6 +1,5 @@
 ############ NOTES ###############
-# Define ACCEL_NAME, TRACER_HOME,
-# ALADDIN_HOME, WORKLOAD, and SRCS
+# Define ACCEL_NAME, TRACER_HOME, ALADDIN_HOME, WORKLOAD, and SRCS
 # before including this.
 ##################################
 
@@ -9,17 +8,15 @@ COMMON_DIR := $(CURRENT_DIR)
 EXEC = $(ACCEL_NAME)
 SRC_DIR = src
 BUILD_DIR = build
+MODULES = core core/smiv utility arch gem5
 
-.PHONY: trace-binary dma-trace-binary run-trace clean-trace make-labelmap
+.PHONY: dma-trace-binary run-trace clean-trace src-symlinks
 
 ##################################
 #         TOP LEVEL RULES        #
 ##################################
 
-dma-trace-binary: $(BUILD_DIR)/$(EXEC)-instrumented
-
-run-trace: trace-binary
-	./$(BUILD_DIR)/$(EXEC)-instrumented
+dma-trace-binary: build-trace
 
 ##################################
 #      COMPILATION FLAGS         #
@@ -29,71 +26,69 @@ TRACER = $(TRACER_HOME)/lib/full_trace.so
 LOGGER = $(TRACER_HOME)/lib/trace_logger.llvm
 GET_LABELED_STMTS = $(TRACER_HOME)/bin/get-labeled-stmts
 
-MODE = LLVM_TRACE
-CPPFLAGS = -I$(ALADDIN_HOME) -I$(COMMON_DIR) -D$(MODE) -DTRACE_MODE -I$(COMMON_DIR)/../$(SRC_DIR)
-CPPFLAGS += -DDMA_MODE -I$(ALADDIN_HOME)/gem5
-ifneq ($(ARCH),)
-	CPPFLAGS += -DARCHITECTURE=$(ARCH)
-endif
+CPPFLAGS = -I$(ALADDIN_HOME) -I$(COMMON_DIR) \
+					 -I$(COMMON_DIR)/../$(SRC_DIR) -I$(ALADDIN_HOME)/gem5 \
+           -DTRACE_MODE -DDMA_MODE
+
 LDFLAGS = -lm -lz -lconfuse
 
-ALL_SRCS = $(patsubst %, $(SRC_DIR)/%, $(SRCS))
-_BUILD_VIEW_SRCS = $(patsubst %, ../%, $(ALL_SRCS))
+################################
+#     BUILD PRODUCT REQS       #
+################################
 
-# Due to limitations of the tracer, we have to build the program as a single
-# translation unit. The following rules will concatenate all the source files
-# into a single source file that #includes them.
-CONCAT_PREFIX = $(BUILD_DIR)/_all
-CONCAT_FILE = $(CONCAT_PREFIX).c
-CONCAT_OBJ = $(CONCAT_PREFIX).o
-LLVM_OBJS = $(patsubst %.c, %-opt.llvm, $(CONCAT_FILE))
+GEM5_DMA_SRC = gem5/dma_interface.c
+ALL_TRACER_SRCS = $(SRCS) $(GEM5_DMA_SRC)
+SUBBUILDDIRS = $(patsubst %, $(BUILD_DIR)/%, $(MODULES))
 
-$(CONCAT_FILE): $(ALL_SRCS)
-	@echo Building intermediate concatenated source.
-	python $(COMMON_DIR)/concat.py "$(_BUILD_VIEW_SRCS) $(ALADDIN_HOME)/gem5/dma_interface.c" $(CONCAT_FILE)
+LLVM_OBJS = $(patsubst %.c, $(BUILD_DIR)/%-opt.llvm, $(ALL_TRACER_SRCS))
 
 #########################################################
 #        INSTRUMENTATION AND TRACE FILE GENERATION      #
 #########################################################
 
-make-labelmap: $(BUILD_DIR)/labelmap
+build-trace: $(SUBBUILDDIRS) src-symlinks
+	@$(MAKE) $(BUILD_DIR)/$(EXEC)-instrumented
 
-$(BUILD_DIR)/labelmap: $(CONCAT_FILE)
-	cd $(BUILD_DIR); \
-	$(GET_LABELED_STMTS) ../$^ -- \
+src-symlinks:
+	@cp -asf $(CURRENT_DIR)/../src/* build/
+	@cp -asf $(ALADDIN_HOME)/$(GEM5_DMA_SRC) $(BUILD_DIR)/$(GEM5_DMA_SRC)
+
+$(SUBBUILDDIRS):
+	@mkdir -p $(SUBBUILDDIRS)
+
+%-labelmap: %.c
+	@$(GET_LABELED_STMTS) $^ -- \
 			-I$(LLVM_HOME)/lib/clang/3.4/include \
-			$(CPPFLAGS) $(BMARK_SPECIFIC_CFLAGS); \
-	cd ..
+			$(CPPFLAGS) $(BMARK_SPECIFIC_CFLAGS)
+	@cat labelmap >> $(BUILD_DIR)/labelmap
 
 $(BUILD_DIR)/full.llvm: $(LLVM_OBJS)
-	llvm-link -o $@ $^ $(LOGGER)
+	@echo Linking instrumented LLVM objects...
+	@llvm-link -o $@ $^ $(LOGGER)
 
 $(BUILD_DIR)/full.s: $(BUILD_DIR)/full.llvm
-	llc -O0 -disable-fp-elim -filetype=asm -o $@ $<
+	@llc -O0 -disable-fp-elim -filetype=asm -o $@ $<
 
 $(BUILD_DIR)/$(EXEC)-instrumented: $(BUILD_DIR)/full.s
-	$(CXX) -g -O0 -fno-inline -o $@ $< $(LDFLAGS)
+	@echo Producing final binary...
+	@$(CC) -g -O0 -fno-inline -o $@ $^ $(LDFLAGS)
 
-$(BUILD_DIR)/%-opt.llvm: $(BUILD_DIR)/%.c $(BUILD_DIR)/labelmap
-	clang -g -O1 -S -fno-slp-vectorize -fno-vectorize -fno-unroll-loops \
+%-opt.llvm: %.c %-labelmap
+	@echo Building $<
+	@clang -g -O1 -S -fno-slp-vectorize -fno-vectorize -fno-unroll-loops \
         -fno-inline -fno-builtin \
 				-emit-llvm \
 				$(CPPFLAGS) \
         $(BMARK_SPECIFIC_CFLAGS) \
-        -o $(BUILD_DIR)/$*.llvm $<; \
-	cd $(BUILD_DIR); \
-	opt -S -load=$(TRACER) -fulltrace -labelmapwriter -trace-all-callees $*.llvm -o $*-opt.llvm; \
-	cd ..
+        -o $*.llvm $<
+	@opt -S -load=$(TRACER) -fulltrace \
+				-labelmapwriter -trace-all-callees -i $(BUILD_DIR)/labelmap \
+				$*.llvm -o $*-opt.llvm
 
 clean-trace:
-	cd $(BUILD_DIR); \
-	rm -rf $(COMMON_TEMP_DIR); \
-	rm -f *.llvm; \
-	rm -f *.o; \
-	rm -f dynamic_trace.gz; \
-	rm -f static_trace; \
-	rm -f *-instrumented; \
-	rm -f full.s; \
-	rm -f labelmap; \
-	rm -f _all.c; \
-	cd ..
+	@echo "Cleaning trace build products..."
+	@rm -rf $(SUBBUILDDIRS)
+	@rm -rf $(BUILD_DIR)/*
+	@rm -f dynamic_trace.gz
+	@rm -f labelmap
+	@rm -f output_labels.out

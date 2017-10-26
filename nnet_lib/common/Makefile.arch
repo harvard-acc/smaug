@@ -1,0 +1,25 @@
+# Makefile rules for the different build types.
+
+ifeq ($(ARCH), SMIV)
+export WORKLOAD=inner_product_layer_hw,convolution_layer_hw,activation_hw
+else ifeq ($($ARCH), COMPOSABLE)
+export WORKLOAD=inner_product_layer_hw,convolution_layer_hw,activation_hw
+else
+export WORKLOAD=nnet_fwd_hw
+endif
+
+ifneq ($(ARCH),)
+	CFLAGS += -DARCHITECTURE=$(ARCH)
+endif
+
+CFLAGS += -g \
+					-Wall \
+					-mavx \
+					-Wno-unused-label \
+					-Wno-unused-but-set-variable \
+
+native: CFLAGS+=-Wno-attributes
+gem5-cpu: CFLAGS+=-Wno-attributes
+gem5-accel: CFLAGS+=-Wno-attributes
+
+BMARK_SPECIFIC_CFLAGS = -DDMA_INTERFACE_V3
