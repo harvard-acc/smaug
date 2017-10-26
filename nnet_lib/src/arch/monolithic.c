@@ -117,7 +117,7 @@ void nnet_fwd_hw(float* activations,
     // SO EACH DATA POINT IS A ***ROW****
 
     l = 0;
-    dmaLoad(activations, 0, 0, NUM_TEST_CASES * INPUT_DIM * sizeof(float));
+    dmaLoad(activations, activations, NUM_TEST_CASES * INPUT_DIM * sizeof(float));
 
     //******************//
     //   PRIMARY LOOP   //
@@ -127,7 +127,7 @@ nnet_fwd_outer:
     for (l = 1; l < num_layers; l++) {
         curr_layer = layers[l];
 
-        grab_weights_dma(weights, l, layers);
+        grab_weights_dma(weights, weights, l, layers);
 
         if (result_loc == result) {
             result_loc = run_layer(
@@ -141,11 +141,11 @@ nnet_fwd_outer:
     layers[num_layers - 1].result_in_temp = result_loc == result;
 
     if (result_loc == result)
-        dmaStore(result, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
+        dmaStore(result, result, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
     else
-        dmaStore(activations, 0, 0,
+        dmaStore(activations, activations,
                  NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
-    dmaStore(layers, 0, 0, num_layers * sizeof(layer_t));
+    dmaStore(layers, layers, num_layers * sizeof(layer_t));
 }
 
 

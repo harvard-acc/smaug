@@ -31,13 +31,13 @@ void inner_product_layer_hw(float* activations,
                             layer_t* layers,
                             int lnum,
                             float* result) {
-    grab_weights_dma(weights, lnum, layers);
-    grab_input_activations_dma(activations, lnum, layers);
+    grab_weights_dma(weights, weights, lnum, layers);
+    grab_input_activations_dma(activations, activations, layers[lnum]);
     MATRIX_MULTIPLY_WITH_BIAS(
             activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows,
             layers[lnum].weights.cols + layers[lnum].weights.align_pad,
             result);
-    store_output_activations_dma(result, lnum, layers);
+    store_output_activations_dma(result, result, layers[lnum]);
 }
 
 result_buf inner_product_layer(float* activations,
@@ -59,10 +59,10 @@ void convolution_layer_hw(float* activations,
                           int lnum,
                           float* result) {
     layer_t curr_layer = layers[lnum];
-    grab_weights_dma(weights, lnum, layers);
-    grab_input_activations_dma(activations, lnum, layers);
+    grab_weights_dma(weights, weights, lnum, layers);
+    grab_input_activations_dma(activations, activations, layers[lnum]);
     convolution2d_no_padding(activations, weights, curr_layer, result);
-    store_output_activations_dma(result, lnum, layers);
+    store_output_activations_dma(result, result, layers[lnum]);
 }
 
 result_buf convolution_layer(float* activations,
@@ -93,9 +93,9 @@ void max_pooling_layer_hw(float* activations,
                           layer_t* layers,
                           int lnum) {
     layer_t curr_layer = layers[lnum];
-    grab_input_activations_dma(activations, lnum, layers);
+    grab_input_activations_dma(activations, activations, layers[lnum]);
     max_pooling(activations, result, curr_layer);
-    store_output_activations_dma(result, lnum, layers);
+    store_output_activations_dma(result, result, layers[lnum]);
 }
 
 result_buf pooling_layer(float* activations,
@@ -119,9 +119,9 @@ void activation_hw(float* activations,
                    int lnum,
                    float* sigmoid_table) {
     layer_t curr_layer = layers[lnum];
-    int size = grab_output_activations_dma(activations, lnum, layers);
+    int size = grab_output_activations_dma(activations, activations, layers[lnum]);
     activation_fun(activations, size, curr_layer.activation, sigmoid_table);
-    store_output_activations_dma(activations, lnum, layers);
+    store_output_activations_dma(activations, activations, layers[lnum]);
 }
 
 result_buf activation_sublayer(float* activations,
@@ -209,11 +209,12 @@ nnet_fwd_outer:
     network.layers[network.depth - 1].result_in_temp = (result_loc == result.d);
 
     if (result_loc == result.d)
-        dmaStore(result.d, 0, 0, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
-    else
-        dmaStore(activations.d, 0, 0,
+        dmaStore(result.d, result.d,
                  NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
-    dmaStore(network.layers, 0, 0, network.depth * sizeof(layer_t));
+    else
+        dmaStore(activations.d, activations.d,
+                 NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
+    dmaStore(network.layers, network.layers, network.depth * sizeof(layer_t));
 }
 
 #endif

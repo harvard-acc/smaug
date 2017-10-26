@@ -18,6 +18,9 @@ void grab_weights_dma(float* host_weights,
                       float* accel_weights,
                       int layer,
                       layer_t* layers);
+size_t grab_output_activations_dma(float* host_activations,
+                                   float* accel_activations,
+                                   layer_t layer);
 size_t grab_input_activations_dma(float* host_activations,
                                   float* accel_activations,
                                   layer_t layer);
