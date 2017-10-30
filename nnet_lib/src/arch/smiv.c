@@ -114,6 +114,10 @@ result_buf inner_product_layer(float* host_activations,
     PRINT_DEBUG(host_weights_layer, layers[lnum].weights.rows,
                 layers[lnum].weights.cols,
                 layers[lnum].weights.cols + layers[lnum].weights.align_pad);
+
+    size_t weight_bytes = WEIGHT_BYTES(layers, lnum);
+    assert(weight_bytes <= UMEM_SIZE && "Weights must fit on the UMEM!");
+
     MAP_ARRAY(kInnerProductHw, host_activations, INPUT_BYTES(layers, lnum));
     MAP_ARRAY_TO_ACCEL(kInnerProductHw, "host_weights", host_weights_layer,
                        WEIGHT_BYTES(layers, lnum));
