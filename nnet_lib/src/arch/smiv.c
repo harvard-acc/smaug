@@ -19,9 +19,13 @@
 
 #if ARCHITECTURE == SMIV
 
-static float* umem;
-static float* spad0;
-static float* spad1;
+// These are GLOBAL arrays which cannot be referenced directly by a HW
+// function. Instead, pass them to the top level functions as function
+// arguments, and use a boolean flag to indicate which one contains the data
+// needed.
+static float* g_umem;
+static float* g_spad0;
+static float* g_spad1;
 
 // Each SMIV block has two scratchpads of 64KB each, but the real accelerator
 // operates on 16-bit data, whereas we are using 32-bit data. To make sure we
@@ -53,29 +57,42 @@ unsigned kReductionHw = 0x0003;
 
 void inner_product_layer_hw(float* host_activations,
                             float* host_weights,
-                            float* local_activations,
-                            float* local_weights,
+                            float* umem,
+                            float* spad0,
+                            float* spad1,
                             layer_t* layers,
                             int lnum,
-                            float* host_result,
-                            float* local_result) {
+                            bool input_in_spad0,
+                            float* host_result) {
     bool run_activation = layers[lnum].activation != NONE;
     int weights_size = get_num_weights_layer(layers, lnum) * sizeof(float);
-    dmaLoad(local_weights, host_weights, weights_size);
+    dmaLoad(umem, host_weights, weights_size);
 
     if (layers[lnum].needs_input_dma_load) {
-        grab_input_activations_dma(
-                host_activations, local_activations, &layers[lnum]);
+        if (input_in_spad0)
+            grab_input_activations_dma(host_activations, spad0, &layers[lnum]);
+        else
+            grab_input_activations_dma(host_activations, spad1, &layers[lnum]);
     }
 
-    matrix_multiply_with_bias_smiv(
-            local_activations, local_weights, NUM_TEST_CASES,
-            layers[lnum].weights.rows,
-            layers[lnum].weights.cols + layers[lnum].weights.align_pad,
-            layers[lnum].inputs.align_pad, run_activation, local_result);
+    if (input_in_spad0) {
+        matrix_multiply_with_bias_smiv(
+                spad0, umem, NUM_TEST_CASES, layers[lnum].weights.rows,
+                layers[lnum].weights.cols + layers[lnum].weights.align_pad,
+                layers[lnum].inputs.align_pad, run_activation, spad1);
+    } else {
+        matrix_multiply_with_bias_smiv(
+                spad1, umem, NUM_TEST_CASES, layers[lnum].weights.rows,
+                layers[lnum].weights.cols + layers[lnum].weights.align_pad,
+                layers[lnum].inputs.align_pad, run_activation, spad0);
+    }
 
-    if (layers[lnum].needs_output_dma_store)
-        store_output_activations_dma(host_result, local_result, &layers[lnum]);
+    if (layers[lnum].needs_output_dma_store) {
+        if (input_in_spad0)
+            store_output_activations_dma(host_result, spad1, &layers[lnum]);
+        else
+            store_output_activations_dma(host_result, spad0, &layers[lnum]);
+    }
 }
 
 result_buf inner_product_layer(float* host_activations,
@@ -85,11 +102,11 @@ result_buf inner_product_layer(float* host_activations,
                                float* host_result) {
     static float* current_result_loc = NULL;
     if (current_result_loc == NULL) {
-        current_result_loc = spad1;
-    } else if (current_result_loc == spad0) {
-        current_result_loc = spad1;
-    } else if (current_result_loc == spad1) {
-        current_result_loc = spad0;
+        current_result_loc = g_spad1;
+    } else if (current_result_loc == g_spad0) {
+        current_result_loc = g_spad1;
+    } else if (current_result_loc == g_spad1) {
+        current_result_loc = g_spad0;
     }
     float* host_weights_layer =
             host_weights + get_weights_loc_for_layer(layers, lnum);
@@ -102,44 +119,46 @@ result_buf inner_product_layer(float* host_activations,
                        WEIGHT_BYTES(layers, lnum));
     MAP_ARRAY(kInnerProductHw, host_result, OUTPUT_BYTES(layers, lnum));
 
-    if (current_result_loc == spad0) {
-        INVOKE_KERNEL(kInnerProductHw, inner_product_layer_hw, host_activations,
-                      host_weights_layer, spad1, umem, layers, lnum,
-                      host_result, spad0);
-    } else {
-        INVOKE_KERNEL(kInnerProductHw, inner_product_layer_hw, host_activations,
-                      host_weights_layer, spad0, umem, layers, lnum,
-                      host_result, spad1);
-    }
+    // If the result is to be in g_spad1, then the input is in g_spad0.
+    bool input_in_spad0 = (current_result_loc == g_spad1);
+    INVOKE_KERNEL(kInnerProductHw, inner_product_layer_hw, host_activations,
+                  host_weights_layer, g_umem, g_spad0, g_spad1, layers, lnum,
+                  input_in_spad0, host_result);
     return host_result;
 }
 
-void reduction_hw(float* unreduced_activations,
+void reduction_hw(float* spad0,
+                  float* spad1,
+                  float* umem,
+                  bool input_in_spad0,
                   layer_t partial_layer,
-                  float* local_result,
                   size_t result_size,
                   float* host_result) {
-    reduction_smiv(unreduced_activations, partial_layer, local_result);
+    if (input_in_spad0)
+        reduction_smiv(spad0, partial_layer, umem);
+    else
+        reduction_smiv(spad1, partial_layer, umem);
     // TODO: The current implementation requires us to DMA store the result
     // back to the host, even though in theory this could be kept in the
     // accelerator local memory. We need to make all the accelerator scratchpad
     // arrays global instead of local to the convolution_runner function; then,
     // we can continue to reference those results after the convolution is
     // finished.
-    dmaStore(host_result, local_result, result_size * sizeof(float));
+    dmaStore(host_result, umem, result_size * sizeof(float));
 }
 
 void convolution_layer_hw(float* host_activations,
                           float* host_weights,
-                          float* local_activations,
-                          float* local_weights,
+                          float* umem,
+                          float* spad0,
+                          float* spad1,
+                          bool input_in_spad0,
                           layer_t* all_layers,
                           layer_t partial_layer,
                           int layer_num,
                           int img,
                           int kern,
-                          int start_chan,
-                          float* local_result) {
+                          int start_chan) {
     layer_t curr_layer = all_layers[layer_num];
     const int input_height = curr_layer.inputs.height;
     const int input_rows= curr_layer.inputs.rows;
@@ -157,18 +176,25 @@ void convolution_layer_hw(float* host_activations,
     size_t num_weights =
             partial_layer.weights.rows * partial_layer.weights.height *
             (partial_layer.weights.cols + partial_layer.weights.align_pad);
-    dmaLoad(local_weights, &_kernels[kern][start_chan][0][0],
-            num_weights * sizeof(float));
+    if (input_in_spad0) {
+        dmaLoad(spad0, &_kernels[kern][start_chan][0][0],
+                num_weights * sizeof(float));
+    } else {
+        dmaLoad(spad1, &_kernels[kern][start_chan][0][0],
+                num_weights * sizeof(float));
+    }
     if (partial_layer.needs_input_dma_load) {
         size_t num_input_pixels =
                 partial_layer.inputs.rows * partial_layer.inputs.height *
                 (partial_layer.inputs.cols + partial_layer.inputs.align_pad);
-        dmaLoad(local_activations, &_a[img][start_chan][0][0],
+        dmaLoad(umem, &_a[img][start_chan][0][0],
                 num_input_pixels * sizeof(float));
     }
 
-    convolution3d_smiv(
-            local_activations, local_weights, partial_layer, local_result);
+    if (input_in_spad0)
+        convolution3d_smiv(umem, spad0, partial_layer, spad1);
+    else
+        convolution3d_smiv(umem, spad1, partial_layer, spad0);
 }
 
 // Find a good way to pack the convolution into the accelerator.
@@ -287,13 +313,14 @@ void convolution_runner(float* host_activations,
                                                    ? curr_layer.activation
                                                    : NONE;
                 INVOKE_KERNEL(kConvolutionHw, convolution_layer_hw,
-                              host_activations, host_weights, umem, spad0,
-                              layers, partial_layer, lnum, img, kern,
-                              start_chan, spad1);
+                              host_activations, host_weights, g_umem, g_spad0,
+                              g_spad1, true, layers, partial_layer, lnum, img,
+                              kern, start_chan);
 
                 // Reduce the results.
-                INVOKE_KERNEL(kReductionHw, reduction_hw, spad1, partial_layer,
-                              umem, result_2d_size, result_loc);
+                INVOKE_KERNEL(kReductionHw, reduction_hw, g_spad0, g_spad1,
+                              g_umem, false, partial_layer, result_2d_size,
+                              result_loc);
 
                 result_loc += result_2d_size;
                 start_chan += iter_cfg.height;
@@ -319,8 +346,8 @@ void convolution_runner(float* host_activations,
                     PRINT_MSG("Final reduction round %d\n", iter);
                     MAP_ARRAY_TO_ACCEL(kReductionHw, "host_result", result_loc,
                                        result_2d_size);
-                    INVOKE_KERNEL(kReductionHw, reduction_hw, spad1,
-                                  partial_layer, umem, result_2d_size,
+                    INVOKE_KERNEL(kReductionHw, reduction_hw, g_spad0, g_spad1,
+                                  g_umem, false, partial_layer, result_2d_size,
                                   result_loc);
                     result_loc += result_2d_size;
                 }
@@ -447,9 +474,9 @@ void nnet_fwd(farray_t activations,
     int l;
     layer_t curr_layer;
 
-    umem = (float*)malloc_aligned(UMEM_SIZE);
-    spad0 = (float*)malloc_aligned(SPAD_SIZE);
-    spad1 = (float*)malloc_aligned(SPAD_SIZE);
+    g_umem = (float*)malloc_aligned(UMEM_SIZE);
+    g_spad0 = (float*)malloc_aligned(SPAD_SIZE);
+    g_spad1 = (float*)malloc_aligned(SPAD_SIZE);
 
     // Alternate between reading from/writing to activations and result so we
     // can avoid copying matrices. The initial activations is obviously in
@@ -496,9 +523,9 @@ nnet_fwd_outer:
                  NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
     dmaStore(network.layers, network.layers, network.depth * sizeof(layer_t));
 
-    free(umem);
-    free(spad0);
-    free(spad1);
+    free(g_umem);
+    free(g_spad0);
+    free(g_spad1);
 }
 
 #endif
