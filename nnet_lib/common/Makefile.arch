@@ -1,7 +1,7 @@
 # Makefile rules for the different build types.
 
 ifeq ($(ARCH), SMIV)
-export WORKLOAD=inner_product_layer_hw,convolution_layer_hw,activation_hw
+export WORKLOAD=inner_product_layer_hw,convolution_layer_hw,activation_hw,reduction_hw
 else ifeq ($($ARCH), COMPOSABLE)
 export WORKLOAD=inner_product_layer_hw,convolution_layer_hw,activation_hw
 else
