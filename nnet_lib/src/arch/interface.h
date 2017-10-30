@@ -4,9 +4,9 @@
 #include "nnet_fwd.h"
 
 #define INPUT_BYTES(layers, lnum)                                              \
-    get_input_activations_size(layers, lnum) * sizeof(float)
+    get_input_activations_size(&layers[lnum]) * sizeof(float)
 #define OUTPUT_BYTES(layers, lnum)                                             \
-    get_output_activations_size(layers, lnum) * sizeof(float)
+    get_output_activations_size(&layers[lnum]) * sizeof(float)
 #define WEIGHT_BYTES(layers, lnum)                                             \
     get_num_weights_layer(layers, lnum) * sizeof(float)
 

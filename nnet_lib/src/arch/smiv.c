@@ -19,6 +19,10 @@
 
 #if ARCHITECTURE == SMIV
 
+static float* umem;
+static float* spad0;
+static float* spad1;
+
 // Each SMIV block has two scratchpads of 64KB each, but the real accelerator
 // operates on 16-bit data, whereas we are using 32-bit data. To make sure we
 // can fit the same size inputs, we double the per-scratchpad size.
@@ -47,34 +51,67 @@ unsigned kConvolutionHw = 0x0003;
 unsigned kInnerProductHw = 0x0003;
 unsigned kReductionHw = 0x0003;
 
-void inner_product_layer_hw(float* activations,
-                            float* weights,
+void inner_product_layer_hw(float* host_activations,
+                            float* host_weights,
+                            float* local_activations,
+                            float* local_weights,
                             layer_t* layers,
                             int lnum,
-                            float* result) {
+                            float* host_result,
+                            float* local_result) {
     bool run_activation = layers[lnum].activation != NONE;
-    grab_weights_dma(weights, weights, lnum, layers);
-    if (layers[lnum].needs_input_dma_load)
-        grab_input_activations_dma(activations, activations, layers[lnum]);
+    int weights_size = get_num_weights_layer(layers, lnum) * sizeof(float);
+    dmaLoad(local_weights, host_weights, weights_size);
+
+    if (layers[lnum].needs_input_dma_load) {
+        grab_input_activations_dma(
+                host_activations, local_activations, &layers[lnum]);
+    }
+
     matrix_multiply_with_bias_smiv(
-            activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows,
+            local_activations, local_weights, NUM_TEST_CASES,
+            layers[lnum].weights.rows,
             layers[lnum].weights.cols + layers[lnum].weights.align_pad,
-            layers[lnum].inputs.align_pad, run_activation, result);
+            layers[lnum].inputs.align_pad, run_activation, local_result);
+
     if (layers[lnum].needs_output_dma_store)
-        store_output_activations_dma(result, result, layers[lnum]);
+        store_output_activations_dma(host_result, local_result, &layers[lnum]);
 }
 
-result_buf inner_product_layer(float* activations,
-                               float* weights,
+result_buf inner_product_layer(float* host_activations,
+                               float* host_weights,
                                layer_t* layers,
                                int lnum,
-                               float* result) {
-    MAP_ARRAY(kInnerProductHw, activations, INPUT_BYTES(layers, lnum));
-    MAP_ARRAY(kInnerProductHw, weights, OUTPUT_BYTES(layers, lnum));
-    MAP_ARRAY(kInnerProductHw, result, WEIGHT_BYTES(layers, lnum));
-    INVOKE_KERNEL(kInnerProductHw, inner_product_layer_hw, activations, weights,
-                  layers, lnum, result);
-    return result;
+                               float* host_result) {
+    static float* current_result_loc = NULL;
+    if (current_result_loc == NULL) {
+        current_result_loc = spad1;
+    } else if (current_result_loc == spad0) {
+        current_result_loc = spad1;
+    } else if (current_result_loc == spad1) {
+        current_result_loc = spad0;
+    }
+    float* host_weights_layer =
+            host_weights + get_weights_loc_for_layer(layers, lnum);
+    PRINT_MSG("Weights:\n");
+    PRINT_DEBUG(host_weights_layer, layers[lnum].weights.rows,
+                layers[lnum].weights.cols,
+                layers[lnum].weights.cols + layers[lnum].weights.align_pad);
+    MAP_ARRAY(kInnerProductHw, host_activations, INPUT_BYTES(layers, lnum));
+    MAP_ARRAY_TO_ACCEL(kInnerProductHw, "host_weights", host_weights_layer,
+                       OUTPUT_BYTES(layers, lnum));
+    MAP_ARRAY(kInnerProductHw, host_result, WEIGHT_BYTES(layers, lnum));
+
+    if (current_result_loc == spad0) {
+        INVOKE_KERNEL(kInnerProductHw, inner_product_layer_hw, host_activations,
+                      host_weights_layer, spad1, umem, layers, lnum,
+                      host_result, spad0);
+    } else {
+        INVOKE_KERNEL(kInnerProductHw, inner_product_layer_hw, host_activations,
+                      host_weights_layer, spad0, umem, layers, lnum,
+                      host_result, spad1);
+    }
+    return host_result;
 }
 
 void reduction_hw(float* unreduced_activations,
@@ -218,10 +255,6 @@ void convolution_runner(float* host_activations,
              k_width + k_pad);
 #endif
 
-    float* umem = (float*)malloc(UMEM_SIZE);
-    float* spad0 = (float*)malloc(SPAD_SIZE);
-    float* spad1 = (float*)malloc(SPAD_SIZE);
-
     conv_cfg_t conv_cfgs = convolution_divide_work(layers, lnum);
     // temp_result stores the partially reduced results of each iteration.
     size_t temp_result_size =
@@ -296,9 +329,6 @@ void convolution_runner(float* host_activations,
         }
     }
     free(conv_cfgs.iteration);
-    free(spad0);
-    free(spad1);
-    free(umem);
     free(temp_result);
 }
 
@@ -416,6 +446,10 @@ void nnet_fwd(farray_t activations,
     int l;
     layer_t curr_layer;
 
+    umem = (float*)malloc(UMEM_SIZE);
+    spad0 = (float*)malloc(SPAD_SIZE);
+    spad1 = (float*)malloc(SPAD_SIZE);
+
     // Alternate between reading from/writing to activations and result so we
     // can avoid copying matrices. The initial activations is obviously in
     // "activations", so that's where we start.
@@ -460,6 +494,10 @@ nnet_fwd_outer:
         dmaStore(activations.d, activations.d,
                  NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
     dmaStore(network.layers, network.layers, network.depth * sizeof(layer_t));
+
+    free(umem);
+    free(spad0);
+    free(spad1);
 }
 
 #endif

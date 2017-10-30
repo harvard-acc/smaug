@@ -61,6 +61,18 @@ void grab_weights_dma(float* weights, int layer, layer_t* layers) {
         dmaLoad(weights, offset*sizeof(float), 0, size);
 }
 
+int get_input_activations_size(layer_t* layers, int l) {
+    int size = layers[l].inputs.rows * layers[l].inputs.height *
+               (layers[l].inputs.cols + layers[l].inputs.align_pad);
+    return size * NUM_TEST_CASES;
+}
+
+int get_output_activations_size(layer_t* layers, int l) {
+    return (layers[l].outputs.rows) *
+           (layers[l].outputs.height * NUM_TEST_CASES) *
+           (layers[l].outputs.cols + layers[l].outputs.align_pad);
+}
+
 // Fetch the input activations from DRAM.
 // Useful for an accelerator with separate computational blocks.
 size_t grab_input_activations_dma(float* activations, int layer, layer_t* layers) {
@@ -96,26 +108,38 @@ void grab_weights_dma(float* host_weights,
         dmaLoad(accel_weights, &host_weights[offset], size);
 }
 
+int get_input_activations_size(layer_t* layer) {
+    int size = layer->inputs.rows * layer->inputs.height *
+               (layer->inputs.cols + layer->inputs.align_pad);
+    return size * NUM_TEST_CASES;
+}
+
+int get_output_activations_size(layer_t* layer) {
+    return (layer->outputs.rows) * (layer->outputs.height * NUM_TEST_CASES) *
+           (layer->outputs.cols + layer->outputs.align_pad);
+}
+
+
 size_t grab_input_activations_dma(float* host_activations,
                                   float* accel_activations,
-                                  layer_t layer) {
-    size_t activations_size = get_input_activations_size(&layer, 0);
+                                  layer_t* layer) {
+    size_t activations_size = get_input_activations_size(layer);
     dmaLoad(accel_activations, host_activations, activations_size * sizeof(float));
     return activations_size;
 }
 
 size_t grab_output_activations_dma(float* host_activations,
                                    float* accel_activations,
-                                   layer_t layer) {
-    size_t activations_size = get_output_activations_size(&layer, 0);
+                                   layer_t* layer) {
+    size_t activations_size = get_output_activations_size(layer);
     dmaLoad(accel_activations, host_activations, activations_size * sizeof(float));
     return activations_size;
 }
 
 size_t store_output_activations_dma(float* host_activations,
                                     float* accel_activations,
-                                    layer_t layer) {
-    size_t activations_size = get_output_activations_size(&layer, 0);
+                                    layer_t* layer) {
+    size_t activations_size = get_output_activations_size(layer);
     dmaStore(host_activations, accel_activations, activations_size * sizeof(float));
     return activations_size;
 }
@@ -224,18 +248,6 @@ int get_total_num_weights(layer_t* layers, int num_layers) {
         w_size += get_num_weights_layer(layers, l);
     }
     return w_size;
-}
-
-int get_input_activations_size(layer_t* layers, int l) {
-    int size = layers[l].inputs.rows * layers[l].inputs.height *
-               (layers[l].inputs.cols + layers[l].inputs.align_pad);
-    return size * NUM_TEST_CASES;
-}
-
-int get_output_activations_size(layer_t* layers, int l) {
-    return (layers[l].outputs.rows) *
-           (layers[l].outputs.height * NUM_TEST_CASES) *
-           (layers[l].outputs.cols + layers[l].outputs.align_pad);
 }
 
 size_t next_multiple(size_t request, size_t align) {

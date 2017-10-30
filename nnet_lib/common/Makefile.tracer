@@ -26,9 +26,9 @@ TRACER = $(TRACER_HOME)/lib/full_trace.so
 LOGGER = $(TRACER_HOME)/lib/trace_logger.llvm
 GET_LABELED_STMTS = $(TRACER_HOME)/bin/get-labeled-stmts
 
-CPPFLAGS = -I$(ALADDIN_HOME) -I$(COMMON_DIR) \
-					 -I$(COMMON_DIR)/../$(SRC_DIR) -I$(ALADDIN_HOME)/gem5 \
-           -DTRACE_MODE -DDMA_MODE
+CPPFLAGS += -I$(ALADDIN_HOME) -I$(COMMON_DIR) \
+				  	-I$(COMMON_DIR)/../$(SRC_DIR) -I$(ALADDIN_HOME)/gem5 \
+            -DTRACE_MODE -DDMA_MODE
 
 LDFLAGS = -lm -lz -lconfuse
 

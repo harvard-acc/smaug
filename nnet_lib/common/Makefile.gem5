@@ -12,7 +12,7 @@ GEM5_FULL_SRCS = $(patsubst %, $(ALADDIN_HOME)/%, $(GEM5_DMA_SRC) $(GEM5_SYS_SRC
 
 ALL_NATIVE_SRCS = $(patsubst %.c, $(SRC_DIR)/%.c, $(SRCS))
 
-GEM5_CFLAGS = -static -O3 -fno-exceptions \
+GEM5_CFLAGS = -static -O3 -g -fno-exceptions \
 							-DDMA_MODE -DDMA_INTERFACE_V3
 
 INCLUDES += -I$(ALADDIN_HOME) -I$(ALADDIN_HOME)/gem5 -Isrc
@@ -36,7 +36,7 @@ native-target: $(NATIVE)
 $(NATIVE): $(ALL_NATIVE_SRCS) $(GEM5_FULL_SRCS)
 	@echo Building benchmark $(BMARK) for native platform.
 	@mkdir -p $(BUILD_DIR)
-	@$(CC) $(CFLAGS) $(BMARK_SPECIFIC_CFLAGS) -DDMA_MODE $^ $(INCLUDES) -o $@ $(LFLAGS)
+	@$(CC) $(CPPFLAGS) $(CFLAGS) $(BMARK_SPECIFIC_CFLAGS) -DDMA_MODE $^ $(INCLUDES) -o $@ $(LFLAGS)
 
 # Builds both standalone CPU version and the HW accelerated version.
 gem5: gem5-cpu gem5-accel
@@ -50,12 +50,12 @@ gem5-accel: $(GEM5_ACCEL)
 $(GEM5_CPU): $(ALL_NATIVE_SRCS) $(GEM5_FULL_SRCS)
 	@echo Building benchmark $(BMARK) for gem5.
 	@mkdir -p $(BUILD_DIR)
-	@$(CC) $(GEM5_CFLAGS) $(CFLAGS) $^ $(INCLUDES) -o $@ $(LFLAGS)
+	@$(CC) $(GEM5_CFLAGS) $(CPPFLAGS) $(CFLAGS) $^ $(INCLUDES) -o $@ $(LFLAGS)
 
 $(GEM5_ACCEL): $(ALL_NATIVE_SRCS) $(GEM5_FULL_SRCS)
 	@echo Building benchmark $(BMARK) for gem5 with HW acceleration.
 	@mkdir -p $(BUILD_DIR)
-	@$(CC) $(GEM5_CFLAGS) $(CFLAGS) -DGEM5_HARNESS $^ $(INCLUDES) -o $@ $(LFLAGS)
+	@$(CC) $(GEM5_CFLAGS) $(CPPFLAGS) $(CFLAGS) -DGEM5_HARNESS $^ $(INCLUDES) -o $@ $(LFLAGS)
 
 clean-gem5:
 	@echo Cleaning gem5 build products

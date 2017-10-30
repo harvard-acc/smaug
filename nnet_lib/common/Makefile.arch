@@ -9,12 +9,11 @@ export WORKLOAD=nnet_fwd_hw
 endif
 
 ifneq ($(ARCH),)
-	CFLAGS += -DARCHITECTURE=$(ARCH)
+	CPPFLAGS += -DARCHITECTURE=$(ARCH)
 endif
 
 CFLAGS += -g \
 					-Wall \
-					-mavx \
 					-Wno-unused-label \
 					-Wno-unused-but-set-variable \
 

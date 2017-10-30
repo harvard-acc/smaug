@@ -29,6 +29,9 @@ result_buf inner_product_layer(float* activations,
                                layer_t* layers,
                                int lnum,
                                float* result) {
+    PRINT_MSG("Weights:\n");
+    PRINT_DEBUG(weights, layers[lnum].weights.rows, layers[lnum].weights.cols,
+                layers[lnum].weights.cols + layers[lnum].weights.align_pad);
     MATRIX_MULTIPLY_WITH_BIAS(
             activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows,
             layers[lnum].weights.cols + layers[lnum].weights.align_pad,
@@ -66,7 +69,7 @@ result_buf activation_sublayer(float* activations,
                                layer_t* layers,
                                int lnum,
                                float* sigmoid_table) {
-    int size = get_output_activations_size(layers, lnum);
+    int size = get_output_activations_size(&layers[lnum]);
     activation_fun(activations, size, layers[lnum].activation, sigmoid_table);
     return activations;
 }
