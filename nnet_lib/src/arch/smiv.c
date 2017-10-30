@@ -99,8 +99,8 @@ result_buf inner_product_layer(float* host_activations,
                 layers[lnum].weights.cols + layers[lnum].weights.align_pad);
     MAP_ARRAY(kInnerProductHw, host_activations, INPUT_BYTES(layers, lnum));
     MAP_ARRAY_TO_ACCEL(kInnerProductHw, "host_weights", host_weights_layer,
-                       OUTPUT_BYTES(layers, lnum));
-    MAP_ARRAY(kInnerProductHw, host_result, WEIGHT_BYTES(layers, lnum));
+                       WEIGHT_BYTES(layers, lnum));
+    MAP_ARRAY(kInnerProductHw, host_result, OUTPUT_BYTES(layers, lnum));
 
     if (current_result_loc == spad0) {
         INVOKE_KERNEL(kInnerProductHw, inner_product_layer_hw, host_activations,
@@ -139,7 +139,7 @@ void convolution_layer_hw(float* host_activations,
                           int img,
                           int kern,
                           int start_chan,
-                          float* result) {
+                          float* local_result) {
     layer_t curr_layer = all_layers[layer_num];
     const int input_height = curr_layer.inputs.height;
     const int input_rows= curr_layer.inputs.rows;
@@ -167,7 +167,8 @@ void convolution_layer_hw(float* host_activations,
                 num_input_pixels * sizeof(float));
     }
 
-    convolution3d_smiv(local_activations, local_weights, partial_layer, result);
+    convolution3d_smiv(
+            local_activations, local_weights, partial_layer, local_result);
 }
 
 // Find a good way to pack the convolution into the accelerator.
@@ -259,7 +260,7 @@ void convolution_runner(float* host_activations,
     // temp_result stores the partially reduced results of each iteration.
     size_t temp_result_size =
             result_2d_size * conv_cfgs.num_iterations * sizeof(float);
-    float* temp_result = (float*)malloc(temp_result_size);
+    float* temp_result = (float*)malloc_aligned(temp_result_size);
 
     for (int img = 0; img < NUM_TEST_CASES; img++) {
         for (int kern = 0; kern < num_kerns; kern++) {
@@ -446,9 +447,9 @@ void nnet_fwd(farray_t activations,
     int l;
     layer_t curr_layer;
 
-    umem = (float*)malloc(UMEM_SIZE);
-    spad0 = (float*)malloc(SPAD_SIZE);
-    spad1 = (float*)malloc(SPAD_SIZE);
+    umem = (float*)malloc_aligned(UMEM_SIZE);
+    spad0 = (float*)malloc_aligned(SPAD_SIZE);
+    spad1 = (float*)malloc_aligned(SPAD_SIZE);
 
     // Alternate between reading from/writing to activations and result so we
     // can avoid copying matrices. The initial activations is obviously in

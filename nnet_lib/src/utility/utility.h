@@ -65,6 +65,8 @@ void print_debug(float* array,
 void print_debug4d(float* array, int rows, int cols, int height);
 void print_data_and_weights(float* data, float* weights, layer_t first_layer);
 
+void* malloc_aligned(size_t size);
+
 #ifdef BITWIDTH_REDUCTION
 // Don't add this function unless we want to model bit width quantization
 // effects. In particular, do not enable this if we are building a trace.  We

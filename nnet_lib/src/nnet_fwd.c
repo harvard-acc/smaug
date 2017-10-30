@@ -81,7 +81,7 @@ void print_usage() {
 }
 
 int main(int argc, const char* argv[]) {
-    int i, j, err;
+    int i, j;
 
     if (argc < 2 || argc > 3) {
       print_usage();
@@ -128,27 +128,18 @@ int main(int argc, const char* argv[]) {
     }
     printf("  Largest intermediate output size is %lu elements\n",
            hid_temp.size);
-    err = posix_memalign(
-            (void**)&hid_temp.d, CACHELINE_SIZE,
-            next_multiple(hid_temp.size * sizeof(float), CACHELINE_SIZE));
-    ASSERT_MEMALIGN(hid_temp.d, err);
+    hid_temp.d = (float*)malloc_aligned(hid_temp.size * sizeof(float));
     memset(hid_temp.d, 0, hid_temp.size * sizeof(float));
 
     hid.size = max(data_size, hid_temp.size);
     printf("  hid has %lu elements\n", hid.size);
-    err = posix_memalign(
-            (void**)&hid.d, CACHELINE_SIZE,
-            next_multiple(hid.size * sizeof(float), CACHELINE_SIZE));
-    ASSERT_MEMALIGN(hid.d, err);
+    hid.d = (float*)malloc_aligned(hid.size * sizeof(float));
     memset(hid.d, 0, hid.size * sizeof(float));
 
     // Initialize weights, data, and labels.
     farray_t weights;
     weights.size = get_total_num_weights(network.layers, network.depth);
-    err = posix_memalign(
-            (void**)&weights.d, CACHELINE_SIZE,
-            next_multiple(weights.size * sizeof(float), CACHELINE_SIZE));
-    ASSERT_MEMALIGN(weights.d, err);
+    weights.d = (float*)malloc_aligned(weights.size * sizeof(float));
     memset(weights.d, 0, weights.size * sizeof(float));
     printf("  Total weights: %lu elements\n", weights.size);
     // Get the largest weights size for a single layer - this will be the size
@@ -165,10 +156,7 @@ int main(int argc, const char* argv[]) {
 
     iarray_t labels = { NULL, 0 };
     labels.size = NUM_TEST_CASES;
-    err = posix_memalign(
-            (void**)&labels.d, CACHELINE_SIZE,
-            next_multiple(labels.size * sizeof(int), CACHELINE_SIZE));
-    ASSERT_MEMALIGN(labels.d, err);
+    labels.d = (int*)malloc_aligned(labels.size * sizeof(float));
     memset(labels.d, 0, labels.size * sizeof(float));
 
     init_data(hid.d, &network, NUM_TEST_CASES, RANDOM_DATA);

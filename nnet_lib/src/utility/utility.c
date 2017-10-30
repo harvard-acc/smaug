@@ -1,3 +1,4 @@
+#include <assert.h>
 #include "nnet_fwd.h"
 
 #ifdef DMA_MODE
@@ -309,4 +310,12 @@ void print_data_and_weights(float* data, float* weights, layer_t first_layer) {
         }
     }
     printf("\nEND WEIGHTS\n");
+}
+
+void* malloc_aligned(size_t size) {
+    void* ptr = NULL;
+    int err = posix_memalign(
+            (void**)&ptr, CACHELINE_SIZE, next_multiple(size, CACHELINE_SIZE));
+    assert(err == 0 && "Failed to allocate memory!");
+    return ptr;
 }
