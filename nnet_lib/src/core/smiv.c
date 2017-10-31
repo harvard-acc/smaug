@@ -10,7 +10,7 @@
 
 void reduction_smiv(float* a, layer_t curr_layer, float* result) {
 #ifdef ENABLE_SIMD_IMPL
-    reduction_smiv_vec_fxp(a, curr_layer, img, kern, result);
+    reduction_smiv_vec_fxp(a, curr_layer, result);
 #else
     reduction_smiv_fxp(a, curr_layer, result);
 #endif
@@ -21,7 +21,7 @@ void convolution3d_smiv(float* a,
                         layer_t curr_layer,
                         float* result) {
 #ifdef ENABLE_SIMD_IMPL
-    convolution2d_smiv_1kernel_1channel_simd_fxp(
+    convolution3d_smiv_1kernel_noreduce_simd_fxp(
             a, kernels, curr_layer, result);
 #else
     convolution3d_smiv_1kernel_noreduce_fxp(a, kernels, curr_layer, result);

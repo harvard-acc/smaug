@@ -58,8 +58,7 @@ void reduction_smiv_fxp(float* a, layer_t curr_layer, float* result) {
     }
 }
 
-void reduction_smiv_vec_fxp(
-        float* a, layer_t curr_layer, int img, int kern, float* result) {
+void reduction_smiv_vec_fxp(float* a, layer_t curr_layer, float* result) {
     unsigned row, col, chan;
 
     const int result_height = curr_layer.outputs.rows;
@@ -69,7 +68,6 @@ void reduction_smiv_vec_fxp(
     const int vec_padded_width = padded_width / VECTOR_SIZE;
 
     const int k_height =  curr_layer.inputs.height;
-    const int num_kerns = curr_layer.outputs.height;
     const bool run_activation = curr_layer.activation != NONE;
 
 #ifdef TRACE_MODE
@@ -78,7 +76,7 @@ void reduction_smiv_vec_fxp(
 #endif
 
     VEC_ARRAY_3D(v8fp_t, _a, a, result_height, padded_width);
-    VEC_ARRAY_4D(v8fp_t, _result, result, num_kerns, result_height, padded_width);
+    VEC_ARRAY_2D(v8fp_t, _result, result, padded_width);
 
     reduction_row:
     for (row = 0; row < result_height; row++) {
@@ -94,7 +92,7 @@ void reduction_smiv_vec_fxp(
                 RELU_VEC_SMIV(partial_sums);
             }
 
-            _result[img][kern][row][col] = partial_sums;
+            _result[row][col] = partial_sums;
         }
     }
 }

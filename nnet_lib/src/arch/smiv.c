@@ -383,9 +383,8 @@ result_buf convolution_layer(float* activations,
 
     float* current_layer_weights =
             weights + get_weights_loc_for_layer(layers, lnum);
-    size_t weights_size = get_num_weights_layer(layers, lnum);
     MAP_ARRAY_TO_ACCEL(kConvolutionHw, "host_weights", current_layer_weights,
-                       weights_size * sizeof(float));
+                       get_num_weights_layer(layers, lnum) * sizeof(float));
     layer_t curr_layer = layers[lnum];
     if (curr_layer.c_padding > 0) {
         // TODO: Replace this with a memcpy implementation.
