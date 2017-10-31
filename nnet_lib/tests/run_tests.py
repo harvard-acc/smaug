@@ -29,6 +29,7 @@ TESTS = [
     ("mnist/lenet5-ish.conf",        "mnist-lenet5-ish.out"),
     ("imagenet/simple.conf",         "imagenet-simple.out"),
     ("imagenet/vgg16.conf",          "imagenet-vgg16.out"),
+    ("smiv/smiv-multi-rounds.conf",  "smiv-multi-rounds.out"),
 ]
 
 MODEL_DIR = "../../models/"
@@ -149,6 +150,12 @@ class ImageNetTests(BaseTest):
   def test_vgg16(self):
     model_file = "imagenet/vgg16.conf"
     correct_output = "imagenet-vgg16.out"
+    self.runAndValidate(model_file, correct_output)
+
+class SmivTests(BaseTest):
+  def test_multi_rounds(self):
+    model_file = "smiv/smiv-multi-rounds.conf"
+    correct_output = "smiv-multi-rounds.out"
     self.runAndValidate(model_file, correct_output)
 
 def run_tests():
