@@ -135,9 +135,19 @@ void reduction_hw(float* spad0,
                   float* spad1,
                   float* umem,
                   bool input_in_spad0,
+                  bool needs_input_load,
                   layer_t partial_layer,
                   size_t result_size,
                   float* host_result) {
+    if (needs_input_load) {
+        size_t input_bytes =
+                result_size * partial_layer.inputs.height * sizeof(float);
+        if (input_in_spad0)
+            dmaLoad(spad0, host_result, input_bytes);
+        else
+            dmaLoad(spad1, host_result, input_bytes);
+    }
+
     if (input_in_spad0)
         reduction_smiv(spad0, partial_layer, umem);
     else
@@ -323,8 +333,8 @@ void convolution_runner(float* host_activations,
 
                 // Reduce the results.
                 INVOKE_KERNEL(kReductionHw, reduction_hw, g_spad0, g_spad1,
-                              g_umem, false, partial_layer, result_2d_size,
-                              result_loc);
+                              g_umem, false, false, partial_layer,
+                              result_2d_size, result_loc);
 
                 result_loc += result_2d_size;
                 start_chan += iter_cfg.height;
@@ -351,8 +361,8 @@ void convolution_runner(float* host_activations,
                     MAP_ARRAY_TO_ACCEL(kReductionHw, "host_result", result_loc,
                                        result_2d_size);
                     INVOKE_KERNEL(kReductionHw, reduction_hw, g_spad0, g_spad1,
-                                  g_umem, false, partial_layer, result_2d_size,
-                                  result_loc);
+                                  g_umem, false, true, partial_layer,
+                                  result_2d_size, result_loc);
                     result_loc += result_2d_size;
                 }
             }
