@@ -24,12 +24,17 @@ NATIVE = $(BUILD_DIR)/$(BMARK)-native
 GEM5_CPU = $(BUILD_DIR)/$(BMARK)-gem5
 GEM5_ACCEL = $(BUILD_DIR)/$(BMARK)-gem5-accel
 
-debug: CFLAGS+=-DDEBUG -O0
-debug: native-target
+# Debug flags
+native: DLEVEL=0
+debug: DLEVEL=1
+debug-verbose: DLEVEL=2
+gem5: DLEVEL=0
 
 # NOTE: Do not remove -std=gnu99! Required for Travis CI toolchain.
 native: CFLAGS+=-O3 -std=gnu99
 native: native-target
+debug: native-target
+debug-verbose: native-target
 
 native-target: $(NATIVE)
 
@@ -58,10 +63,10 @@ $(GEM5_ACCEL): $(ALL_NATIVE_SRCS) $(GEM5_FULL_SRCS)
 	@$(CC) $(GEM5_CFLAGS) $(CPPFLAGS) $(CFLAGS) -DGEM5_HARNESS $^ $(INCLUDES) -o $@ $(LFLAGS)
 
 clean-gem5:
-	@echo Cleaning gem5 build products
+	@echo Cleaning gem5 build products...
 	@rm -rf $(GEM5_CPU)
 	@rm -rf $(GEM5_ACCEL)
 
 clean-native:
-	@echo Cleaning native build products
-	@rm -rf $(NATIVE)
+	@echo Cleaning native build products...
+	@rm -rf $(NATIVE)*

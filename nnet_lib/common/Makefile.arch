@@ -16,6 +16,7 @@ CFLAGS += -g \
 					-Wall \
 					-Wno-unused-label \
 					-Wno-unused-but-set-variable \
+					-DDEBUG_LEVEL=$(DLEVEL)
 
 native: CFLAGS+=-Wno-attributes
 gem5-cpu: CFLAGS+=-Wno-attributes

@@ -313,16 +313,32 @@ typedef struct _iarray_t {
         TYPE(*output_array_name)[DIM_1][DIM_2][DIM_3][DIM_4] =                 \
             (TYPE(*)[DIM_1][DIM_2][DIM_3][DIM_4])input_array_name
 
-#if DEBUG == 1
+#if DEBUG_LEVEL >= 1
 #define PRINT_DEBUG(hid, rows, cols, num_cols)                                 \
     print_debug(hid, rows, cols, num_cols)
 #define PRINT_DEBUG4D(hid, rows, cols, height)                                 \
     print_debug4d(hid, rows, cols, height)
 #define PRINT_MSG(args...) printf(args)
+
+#if DEBUG_LEVEL >= 2
+#define PRINT_DEBUG_V(hid, rows, cols, num_cols)                               \
+    print_debug(hid, rows, cols, num_cols)
+#define PRINT_DEBUG4D_V(hid, rows, cols, height)                               \
+    print_debug4d(hid, rows, cols, height)
+#define PRINT_MSG_V(args...) printf(args)
+#else
+#define PRINT_DEBUG_V(hid, rows, cols, num_cols)
+#define PRINT_DEBUG4D_V(hid, rows, cols, height)
+#define PRINT_MSG_V(args...)
+#endif
+
 #else
 #define PRINT_DEBUG(hid, rows, cols, num_cols)
 #define PRINT_DEBUG4D(hid, rows, cols, height)
 #define PRINT_MSG(args...)
+#define PRINT_DEBUG_V(hid, rows, cols, height)
+#define PRINT_DEBUG4D_V(hid, rows, cols, height)
+#define PRINT_MSG_V(args...)
 #endif
 
 #define CACHELINE_SIZE 64

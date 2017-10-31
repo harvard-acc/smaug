@@ -30,7 +30,7 @@ static float* g_spad1;
 // Each SMIV block has two scratchpads of 64KB each, but the real accelerator
 // operates on 16-bit data, whereas we are using 32-bit data. To make sure we
 // can fit the same size inputs, we double the per-scratchpad size.
-#define SPAD_SIZE 131072
+#define SPAD_SIZE (131072)
 
 // The UMEM on the NIC is 3 blocks of 1MB each.
 #define UMEM_SIZE (3*1048576)
@@ -110,10 +110,10 @@ result_buf inner_product_layer(float* host_activations,
     }
     float* host_weights_layer =
             host_weights + get_weights_loc_for_layer(layers, lnum);
-    PRINT_MSG("Weights:\n");
-    PRINT_DEBUG(host_weights_layer, layers[lnum].weights.rows,
-                layers[lnum].weights.cols,
-                layers[lnum].weights.cols + layers[lnum].weights.align_pad);
+    PRINT_MSG_V("Weights:\n");
+    PRINT_DEBUG_V(host_weights_layer, layers[lnum].weights.rows,
+                  layers[lnum].weights.cols,
+                  layers[lnum].weights.cols + layers[lnum].weights.align_pad);
 
     size_t weight_bytes = WEIGHT_BYTES(layers, lnum);
     assert(weight_bytes <= UMEM_SIZE && "Weights must fit on the UMEM!");
@@ -226,7 +226,7 @@ conv_cfg_t convolution_divide_work(layer_t* layers, int lnum) {
         assert(false);
     }
     if (total_output_bytes <= SPAD_SIZE) {
-        PRINT_MSG("Entire input problem fits into the local memory.\n");
+        PRINT_MSG_V("Entire input problem fits into the local memory.\n");
         conv_cfgs.iteration = (dims_t*)malloc(sizeof(dims_t));
         conv_cfgs.iteration[0].rows = layers[lnum].inputs.rows;
         conv_cfgs.iteration[0].cols = layers[lnum].inputs.cols;
@@ -247,7 +247,7 @@ conv_cfg_t convolution_divide_work(layer_t* layers, int lnum) {
 
     unsigned max_channels_per_iter = SPAD_SIZE / output_channel_size;
     if (max_channels_per_iter >= 2) {
-        PRINT_MSG("We can fit at least 2 unreduced input channels at once.\n");
+        PRINT_MSG_V("We can fit at least 2 unreduced input channels at once.\n");
         conv_cfgs.num_iterations =
                 ceil((float)input_channels / max_channels_per_iter);
         conv_cfgs.iteration =
@@ -288,7 +288,7 @@ void convolution_runner(float* host_activations,
     ARRAY_4D(float, _result, host_result, num_kerns, result_height,
              result_width + result_pad);
 
-#if DEBUG == 1
+#if DEBUG_LEVEL >= 1
     const int input_height = curr_layer.inputs.height;
     const int k_width = curr_layer.weights.cols;
     const int k_pad = curr_layer.weights.align_pad;
@@ -297,6 +297,7 @@ void convolution_runner(float* host_activations,
 #endif
 
     conv_cfg_t conv_cfgs = convolution_divide_work(layers, lnum);
+    PRINT_MSG_V("Number of iterations: %d\n", conv_cfgs.num_iterations);
     // temp_result stores the partially reduced results of each iteration.
     size_t temp_result_size =
             result_2d_size * conv_cfgs.num_iterations * sizeof(float);
@@ -347,7 +348,7 @@ void convolution_runner(float* host_activations,
                 int result_iter =
                         ceil(result_2d_size * conv_cfgs.num_iterations /
                              (float)SPAD_SIZE);
-                assert(result_iter == 1 &&
+                assert(result_iter <= 1 &&
                        "Only support 1 last iteration of reduction!");
                 int num_result_chans = min(
                         conv_cfgs.num_iterations, SPAD_SIZE / result_2d_size);
@@ -394,9 +395,9 @@ result_buf convolution_layer(float* activations,
                       curr_layer.inputs.rows,
                       curr_layer.inputs.cols + curr_layer.inputs.align_pad,
                       curr_layer.inputs.height);
-        PRINT_DEBUG4D(weights, curr_layer.weights.rows,
-                      curr_layer.weights.cols + curr_layer.weights.align_pad,
-                      curr_layer.weights.height);
+        PRINT_DEBUG4D_V(weights, curr_layer.weights.rows,
+                        curr_layer.weights.cols + curr_layer.weights.align_pad,
+                        curr_layer.weights.height);
         convolution_runner(
                 result, current_layer_weights, layers, lnum, activations);
 

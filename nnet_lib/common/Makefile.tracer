@@ -16,6 +16,7 @@ MODULES = core core/smiv utility arch gem5
 #         TOP LEVEL RULES        #
 ##################################
 
+dma-trace-binary: DLEVEL=0
 dma-trace-binary: build-trace
 
 ##################################

@@ -63,14 +63,14 @@ static void conv_macc_datapath_fxp(float weights_buffer[VECTOR_SIZE],
         // We have to shift the shift regs together in a single function call.
         if (psum_reg < dp1_iters)
           psums_1[psum_reg] = accum_result_1;
-        PRINT_MSG("psums\n");
-        PRINT_DEBUG(&psums_0[0], 1, VECTOR_SIZE, VECTOR_SIZE);
-        PRINT_DEBUG(&psums_1[0], 1, VECTOR_SIZE, VECTOR_SIZE);
+        PRINT_MSG_V("psums\n");
+        PRINT_DEBUG_V(&psums_0[0], 1, VECTOR_SIZE, VECTOR_SIZE);
+        PRINT_DEBUG_V(&psums_1[0], 1, VECTOR_SIZE, VECTOR_SIZE);
 
         shift_regs_lshift(pipe0_shift_reg, pipe1_shift_reg, dp_shamt);
-        PRINT_MSG("\nshift regs\n");
-        PRINT_DEBUG(&pipe0_shift_reg[0], 1, SHIFT_REG_SIZE, SHIFT_REG_SIZE);
-        PRINT_DEBUG(&pipe1_shift_reg[0], 1, SHIFT_REG_SIZE, SHIFT_REG_SIZE);
+        PRINT_MSG_V("\nshift regs\n");
+        PRINT_DEBUG_V(&pipe0_shift_reg[0], 1, SHIFT_REG_SIZE, SHIFT_REG_SIZE);
+        PRINT_DEBUG_V(&pipe1_shift_reg[0], 1, SHIFT_REG_SIZE, SHIFT_REG_SIZE);
     }
 }
 
@@ -94,8 +94,8 @@ static void merge_psums_fxp(float psums_0[VECTOR_SIZE],
             result[i] += psums_0[i] + psums_1[i];
         }
     }
-    PRINT_MSG("merged psums\n");
-    PRINT_DEBUG(&result[0], 1, VECTOR_SIZE, VECTOR_SIZE);
+    PRINT_MSG_V("merged psums\n");
+    PRINT_DEBUG_V(&result[0], 1, VECTOR_SIZE, VECTOR_SIZE);
 }
 
 // Perform a 3D convolution with one kernel on an image, without reduction.
@@ -167,7 +167,7 @@ void convolution3d_smiv_1kernel_noreduce_fxp(float* a,
 
     conv2d_chan:
     for (in_chan = 0; in_chan < end_chan; in_chan += chan_stride) {
-        PRINT_MSG("Input channel %d\n", in_chan);
+        PRINT_MSG_V("Input channel %d\n", in_chan);
         out_row = 0;
         conv2d_row:
         for (in_row = 0; in_row < end_row; in_row += row_stride) {
@@ -190,7 +190,7 @@ void convolution3d_smiv_1kernel_noreduce_fxp(float* a,
                   dp1_iters = min(max_psums_per_act, remaining_per_dp);
                   total_outpx = dp0_iters;
                 }
-                PRINT_MSG("dp0_iters: %d, dp1_iters: %d\n", dp0_iters, dp1_iters);
+                PRINT_MSG_V("dp0_iters: %d, dp1_iters: %d\n", dp0_iters, dp1_iters);
 
                 // Two partial sum regs, one for each pipe.
                 float psums_0[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -224,9 +224,9 @@ void convolution3d_smiv_1kernel_noreduce_fxp(float* a,
                         }
                     }
 
-                    PRINT_MSG("Shift registers after loading activations\n");
-                    PRINT_DEBUG(&pipe0_shift_reg[0], 1, SHIFT_REG_SIZE, SHIFT_REG_SIZE);
-                    PRINT_DEBUG(&pipe1_shift_reg[0], 1, SHIFT_REG_SIZE, SHIFT_REG_SIZE);
+                    PRINT_MSG_V("Shift registers after loading activations\n");
+                    PRINT_DEBUG_V(&pipe0_shift_reg[0], 1, SHIFT_REG_SIZE, SHIFT_REG_SIZE);
+                    PRINT_DEBUG_V(&pipe1_shift_reg[0], 1, SHIFT_REG_SIZE, SHIFT_REG_SIZE);
 
                     // Load weights into weights buffer, accounting for double tp
                     // mode.
@@ -245,12 +245,12 @@ void convolution3d_smiv_1kernel_noreduce_fxp(float* a,
                       }
                     }
 
-                    PRINT_MSG("Weights buffer\n");
-                    PRINT_DEBUG(&weights_buffer[0], 1, VECTOR_SIZE, VECTOR_SIZE);
+                    PRINT_MSG_V("Weights buffer\n");
+                    PRINT_DEBUG_V(&weights_buffer[0], 1, VECTOR_SIZE, VECTOR_SIZE);
 
                     shift_reg_lshift(pipe1_shift_reg, init_shamt);
-                    PRINT_MSG("After initial shift of pipe1\n");
-                    PRINT_DEBUG(&pipe1_shift_reg[0], 1, SHIFT_REG_SIZE, SHIFT_REG_SIZE);
+                    PRINT_MSG_V("After initial shift of pipe1\n");
+                    PRINT_DEBUG_V(&pipe1_shift_reg[0], 1, SHIFT_REG_SIZE, SHIFT_REG_SIZE);
 
                     // Primary datapath.
                     conv_macc_datapath_fxp(weights_buffer,
@@ -275,8 +275,8 @@ void convolution3d_smiv_1kernel_noreduce_fxp(float* a,
                 if (out_col >= result_width)
                     out_col = 0;
             }
-            PRINT_MSG("\nResult of row %d\n", out_row);
-            PRINT_DEBUG(&_result[in_chan][out_row][0], 1, result_width, result_width);
+            PRINT_MSG_V("\nResult of row %d\n", out_row);
+            PRINT_DEBUG_V(&_result[in_chan][out_row][0], 1, result_width, result_width);
             out_row++;
         }
     }
