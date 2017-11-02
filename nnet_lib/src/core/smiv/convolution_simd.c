@@ -95,7 +95,7 @@ static void conv_macc_datapath_simd_fxp(v8fp_t weights_buffer,
     psums_1[0] = psums_tmp_1;
 }
 
-// ALWAYS_INLINE
+ALWAYS_INLINE
 static v8fp_t merge_psums_simd_fxp(v8fp_t psums_0,
                                    v8fp_t psums_1,
                                    bool double_tp) {
