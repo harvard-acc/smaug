@@ -78,6 +78,7 @@ $(BUILD_DIR)/$(EXEC)-instrumented: $(BUILD_DIR)/full.s
 	@echo Building $<
 	@clang -g -O1 -S -fno-slp-vectorize -fno-vectorize -fno-unroll-loops \
         -fno-inline -fno-builtin \
+				-mavx \
 				-emit-llvm \
 				$(CPPFLAGS) \
         $(BMARK_SPECIFIC_CFLAGS) \
@@ -89,7 +90,7 @@ $(BUILD_DIR)/$(EXEC)-instrumented: $(BUILD_DIR)/full.s
 clean-trace:
 	@echo "Cleaning trace build products..."
 	@rm -rf $(SUBBUILDDIRS)
-	@rm -rf $(BUILD_DIR)/*
+	@cd $(BUILD_DIR) && rm -rf *.llvm *.h *.c *.s labelmap $(EXEC)-instrumented
 	@rm -f dynamic_trace.gz
 	@rm -f labelmap
 	@rm -f output_labels.out
