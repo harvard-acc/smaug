@@ -60,38 +60,39 @@ void inner_product_layer_hw(float* host_activations,
                             float* umem,
                             float* spad0,
                             float* spad1,
-                            layer_t* layers,
+                            layer_t* all_layers,
                             int lnum,
                             bool input_in_spad0,
                             float* host_result) {
-    bool run_activation = layers[lnum].activation != NONE;
-    int weights_size = get_num_weights_layer(layers, lnum) * sizeof(float);
+    bool run_activation = all_layers[lnum].activation != NONE;
+    int weights_size = get_num_weights_layer(all_layers, lnum) * sizeof(float);
+    setReadyBits(umem, UMEM_SIZE, 0);
     dmaLoad(umem, host_weights, weights_size);
 
-    if (layers[lnum].needs_input_dma_load) {
+    if (all_layers[lnum].needs_input_dma_load) {
         if (input_in_spad0)
-            grab_input_activations_dma(host_activations, spad0, &layers[lnum]);
+            grab_input_activations_dma(host_activations, spad0, &all_layers[lnum]);
         else
-            grab_input_activations_dma(host_activations, spad1, &layers[lnum]);
+            grab_input_activations_dma(host_activations, spad1, &all_layers[lnum]);
     }
 
     if (input_in_spad0) {
         matrix_multiply_with_bias_smiv(
-                spad0, umem, NUM_TEST_CASES, layers[lnum].weights.rows,
-                layers[lnum].weights.cols + layers[lnum].weights.align_pad,
-                layers[lnum].inputs.align_pad, run_activation, spad1);
+                spad0, umem, NUM_TEST_CASES, all_layers[lnum].weights.rows,
+                all_layers[lnum].weights.cols + all_layers[lnum].weights.align_pad,
+                all_layers[lnum].inputs.align_pad, run_activation, spad1);
     } else {
         matrix_multiply_with_bias_smiv(
-                spad1, umem, NUM_TEST_CASES, layers[lnum].weights.rows,
-                layers[lnum].weights.cols + layers[lnum].weights.align_pad,
-                layers[lnum].inputs.align_pad, run_activation, spad0);
+                spad1, umem, NUM_TEST_CASES, all_layers[lnum].weights.rows,
+                all_layers[lnum].weights.cols + all_layers[lnum].weights.align_pad,
+                all_layers[lnum].inputs.align_pad, run_activation, spad0);
     }
 
-    if (layers[lnum].needs_output_dma_store) {
+    if (all_layers[lnum].needs_output_dma_store) {
         if (input_in_spad0)
-            store_output_activations_dma(host_result, spad1, &layers[lnum]);
+            store_output_activations_dma(host_result, spad1, &all_layers[lnum]);
         else
-            store_output_activations_dma(host_result, spad0, &layers[lnum]);
+            store_output_activations_dma(host_result, spad0, &all_layers[lnum]);
     }
 }
 
@@ -142,10 +143,13 @@ void reduction_hw(float* spad0,
     if (needs_input_load) {
         size_t input_bytes =
                 result_size * partial_layer.inputs.height * sizeof(float);
-        if (input_in_spad0)
+        if (input_in_spad0) {
+            setReadyBits(spad0, input_bytes, 0);
             dmaLoad(spad0, host_result, input_bytes);
-        else
+        } else {
+            setReadyBits(spad1, input_bytes, 0);
             dmaLoad(spad1, host_result, input_bytes);
+        }
     }
 
     if (input_in_spad0)
@@ -191,9 +195,11 @@ void convolution_layer_hw(float* host_activations,
             partial_layer.weights.rows * partial_layer.weights.height *
             (partial_layer.weights.cols + partial_layer.weights.align_pad);
     if (input_in_spad0) {
+        setReadyBits(spad0, num_weights * sizeof(float), 0);
         dmaLoad(spad0, &_kernels[kern][start_chan][0][0],
                 num_weights * sizeof(float));
     } else {
+        setReadyBits(spad1, num_weights * sizeof(float), 0);
         dmaLoad(spad1, &_kernels[kern][start_chan][0][0],
                 num_weights * sizeof(float));
     }
@@ -201,6 +207,7 @@ void convolution_layer_hw(float* host_activations,
         size_t num_input_pixels =
                 partial_layer.inputs.rows * partial_layer.inputs.height *
                 (partial_layer.inputs.cols + partial_layer.inputs.align_pad);
+        setReadyBits(umem, num_input_pixels * sizeof(float), 0);
         dmaLoad(umem, &_a[img][start_chan][0][0],
                 num_input_pixels * sizeof(float));
     }
