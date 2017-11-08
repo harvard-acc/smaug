@@ -36,7 +36,6 @@ def run_conv_model(args):
     cycles *= k_size  # Repeat this many times for each output row
     cycles *= (i_rows - k_size + 1)  # For all output rows
     total_cycles += cycles
-    print total_cycles
 
   total_cycles *= args.input_chans  # For each channel
   # cycles *= args.num_kerns  # For each kernel
