@@ -67,8 +67,7 @@ result_buf pooling_layer(float* activations,
 
 result_buf activation_sublayer(float* activations,
                                layer_t* layers,
-                               int lnum,
-                               float* sigmoid_table) {
+                               int lnum) {
     int size = get_output_activations_size(&layers[lnum]);
     activation_fun(activations, size, layers[lnum].activation, sigmoid_table);
     return activations;
@@ -78,19 +77,18 @@ result_buf run_layer(float* activations,
                      float* weights,
                      layer_t* layers,
                      int layer_num,
-                     float* result,
-                     float* sigmoid_table) {
+                     float* result) {
     layer_t curr_layer = layers[layer_num];
     result_buf result_loc = run_layer_skip_activation_func(
-            activations, weights, layers, layer_num, result, sigmoid_table);
+            activations, weights, layers, layer_num, result);
 
     if (curr_layer.activation != NONE) {
         PRINT_MSG("\nactivation function\n");
         // Pass through activation function
         if (result_loc == activations) {
-            activation_sublayer(activations, layers, layer_num, sigmoid_table);
+            activation_sublayer(activations, layers, layer_num);
         } else {
-            activation_sublayer(result, layers, layer_num, sigmoid_table);
+            activation_sublayer(result, layers, layer_num);
         }
 
         PRINT_DEBUG4D(result_loc, curr_layer.outputs.rows,
@@ -104,8 +102,7 @@ void nnet_fwd_hw(float* activations,
                  float* weights,
                  layer_t* layers,
                  int num_layers,
-                 float* result,
-                 float* sigmoid_table) {
+                 float* result) {
     int l;
     layer_t curr_layer;
 
@@ -133,11 +130,9 @@ nnet_fwd_outer:
         grab_weights_dma(weights, weights, l, layers);
 
         if (result_loc == result) {
-            result_loc = run_layer(
-                    result, weights, layers, l, activations, sigmoid_table);
+            result_loc = run_layer(result, weights, layers, l, activations);
         } else {
-            result_loc = run_layer(
-                    activations, weights, layers, l, result, sigmoid_table);
+            result_loc = run_layer(activations, weights, layers, l, result);
         }
     }
 
@@ -159,8 +154,7 @@ nnet_fwd_outer:
 void nnet_fwd(farray_t activations,
               farray_t weights,
               farray_t result,
-              network_t network,
-              float* sigmoid_table) {
+              network_t network) {
     if (PRINT_DATA_AND_WEIGHTS) {
         print_data_and_weights(activations.d, weights.d, network.layers[0]);
     }
@@ -175,7 +169,7 @@ void nnet_fwd(farray_t activations,
                        network.depth * sizeof(layer_t));
 
     INVOKE_KERNEL(kNnetFwdHw, nnet_fwd_hw, activations.d, weights.d, network.layers,
-                  network.depth, result.d, sigmoid_table);
+                  network.depth, result.d);
 }
 
 #endif

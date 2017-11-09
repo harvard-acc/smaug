@@ -28,6 +28,7 @@
 int NUM_TEST_CASES;
 int NUM_CLASSES;
 int INPUT_DIM;
+float* sigmoid_table;
 
 size_t calc_layer_intermediate_memory(layer_t* layers, int lnum) {
     size_t usage = 0, flattened_usage = 0;
@@ -168,7 +169,7 @@ int main(int argc, const char* argv[]) {
     // so we can use bit shift in lookup function with fixed point precisions
     printf("Setting up sigmoid lookup table\n");
     int sigmoid_coarseness = 1 << LG_SIGMOID_COARSENESS;
-    float sigmoid_table[sigmoid_coarseness];
+    sigmoid_table = (float*)malloc(sigmoid_coarseness * sizeof(float));
     float sig_step = (float)(SIG_MAX - SIG_MIN) / (sigmoid_coarseness - 1.0);
     float x_sig = (float)SIG_MIN;
     for (i = 0; i < sigmoid_coarseness; i++) {
@@ -181,7 +182,7 @@ int main(int argc, const char* argv[]) {
 
     // Run a forward pass through the neural net
     printf("Running forward pass\n");
-    nnet_fwd(hid, weights, hid_temp, network, sigmoid_table);
+    nnet_fwd(hid, weights, hid_temp, network);
 
     // Print the result, maybe not all the test_cases
     int num_to_print = 1;
@@ -214,6 +215,7 @@ int main(int argc, const char* argv[]) {
     }
     fclose(output_labels);
 
+    free(sigmoid_table);
     free(hid.d);
     free(hid_temp.d);
     free(weights.d);

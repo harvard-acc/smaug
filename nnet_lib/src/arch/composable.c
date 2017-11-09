@@ -126,8 +126,7 @@ void activation_hw(float* activations,
 
 result_buf activation_sublayer(float* activations,
                                layer_t* layers,
-                               int lnum,
-                               float* sigmoid_table) {
+                               int lnum) {
     MAP_ARRAY(kActivationFuncHw, activations, OUTPUT_BYTES(layers, lnum));
     INVOKE_KERNEL(kActivationFuncHw, activation_hw, activations, layers, lnum,
                   sigmoid_table);
@@ -138,20 +137,19 @@ result_buf run_layer(float* activations,
                      float* weights,
                      layer_t* layers,
                      int layer_num,
-                     float* result,
-                     float* sigmoid_table) {
+                     float* result) {
     layer_t curr_layer = layers[layer_num];
 
     result_buf result_loc = run_layer_skip_activation_func(
-            activations, weights, layers, layer_num, result, sigmoid_table);
+            activations, weights, layers, layer_num, result);
 
     if (curr_layer.activation != NONE) {
         PRINT_MSG("\nactivation function\n");
         // Pass through activation function
         if (result_loc == activations) {
-            activation_sublayer(activations, layers, layer_num, sigmoid_table);
+            activation_sublayer(activations, layers, layer_num);
         } else {
-            activation_sublayer(result, layers, layer_num, sigmoid_table);
+            activation_sublayer(result, layers, layer_num);
         }
 
         PRINT_DEBUG4D(result_loc, curr_layer.outputs.rows,
@@ -169,8 +167,7 @@ result_buf run_layer(float* activations,
 void nnet_fwd(farray_t activations,
               farray_t weights,
               farray_t result,
-              network_t network,
-              float* sigmoid_table) {
+              network_t network) {
 
     int l;
     layer_t curr_layer;
@@ -198,11 +195,11 @@ nnet_fwd_outer:
         curr_layer = network.layers[l];
 
         if (result_loc == result.d) {
-            result_loc = run_layer(result.d, weights.d, network.layers, l,
-                                   activations.d, sigmoid_table);
+            result_loc = run_layer(
+                    result.d, weights.d, network.layers, l, activations.d);
         } else {
-            result_loc = run_layer(activations.d, weights.d, network.layers, l,
-                                   result.d, sigmoid_table);
+            result_loc = run_layer(
+                    activations.d, weights.d, network.layers, l, result.d);
         }
     }
 

@@ -6,6 +6,7 @@
 extern int NUM_TEST_CASES;
 extern int NUM_CLASSES;
 extern int INPUT_DIM;
+extern float* sigmoid_table;
 
 typedef enum _data_init_mode {
     RANDOM,    // Generate pseudo-random input.

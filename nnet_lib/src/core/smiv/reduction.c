@@ -16,7 +16,7 @@ void reduction_smiv_fxp(float* a, layer_t curr_layer, float* result) {
     const int padded_width = result_width + result_pad;
 
     const int k_height =  curr_layer.inputs.height;
-    const bool run_activation = curr_layer.activation != NONE;
+    const bool run_activation = curr_layer.activation == RELU;
 
 #ifdef TRACE_MODE
     assert(padded_width % VECTOR_SIZE == 0 &&
@@ -68,7 +68,7 @@ void reduction_smiv_vec_fxp(float* a, layer_t curr_layer, float* result) {
     const int vec_padded_width = padded_width / VECTOR_SIZE;
 
     const int k_height =  curr_layer.inputs.height;
-    const bool run_activation = curr_layer.activation != NONE;
+    const bool run_activation = curr_layer.activation == RELU;
 
 #ifdef TRACE_MODE
     assert(padded_width % VECTOR_SIZE == 0 &&

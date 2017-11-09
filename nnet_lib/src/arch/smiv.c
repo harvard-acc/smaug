@@ -432,10 +432,9 @@ result_buf run_layer(float* activations,
                      float* weights,
                      layer_t* layers,
                      int layer_num,
-                     float* result,
-                     float* sigmoid_table) {
+                     float* result) {
     result_buf result_loc = run_layer_skip_activation_func(
-            activations, weights, layers, layer_num, result, sigmoid_table);
+            activations, weights, layers, layer_num, result);
 
     // Activation functions are handled as part of the matrix multiply /
     // convolution, rather than being treated as a separate block.
@@ -489,8 +488,7 @@ void set_dma_requirements(network_t* network) {
 void nnet_fwd(farray_t activations,
               farray_t weights,
               farray_t result,
-              network_t network,
-              float* sigmoid_table) {
+              network_t network) {
 
     int l;
     layer_t curr_layer;
@@ -527,11 +525,11 @@ nnet_fwd_outer:
         curr_layer = network.layers[l];
 
         if (result_loc == result.d) {
-            result_loc = run_layer(result.d, weights.d, network.layers, l,
-                                   activations.d, sigmoid_table);
+            result_loc = run_layer(
+                    result.d, weights.d, network.layers, l, activations.d);
         } else {
-            result_loc = run_layer(activations.d, weights.d, network.layers, l,
-                                   result.d, sigmoid_table);
+            result_loc = run_layer(
+                    activations.d, weights.d, network.layers, l, result.d);
         }
     }
 

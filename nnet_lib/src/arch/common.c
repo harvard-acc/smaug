@@ -18,8 +18,7 @@ result_buf run_layer_skip_activation_func(float* activations,
                                           float* weights,
                                           layer_t* layers,
                                           int layer_num,
-                                          float* result,
-                                          float* sigmoid_table) {
+                                          float* result) {
     layer_t curr_layer = layers[layer_num];
     layer_type l_type = curr_layer.type;
     result_buf result_loc = result;

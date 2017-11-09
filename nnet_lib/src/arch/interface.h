@@ -44,8 +44,7 @@ result_buf pooling_layer(float* activations,
 
 result_buf activation_sublayer(float* activations,
                                layer_t* layers,
-                               int lnum,
-                               float* result);
+                               int lnum);
 
 // Does the forward predictive pass of a neural net.
 //
@@ -58,7 +57,6 @@ result_buf activation_sublayer(float* activations,
 void nnet_fwd(farray_t activations,
               farray_t weights,
               farray_t result,
-              network_t network,
-              float* sigmoid_table);
+              network_t network);
 
 #endif
