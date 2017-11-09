@@ -156,13 +156,10 @@ void reduction_hw(float* spad0,
         reduction_smiv(spad0, partial_layer, umem);
     else
         reduction_smiv(spad1, partial_layer, umem);
-    // TODO: The current implementation requires us to DMA store the result
-    // back to the host, even though in theory this could be kept in the
-    // accelerator local memory. We need to make all the accelerator scratchpad
-    // arrays global instead of local to the convolution_runner function; then,
-    // we can continue to reference those results after the convolution is
-    // finished.
-    dmaStore(host_result, umem, result_size * sizeof(float));
+
+    if (partial_layer.needs_output_dma_store) {
+        dmaStore(host_result, umem, result_size * sizeof(float));
+    }
 }
 
 void convolution_layer_hw(float* host_activations,
@@ -374,6 +371,13 @@ void convolution_runner(float* host_activations,
                     result_loc += result_2d_size;
                 }
             }
+
+            if (curr_layer.activation != RELU &&
+                curr_layer.activation != NONE) {
+                activation_fun(temp_result, result_2d_size,
+                               curr_layer.activation, sigmoid_table);
+            }
+
             memcpy(&_result[img][kern][0][0], temp_result,
                    result_2d_size * sizeof(float));
         }
