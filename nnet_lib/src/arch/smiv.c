@@ -64,7 +64,7 @@ void inner_product_layer_hw(float* host_activations,
                             int lnum,
                             bool input_in_spad0,
                             float* host_result) {
-    bool run_activation = all_layers[lnum].activation != NONE;
+    bool run_activation = all_layers[lnum].activation != NO_ACTIVATION;
     int weights_size = get_num_weights_layer(all_layers, lnum) * sizeof(float);
     setReadyBits(umem, UMEM_SIZE, 0);
     dmaLoad(umem, host_weights, weights_size);
@@ -372,8 +372,8 @@ void convolution_runner(float* host_activations,
                 }
             }
 
-            if (curr_layer.activation != RELU &&
-                curr_layer.activation != NONE) {
+            // Any unsupported activations are run on the CPU.
+            if (!do_hw_activation) {
                 activation_fun(temp_result, result_2d_size,
                                curr_layer.activation, sigmoid_table);
             }

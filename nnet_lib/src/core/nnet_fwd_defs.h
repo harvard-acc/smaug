@@ -24,7 +24,7 @@ typedef enum _pool_type {
 } pool_type;
 
 typedef enum _activation_type {
-    NONE,
+    NO_ACTIVATION,
     RELU,
     RELU_THRESHOLD,
     SIGMOID,

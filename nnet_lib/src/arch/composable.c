@@ -143,7 +143,7 @@ result_buf run_layer(float* activations,
     result_buf result_loc = run_layer_skip_activation_func(
             activations, weights, layers, layer_num, result);
 
-    if (curr_layer.activation != NONE) {
+    if (curr_layer.activation != NO_ACTIVATION) {
         PRINT_MSG("\nactivation function\n");
         // Pass through activation function
         if (result_loc == activations) {

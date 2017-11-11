@@ -57,12 +57,12 @@ static void set_layer_type(layer_t* layers, cfg_t* layer_opts, int l) {
     } else if (strcmp(activation, SIGMOID_TYPE) == 0) {
         layers[l].activation = SIGMOID;
     } else if (strcmp(activation, NONE_TYPE) == 0) {
-        layers[l].activation = NONE;
+        layers[l].activation = NO_ACTIVATION;
     } else {
         assert(false && "Invalid activation type!");
     }
 
-    if (layers[l].type == POOLING && layers[l].activation != NONE)
+    if (layers[l].type == POOLING && layers[l].activation != NO_ACTIVATION)
         fprintf(stderr, "Pooling layer %d has an activation function, which is "
                         "usually unnecessary.\n",
                 l);
@@ -187,7 +187,7 @@ static void read_top_level_config(layer_t* layers, cfg_t* network_opts) {
     layers[0].inputs.cols = cfg_getint(network_opts, "input_cols");
     layers[0].inputs.height = cfg_getint(network_opts, "input_height");
     layers[0].type = INPUT;
-    layers[0].activation = NONE;
+    layers[0].activation = NO_ACTIVATION;
     layers[0].outputs.rows = layers[0].inputs.rows;
     layers[0].outputs.cols = layers[0].inputs.cols;
     layers[0].outputs.height = layers[0].inputs.height;
