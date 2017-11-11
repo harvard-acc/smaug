@@ -55,6 +55,17 @@ unsigned kConvolutionHw = 0x0003;
 unsigned kInnerProductHw = 0x0003;
 unsigned kReductionHw = 0x0003;
 
+bool is_supported_activation_func(activation_type func) {
+  switch (func) {
+    case NO_ACTIVATION:
+    case RELU:
+    case RELU_THRESHOLD:
+      return true;
+    default:
+      return false;
+  }
+}
+
 void inner_product_layer_hw(float* host_activations,
                             float* host_weights,
                             float* umem,
@@ -69,7 +80,7 @@ void inner_product_layer_hw(float* host_activations,
     setReadyBits(umem, UMEM_SIZE, 0);
     dmaLoad(umem, host_weights, weights_size);
 
-    if (all_layers[lnum].needs_input_dma_load) {
+    if (all_layers[lnum].input_req == IO_DMA) {
         if (input_in_spad0)
             grab_input_activations_dma(host_activations, spad0, &all_layers[lnum]);
         else
@@ -88,7 +99,7 @@ void inner_product_layer_hw(float* host_activations,
                 all_layers[lnum].inputs.align_pad, run_activation, spad0);
     }
 
-    if (all_layers[lnum].needs_output_dma_store) {
+    if (all_layers[lnum].output_req == IO_DMA) {
         if (input_in_spad0)
             store_output_activations_dma(host_result, spad1, &all_layers[lnum]);
         else
@@ -132,14 +143,14 @@ result_buf inner_product_layer(float* host_activations,
     return host_result;
 }
 
-void reduction_hw(float* spad0,
-                  float* spad1,
-                  float* umem,
-                  bool input_in_spad0,
-                  bool needs_input_load,
-                  layer_t partial_layer,
-                  size_t result_size,
-                  float* host_result) {
+void reduction_hw_impl(float* spad0,
+                       float* spad1,
+                       float* local_result,
+                       bool input_in_spad0,
+                       bool needs_input_load,
+                       layer_t partial_layer,
+                       size_t result_size,
+                       float* host_result) {
     if (needs_input_load) {
         size_t input_bytes =
                 result_size * partial_layer.inputs.height * sizeof(float);
@@ -153,13 +164,45 @@ void reduction_hw(float* spad0,
     }
 
     if (input_in_spad0)
-        reduction_smiv(spad0, partial_layer, umem);
+        reduction_smiv(spad0, partial_layer, local_result);
     else
-        reduction_smiv(spad1, partial_layer, umem);
+        reduction_smiv(spad1, partial_layer, local_result);
+}
 
-    if (partial_layer.needs_output_dma_store) {
+// Default Reduction module.
+//
+// Call this when we want to use DMA exclusively for moving data.
+void reduction_hw(float* spad0,
+                  float* spad1,
+                  float* umem,
+                  bool input_in_spad0,
+                  bool needs_input_load,
+                  layer_t partial_layer,
+                  size_t result_size,
+                  float* host_result) {
+    reduction_hw_impl(spad0, spad1, umem, input_in_spad0, needs_input_load,
+                      partial_layer, result_size, host_result);
+
+    if (partial_layer.output_req == IO_DMA) {
         dmaStore(host_result, umem, result_size * sizeof(float));
     }
+}
+
+// ACP reduction module.
+//
+// The two scratchpads must remain named spad0 and spad1, but we use a
+// different name for the result, called acp_result (instead of umem), to
+// distinguish that the Aladdin config file should mark this array with acp.
+void reduction_acp_hw(float* spad0,
+                      float* spad1,
+                      float* acp_result,
+                      bool input_in_spad0,
+                      bool needs_input_load,
+                      layer_t partial_layer,
+                      size_t result_size) {
+    reduction_hw_impl(spad0, spad1, acp_result, input_in_spad0,
+                      needs_input_load, partial_layer, result_size,
+                      acp_result);
 }
 
 void convolution_layer_hw(float* host_activations,
@@ -200,7 +243,7 @@ void convolution_layer_hw(float* host_activations,
         dmaLoad(spad1, &_kernels[kern][start_chan][0][0],
                 num_weights * sizeof(float));
     }
-    if (partial_layer.needs_input_dma_load) {
+    if (partial_layer.input_req == IO_DMA) {
         size_t num_input_pixels =
                 partial_layer.inputs.rows * partial_layer.inputs.height *
                 (partial_layer.inputs.cols + partial_layer.inputs.align_pad);
@@ -307,6 +350,7 @@ void convolution_runner(float* host_activations,
             result_2d_size * conv_cfgs.num_iterations * sizeof(float);
     float* temp_result = (float*)malloc_aligned(temp_result_size);
 
+    bool do_hw_activation = is_supported_activation_func(curr_layer.activation);
     for (int img = 0; img < NUM_TEST_CASES; img++) {
         for (int kern = 0; kern < num_kerns; kern++) {
             PRINT_MSG("Kernel %d\n", kern);
@@ -317,9 +361,6 @@ void convolution_runner(float* host_activations,
             unsigned start_chan = 0;
             float* result_loc = temp_result;
             for (int iter = 0; iter < conv_cfgs.num_iterations; iter++) {
-                MAP_ARRAY_TO_ACCEL(kReductionHw, "host_result", result_loc,
-                                   result_2d_size);
-
                 PRINT_MSG("Iteration %d\n", iter);
                 dims_t iter_cfg = conv_cfgs.iteration[iter];
 
@@ -328,18 +369,29 @@ void convolution_runner(float* host_activations,
                 partial_layer.inputs.height = iter_cfg.height;
                 partial_layer.outputs.height = iter_cfg.height;
                 partial_layer.weights.height = iter_cfg.height;
-                partial_layer.activation = conv_cfgs.num_iterations == 1
-                                                   ? curr_layer.activation
-                                                   : NONE;
+                partial_layer.activation =
+                        conv_cfgs.num_iterations > 1 || !do_hw_activation
+                                ? NO_ACTIVATION
+                                : curr_layer.activation;
                 INVOKE_KERNEL(kConvolutionHw, convolution_layer_hw,
                               host_activations, host_weights, g_umem, g_spad0,
                               g_spad1, true, layers, partial_layer, lnum, img,
                               kern, start_chan);
 
                 // Reduce the results.
-                INVOKE_KERNEL(kReductionHw, reduction_hw, g_spad0, g_spad1,
-                              g_umem, false, false, partial_layer,
-                              result_2d_size, result_loc);
+                if (do_hw_activation) {
+                    MAP_ARRAY_TO_ACCEL(kReductionHw, "host_result", result_loc,
+                                       temp_result_size);
+                    INVOKE_KERNEL(kReductionHw, reduction_hw, g_spad0, g_spad1,
+                                  g_umem, false, false, partial_layer,
+                                  result_2d_size, result_loc);
+                } else {
+                    MAP_ARRAY_TO_ACCEL(kReductionHw, "acp_result", result_loc,
+                                       temp_result_size);
+                    INVOKE_KERNEL(kReductionHw, reduction_acp_hw, g_spad0, g_spad1,
+                                  result_loc, false, false, partial_layer,
+                                  result_2d_size);
+                }
 
                 result_loc += result_2d_size;
                 start_chan += iter_cfg.height;
@@ -363,11 +415,20 @@ void convolution_runner(float* host_activations,
                 partial_layer.outputs.height = 1;
                 for (int iter = 0; iter < result_iter; iter++) {
                     PRINT_MSG("Final reduction round %d\n", iter);
-                    MAP_ARRAY_TO_ACCEL(kReductionHw, "host_result", result_loc,
-                                       result_2d_size);
-                    INVOKE_KERNEL(kReductionHw, reduction_hw, g_spad0, g_spad1,
-                                  g_umem, false, true, partial_layer,
-                                  result_2d_size, result_loc);
+                    if (do_hw_activation) {
+                        MAP_ARRAY_TO_ACCEL(kReductionHw, "host_result",
+                                           result_loc, temp_result_size);
+                        INVOKE_KERNEL(kReductionHw, reduction_hw, g_spad0,
+                                      g_spad1, g_umem, false, true,
+                                      partial_layer, result_2d_size,
+                                      result_loc);
+                    } else {
+                        MAP_ARRAY_TO_ACCEL(kReductionHw, "acp_result",
+                                           result_loc, result_2d_size);
+                        INVOKE_KERNEL(kReductionHw, reduction_acp_hw, g_spad0,
+                                      g_spad1, result_loc, false, true,
+                                      partial_layer, result_2d_size);
+                    }
                     result_loc += result_2d_size;
                 }
             }
@@ -453,8 +514,8 @@ void set_dma_requirements(network_t* network) {
     for (int layer_num = 0; layer_num < network->depth; layer_num++) {
         // The input layer is easy.
         if (layer_num == 0) {
-            network->layers[layer_num].needs_input_dma_load = false;
-            network->layers[layer_num].needs_output_dma_store = true;
+            network->layers[layer_num].input_req = IO_NONE;
+            network->layers[layer_num].output_req = IO_DMA;
             continue;
         }
         // First, determine if we need to dma store the output.
@@ -466,21 +527,21 @@ void set_dma_requirements(network_t* network) {
             network->layers[layer_num].input_preprocessing == FLATTEN ||
             network->layers[layer_num + 1].type == POOLING ||
             network->layers[layer_num + 1].type == SOFTMAX) {
-            network->layers[layer_num].needs_output_dma_store = true;
+            network->layers[layer_num].output_req = IO_DMA;
         } else {
-            network->layers[layer_num].needs_output_dma_store = false;
+            network->layers[layer_num].output_req = IO_NONE;
         }
 
         // Whether we need to load the input on this layer is just whether we
         // had to store the outputs in the previous layer.
-        network->layers[layer_num].needs_input_dma_load =
-                network->layers[layer_num - 1].needs_output_dma_store;
+        network->layers[layer_num].input_req =
+                network->layers[layer_num - 1].output_req;
     }
 
     for (int layer_num = 0; layer_num < network->depth; layer_num++) {
         printf("Layer %d: dmaLoad = %d, dmaStore = %d\n", layer_num,
-               network->layers[layer_num].needs_input_dma_load,
-               network->layers[layer_num].needs_output_dma_store);
+               network->layers[layer_num].input_req,
+               network->layers[layer_num].output_req);
     }
 
 }

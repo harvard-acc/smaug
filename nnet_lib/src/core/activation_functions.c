@@ -39,7 +39,7 @@ float sigmoid(float a) {
 ALWAYS_INLINE
 void sigmoid_inplace(float* a, int num_units, float* sigmoid_table) {
 #ifdef SIGMOID_TABLE
-  sigmoid_table(a, num_units, sigmoid_table);
+  sigmoid_lookup(a, num_units, sigmoid_table);
 #else
   sigmoidn(a, num_units);
 #endif
@@ -63,7 +63,8 @@ void sigmoid_lookup(float* a, int num_units, float* sigmoid_table) {
     int i, ind;
     float temp, delta_x;
     float SIG_RANGE = SIG_MAX - SIG_MIN;
-sigmoid_table_loop: for (i = 0; i < num_units; i++) {
+    sigmoid_table_loop:
+    for (i = 0; i < num_units; i++) {
         if (a[i] < SIG_MIN) {
             a[i] = 0.0;  // do I need to convert these?? I guess not?
         } else if (a[i] >= SIG_MAX) {

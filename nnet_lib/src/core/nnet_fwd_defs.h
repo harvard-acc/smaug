@@ -54,12 +54,19 @@ typedef enum _layer_type {
     END
 } layer_type;
 
-typedef struct dims_t {
+typedef struct _dims_t {
   int rows;
   int cols;
   int height;
   int align_pad;
 } dims_t;
+
+typedef enum _io_req_t {
+  IO_NONE = 0,
+  IO_DMA = 1,
+  IO_ACP = 2,
+  IO_CACHE = 3,
+} io_req_t;
 
 // Description of a layer in a neural network.
 //
@@ -120,8 +127,12 @@ typedef struct _layer_t {
 
   input_pp input_preprocessing;
 
+  io_req_t input_req;
+  io_req_t output_req;
+  /*
   int needs_input_dma_load;
   int needs_output_dma_store;
+  */
 } layer_t;
 
 

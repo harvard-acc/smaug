@@ -25,7 +25,7 @@
 #endif
 
 // Define this to use a table approximation of the sigmoid activation function.
-// #define SIGMOID_TABLE
+#define SIGMOID_TABLE
 
 // If 1, then this transposes the data in the weights matrix such that the
 // access pattern is strided in the same way as the activations, which is
