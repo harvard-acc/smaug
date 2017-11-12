@@ -33,12 +33,156 @@ static int input_cols;
 static int input_height;
 static int data_alignment;
 
+int validate_network(cfg_t* cfg, cfg_opt_t* opt) {
+    cfg_t* network = cfg_opt_getnsec(opt, cfg_opt_size(opt) - 1);
+    if (!cfg_size(network, "input_rows")) {
+        cfg_error(cfg, "Missing required option 'input_rows'!");
+        return -1;
+    }
+    if (!cfg_size(network, "input_cols")) {
+        cfg_error(cfg, "Missing required option 'input_cols'!");
+        return -1;
+    }
+    if (!cfg_size(network, "input_height")) {
+        cfg_error(cfg, "Missing required option 'input_height'!");
+        return -1;
+    }
+    return 0;
+}
+
 int validate_offload_mechanism(cfg_t* cfg, cfg_opt_t* opt) {
     const char* value = cfg_opt_getnstr(opt, cfg_opt_size(opt) - 1);
+    assert(value);
     if (strcmp(value, OFFLOAD_DMA) != 0 && strcmp(value, OFFLOAD_ACP) != 0 &&
         strcmp(value, OFFLOAD_CACHE) != 0) {
-        cfg_error(cfg, "Offload option '%s' can only be DMA, ACP, or CACHE.",
-                  opt->name);
+        cfg_error(cfg,
+                  "'%s' is an invalid option for option '%s': Supported "
+                  "options are DMA, ACP, or CACHE.",
+                  value, opt->name);
+        return -1;
+    }
+    return 0;
+}
+
+int validate_layer_section(cfg_t* cfg, cfg_opt_t* opt) {
+    cfg_t* layer = cfg_opt_getnsec(opt, cfg_opt_size(opt) - 1);
+    if (cfg_size(layer, "type") == 0) {
+        cfg_error(cfg, "Missing required option 'type' in layer '%s'.",
+                  cfg_title(layer));
+        return -1;
+    }
+    if (!cfg_size(layer, "inner_product_param") &&
+        !cfg_size(layer, "convolution_param") &&
+        !cfg_size(layer, "pooling_param")) {
+        cfg_error(cfg, "Layer '%s' is missing layer-specific parameters!",
+                  cfg_title(layer));
+        return -1;
+    }
+    return 0;
+}
+
+int validate_layer_type(cfg_t* cfg, cfg_opt_t* opt) {
+    const char* value = cfg_opt_getnstr(opt, cfg_opt_size(opt) - 1);
+    assert(value);
+    if (strcmp(value, CONV_TYPE) != 0 && strcmp(value, FC_TYPE) != 0 &&
+        strcmp(value, POOLING_TYPE) != 0) {
+        cfg_error(cfg, "Invalid layer type '%s' for '%s'!", value, cfg->name);
+        return -1;
+    }
+    return 0;
+}
+
+int validate_pool_params(cfg_t* cfg, cfg_opt_t* opt) {
+    cfg_t* layer = cfg_opt_getnsec(opt, cfg_opt_size(opt) - 1);
+    if (!cfg_size(layer, "pool")) {
+        cfg_error(cfg, "Missing required option 'pool'!", opt->name);
+        return -1;
+    }
+    if (!cfg_size(layer, "size")) {
+        cfg_error(cfg, "Missing required option 'size'!", opt->name);
+        return -1;
+    }
+    if (!cfg_size(layer, "stride")) {
+        cfg_error(cfg, "Missing required option 'stride'!", opt->name);
+        return -1;
+    }
+    return 0;
+}
+
+int validate_inner_product_params(cfg_t* cfg, cfg_opt_t* opt) {
+    cfg_t* layer = cfg_opt_getnsec(opt, cfg_opt_size(opt) - 1);
+    if (!cfg_size(layer, "num_output")) {
+        cfg_error(cfg, "Missing required option 'num_output'!", opt->name);
+        return -1;
+    }
+    return 0;
+}
+int validate_conv_params(cfg_t* cfg, cfg_opt_t* opt) {
+    cfg_t* layer = cfg_opt_getnsec(opt, cfg_opt_size(opt) - 1);
+    if (!cfg_size(layer, "num_output")) {
+        cfg_error(cfg, "Missing required option 'num_output'!", opt->name);
+        return -1;
+    }
+    if (!cfg_size(layer, "kernel_size")) {
+        cfg_error(cfg, "Missing required option 'kernel_size'!", opt->name);
+        return -1;
+    }
+    if (!cfg_size(layer, "stride")) {
+        cfg_error(cfg, "Missing required option 'stride'!", opt->name);
+        return -1;
+    }
+    if (!cfg_size(layer, "pad")) {
+        cfg_error(cfg, "Missing required option 'pad'!", opt->name);
+        return -1;
+    }
+    return 0;
+}
+
+int validate_pool_layer(cfg_t* cfg, cfg_opt_t* opt) {
+    cfg_t* layer = cfg_opt_getnsec(opt, cfg_opt_size(opt) - 1);
+    if (!cfg_size(layer, "pool")) {
+        cfg_error(cfg, "Missing required option 'pool'!", opt->name);
+        return -1;
+    }
+    if (!cfg_size(layer, "size")) {
+        cfg_error(cfg, "Missing required option 'size'!", opt->name);
+        return -1;
+    }
+    if (!cfg_size(layer, "stride")) {
+        cfg_error(cfg, "Missing required option 'stride'!", opt->name);
+        return -1;
+    }
+    return 0;
+}
+
+int validate_pool_type(cfg_t* cfg, cfg_opt_t* opt) {
+    const char* value = cfg_opt_getnstr(opt, cfg_opt_size(opt) - 1);
+    assert(value);
+    if (strcmp(value, MAX_POOL_TYPE) != 0 &&
+        strcmp(value, AVG_POOL_TYPE) != 0) {
+        cfg_error(cfg, "Invalid pooling type '%s'!", value);
+        return -1;
+    }
+    return 0;
+}
+
+int validate_activation_func(cfg_t* cfg, cfg_opt_t* opt) {
+    const char* value = cfg_opt_getnstr(opt, cfg_opt_size(opt) - 1);
+    assert(value);
+    if (strcmp(value, NONE_TYPE) != 0 && strcmp(value, RELU_TYPE) != 0 &&
+        strcmp(value, SIGMOID_TYPE) != 0) {
+        cfg_error(cfg, "Invalid activation function '%s' for layer '%s'!",
+                  value, cfg_title(cfg));
+        return -1;
+    }
+
+    return 0;
+}
+
+int validate_unsigned_int(cfg_t* cfg, cfg_opt_t* opt) {
+    int value = cfg_opt_getnint(opt, cfg_opt_size(opt) - 1);
+    if (value < 0) {
+        cfg_error(cfg, "'%s' in '%s' must be positive!", opt->name, cfg->name);
         return -1;
     }
     return 0;
@@ -273,6 +417,36 @@ static void print_layer_config(layer_t* layers, int num_layers) {
 }
 
 static void install_validation_callbacks(cfg_t* cfg) {
+    cfg_set_validate_func(cfg, "network", validate_network);
+    cfg_set_validate_func(cfg, "network|layer", validate_layer_section);
+    cfg_set_validate_func(cfg, "network|layer|type", validate_layer_type);
+    cfg_set_validate_func(
+            cfg, "network|layer|activation", validate_activation_func);
+    cfg_set_validate_func(cfg, "network|input_rows", validate_unsigned_int);
+    cfg_set_validate_func(cfg, "network|input_cols", validate_unsigned_int);
+    cfg_set_validate_func(cfg, "network|input_height", validate_unsigned_int);
+    cfg_set_validate_func(cfg, "network|layer|inner_product_param|num_output",
+                          validate_unsigned_int);
+    cfg_set_validate_func(cfg, "network|layer|convolution_param|num_output",
+                          validate_unsigned_int);
+    cfg_set_validate_func(cfg, "network|layer|convolution_param|kernel_size",
+                          validate_unsigned_int);
+    cfg_set_validate_func(cfg, "network|layer|convolution_param|stride",
+                          validate_unsigned_int);
+    cfg_set_validate_func(
+            cfg, "network|layer|convolution_param|pad", validate_unsigned_int);
+    cfg_set_validate_func(
+            cfg, "network|layer|pooling_param|stride", validate_unsigned_int);
+    cfg_set_validate_func(
+            cfg, "network|layer|pooling_param|size", validate_unsigned_int);
+    cfg_set_validate_func(
+            cfg, "network|layer|pooling_param|pool", validate_pool_type);
+    cfg_set_validate_func(
+            cfg, "network|layer|pooling_param", validate_pool_params);
+    cfg_set_validate_func(
+            cfg, "network|layer|convolution_param", validate_conv_params);
+    cfg_set_validate_func(cfg, "network|layer|inner_product_param",
+                          validate_inner_product_params);
     cfg_set_validate_func(
             cfg, "device|cpu_default_offload", validate_offload_mechanism);
     cfg_set_validate_func(
@@ -290,7 +464,7 @@ int configure_network_from_file(const char* cfg_file, layer_t** layers_ptr) {
         assert(false && "Failed to open configuration file!");
     } else if (ret == CFG_PARSE_ERROR) {
         fprintf(stderr,
-                "An error occurred when reading the configuration file!");
+                "An error occurred when reading the configuration file!\n");
         exit(-1);
     }
 
