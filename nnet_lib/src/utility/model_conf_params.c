@@ -31,7 +31,15 @@ cfg_opt_t network_cfg[] = {
     CFG_END()
 };
 
+cfg_opt_t device_cfg[] = {
+  CFG_STR("cpu_default_offload", "DMA", CFGF_NONE),
+  CFG_STR("cpu_pooling_offload", "DMA", CFGF_NONE),
+  CFG_STR("cpu_activation_func_offload", "DMA", CFGF_NONE),
+  CFG_END()
+};
+
 cfg_opt_t top_level_cfg[] = {
     CFG_SEC("network", network_cfg, CFGF_NODEFAULT),
+    CFG_SEC("device", device_cfg, CFGF_NODEFAULT),
     CFG_END(),
 };

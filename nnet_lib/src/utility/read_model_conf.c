@@ -24,11 +24,25 @@ const char AVG_POOL_TYPE[] = "AVG";
 const char NONE_TYPE[] = "NONE";
 const char RELU_TYPE[] = "RELU";
 const char SIGMOID_TYPE[] = "SIGMOID";
+const char OFFLOAD_DMA[] = "DMA";
+const char OFFLOAD_ACP[] = "ACP";
+const char OFFLOAD_CACHE[] = "CACHE";
 
 static int input_rows;
 static int input_cols;
 static int input_height;
 static int data_alignment;
+
+int validate_offload_mechanism(cfg_t* cfg, cfg_opt_t* opt) {
+    const char* value = cfg_opt_getnstr(opt, cfg_opt_size(opt) - 1);
+    if (strcmp(value, OFFLOAD_DMA) != 0 && strcmp(value, OFFLOAD_ACP) != 0 &&
+        strcmp(value, OFFLOAD_CACHE) != 0) {
+        cfg_error(cfg, "Offload option '%s' can only be DMA, ACP, or CACHE.",
+                  opt->name);
+        return -1;
+    }
+    return 0;
+}
 
 static void set_layer_type(layer_t* layers, cfg_t* layer_opts, int l) {
     const char* type = cfg_getstr(layer_opts, "type");
@@ -258,13 +272,26 @@ static void print_layer_config(layer_t* layers, int num_layers) {
     printf("==================================\n");
 }
 
+static void install_validation_callbacks(cfg_t* cfg) {
+    cfg_set_validate_func(
+            cfg, "device|cpu_default_offload", validate_offload_mechanism);
+    cfg_set_validate_func(
+            cfg, "device|cpu_pooling_offload", validate_offload_mechanism);
+    cfg_set_validate_func(cfg, "device|cpu_activation_func_offload",
+                          validate_offload_mechanism);
+}
+
 int configure_network_from_file(const char* cfg_file, layer_t** layers_ptr) {
     cfg_t* all_opts = cfg_init(top_level_cfg, CFGF_NONE);
+    install_validation_callbacks(all_opts);
+
     int ret = cfg_parse(all_opts, cfg_file);
     if (ret == CFG_FILE_ERROR) {
         assert(false && "Failed to open configuration file!");
     } else if (ret == CFG_PARSE_ERROR) {
-        assert(false && "Config parsing error");
+        fprintf(stderr,
+                "An error occurred when reading the configuration file!");
+        exit(-1);
     }
 
     cfg_t* network_opts = cfg_getsec(all_opts, "network");
