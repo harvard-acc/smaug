@@ -183,7 +183,7 @@ int main(int argc, const char* argv[]) {
 
     // Run a forward pass through the neural net
     printf("Running forward pass\n");
-    nnet_fwd(hid, weights, hid_temp, network);
+    nnet_fwd(hid, weights, hid_temp, network, device);
 
     // Print the result, maybe not all the test_cases
     int num_to_print = 1;

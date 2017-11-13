@@ -111,7 +111,8 @@ result_buf inner_product_layer(float* host_activations,
                                float* host_weights,
                                layer_t* layers,
                                int lnum,
-                               float* host_result) {
+                               float* host_result,
+                               device_t* device) {
     static float* current_result_loc = NULL;
     if (current_result_loc == NULL) {
         current_result_loc = g_spad1;
@@ -324,7 +325,8 @@ void convolution_runner(float* host_activations,
                         float* host_weights,
                         layer_t* layers,
                         int lnum,
-                        float* host_result) {
+                        float* host_result,
+                        device_t* device) {
 
     layer_t curr_layer = layers[lnum];
     const int result_height = curr_layer.outputs.rows;
@@ -351,6 +353,7 @@ void convolution_runner(float* host_activations,
     float* temp_result = (float*)malloc_aligned(temp_result_size);
 
     bool do_hw_activation = is_supported_activation_func(curr_layer.activation);
+    bool use_acp_offload = (device->cpu_activation_func_offload == IO_ACP);
     for (int img = 0; img < NUM_TEST_CASES; img++) {
         for (int kern = 0; kern < num_kerns; kern++) {
             PRINT_MSG("Kernel %d\n", kern);
@@ -379,7 +382,12 @@ void convolution_runner(float* host_activations,
                               kern, start_chan);
 
                 // Reduce the results.
-                if (do_hw_activation) {
+                //
+                // If the activation function is suported in hardware, then run
+                // the standard reduction function with DMA. If the act func is
+                // not supported, then use the ACP reduction impl, except if
+                // the user specified to use DMA anyways.
+                if (do_hw_activation || !use_acp_offload) {
                     MAP_ARRAY_TO_ACCEL(kReductionHw, "host_result", result_loc,
                                        temp_result_size);
                     INVOKE_KERNEL(kReductionHw, reduction_hw, g_spad0, g_spad1,
@@ -415,7 +423,7 @@ void convolution_runner(float* host_activations,
                 partial_layer.outputs.height = 1;
                 for (int iter = 0; iter < result_iter; iter++) {
                     PRINT_MSG("Final reduction round %d\n", iter);
-                    if (do_hw_activation) {
+                    if (do_hw_activation || !use_acp_offload) {
                         MAP_ARRAY_TO_ACCEL(kReductionHw, "host_result",
                                            result_loc, temp_result_size);
                         INVOKE_KERNEL(kReductionHw, reduction_hw, g_spad0,
@@ -451,7 +459,8 @@ result_buf convolution_layer(float* activations,
                              float* weights,
                              layer_t* layers,
                              int lnum,
-                             float* result) {
+                             float* result,
+                             device_t* device) {
 
     float* current_layer_weights =
             weights + get_weights_loc_for_layer(layers, lnum);
@@ -469,13 +478,13 @@ result_buf convolution_layer(float* activations,
         PRINT_DEBUG4D_V(weights, curr_layer.weights.rows,
                         curr_layer.weights.cols + curr_layer.weights.align_pad,
                         curr_layer.weights.height);
-        convolution_runner(
-                result, current_layer_weights, layers, lnum, activations);
+        convolution_runner(result, current_layer_weights, layers, lnum,
+                           activations, device);
 
         return activations;
     }
     convolution_runner(
-            activations, current_layer_weights, layers, lnum, result);
+            activations, current_layer_weights, layers, lnum, result, device);
     return result;
 }
 
@@ -483,7 +492,8 @@ result_buf convolution_layer(float* activations,
 result_buf pooling_layer(float* activations,
                          layer_t* layers,
                          int lnum,
-                         float* result) {
+                         float* result,
+                         device_t* device) {
     layer_t curr_layer = layers[lnum];
     if (curr_layer.pool == MAX) {
         max_pooling(activations, result, layers[lnum]);
@@ -497,9 +507,10 @@ result_buf run_layer(float* activations,
                      float* weights,
                      layer_t* layers,
                      int layer_num,
-                     float* result) {
+                     float* result,
+                     device_t* device) {
     result_buf result_loc = run_layer_skip_activation_func(
-            activations, weights, layers, layer_num, result);
+            activations, weights, layers, layer_num, result, device);
 
     // Activation functions are handled as part of the matrix multiply /
     // convolution, rather than being treated as a separate block.
@@ -553,7 +564,8 @@ void set_dma_requirements(network_t* network) {
 void nnet_fwd(farray_t activations,
               farray_t weights,
               farray_t result,
-              network_t network) {
+              network_t network,
+              device_t* device) {
 
     int l;
     layer_t curr_layer;
@@ -590,11 +602,11 @@ nnet_fwd_outer:
         curr_layer = network.layers[l];
 
         if (result_loc == result.d) {
-            result_loc = run_layer(
-                    result.d, weights.d, network.layers, l, activations.d);
+            result_loc = run_layer(result.d, weights.d, network.layers, l,
+                                   activations.d, device);
         } else {
-            result_loc = run_layer(
-                    activations.d, weights.d, network.layers, l, result.d);
+            result_loc = run_layer(activations.d, weights.d, network.layers, l,
+                                   result.d, device);
         }
     }
 

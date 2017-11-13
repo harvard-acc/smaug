@@ -29,18 +29,21 @@ result_buf inner_product_layer(float* activations,
                                float* weights,
                                layer_t* layers,
                                int lnum,
-                               float* result);
+                               float* result,
+                               device_t* device);
 
 result_buf convolution_layer(float* activations,
                              float* weights,
                              layer_t* layers,
                              int lnum,
-                             float* result);
+                             float* result,
+                             device_t* device);
 
 result_buf pooling_layer(float* activations,
                          layer_t* layers,
                          int lnum,
-                         float* result);
+                         float* result,
+                         device_t* device);
 
 result_buf activation_sublayer(float* activations,
                                layer_t* layers,
@@ -57,6 +60,7 @@ result_buf activation_sublayer(float* activations,
 void nnet_fwd(farray_t activations,
               farray_t weights,
               farray_t result,
-              network_t network);
+              network_t network,
+              device_t* device);
 
 #endif

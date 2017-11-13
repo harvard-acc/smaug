@@ -18,7 +18,8 @@ result_buf run_layer_skip_activation_func(float* activations,
                                           float* weights,
                                           layer_t* layers,
                                           int layer_num,
-                                          float* result) {
+                                          float* result,
+                                          device_t* device) {
     layer_t curr_layer = layers[layer_num];
     layer_type l_type = curr_layer.type;
     result_buf result_loc = result;
@@ -35,18 +36,19 @@ result_buf run_layer_skip_activation_func(float* activations,
                         layers[layer_num].inputs.cols,
                         layers[layer_num].inputs.cols);
             result_loc = inner_product_layer(
-                    result, weights, layers, layer_num, activations);
+                    result, weights, layers, layer_num, activations, device);
         } else {
             result_loc = inner_product_layer(
-                    activations, weights, layers, layer_num, result);
+                    activations, weights, layers, layer_num, result, device);
         }
     } else if (l_type == CONV) {
         PRINT_MSG("\nConvolution.\n");
         result_loc = convolution_layer(
-                activations, weights, layers, layer_num, result);
+                activations, weights, layers, layer_num, result, device);
     } else if (l_type == POOLING) {
         PRINT_MSG("\nPooling.\n");
-        result_loc = pooling_layer(activations, layers, layer_num, result);
+        result_loc =
+                pooling_layer(activations, layers, layer_num, result, device);
     } else if (l_type == INPUT) {
         // No work needs to be done.
         result_loc = activations;
