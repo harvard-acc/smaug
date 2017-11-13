@@ -142,6 +142,12 @@ typedef struct _network_t {
   int depth;
 } network_t;
 
+typedef struct _device_t {
+  io_req_t cpu_default_offload;
+  io_req_t cpu_pooling_offload;
+  io_req_t cpu_activation_func_offload;
+} device_t;
+
 // Wraps a dynamically allocated array (d for data) and its size (number of
 // elements, not bytes).
 typedef struct _farray_t {

@@ -98,7 +98,8 @@ int main(int argc, const char* argv[]) {
     srand(1);
 
     network_t network;
-    network.depth = configure_network_from_file(conf_file, &network.layers);
+    device_t* device;
+    network.depth = configure_network_from_file(conf_file, &network.layers, &device);
     printf("Size of layer configuration: %lu bytes\n",
            network.depth * sizeof(layer_t));
 
@@ -221,4 +222,5 @@ int main(int argc, const char* argv[]) {
     free(weights.d);
     free(labels.d);
     free(network.layers);
+    free(device);
 }

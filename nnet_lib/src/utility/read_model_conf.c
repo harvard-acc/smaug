@@ -366,6 +366,45 @@ static void read_layer_config(layer_t* layers, cfg_t* network_opts, int l) {
     set_layer_dims(layers, current_layer_opts, l);
 }
 
+io_req_t str_to_io_req(char* value) {
+    if (strncmp(value, OFFLOAD_DMA, 3) == 0)
+      return IO_DMA;
+    if (strncmp(value, OFFLOAD_ACP, 3) == 0)
+      return IO_ACP;
+    if (strncmp(value, OFFLOAD_CACHE, 5) == 0)
+      return IO_CACHE;
+    assert(false && "Invalid string value of an io_req_t!");
+    return IO_NONE;
+}
+
+const char* io_req_to_str(io_req_t value) {
+    switch (value) {
+      case IO_DMA: return OFFLOAD_DMA;
+      case IO_ACP: return OFFLOAD_ACP;
+      case IO_CACHE: return OFFLOAD_CACHE;
+      default:
+          assert(false && "Invalid string value of an io_req_t!");
+          break;
+    }
+    return NONE_TYPE;
+}
+
+static void read_device_parameters(cfg_t* all_opts, device_t* device) {
+    if (cfg_size(all_opts, "device") != 0) {
+        cfg_t* device_opts = cfg_getsec(all_opts, "device");
+        device->cpu_default_offload =
+                str_to_io_req(cfg_getstr(device_opts, "cpu_default_offload"));
+        device->cpu_pooling_offload =
+                str_to_io_req(cfg_getstr(device_opts, "cpu_pooling_offload"));
+        device->cpu_activation_func_offload = str_to_io_req(
+                cfg_getstr(device_opts, "cpu_activation_func_offload"));
+    } else {
+        device->cpu_default_offload = IO_DMA;
+        device->cpu_pooling_offload = IO_DMA;
+        device->cpu_activation_func_offload = IO_DMA;
+    }
+}
+
 static void print_layer_config(layer_t* layers, int num_layers) {
     printf("==================================\n");
     printf("Network configuration (per input):\n");
@@ -413,6 +452,20 @@ static void print_layer_config(layer_t* layers, int num_layers) {
         printf("    Activation: %s\n",
                act == RELU ? "RELU" : act == SIGMOID ? "SIGMOID" : "NONE");
     }
+}
+
+void print_device_config(device_t* device) {
+    printf("==================================\n");
+    printf("Device configuration\n");
+    printf("----------------------------------\n");
+
+    printf("CPU offload mechanisms:\n"
+           "   Default: %s\n"
+           "   Pooling: %s\n"
+           "   Activation function: %s\n",
+           io_req_to_str(device->cpu_default_offload),
+           io_req_to_str(device->cpu_pooling_offload),
+           io_req_to_str(device->cpu_activation_func_offload));
     printf("==================================\n");
 }
 
@@ -455,7 +508,9 @@ static void install_validation_callbacks(cfg_t* cfg) {
                           validate_offload_mechanism);
 }
 
-int configure_network_from_file(const char* cfg_file, layer_t** layers_ptr) {
+int configure_network_from_file(const char* cfg_file,
+                                layer_t** layers_ptr,
+                                device_t** device_ptr) {
     cfg_t* all_opts = cfg_init(top_level_cfg, CFGF_NONE);
     install_validation_callbacks(all_opts);
 
@@ -469,13 +524,10 @@ int configure_network_from_file(const char* cfg_file, layer_t** layers_ptr) {
     }
 
     cfg_t* network_opts = cfg_getsec(all_opts, "network");
-    int num_layers = cfg_size(network_opts, "layer") + 1;  // +1 for input layer.
+    int num_layers =
+            cfg_size(network_opts, "layer") + 1;  // +1 for input layer.
 
-    int err = posix_memalign(
-            (void**)layers_ptr, CACHELINE_SIZE,
-            next_multiple(sizeof(layer_t) * num_layers, CACHELINE_SIZE));
-    ASSERT_MEMALIGN(*layers_ptr, err);
-
+    *layers_ptr = (layer_t*)malloc_aligned(sizeof(layer_t) * num_layers);
     layer_t* layers = *layers_ptr;
 
     //=---------------------  STEP 1 -----------------------=//
@@ -510,6 +562,10 @@ int configure_network_from_file(const char* cfg_file, layer_t** layers_ptr) {
         handle_data_alignment(layers, i);
     }
 
+    // Read the device parameters.
+    *device_ptr = (device_t*) malloc_aligned(sizeof(device_t));
+    read_device_parameters(all_opts, *device_ptr);
+
     // Set some global variables.
     NUM_CLASSES = layers[num_layers-1].outputs.cols;
     INPUT_DIM = input_rows * input_cols * input_height;
@@ -518,6 +574,7 @@ int configure_network_from_file(const char* cfg_file, layer_t** layers_ptr) {
     assert(NUM_CLASSES > 0);
 
     print_layer_config(*layers_ptr, num_layers);
+    print_device_config(*device_ptr);
     cfg_free(all_opts);
     return num_layers;
 }
