@@ -1,33 +1,28 @@
-# Workaround for the forwarding rules in multiple translation units.
+#include common/Makefile.arch
+#include common/Makefile.tracer
+#include common/Makefile.gem5
 
-CORE_SRCS = core/activation_functions.c \
-						core/convolution.c \
-						core/matrix_multiply.c \
-						core/zeropad.c \
-						core/pooling.c \
-						core/flatten.c \
-						core/smiv.c \
-						core/smiv/convolution.c \
-						core/smiv/convolution_simd.c \
-						core/smiv/matrix_multiply.c \
-						core/smiv/reduction.c
+native:
+	@$(MAKE) -f common/Makefile.native --no-print-directory native
 
-UTILITY_SRCS = utility/init_data.c \
-							 utility/utility.c \
-							 utility/model_conf_params.c \
-							 utility/read_model_conf.c
+dma-trace-binary:
+	@$(MAKE) -f common/Makefile.tracer --no-print-directory dma-trace-binary
 
-ARCH_SRCS = arch/monolithic.c \
-	 					arch/composable.c \
-						arch/smiv.c \
-					  arch/common.c
+gem5-cpu:
+	@$(MAKE) -f common/Makefile.gem5 --no-print-directory gem5-cpu
 
-SRCS = $(CORE_SRCS) $(UTILITY_SRCS) $(ARCH_SRCS) nnet_fwd.c
+gem5-accel:
+	@$(MAKE) -f common/Makefile.gem5 --no-print-directory gem5-accel
 
-ACCEL_NAME = nnet
+clean-trace:
+	@$(MAKE) -f common/Makefile.tracer --no-print-directory clean-trace
 
-include common/Makefile.arch
-include common/Makefile.tracer
-include common/Makefile.gem5
+clean-gem5:
+	@$(MAKE) -f common/Makefile.gem5 --no-print-directory clean-gem5
 
-clean: clean-native clean-trace clean-gem5
+clean-native:
+	@$(MAKE) -f common/Makefile.native --no-print-directory clean-native
+
+gem5: gem5-cpu gem5-accel
+
+clean: clean-trace clean-gem5 clean-native

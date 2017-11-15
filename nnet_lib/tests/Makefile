@@ -13,8 +13,8 @@ composable: ARCH=COMPOSABLE
 
 build:
 	@echo "Building test..."
-	@make -C .. clean-native
-	@make -C .. native ARCH=$(ARCH)
+	@$(MAKE) -C .. --no-print-directory clean-native
+	@$(MAKE) -C .. --no-print-directory native ARCH=$(ARCH)
 
 smiv: build
 	@mv ../build/nnet-native ../build/nnet-native-smiv
@@ -29,6 +29,6 @@ composable: build
 	@python run_tests.py ../build/nnet-native-composable
 
 all:
-	@make -C . monolithic
-	@make -C . composable
-	@make -C . smiv
+	@$(MAKE) -C . --no-print-directory monolithic
+	@$(MAKE) -C . --no-print-directory composable
+	@$(MAKE) -C . --no-print-directory smiv
