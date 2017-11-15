@@ -1,6 +1,18 @@
-#include common/Makefile.arch
-#include common/Makefile.tracer
-#include common/Makefile.gem5
+.PHONY: all help native eigen dma-trace-binary \
+			  gem5-cpu gem5-accel \
+				clean-trace clean-gem5 clean-native clean-eigen clean gem5
+all:
+	@echo "Usage: make [target] ARCH=[ARCH]"
+	@echo ""
+	@echo "Available targets:"
+	@echo "  native, eigen, dma-trace-binary, gem5"
+	@echo "  gem5: gem5-cpu, gem5-accel (aggregate target)"
+	@echo ""
+	@echo "Architectures:"
+	@echo "  MONOLITHIC, COMPOSABLE, SMIV, EIGEN"
+	@echo "  Default: MONOLITHIC"
+
+help: all
 
 native:
 	@$(MAKE) -f common/Makefile.native --no-print-directory native
