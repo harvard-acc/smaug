@@ -9,7 +9,7 @@ of how to build SoCs for neural network workloads.
 # Dependencies #
 
 * Aladdin
-* libconfuse
+* libconfuse 3.2
 
 More documentation will be coming...
 
