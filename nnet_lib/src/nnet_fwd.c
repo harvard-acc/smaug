@@ -79,6 +79,7 @@ void print_usage() {
            ARCHITECTURE == MONOLITHIC ? "MONOLITHIC" :
            ARCHITECTURE == COMPOSABLE ? "COMPOSABLE" :
            ARCHITECTURE == SMIV ? "SMIV" :
+           ARCHITECTURE == EIGEN ? "EIGEN" :
            "UNKNOWN");
 }
 

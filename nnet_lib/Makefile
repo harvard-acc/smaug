@@ -20,6 +20,9 @@ native:
 debug:
 	@$(MAKE) -f common/Makefile.native --no-print-directory debug
 
+eigen:
+	@$(MAKE) -f common/Makefile.eigen --no-print-directory eigen
+
 dma-trace-binary:
 	@$(MAKE) -f common/Makefile.tracer --no-print-directory dma-trace-binary
 
@@ -37,6 +40,9 @@ clean-gem5:
 
 clean-native:
 	@$(MAKE) -f common/Makefile.native --no-print-directory clean-native
+
+clean-eigen:
+	@$(MAKE) -f common/Makefile.eigen --no-print-directory clean-eigen
 
 gem5: gem5-cpu gem5-accel
 

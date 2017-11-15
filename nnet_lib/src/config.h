@@ -24,6 +24,11 @@
 #define ARCHITECTURE MONOLITHIC
 #endif
 
+// By default, don't print any debug output.
+#ifndef DLEVEL
+#define DLEVEL 0
+#endif
+
 // Define this to use a table approximation of the sigmoid activation function.
 #define SIGMOID_TABLE
 

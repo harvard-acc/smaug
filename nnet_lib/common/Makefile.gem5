@@ -9,7 +9,7 @@ include common/Makefile.arch
 .PHONY: gem5 gem5-cpu gem5-accel clean-gem5
 
 CFLAGS += -static -O3 -g -fno-exceptions $(BMARK_SPECIFIC_CFLAGS)
-CPPFLAGS += $(INCLUDES) -DDMA_MODE
+CPPFLAGS += -DDMA_MODE
 
 # Output names:
 GEM5_CPU = $(BUILD_DIR)/$(EXEC)-gem5

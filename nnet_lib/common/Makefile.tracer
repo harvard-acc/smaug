@@ -24,7 +24,7 @@ TRACER = $(TRACER_HOME)/lib/full_trace.so
 LOGGER = $(TRACER_HOME)/lib/trace_logger.llvm
 GET_LABELED_STMTS = $(TRACER_HOME)/bin/get-labeled-stmts
 
-CPPFLAGS += $(INCLUDES) -DTRACE_MODE -DDMA_MODE
+CPPFLAGS += -DTRACE_MODE -DDMA_MODE
 LFLAGS += -lz
 
 ################################
@@ -36,6 +36,14 @@ ALL_TRACER_SRCS = $(SRCS) $(GEM5_DMA_SRC)
 SUBBUILDDIRS = $(patsubst %, $(BUILD_DIR)/%, $(MODULES))
 
 LLVM_OBJS = $(patsubst %.c, $(BUILD_DIR)/%-opt.llvm, $(ALL_TRACER_SRCS))
+
+################################
+#         SANITY CHECKS        #
+################################
+
+ifeq ($(ARCH), EIGEN)
+$(error Cannot build trace for the Eigen implementation)
+endif
 
 #########################################################
 #        INSTRUMENTATION AND TRACE FILE GENERATION      #

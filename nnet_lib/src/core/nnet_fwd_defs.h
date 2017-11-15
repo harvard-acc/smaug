@@ -169,6 +169,7 @@ typedef struct _iarray_t {
 #define MONOLITHIC 0
 #define COMPOSABLE 1
 #define SMIV 2
+#define EIGEN 3
 
 // Convert a layer_type enum to a string
 #define LAYER_TYPE_STR(arg) \

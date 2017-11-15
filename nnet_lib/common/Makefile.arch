@@ -26,11 +26,15 @@ UTILITY_SRCS = utility/init_data.c \
 ARCH_SRCS = arch/monolithic.c \
 	 					arch/composable.c \
 						arch/smiv.c \
-					  arch/common.c
+					  arch/common.c \
+						arch/eigen.c
 
 SRCS = $(CORE_SRCS) $(UTILITY_SRCS) $(ARCH_SRCS) nnet_fwd.c
 GEM5_DMA_SRC = gem5/dma_interface.c
 GEM5_SYS_SRCS = gem5/aladdin_sys_connection.cpp gem5/aladdin_sys_constants.cpp
+
+
+ARCH ?= MONOLITHIC
 
 ifeq ($(ARCH), SMIV)
 EXEC = nnet-smiv
@@ -40,25 +44,29 @@ ifeq	($(ARCH), COMPOSABLE)
 EXEC = nnet-composable
 export WORKLOAD=inner_product_layer_hw,convolution_layer_hw,activation_hw
 else
+ifeq ($(ARCH), MONOLITHIC)
 EXEC = nnet-monolithic
 export WORKLOAD=nnet_fwd_hw
+else
+ifeq ($(ARCH), EIGEN)
+EXEC = nnet-eigen
+endif
+endif
 endif
 endif
 
-ifneq ($(ARCH),)
-	CPPFLAGS += -DARCHITECTURE=$(ARCH)
-endif
+INCLUDES += -I$(ALADDIN_HOME) -I$(ALADDIN_HOME)/gem5 -I$(SRC_DIR)
+CPPFLAGS += -DARCHITECTURE=$(ARCH) $(INCLUDES)
 
 CFLAGS += -g \
 					-Wall \
 					-Wno-unused-label \
 					-Wno-unused-but-set-variable \
-					-DDEBUG_LEVEL=$(DLEVEL)
+					-DDEBUG_LEVEL=$(DLEVEL) \
 
 BMARK_SPECIFIC_CFLAGS = -DDMA_INTERFACE_V3
 
 NATIVE_FULL_PATH_SRCS = $(patsubst %.c, $(SRC_DIR)/%.c, $(SRCS))
 GEM5_FULL_PATH_SRCS = $(patsubst %, $(ALADDIN_HOME)/%, $(GEM5_DMA_SRC) $(GEM5_SYS_SRCS))
 
-INCLUDES += -I$(ALADDIN_HOME) -I$(ALADDIN_HOME)/gem5 -Isrc
 LFLAGS = -lm -lconfuse

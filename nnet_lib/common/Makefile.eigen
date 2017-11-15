@@ -1,0 +1,19 @@
+include common/Makefile.arch
+
+EIGEN_BINARY = $(BUILD_DIR)/$(EXEC)
+ARCH = EIGEN
+INCLUDES += -I$(SRC_DIR)/eigen
+DLEVEL = 0
+CFLAGS += $(BMARK_SPECIFIC_CFLAGS)
+CPPFLAGS += -DDMA_MODE
+
+eigen: eigen-target
+eigen-target: $(EIGEN_BINARY)
+
+$(EIGEN_BINARY): $(NATIVE_FULL_PATH_SRCS) $(GEM5_FULL_PATH_SRCS)
+	@echo Building benchmark $(EXEC) with Eigen backend.
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LFLAGS)
+
+clean-eigen:
+	rm -f $(EIGEN_BINARY)

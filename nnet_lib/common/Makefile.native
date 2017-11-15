@@ -2,6 +2,10 @@
 
 include common/Makefile.arch
 
+ifeq ($(ARCH), EIGEN)
+$(error Please use 'make eigen' to build the Eigen implementation)
+endif
+
 # Output binary name
 NATIVE = $(BUILD_DIR)/$(EXEC)-native
 DEBUG = $(BUILD_DIR)/$(EXEC)-debug
