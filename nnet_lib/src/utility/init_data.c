@@ -23,7 +23,7 @@ void init_weights(float* weights,
         for (l = 0; l < num_layers; l++) {
             get_weights_dims_layer(
                     layers, l, &w_rows, &w_cols, &w_height, &w_depth, &w_pad);
-            unsigned w_tot_cols = w_cols + w_pad;
+            int w_tot_cols = w_cols + w_pad;
             for (d = 0; d < w_depth; d++) {
                 for (h = 0; h < w_height; h++) {
                     for (i = 0; i < w_rows; i++) {
@@ -94,9 +94,10 @@ void init_data(float* data,
                network_t* network,
                size_t num_test_cases,
                data_init_mode mode) {
-    int i, j, k, l, ret_f_scanf;
+    unsigned i;
+    int j, k, l, ret_f_scanf;
     int input_rows, input_cols, input_height, input_align_pad;
-    unsigned input_dim;
+    int input_dim;
 
     input_rows = network->layers[0].inputs.rows;
     input_cols = network->layers[0].inputs.cols;
@@ -159,7 +160,8 @@ void init_data(float* data,
 }
 
 void init_labels(int* labels, size_t label_size, data_init_mode mode) {
-    int i, ret_f_scanf;
+    unsigned i;
+    int ret_f_scanf;
     if (mode == RANDOM || mode == FIXED) {
         printf("Initializing labels randomly\n");
         for (i = 0; i < label_size; i++) {

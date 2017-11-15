@@ -112,7 +112,8 @@ void convolution3d_smiv_1kernel_noreduce_fxp(float* a,
                                              float* kernels,
                                              layer_t curr_layer,
                                              float* result) {
-    int in_row, in_col, in_chan, out_row, out_col, sr, kern_row, j;
+    int in_row, in_col, in_chan, out_row, out_col, sr, kern_row;
+    unsigned j;
 
     const int a_height = curr_layer.inputs.rows;
     const int a_width = curr_layer.inputs.cols;

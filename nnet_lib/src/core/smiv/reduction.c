@@ -8,7 +8,7 @@
 #include "impls.h"
 
 void reduction_smiv_fxp(float* a, layer_t curr_layer, float* result) {
-    unsigned row, col, chan, c;
+    int row, col, chan, c;
 
     const int result_height = curr_layer.outputs.rows;
     const int result_width = curr_layer.outputs.cols;
@@ -59,7 +59,7 @@ void reduction_smiv_fxp(float* a, layer_t curr_layer, float* result) {
 }
 
 void reduction_smiv_vec_fxp(float* a, layer_t curr_layer, float* result) {
-    unsigned row, col, chan;
+    int row, col, chan;
 
     const int result_height = curr_layer.outputs.rows;
     const int result_width = curr_layer.outputs.cols;
