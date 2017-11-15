@@ -535,13 +535,14 @@ void set_dma_requirements(network_t* network) {
             network->layers[layer_num].type == POOLING ||
             // For now, conv layers also do not support local caching.
             network->layers[layer_num].type == CONV ||
-            network->layers[layer_num].input_preprocessing == FLATTEN ||
             network->layers[layer_num + 1].type == POOLING ||
             network->layers[layer_num + 1].type == SOFTMAX) {
             network->layers[layer_num].output_req = IO_DMA;
         } else {
             network->layers[layer_num].output_req = IO_NONE;
         }
+        if(network->layers[layer_num].input_preprocessing == FLATTEN)
+            network->layers[layer_num - 1].output_req = IO_DMA;
 
         // Whether we need to load the input on this layer is just whether we
         // had to store the outputs in the previous layer.
