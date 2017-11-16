@@ -30,9 +30,9 @@ result_buf inner_product_layer(float* activations,
                                int lnum,
                                float* result,
                                device_t* device) {
-    PRINT_MSG("Weights:\n");
-    PRINT_DEBUG(weights, layers[lnum].weights.rows, layers[lnum].weights.cols,
-                layers[lnum].weights.cols + layers[lnum].weights.align_pad);
+    PRINT_MSG_V("Weights:\n");
+    PRINT_DEBUG_V(weights, layers[lnum].weights.rows, layers[lnum].weights.cols,
+                  layers[lnum].weights.cols + layers[lnum].weights.align_pad);
     MATRIX_MULTIPLY_WITH_BIAS(
             activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows,
             layers[lnum].weights.cols + layers[lnum].weights.align_pad,
