@@ -11,6 +11,7 @@
 #include "utility/init_data.h"
 #include "utility/read_model_conf.h"
 #include "utility/utility.h"
+#include "utility/profiling.h"
 #include "arch/interface.h"
 #include "arch/common.h"
 
@@ -88,6 +89,7 @@ int main(int argc, const char* argv[]) {
       print_usage();
       return -1;
     }
+
     const char* conf_file = argv[1];
     if (argc == 2)
       NUM_TEST_CASES = 1;
@@ -183,7 +185,10 @@ int main(int argc, const char* argv[]) {
 
     // Run a forward pass through the neural net
     printf("Running forward pass\n");
+    init_profiling_log();
     nnet_fwd(hid, weights, hid_temp, network, device);
+    dump_profiling_log();
+    close_profiling_log();
 
     // Print the result, maybe not all the test_cases
     int num_to_print = 1;
