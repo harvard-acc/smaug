@@ -88,7 +88,8 @@ void inner_product_layer_hw(float* host_activations,
                             int lnum,
                             bool input_in_spad0,
                             float* host_result) {
-    bool run_activation = all_layers[lnum].activation != NO_ACTIVATION;
+    activation_type act_func = all_layers[lnum].activation;
+    bool run_activation = act_func == RELU || act_func == RELU_THRESHOLD;
     int weights_size = get_num_weights_layer(all_layers, lnum) * sizeof(float);
     setReadyBits(umem, UMEM_SIZE, 0);
     dmaLoad(umem, host_weights, weights_size);
@@ -154,6 +155,7 @@ result_buf inner_product_layer(float* host_activations,
     INVOKE_KERNEL_PROF(kInnerProductHw, inner_product_layer_hw,
                        host_activations, host_weights_layer, g_umem, g_spad0,
                        g_spad1, layers, lnum, input_in_spad0, host_result);
+
     return host_result;
 }
 
@@ -455,11 +457,9 @@ void convolution_runner(float* host_activations,
                 }
             }
 
-            // Any unsupported activations are run on the CPU.
-            if (!do_hw_activation) {
-                activation_fun(temp_result, result_2d_size,
-                               curr_layer.activation, sigmoid_table);
-            }
+            // If the HW doesn't support the activation function, don't run the
+            // activation function yet - we'll run it all at once when we're
+            // done with all the kernels.
 
             memcpy(&_result[img][kern][0][0], temp_result,
                    result_2d_size * sizeof(float));
@@ -526,8 +526,13 @@ result_buf run_layer(float* activations,
     result_buf result_loc = run_layer_skip_activation_func(
             activations, weights, layers, layer_num, result, device);
 
-    // Activation functions are handled as part of the matrix multiply /
-    // convolution, rather than being treated as a separate block.
+    activation_type act_func = layers[layer_num].activation;
+    bool do_activation = act_func != NO_ACTIVATION;
+    bool do_hw_activation = is_supported_activation_func(act_func);
+    if (do_activation && !do_hw_activation) {
+        int output_size = get_output_activations_size(&layers[layer_num]);
+        activation_fun(result_loc, output_size, act_func, sigmoid_table);
+    }
     return result_loc;
 }
 
