@@ -531,7 +531,9 @@ result_buf run_layer(float* activations,
     bool do_hw_activation = is_supported_activation_func(act_func);
     if (do_activation && !do_hw_activation) {
         int output_size = get_output_activations_size(&layers[layer_num]);
+        begin_profiling("activation_fun", layers, layer_num);
         activation_fun(result_loc, output_size, act_func, sigmoid_table);
+        end_profiling();
     }
     return result_loc;
 }
