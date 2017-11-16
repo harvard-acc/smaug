@@ -10,6 +10,7 @@
 #include "core/smiv.h"
 #include "core/zeropad.h"
 #include "utility/utility.h"
+#include "utility/profiling.h"
 #include "arch/common.h"
 #include "arch/interface.h"
 
@@ -18,6 +19,18 @@
 #endif
 
 #if ARCHITECTURE == SMIV
+
+// Convenience macro for profiling a kernel invocation.
+//
+// This macro assumes that the current scope contains:
+//   - layer_t* layers: A pointer to the base layers array.
+//   - int lnum: The current layer number.
+#define INVOKE_KERNEL_PROF(req_code, kernel_ptr, args...)                      \
+    do {                                                                       \
+        begin_profiling(STRING(kernel_ptr), &layers[lnum], lnum);              \
+        INVOKE_KERNEL(req_code, kernel_ptr, args);                             \
+        end_profiling();                                                       \
+    } while (0)
 
 // These are GLOBAL arrays which cannot be referenced directly by a HW
 // function. Instead, pass them to the top level functions as function
@@ -138,9 +151,9 @@ result_buf inner_product_layer(float* host_activations,
 
     // If the result is to be in g_spad1, then the input is in g_spad0.
     bool input_in_spad0 = (current_result_loc == g_spad1);
-    INVOKE_KERNEL(kInnerProductHw, inner_product_layer_hw, host_activations,
-                  host_weights_layer, g_umem, g_spad0, g_spad1, layers, lnum,
-                  input_in_spad0, host_result);
+    INVOKE_KERNEL_PROF(kInnerProductHw, inner_product_layer_hw,
+                       host_activations, host_weights_layer, g_umem, g_spad0,
+                       g_spad1, layers, lnum, input_in_spad0, host_result);
     return host_result;
 }
 
@@ -376,10 +389,10 @@ void convolution_runner(float* host_activations,
                         conv_cfgs.num_iterations > 1 || !do_hw_activation
                                 ? NO_ACTIVATION
                                 : curr_layer.activation;
-                INVOKE_KERNEL(kConvolutionHw, convolution_layer_hw,
-                              host_activations, host_weights, g_umem, g_spad0,
-                              g_spad1, true, layers, partial_layer, lnum, img,
-                              kern, start_chan);
+                INVOKE_KERNEL_PROF(kConvolutionHw, convolution_layer_hw,
+                                   host_activations, host_weights, g_umem,
+                                   g_spad0, g_spad1, true, layers,
+                                   partial_layer, lnum, img, kern, start_chan);
 
                 // Reduce the results.
                 //
@@ -390,15 +403,16 @@ void convolution_runner(float* host_activations,
                 if (do_hw_activation || !use_acp_offload) {
                     MAP_ARRAY_TO_ACCEL(kReductionHw, "host_result", result_loc,
                                        temp_result_size);
-                    INVOKE_KERNEL(kReductionHw, reduction_hw, g_spad0, g_spad1,
-                                  g_umem, false, false, partial_layer,
-                                  result_2d_size, result_loc);
+                    INVOKE_KERNEL_PROF(kReductionHw, reduction_hw, g_spad0,
+                                       g_spad1, g_umem, false, false,
+                                       partial_layer, result_2d_size,
+                                       result_loc);
                 } else {
                     MAP_ARRAY_TO_ACCEL(kReductionHw, "acp_result", result_loc,
                                        temp_result_size);
-                    INVOKE_KERNEL(kReductionHw, reduction_acp_hw, g_spad0, g_spad1,
-                                  result_loc, false, false, partial_layer,
-                                  result_2d_size);
+                    INVOKE_KERNEL_PROF(kReductionHw, reduction_acp_hw, g_spad0,
+                                       g_spad1, result_loc, false, false,
+                                       partial_layer, result_2d_size);
                 }
 
                 result_loc += result_2d_size;
@@ -426,16 +440,16 @@ void convolution_runner(float* host_activations,
                     if (do_hw_activation || !use_acp_offload) {
                         MAP_ARRAY_TO_ACCEL(kReductionHw, "host_result",
                                            result_loc, temp_result_size);
-                        INVOKE_KERNEL(kReductionHw, reduction_hw, g_spad0,
-                                      g_spad1, g_umem, false, true,
-                                      partial_layer, result_2d_size,
-                                      result_loc);
+                        INVOKE_KERNEL_PROF(kReductionHw, reduction_hw, g_spad0,
+                                           g_spad1, g_umem, false, true,
+                                           partial_layer, result_2d_size,
+                                           result_loc);
                     } else {
                         MAP_ARRAY_TO_ACCEL(kReductionHw, "acp_result",
                                            result_loc, result_2d_size);
-                        INVOKE_KERNEL(kReductionHw, reduction_acp_hw, g_spad0,
-                                      g_spad1, result_loc, false, true,
-                                      partial_layer, result_2d_size);
+                        INVOKE_KERNEL_PROF(kReductionHw, reduction_acp_hw,
+                                           g_spad0, g_spad1, result_loc, false,
+                                           true, partial_layer, result_2d_size);
                     }
                     result_loc += result_2d_size;
                 }
