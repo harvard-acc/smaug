@@ -17,6 +17,9 @@ help: all
 native:
 	@$(MAKE) -f common/Makefile.native --no-print-directory native
 
+debug:
+	@$(MAKE) -f common/Makefile.native --no-print-directory debug
+
 dma-trace-binary:
 	@$(MAKE) -f common/Makefile.tracer --no-print-directory dma-trace-binary
 

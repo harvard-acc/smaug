@@ -5,7 +5,6 @@
 
 include common/Makefile.arch
 
-EXEC = $(ACCEL_NAME)
 MODULES = core core/smiv utility arch gem5
 
 .PHONY: dma-trace-binary run-trace clean-trace src-symlinks

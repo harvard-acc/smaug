@@ -32,14 +32,17 @@ SRCS = $(CORE_SRCS) $(UTILITY_SRCS) $(ARCH_SRCS) nnet_fwd.c
 GEM5_DMA_SRC = gem5/dma_interface.c
 GEM5_SYS_SRCS = gem5/aladdin_sys_connection.cpp gem5/aladdin_sys_constants.cpp
 
-ACCEL_NAME = nnet
-
 ifeq ($(ARCH), SMIV)
+EXEC = nnet-smiv
 export WORKLOAD=inner_product_layer_hw,convolution_layer_hw,activation_hw,reduction_hw,reduction_acp_hw
-else ifeq ($($ARCH), COMPOSABLE)
+else
+ifeq	($(ARCH), COMPOSABLE)
+EXEC = nnet-composable
 export WORKLOAD=inner_product_layer_hw,convolution_layer_hw,activation_hw
 else
+EXEC = nnet-monolithic
 export WORKLOAD=nnet_fwd_hw
+endif
 endif
 
 ifneq ($(ARCH),)
