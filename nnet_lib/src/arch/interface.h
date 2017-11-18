@@ -45,9 +45,11 @@ result_buf pooling_layer(float* activations,
                          float* result,
                          device_t* device);
 
+/*
 result_buf activation_sublayer(float* activations,
                                layer_t* layers,
                                int lnum);
+                               */
 
 // Does the forward predictive pass of a neural net.
 //

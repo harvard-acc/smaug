@@ -3,6 +3,7 @@
 #include "arch/common.h"
 #include "arch/interface.h"
 #include "core/activation_functions.h"
+#include "core/eigen/activation_functions.h"
 #include "core/convolution.h"
 #include "core/matrix_multiply.h"
 #include "core/pooling.h"
@@ -33,9 +34,9 @@ result_buf inner_product_layer(float* activations,
                                int lnum,
                                float* result,
                                device_t* device) {
-    PRINT_MSG("Weights:\n");
-    PRINT_DEBUG(weights, layers[lnum].weights.rows, layers[lnum].weights.cols,
-                layers[lnum].weights.cols + layers[lnum].weights.align_pad);
+    PRINT_MSG_V("Weights:\n");
+    PRINT_DEBUG_V(weights, layers[lnum].weights.rows, layers[lnum].weights.cols,
+                  layers[lnum].weights.cols + layers[lnum].weights.align_pad);
     MATRIX_MULTIPLY_WITH_BIAS(
             activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows,
             layers[lnum].weights.cols + layers[lnum].weights.align_pad,
@@ -73,10 +74,12 @@ result_buf pooling_layer(float* activations,
 
 result_buf activation_sublayer(float* activations,
                                layer_t* layers,
-                               int lnum) {
+                               int lnum,
+                               float* result) {
     int size = get_output_activations_size(&layers[lnum]);
-    activation_fun(activations, size, layers[lnum].activation, sigmoid_table);
-    return activations;
+    nnet_eigen::activation_fun(
+            activations, size, layers[lnum].activation, sigmoid_table, result);
+    return result;
 }
 
 result_buf run_layer(float* activations,
@@ -93,9 +96,9 @@ result_buf run_layer(float* activations,
         PRINT_MSG("\nactivation function\n");
         // Pass through activation function
         if (result_loc == activations) {
-            activation_sublayer(activations, layers, layer_num);
+            result_loc = activation_sublayer(activations, layers, layer_num, result);
         } else {
-            activation_sublayer(result, layers, layer_num);
+            result_loc = activation_sublayer(result, layers, layer_num, activations);
         }
 
         PRINT_DEBUG4D(result_loc, curr_layer.outputs.rows,
@@ -104,58 +107,6 @@ result_buf run_layer(float* activations,
     }
     return result_loc;
 }
-
-void nnet_fwd_hw(float* activations,
-                 float* weights,
-                 layer_t* layers,
-                 int num_layers,
-                 float* result,
-                 device_t* device) {
-    int l;
-    layer_t curr_layer;
-
-    // Alternate between reading from/writing to activations and result so we
-    // can
-    // avoid copying matrices. The initial activations is obviously in
-    // "activations",
-    // so that's where we start.
-    result_buf result_loc = activations;
-
-    // FORMAT HERE IS H TIMES W, NOT W TIMES H!!!!!
-    // SO EACH DATA POINT IS A ***ROW****
-
-    l = 0;
-    dmaLoad(activations, activations, NUM_TEST_CASES * INPUT_DIM * sizeof(float));
-
-    //******************//
-    //   PRIMARY LOOP   //
-    //******************//
-
-nnet_fwd_outer:
-    for (l = 1; l < num_layers; l++) {
-        curr_layer = layers[l];
-
-        grab_weights_dma(weights, weights, l, layers);
-
-        if (result_loc == result) {
-            result_loc =
-                    run_layer(result, weights, layers, l, activations, device);
-        } else {
-            result_loc =
-                    run_layer(activations, weights, layers, l, result, device);
-        }
-    }
-
-    layers[num_layers - 1].result_in_temp = result_loc == result;
-
-    if (result_loc == result)
-        dmaStore(result, result, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
-    else
-        dmaStore(activations, activations,
-                 NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
-    dmaStore(layers, layers, num_layers * sizeof(layer_t));
-}
-
 
 // Runs the forward pass of a neural network.
 //
@@ -191,6 +142,8 @@ void nnet_fwd(farray_t activations,
 nnet_fwd_outer:
     for (l = 1; l < network.depth; l++) {
         curr_layer = network.layers[l];
+
+        grab_weights_dma(weights.d, weights.d, l, network.layers);
 
         if (result_loc == result.d) {
             result_loc = run_layer(result.d, weights.d, network.layers, l,
