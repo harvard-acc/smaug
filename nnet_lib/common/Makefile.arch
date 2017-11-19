@@ -28,7 +28,8 @@ ARCH_SRCS = arch/monolithic.c \
 						arch/smiv.c \
 					  arch/common.c
 
-EIGEN_CORE_SRCS = core/eigen/activation_functions.cpp
+EIGEN_CORE_SRCS = core/eigen/activation_functions.cpp \
+									core/eigen/matrix_multiply.cpp
 EIGEN_ARCH_SRCS = arch/eigen.cpp
 
 NNET_FWD_MAIN = nnet_fwd.c

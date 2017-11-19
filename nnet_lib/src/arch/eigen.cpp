@@ -2,10 +2,9 @@
 
 #include "arch/common.h"
 #include "arch/interface.h"
-#include "core/activation_functions.h"
 #include "core/eigen/activation_functions.h"
+#include "core/eigen/matrix_multiply.h"
 #include "core/convolution.h"
-#include "core/matrix_multiply.h"
 #include "core/pooling.h"
 #include "core/zeropad.h"
 #include "nnet_fwd.h"
@@ -34,13 +33,15 @@ result_buf inner_product_layer(float* activations,
                                int lnum,
                                float* result,
                                device_t* device) {
-    PRINT_MSG_V("Weights:\n");
-    PRINT_DEBUG_V(weights, layers[lnum].weights.rows, layers[lnum].weights.cols,
-                  layers[lnum].weights.cols + layers[lnum].weights.align_pad);
-    MATRIX_MULTIPLY_WITH_BIAS(
+#if TRANSPOSE_WEIGHTS == 1
+    nnet_eigen::matrix_multiply_with_bias_transpose(
             activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows,
-            layers[lnum].weights.cols + layers[lnum].weights.align_pad,
-            result);
+            layers[lnum].weights.cols + layers[lnum].weights.align_pad, result);
+#else
+    nnet_eigen::matrix_multiply_with_bias(
+            activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows,
+            layers[lnum].weights.cols + layers[lnum].weights.align_pad, result);
+#endif
     return result;
 }
 

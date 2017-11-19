@@ -55,8 +55,8 @@
 #define ENABLE_SIMD_IMPL
 
 // Turns out debugging output, which prints out the results of operations.
-#ifndef DEBUG
-#define DEBUG 0
+#ifndef DEBUG_LEVEL
+#define DEBUG_LEVEL 0
 #endif
 
 // Print the input data and the complete set of weights.
