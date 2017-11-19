@@ -15,11 +15,15 @@ void activation_fun(float* inputs,
                     activation_type function,
                     float* sigmoid_table,
                     float* result) {
-  TensorMap<Tensor<float, 1>> input_tensor(inputs, size);
-  TensorMap<Tensor<float, 1>> result_tensor(result, size);
-  if (function == SIGMOID) {
-    result_tensor = input_tensor.sigmoid();
-  }
+    TensorMap<Tensor<float, 1>> input_tensor(inputs, size);
+    TensorMap<Tensor<float, 1>> result_tensor(result, size);
+    if (function == SIGMOID) {
+        result_tensor = input_tensor.sigmoid();
+    } else if (function == RELU) {
+        result_tensor = input_tensor.cwiseMax(static_cast<float>(0.0));
+    } else {
+        assert(false && "Unsupported activation function!");
+    }
 }
 
 }  // namespace nnet_eigen
