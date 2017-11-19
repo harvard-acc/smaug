@@ -258,14 +258,6 @@ typedef struct _iarray_t {
 
 #define FRAC_CEIL(A, B) ((A) / (B) + ((A) % (B) != 0))
 
-// Based on whether the weights matrix is transposed or not, use a different
-// multiplication kernel.
-#if TRANSPOSE_WEIGHTS == 1
-#define MATRIX_MULTIPLY_WITH_BIAS matrix_multiply_with_bias_transpose
-#else
-#define MATRIX_MULTIPLY_WITH_BIAS matrix_multiply_with_bias
-#endif
-
 // 2D indexing into a flattened array.
 //
 // Operation: data[row][col]

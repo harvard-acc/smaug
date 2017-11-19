@@ -44,7 +44,8 @@ matmul0:
     copy_matrix(result_temp, result_goes_here, size);
 }
 
-// Multiply matrices a and b, assuming the last row of b are biases.
+// Multiply matrices a and b, assuming both are row major and the last row of b
+// are biases.
 //
 // Args:
 //   a_height = height of A matrix.
@@ -68,6 +69,9 @@ void matrix_multiply_with_bias(float* a,
     ARRAY_2D(float, _a, a, a_width);
     ARRAY_2D(float, _b, b, b_width);
     ARRAY_2D(float, _result, result, b_width);
+
+    PRINT_MSG_V("B matrix:\n");
+    PRINT_DEBUG_V(b, b_height, b_width, b_width);
 
 matmulb0:
     for (i = 0; i < a_height; i++) {
@@ -102,7 +106,8 @@ void matrix_multiply_with_bias_and_copy(float* a,
     copy_matrix(result_temp, result_goes_here, size);
 }
 
-// Multiply the matrices a and b, but assume that b has been transposed.
+// Multiply the matrices a and b, but assume that b has been transposed (col
+// major). The last logical row of b are still the biases.
 //
 // Args:
 //   a_height = height of the A matrix.
@@ -124,7 +129,10 @@ void matrix_multiply_with_bias_transpose(float* a,
 
     ARRAY_2D(float, _a, a, a_width);
     ARRAY_2D(float, _b, b, b_width);
-    ARRAY_2D(float, _result, result, b_height);
+    ARRAY_2D(float, _result, result, b_width);
+
+    PRINT_MSG_V("B matrix transpose:\n");
+    PRINT_DEBUG_V(b, b_height, b_width, b_width);
 
 matmulbt0:
     for (i = 0; i < a_height; i++) {

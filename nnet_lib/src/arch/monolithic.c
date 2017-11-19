@@ -30,13 +30,17 @@ result_buf inner_product_layer(float* activations,
                                int lnum,
                                float* result,
                                device_t* device) {
-    PRINT_MSG_V("Weights:\n");
-    PRINT_DEBUG_V(weights, layers[lnum].weights.rows, layers[lnum].weights.cols,
-                  layers[lnum].weights.cols + layers[lnum].weights.align_pad);
-    MATRIX_MULTIPLY_WITH_BIAS(
+#if TRANSPOSE_WEIGHTS == 0
+    matrix_multiply_with_bias(
             activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows,
             layers[lnum].weights.cols + layers[lnum].weights.align_pad,
             result);
+#else
+    matrix_multiply_with_bias_transpose(
+            activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows,
+            layers[lnum].weights.cols + layers[lnum].weights.align_pad,
+            result);
+#endif
     return result;
 }
 
