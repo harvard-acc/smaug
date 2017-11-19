@@ -10,6 +10,7 @@
 smiv: 			ARCH=SMIV
 monolithic: ARCH=MONOLITHIC
 composable: ARCH=COMPOSABLE
+eigen:      ARCH=EIGEN
 
 build:
 	@echo "Building test..."
@@ -17,18 +18,21 @@ build:
 	@$(MAKE) -C .. --no-print-directory native ARCH=$(ARCH)
 
 smiv: build
-	@mv ../build/nnet-native ../build/nnet-native-smiv
-	@python run_tests.py ../build/nnet-native-smiv
+	@python run_tests.py ../build/nnet-smiv-native
 
 monolithic: build
-	@mv ../build/nnet-native ../build/nnet-native-monolithic
-	@python run_tests.py ../build/nnet-native-monolithic
+	@python run_tests.py ../build/nnet-monolithic-native
 
 composable: build
-	@mv ../build/nnet-native ../build/nnet-native-composable
-	@python run_tests.py ../build/nnet-native-composable
+	@python run_tests.py ../build/nnet-composable-native
+
+eigen:
+	@$(MAKE) -C .. --no-print-directory clean-eigen
+	@$(MAKE) -C .. --no-print-directory eigen ARCH=$(ARCH)
+	@python run_tests.py ../build/nnet-eigen-native
 
 all:
 	@$(MAKE) -C . --no-print-directory monolithic
 	@$(MAKE) -C . --no-print-directory composable
 	@$(MAKE) -C . --no-print-directory smiv
+	@$(MAKE) -C . --no-print-directory eigen
