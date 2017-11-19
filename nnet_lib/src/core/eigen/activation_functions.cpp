@@ -1,6 +1,4 @@
-#ifndef EIGEN_ARCH_IMPL
-#error "This file cannot be compiled except as part of the Eigen backend!"
-#endif
+#ifdef EIGEN_ARCH_IMPL
 
 #include "unsupported/Eigen/CXX11/Tensor"
 
@@ -25,3 +23,5 @@ void activation_fun(float* inputs,
 }
 
 }  // namespace nnet_eigen
+
+#endif

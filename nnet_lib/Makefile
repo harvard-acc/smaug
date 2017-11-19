@@ -35,6 +35,12 @@ gem5-cpu:
 gem5-accel:
 	@$(MAKE) -f common/Makefile.gem5 --no-print-directory gem5-accel
 
+perftests:
+	@$(MAKE) -f common/Makefile.perftests --no-print-directory all
+
+run-perftest:
+	@$(MAKE) -f common/Makefile.perftests --no-print-directory run
+
 clean-trace:
 	@$(MAKE) -f common/Makefile.tracer --no-print-directory clean-trace
 
@@ -46,6 +52,9 @@ clean-native:
 
 clean-eigen:
 	@$(MAKE) -f common/Makefile.eigen --no-print-directory clean-eigen ARCH=EIGEN
+
+clean-perftests:
+	@$(MAKE) -f common/Makefile.perftests --no-print-directory clean-perftests
 
 gem5: gem5-cpu gem5-accel
 

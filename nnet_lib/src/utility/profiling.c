@@ -5,8 +5,8 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
-#include <fcntl.h>
 #include <string.h>
+#include <fcntl.h>
 
 #include "profiling.h"
 
@@ -87,6 +87,21 @@ void end_profiling() {
     profile_log->end_time = get_nsecs();
 }
 
+void write_profiling_log(FILE* out) {
+    fprintf(out,
+            "layer_num,layer_type,function,invocation,start_time,end_time,"
+            "elapsed_time\n");
+    log_entry_t* curr_entry = profile_log;
+    while (curr_entry) {
+        fprintf(out, "%d,%s,%s,%d,%lu,%lu,%lu\n", curr_entry->layer_num,
+                LAYER_TYPE_STR(curr_entry->layer->type),
+                curr_entry->function_name.str, curr_entry->invocation,
+                curr_entry->start_time, curr_entry->end_time,
+                curr_entry->end_time - curr_entry->start_time);
+        curr_entry = curr_entry->next;
+    }
+}
+
 // Format is:
 //
 // layer_num,layer_type,function,invocation,start_time,end_time,elapsed_time
@@ -99,18 +114,7 @@ int dump_profiling_log() {
       perror("Unable to open profiling.log file");
       return -1;
     }
-    fprintf(profile,
-            "layer_num,layer_type,function,invocation,start_time,end_time,"
-            "elapsed_time\n");
-    log_entry_t* curr_entry = profile_log;
-    while (curr_entry) {
-        fprintf(profile, "%d,%s,%s,%d,%lu,%lu,%lu\n", curr_entry->layer_num,
-                LAYER_TYPE_STR(curr_entry->layer->type),
-                curr_entry->function_name.str, curr_entry->invocation,
-                curr_entry->start_time, curr_entry->end_time,
-                curr_entry->end_time - curr_entry->start_time);
-        curr_entry = curr_entry->next;
-    }
+    write_profiling_log(profile);
     fclose(profile);
     return 0;
 }

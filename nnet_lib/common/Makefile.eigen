@@ -2,16 +2,14 @@ include common/Makefile.arch
 
 EIGEN_BINARY = $(BUILD_DIR)/$(EXEC)-native
 INCLUDES += -I$(SRC_DIR)/eigen
-DLEVEL = 2
+DLEVEL = 0
 
 SIMD_FLAGS =
 
 CFLAGS += -std=c++11 $(SIMD_FLAGS) $(BMARK_SPECIFIC_CFLAGS)
 CPPFLAGS += -DDMA_MODE -DEIGEN_ARCH_IMPL
 
-CORE_CPP_SRCS = core/eigen/activation_functions.cpp
-ARCH_CPP_SRCS = arch/eigen.cpp
-EIGEN_ALL_CPP_SRCS = $(CORE_CPP_SRCS) $(ARCH_CPP_SRCS)
+EIGEN_ALL_CPP_SRCS = $(EIGEN_CORE_SRCS) $(EIGEN_ARCH_SRCS)
 EIGEN_FULL_PATH_CPP_SRCS = $(patsubst %.cpp, $(SRC_DIR)/%.cpp, $(EIGEN_ALL_CPP_SRCS))
 
 eigen: eigen-target

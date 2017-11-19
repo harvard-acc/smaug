@@ -8,6 +8,7 @@
 // measurement overhead. On gem5, I've found that the overhead of calling
 // clock_gettime() ranges from 100-200 cycles.
 
+#include <fcntl.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -59,6 +60,9 @@ void end_profiling();
 
 // Dumps all profiling logs to a file "profiling.log".
 int dump_profiling_log();
+
+// Writes profiling logs to the specified file pointer.
+void write_profiling_log(FILE* out);
 
 // Initialize the profiling system.
 void init_profiling_log();

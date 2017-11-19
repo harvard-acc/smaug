@@ -1,0 +1,32 @@
+# Performance tests for this library.
+
+include common/Makefile.arch
+
+PERFTEST_DIR = $(SRC_DIR)/perftests
+TEST_SRCS = $(wildcard $(PERFTEST_DIR)/*.cpp)
+TESTS = test_eigen_sigmoid
+TESTS_TARGETS  = $(patsubst %, $(BUILD_DIR)/%, $(TESTS))
+
+LIB_SRCS = $(CORE_SRCS) $(UTILITY_SRCS) $(ARCH_SRCS) \
+					 $(EIGEN_CORE_SRCS) $(EIGEN_ARCH_SRCS) \
+
+GEM5_FULL_PATH_SRCS = $(patsubst %, $(ALADDIN_HOME)/%, $(GEM5_DMA_SRC))
+LIB_FULL_PATH_SRCS = $(patsubst %, $(SRC_DIR)/%, $(LIB_SRCS))
+ALL_SRCS = $(LIB_FULL_PATH_SRCS) $(GEM5_FULL_PATH_SRCS)
+
+CPPFLAGS += -DDMA_MODE -DDMA_INTERFACE_V3
+CFLAGS += -O3
+
+all: $(TESTS_TARGETS)
+
+run: run_$(RUN_TEST)
+
+run_test_eigen_sigmoid: $(BUILD_DIR)/test_eigen_sigmoid
+	perf stat -e cycles ./$< manual
+$(BUILD_DIR)/test_eigen_sigmoid: ARCH=EIGEN
+$(BUILD_DIR)/test_eigen_sigmoid: INCLUDES+=-I$(SRC_DIR)/eigen
+$(BUILD_DIR)/test_eigen_sigmoid: $(PERFTEST_DIR)/test_eigen_sigmoid.cpp $(ALL_SRCS)
+	$(CXX) $(CFLAGS) $(CPPFLAGS) -ffast-math -mavx2 -std=c++11 -DEIGEN_ARCH_IMPL $^ -o $@ $(LFLAGS)
+
+clean-perftests:
+	rm -f $(TESTS_TARGETS)
