@@ -16,7 +16,7 @@ import shutil
 import re
 
 # Floating point equality comparison tolerance in percent.
-FP_ERR = 0.0005
+FP_ERR = 0.005
 
 # This gets set by the command line argument.
 BINARY = ""
@@ -156,6 +156,11 @@ class SmivTests(BaseTest):
   def test_multi_rounds(self):
     model_file = "smiv/smiv-multi-rounds.conf"
     correct_output = "smiv-multi-rounds.out"
+    self.runAndValidate(model_file, correct_output)
+
+  def test_unsupported_act_functions(self):
+    model_file = "smiv/unsupported-act-fun.conf"
+    correct_output = "smiv-unsupported-act-fun.out"
     self.runAndValidate(model_file, correct_output)
 
 def run_tests():
