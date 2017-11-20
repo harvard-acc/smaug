@@ -29,7 +29,8 @@ ARCH_SRCS = arch/monolithic.c \
 					  arch/common.c
 
 EIGEN_CORE_SRCS = core/eigen/activation_functions.cpp \
-									core/eigen/matrix_multiply.cpp
+									core/eigen/matrix_multiply.cpp \
+									core/eigen/pooling.cpp
 EIGEN_ARCH_SRCS = arch/eigen.cpp
 
 NNET_FWD_MAIN = nnet_fwd.c

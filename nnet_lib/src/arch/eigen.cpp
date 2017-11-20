@@ -4,8 +4,8 @@
 #include "arch/interface.h"
 #include "core/eigen/activation_functions.h"
 #include "core/eigen/matrix_multiply.h"
+#include "core/eigen/pooling.h"
 #include "core/convolution.h"
-#include "core/pooling.h"
 #include "core/zeropad.h"
 #include "nnet_fwd.h"
 #include "utility/utility.h"
@@ -67,7 +67,7 @@ result_buf pooling_layer(float* activations,
                          device_t* device) {
     layer_t curr_layer = layers[lnum];
     if (curr_layer.pool == MAX)
-        max_pooling(activations, result, curr_layer);
+        nnet_eigen::max_pooling(activations, result, curr_layer);
     else
         assert(false && "Unsupported pooling layer type!");
     return result;
