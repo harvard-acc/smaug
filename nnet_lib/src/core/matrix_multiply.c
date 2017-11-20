@@ -52,12 +52,12 @@ matmul0:
 //   b_height = height of the B matrix, which is also the width of the A matrix
 //     + 1.
 //   b_width = width of the B matrix.
-void matrix_multiply_with_bias(float* a,
-                               float* b,
+void matrix_multiply_with_bias(float* __restrict__ a,
+                               float* __restrict__ b,
                                int a_height,
                                int b_height,
                                int b_width,
-                               float* result) {
+                               float* __restrict__ result) {
 
     // a is hid, b is weights
     int i, j, k;
@@ -113,12 +113,12 @@ void matrix_multiply_with_bias_and_copy(float* a,
 //   a_height = height of the A matrix.
 //   b_height = height of the TRANSPOSED B matrix.
 //   b_width = width of the TRANSPOSED B matrix.
-void matrix_multiply_with_bias_transpose(float* a,
-                                         float* b,
+void matrix_multiply_with_bias_transpose(float* __restrict__ a,
+                                         float* __restrict__ b,
                                          int a_height,
                                          int b_width,
                                          int b_height,
-                                         float* result) {
+                                         float* __restrict__ result) {
 
     // a is hid, b is weights
     int i, j, k;

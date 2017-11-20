@@ -29,12 +29,12 @@ using ColVectorMap = Map<ColVectorType>;
 //   b_height = height of the B matrix, which is also the width of the A matrix
 //     + 1.
 //   b_width = width of the B matrix.
-void matrix_multiply_with_bias(float* a,
-                               float* b,
+void matrix_multiply_with_bias(float* __restrict__ a,
+                               float* __restrict__ b,
                                int a_height,
                                int b_height,
                                int b_width,
-                               float* result) {
+                               float* __restrict__ result) {
     int a_width = b_height - 1;
     int num_weights = a_width * b_width;
     RowMajorMap a_map(a, a_height, a_width);
@@ -46,7 +46,7 @@ void matrix_multiply_with_bias(float* a,
 #endif
 
     RowMajorMap result_map(result, a_height, b_width);
-    result_map = a_map * b_map;
+    result_map.noalias() = a_map * b_map;
     result_map.rowwise() += bias;
 }
 
@@ -57,12 +57,12 @@ void matrix_multiply_with_bias(float* a,
 //   a_height = height of the A matrix.
 //   b_height = height of the B matrix + 1.
 //   b_width = width of the B matrix.
-void matrix_multiply_with_bias_transpose(float* a,
-                                         float* b,
+void matrix_multiply_with_bias_transpose(float* __restrict__ a,
+                                         float* __restrict__ b,
                                          int a_height,
                                          int b_height,
                                          int b_width,
-                                         float* result) {
+                                         float* __restrict__ result) {
     int a_width = b_height - 1;
     RowMajorMap a_map(a, a_height, a_width);
     // For column major matrix, we need to construct the map with the entire

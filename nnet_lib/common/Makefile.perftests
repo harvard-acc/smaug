@@ -4,7 +4,7 @@ include common/Makefile.arch
 
 PERFTEST_DIR = $(SRC_DIR)/perftests
 TEST_SRCS = $(wildcard $(PERFTEST_DIR)/*.cpp)
-TESTS = test_eigen_sigmoid test_eigen_maxpooling
+TESTS = test_eigen_sigmoid test_eigen_maxpooling test_eigen_gemm
 TESTS_TARGETS  = $(patsubst %, $(BUILD_DIR)/%, $(TESTS))
 
 LIB_SRCS = $(CORE_SRCS) $(UTILITY_SRCS) $(ARCH_SRCS) \
@@ -14,8 +14,9 @@ GEM5_FULL_PATH_SRCS = $(patsubst %, $(ALADDIN_HOME)/%, $(GEM5_DMA_SRC))
 LIB_FULL_PATH_SRCS = $(patsubst %, $(SRC_DIR)/%, $(LIB_SRCS))
 ALL_SRCS = $(LIB_FULL_PATH_SRCS) $(GEM5_FULL_PATH_SRCS)
 
+PERF_CFLAGS = -ffast-math -march=native -mavx2
 CPPFLAGS += -DDMA_MODE -DDMA_INTERFACE_V3
-CFLAGS += -O3
+CFLAGS += -O3 $(PERF_CFLAGS)
 
 all: $(TESTS_TARGETS)
 
@@ -26,14 +27,21 @@ run_test_eigen_sigmoid: $(BUILD_DIR)/test_eigen_sigmoid
 $(BUILD_DIR)/test_eigen_sigmoid: ARCH=EIGEN
 $(BUILD_DIR)/test_eigen_sigmoid: INCLUDES+=-I$(SRC_DIR)/eigen
 $(BUILD_DIR)/test_eigen_sigmoid: $(PERFTEST_DIR)/test_eigen_sigmoid.cpp $(ALL_SRCS)
-	$(CXX) $(CFLAGS) $(CPPFLAGS) -ffast-math -mavx2 -std=c++11 -DEIGEN_ARCH_IMPL $^ -o $@ $(LFLAGS)
+	$(CXX) $(CFLAGS) $(CPPFLAGS) -std=c++11 -DEIGEN_ARCH_IMPL $^ -o $@ $(LFLAGS)
 
 run_test_eigen_maxpooling: $(BUILD_DIR)/test_eigen_maxpooling
 	perf stat -e cycles ./$< rowmajor
 $(BUILD_DIR)/test_eigen_maxpooling: ARCH=EIGEN
 $(BUILD_DIR)/test_eigen_maxpooling: INCLUDES+=-I$(SRC_DIR)/eigen
 $(BUILD_DIR)/test_eigen_maxpooling: $(PERFTEST_DIR)/test_eigen_maxpooling.cpp $(ALL_SRCS)
-	$(CXX) $(CFLAGS) $(CPPFLAGS) -ffast-math -mavx2 -std=c++11 -DEIGEN_ARCH_IMPL $^ -o $@ $(LFLAGS)
+	$(CXX) $(CFLAGS) $(CPPFLAGS) -std=c++11 -DEIGEN_ARCH_IMPL $^ -o $@ $(LFLAGS)
+
+run_test_eigen_gemm: $(BUILD_DIR)/test_eigen_gemm
+	perf stat -e cycles ./$< rowmajor
+$(BUILD_DIR)/test_eigen_gemm: ARCH=EIGEN
+$(BUILD_DIR)/test_eigen_gemm: INCLUDES+=-I$(SRC_DIR)/eigen
+$(BUILD_DIR)/test_eigen_gemm: $(PERFTEST_DIR)/test_eigen_gemm.cpp $(ALL_SRCS)
+	$(CXX) $(CFLAGS) $(CPPFLAGS) -std=c++11 -DEIGEN_ARCH_IMPL $^ -o $@ $(LFLAGS)
 
 clean-perftests:
 	rm -f $(TESTS_TARGETS)
