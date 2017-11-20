@@ -33,10 +33,17 @@ void inner_product_layer_hw(float* activations,
                             float* result) {
     grab_weights_dma(weights, weights, lnum, layers);
     grab_input_activations_dma(activations, activations, &layers[lnum]);
-    MATRIX_MULTIPLY_WITH_BIAS(
+#if TRANSPOSE_WEIGHTS == 0
+    matrix_multiply_with_bias(
             activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows,
             layers[lnum].weights.cols + layers[lnum].weights.align_pad,
             result);
+#else
+    matrix_multiply_with_bias_transpose(
+            activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows,
+            layers[lnum].weights.cols + layers[lnum].weights.align_pad,
+            result);
+#endif
     store_output_activations_dma(result, result, &layers[lnum]);
 }
 
