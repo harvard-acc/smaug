@@ -4,7 +4,7 @@ include common/Makefile.arch
 
 PERFTEST_DIR = $(SRC_DIR)/perftests
 TEST_SRCS = $(wildcard $(PERFTEST_DIR)/*.cpp)
-TESTS = test_eigen_sigmoid
+TESTS = test_eigen_sigmoid test_eigen_maxpooling
 TESTS_TARGETS  = $(patsubst %, $(BUILD_DIR)/%, $(TESTS))
 
 LIB_SRCS = $(CORE_SRCS) $(UTILITY_SRCS) $(ARCH_SRCS) \
@@ -26,6 +26,13 @@ run_test_eigen_sigmoid: $(BUILD_DIR)/test_eigen_sigmoid
 $(BUILD_DIR)/test_eigen_sigmoid: ARCH=EIGEN
 $(BUILD_DIR)/test_eigen_sigmoid: INCLUDES+=-I$(SRC_DIR)/eigen
 $(BUILD_DIR)/test_eigen_sigmoid: $(PERFTEST_DIR)/test_eigen_sigmoid.cpp $(ALL_SRCS)
+	$(CXX) $(CFLAGS) $(CPPFLAGS) -ffast-math -mavx2 -std=c++11 -DEIGEN_ARCH_IMPL $^ -o $@ $(LFLAGS)
+
+run_test_eigen_maxpooling: $(BUILD_DIR)/test_eigen_maxpooling
+	perf stat -e cycles ./$< rowmajor
+$(BUILD_DIR)/test_eigen_maxpooling: ARCH=EIGEN
+$(BUILD_DIR)/test_eigen_maxpooling: INCLUDES+=-I$(SRC_DIR)/eigen
+$(BUILD_DIR)/test_eigen_maxpooling: $(PERFTEST_DIR)/test_eigen_maxpooling.cpp $(ALL_SRCS)
 	$(CXX) $(CFLAGS) $(CPPFLAGS) -ffast-math -mavx2 -std=c++11 -DEIGEN_ARCH_IMPL $^ -o $@ $(LFLAGS)
 
 clean-perftests:
