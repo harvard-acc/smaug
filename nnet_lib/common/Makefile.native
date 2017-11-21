@@ -5,6 +5,20 @@ include common/Makefile.arch
 ifeq ($(ARCH), EIGEN)
 $(error Please use 'make eigen' to build the Eigen implementation)
 endif
+ifeq ($(ARCH), MONOLITHIC)
+NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/monolithic.c
+COMP = $(CC)
+CFLAGS += -std=gnu99
+else ifeq ($(ARCH), COMPOSABLE)
+NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/composable.c
+COMP = $(CC)
+CFLAGS += -std=gnu99
+else ifeq ($(ARCH), SMIV)
+COMP = $(CXX)
+include common/Makefile.eigen   # Will add all the core Eigen srcs.
+CFLAGS += $(NATIVE_SIMD_FLAGS)
+NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smiv.cpp
+endif
 
 # Output binary name
 NATIVE = $(BUILD_DIR)/$(EXEC)-native
@@ -16,7 +30,7 @@ debug: DLEVEL=1
 debug-verbose: DLEVEL=2
 
 # NOTE: Do not remove -std=gnu99! Required for Travis CI toolchain.
-native: CFLAGS+=-O3 -std=gnu99
+native: CFLAGS+=-O3
 native: $(NATIVE)
 debug: $(DEBUG)
 debug-verbose: $(DEBUG)
@@ -29,12 +43,12 @@ CFLAGS += $(BMARK_SPECIFIC_CFLAGS) -DDMA_MODE $(INCLUDES)
 $(NATIVE): $(NATIVE_FULL_PATH_SRCS) $(GEM5_FULL_PATH_SRCS)
 	@echo Building benchmark $(EXEC) for native platform.
 	@mkdir -p $(BUILD_DIR)
-	@$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LFLAGS)
+	@$(COMP) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LFLAGS)
 
 $(DEBUG): $(NATIVE_FULL_PATH_SRCS) $(GEM5_FULL_PATH_SRCS)
 	@echo Building benchmark $(EXEC) for debugging
 	@mkdir -p $(BUILD_DIR)
-	@$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LFLAGS)
+	@$(COMP) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LFLAGS)
 
 clean-native:
 	@echo Cleaning native build products...

@@ -8,6 +8,24 @@ include common/Makefile.arch
 
 .PHONY: gem5 gem5-cpu gem5-accel clean-gem5
 
+ifeq ($(ARCH), EIGEN)
+$(error Please use 'make eigen' to build the Eigen implementation for gem5)
+endif
+ifeq ($(ARCH), MONOLITHIC)
+NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/monolithic.c
+COMP = $(CC)
+CFLAGS += -std=gnu99
+else ifeq ($(ARCH), COMPOSABLE)
+NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/composable.c
+COMP = $(CC)
+CFLAGS += -std=gnu99
+else ifeq ($(ARCH), SMIV)
+COMP = $(CXX)
+include common/Makefile.eigen
+CFLAGS += $(NATIVE_SIMD_FLAGS)
+NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smiv.cpp
+endif
+
 CFLAGS += -static -O3 -g -fno-exceptions $(BMARK_SPECIFIC_CFLAGS)
 CPPFLAGS += -DDMA_MODE
 
@@ -36,12 +54,12 @@ gem5-accel: $(GEM5_ACCEL)
 $(GEM5_CPU): $(NATIVE_FULL_PATH_SRCS) $(GEM5_FULL_PATH_SRCS)
 	@echo Building benchmark $(EXEC) for gem5.
 	@mkdir -p $(BUILD_DIR)
-	@$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LFLAGS)
+	@$(COMP) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LFLAGS)
 
 $(GEM5_ACCEL): $(NATIVE_FULL_PATH_SRCS) $(GEM5_FULL_PATH_SRCS)
 	@echo Building benchmark $(EXEC) for gem5 with HW acceleration.
 	@mkdir -p $(BUILD_DIR)
-	@$(CC) $(CPPFLAGS) $(CFLAGS) -DGEM5_HARNESS $^ -o $@ $(LFLAGS)
+	@$(COMP) $(CPPFLAGS) $(CFLAGS) -DGEM5_HARNESS $^ -o $@ $(LFLAGS)
 
 clean-gem5:
 	@echo Cleaning gem5 build products...

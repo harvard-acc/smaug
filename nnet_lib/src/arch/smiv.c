@@ -14,6 +14,10 @@
 #include "arch/common.h"
 #include "arch/interface.h"
 
+#ifdef __cplusplus
+#include "core/eigen/activation_functions.h"
+#endif
+
 #ifdef DMA_MODE
 #include "gem5_harness.h"
 #endif
@@ -532,7 +536,13 @@ result_buf run_layer(float* activations,
     if (do_activation && !do_hw_activation) {
         int output_size = get_output_activations_size(&layers[layer_num]);
         begin_profiling("activation_fun", layers, layer_num);
+#ifdef __cplusplus
+        nnet_eigen::activation_fun(
+                result_loc, output_size, act_func, sigmoid_table, result);
+        result_loc = result_loc == activations ? result : activations;
+#else
         activation_fun(result_loc, output_size, act_func, sigmoid_table);
+#endif
         end_profiling();
     }
     return result_loc;

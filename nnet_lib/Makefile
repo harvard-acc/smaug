@@ -5,8 +5,12 @@ all:
 	@echo "Usage: make [target] ARCH=[ARCH]"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  native, eigen, dma-trace-binary, gem5"
-	@echo "  gem5: gem5-cpu, gem5-accel (aggregate target)"
+	@echo "  native: For execution on the host."
+	@echo "  dma-trace-binary: Dynamic trace generation."
+	@echo "  gem5-accel: Simulation on gem5 with HW acceleration."
+	@echo "  gem5-cpu: Simulation on gem5 without HW acceleration."
+	@echo "  eigen: For execution on the host, using the Eigen backend."
+	@echo "  eigen-gem5: For simulation on gem5, using the Eigen backend."
 	@echo ""
 	@echo "Architectures:"
 	@echo "  MONOLITHIC, COMPOSABLE, SMIV, EIGEN"
@@ -25,6 +29,9 @@ debug-verbose:
 
 eigen:
 	@$(MAKE) -f common/Makefile.eigen --no-print-directory eigen ARCH=EIGEN
+
+eigen-gem5:
+	@$(MAKE) -f common/Makefile.eigen --no-print-directory eigen-gem5 ARCH=EIGEN
 
 dma-trace-binary:
 	@$(MAKE) -f common/Makefile.tracer --no-print-directory dma-trace-binary
