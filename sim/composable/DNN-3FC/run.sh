@@ -2,7 +2,7 @@
 
 cfg_home=`pwd`
 gem5_dir=${ALADDIN_HOME}/../..
-bmk_dir=/home/samxi/active_projects/composable/nnet_lib/build
+bmk_dir=`git rev-parse --show-toplevel`/nnet_lib/build
 
 ${gem5_dir}/build/X86/gem5.opt \
   --debug-flags=Aladdin,HybridDatapath,HybridDatapathVerbose \
@@ -10,12 +10,11 @@ ${gem5_dir}/build/X86/gem5.opt \
   ${gem5_dir}/configs/aladdin/aladdin_se.py \
   --num-cpus=1 \
   --mem-size=4GB \
-  --mem-type=DDR3_1600_x64  \
+  --mem-type=DDR3_1600_8x8 \
   --sys-clock=1GHz \
-  --cpu-type=detailed \
+  --cpu-type=DerivO3CPU \
   --caches \
-  --cacheline_size=32 \
-  --record-dram-traffic \
+  --cacheline_size=64 \
   --accel_cfg_file=${cfg_home}/gem5.cfg \
   -c ${bmk_dir}/nnet-gem5-accel \
   -o ../../../models/mnist/minerva.conf \

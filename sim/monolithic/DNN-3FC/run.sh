@@ -2,7 +2,7 @@
 
 cfg_home=`pwd`
 gem5_dir=${ALADDIN_HOME}/../..
-bmk_dir=/home/samxi/active_projects/composable/nnet_lib/build
+bmk_dir=`git rev-parse --show-toplevel`/nnet_lib/build
 
 ${gem5_dir}/build/X86/gem5.opt \
   --debug-flags=Aladdin,HybridDatapath \
