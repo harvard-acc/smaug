@@ -12,6 +12,14 @@ monolithic: ARCH=MONOLITHIC
 composable: ARCH=COMPOSABLE
 eigen:      ARCH=EIGEN
 
+# The 'all' target must be written like this so that each build gets cleaned
+# before each test.
+all:
+	@$(MAKE) -C . --no-print-directory monolithic
+	@$(MAKE) -C . --no-print-directory composable
+	@$(MAKE) -C . --no-print-directory smiv
+	@$(MAKE) -C . --no-print-directory eigen
+
 build:
 	@echo "Building test..."
 	@$(MAKE) -C .. --no-print-directory clean-native
@@ -31,8 +39,3 @@ eigen:
 	@$(MAKE) -C .. --no-print-directory eigen ARCH=$(ARCH)
 	@python run_tests.py ../build/nnet-eigen-native
 
-all:
-	@$(MAKE) -C . --no-print-directory monolithic
-	@$(MAKE) -C . --no-print-directory composable
-	@$(MAKE) -C . --no-print-directory smiv
-	@$(MAKE) -C . --no-print-directory eigen
