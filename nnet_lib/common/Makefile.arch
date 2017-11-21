@@ -59,6 +59,10 @@ endif
 
 INCLUDES += -I$(ALADDIN_HOME) -I$(ALADDIN_HOME)/gem5 -I$(SRC_DIR)
 CPPFLAGS += -DARCHITECTURE=$(ARCH) $(INCLUDES)
+ifneq ($(CONFUSE_ROOT),)
+INCLUDES += -I$(CONFUSE_ROOT)/include
+LFLAGS += -L$(CONFUSE_ROOT)/lib
+endif
 DLEVEL ?= 0
 
 CFLAGS += -g \
@@ -72,4 +76,4 @@ BMARK_SPECIFIC_CFLAGS = -DDMA_INTERFACE_V3
 NATIVE_FULL_PATH_SRCS = $(patsubst %.c, $(SRC_DIR)/%.c, $(SRCS))
 GEM5_FULL_PATH_SRCS = $(patsubst %, $(ALADDIN_HOME)/%, $(GEM5_DMA_SRC) $(GEM5_SYS_SRCS))
 
-LFLAGS = -lm -lconfuse
+LFLAGS += -lm -lconfuse -lrt
