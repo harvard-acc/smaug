@@ -83,6 +83,39 @@ bool is_supported_activation_func(activation_type func) {
   }
 }
 
+void inner_product_layer_hw_impl(float* host_activations,
+                                 float* host_weights,
+                                 float* local_weights,
+                                 float* local_inputs,
+                                 float* results,
+                                 layer_t* all_layers,
+                                 int lnum) {
+    activation_type act_func = all_layers[lnum].activation;
+    bool run_activation = act_func == RELU || act_func == RELU_THRESHOLD;
+    int weights_size = get_num_weights_layer(all_layers, lnum) * sizeof(float);
+    setReadyBits(local_weights, UMEM_SIZE, 0);
+    dmaLoad(local_weights, host_weights, weights_size);
+
+    if (all_layers[lnum].input_req == IO_DMA) {
+        grab_input_activations_dma(
+                host_activations, local_inputs, &all_layers[lnum]);
+    }
+
+    matrix_multiply_with_bias_smiv(
+            local_inputs,
+            local_weights,
+            NUM_TEST_CASES,
+            all_layers[lnum].weights.rows,
+            all_layers[lnum].weights.cols + all_layers[lnum].weights.align_pad,
+            all_layers[lnum].inputs.align_pad,
+            run_activation,
+            results);
+}
+
+// HW accelerated inner product, using DMA for data movement.
+//
+// All arguments prefixed with host_ are host memory pointers and can only be
+// deferenced from the host, except when performing a DMA operation.
 void inner_product_layer_hw(float* host_activations,
                             float* host_weights,
                             float* umem,
@@ -92,36 +125,59 @@ void inner_product_layer_hw(float* host_activations,
                             int lnum,
                             bool input_in_spad0,
                             float* host_result) {
-    activation_type act_func = all_layers[lnum].activation;
-    bool run_activation = act_func == RELU || act_func == RELU_THRESHOLD;
-    int weights_size = get_num_weights_layer(all_layers, lnum) * sizeof(float);
-    setReadyBits(umem, UMEM_SIZE, 0);
-    dmaLoad(umem, host_weights, weights_size);
-
-    if (all_layers[lnum].input_req == IO_DMA) {
-        if (input_in_spad0)
-            grab_input_activations_dma(host_activations, spad0, &all_layers[lnum]);
-        else
-            grab_input_activations_dma(host_activations, spad1, &all_layers[lnum]);
-    }
-
+    bool output_dma_req = (all_layers[lnum].output_req == IO_DMA);
     if (input_in_spad0) {
-        matrix_multiply_with_bias_smiv(
-                spad0, umem, NUM_TEST_CASES, all_layers[lnum].weights.rows,
-                all_layers[lnum].weights.cols + all_layers[lnum].weights.align_pad,
-                all_layers[lnum].inputs.align_pad, run_activation, spad1);
-    } else {
-        matrix_multiply_with_bias_smiv(
-                spad1, umem, NUM_TEST_CASES, all_layers[lnum].weights.rows,
-                all_layers[lnum].weights.cols + all_layers[lnum].weights.align_pad,
-                all_layers[lnum].inputs.align_pad, run_activation, spad0);
-    }
-
-    if (all_layers[lnum].output_req == IO_DMA) {
-        if (input_in_spad0)
+        inner_product_layer_hw_impl(host_activations,
+                                    host_weights,
+                                    umem,
+                                    spad0,
+                                    spad1,
+                                    all_layers,
+                                    lnum);
+        if (output_dma_req)
             store_output_activations_dma(host_result, spad1, &all_layers[lnum]);
-        else
+    } else {
+        inner_product_layer_hw_impl(host_activations,
+                                    host_weights,
+                                    umem,
+                                    spad1,
+                                    spad0,
+                                    all_layers,
+                                    lnum);
+        if (output_dma_req)
             store_output_activations_dma(host_result, spad0, &all_layers[lnum]);
+    }
+}
+
+// HW accelerated inner product, using ACP for output data movement.
+//
+// All arguments prefixed with host_ are host memory pointers. acp_result is
+// the host result pointer to be accessed over ACP.
+void inner_product_layer_acp_hw(float* host_activations,
+                                float* host_weights,
+                                float* acp_result,
+                                float* umem,
+                                float* spad0,
+                                float* spad1,
+                                layer_t* all_layers,
+                                int lnum,
+                                bool input_in_spad0) {
+    if (input_in_spad0) {
+        inner_product_layer_hw_impl(host_activations,
+                                    host_weights,
+                                    umem,
+                                    spad0,
+                                    acp_result,
+                                    all_layers,
+                                    lnum);
+    } else {
+        inner_product_layer_hw_impl(host_activations,
+                                    host_weights,
+                                    umem,
+                                    spad1,
+                                    acp_result,
+                                    all_layers,
+                                    lnum);
     }
 }
 
@@ -156,9 +212,16 @@ result_buf inner_product_layer(float* host_activations,
 
     // If the result is to be in g_spad1, then the input is in g_spad0.
     bool input_in_spad0 = (current_result_loc == g_spad1);
-    INVOKE_KERNEL_PROF(kInnerProductHw, inner_product_layer_hw,
-                       host_activations, host_weights_layer, g_umem, g_spad0,
-                       g_spad1, layers, lnum, input_in_spad0, host_result);
+    bool use_acp_offload = (device->cpu_activation_func_offload == IO_ACP);
+    if (use_acp_offload) {
+        INVOKE_KERNEL_PROF(kInnerProductHw, inner_product_layer_acp_hw,
+            host_activations, host_weights_layer, host_result, g_umem, g_spad0,
+            g_spad1, layers, lnum, input_in_spad0);
+    } else {
+        INVOKE_KERNEL_PROF(kInnerProductHw, inner_product_layer_hw,
+            host_activations, host_weights_layer, g_umem, g_spad0, g_spad1,
+            layers, lnum, input_in_spad0, host_result);
+    }
 
     return host_result;
 }
@@ -213,6 +276,9 @@ void reduction_hw(float* spad0,
 // The two scratchpads must remain named spad0 and spad1, but we use a
 // different name for the result, called acp_result (instead of umem), to
 // distinguish that the Aladdin config file should mark this array with acp.
+//
+// Importantly, acp_result is a pointer that corresponds to the host, unlike
+// spad0/spad1/umem, which are accelerator-local memory.
 void reduction_acp_hw(float* spad0,
                       float* spad1,
                       float* acp_result,
