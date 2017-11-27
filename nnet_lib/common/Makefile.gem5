@@ -22,7 +22,7 @@ CFLAGS += -std=gnu99
 else ifeq ($(ARCH), SMIV)
 COMP = $(CXX)
 include common/Makefile.eigen
-CFLAGS += $(NATIVE_SIMD_FLAGS)
+CFLAGS += $(GEM5_SIMD_FLAGS)
 NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smiv.cpp
 endif
 
@@ -63,5 +63,5 @@ $(GEM5_ACCEL): $(NATIVE_FULL_PATH_SRCS) $(GEM5_FULL_PATH_SRCS)
 
 clean-gem5:
 	@echo Cleaning gem5 build products...
-	@rm -rf $(GEM5_CPU)
-	@rm -rf $(GEM5_ACCEL)
+	@rm -rf $(BUILD_DIR)/*-gem5
+	@rm -rf $(BUILD_DIR)/*-gem5-accel
