@@ -208,16 +208,18 @@ result_buf inner_product_layer(float* host_activations,
     MAP_ARRAY(kInnerProductHw, host_activations, INPUT_BYTES(layers, lnum));
     MAP_ARRAY_TO_ACCEL(kInnerProductHw, "host_weights", host_weights_layer,
                        WEIGHT_BYTES(layers, lnum));
-    MAP_ARRAY(kInnerProductHw, host_result, OUTPUT_BYTES(layers, lnum));
 
     // If the result is to be in g_spad1, then the input is in g_spad0.
     bool input_in_spad0 = (current_result_loc == g_spad1);
     bool use_acp_offload = (device->cpu_activation_func_offload == IO_ACP);
     if (use_acp_offload) {
+        MAP_ARRAY_TO_ACCEL(kInnerProductHw, "acp_result", host_result,
+                           OUTPUT_BYTES(layers, lnum));
         INVOKE_KERNEL_PROF(kInnerProductHw, inner_product_layer_acp_hw,
             host_activations, host_weights_layer, host_result, g_umem, g_spad0,
             g_spad1, layers, lnum, input_in_spad0);
     } else {
+        MAP_ARRAY(kInnerProductHw, host_result, OUTPUT_BYTES(layers, lnum));
         INVOKE_KERNEL_PROF(kInnerProductHw, inner_product_layer_hw,
             host_activations, host_weights_layer, g_umem, g_spad0, g_spad1,
             layers, lnum, input_in_spad0, host_result);
