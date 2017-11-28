@@ -375,14 +375,4 @@ typedef struct _iarray_t {
 // function.
 #define ALWAYS_INLINE __attribute__((__always_inline__))
 
-#define INPUTS_FILENAME                                                        \
-    "/home/jmh/projects/pesc_hardware/HardwareNets/../mnist/"                  \
-    "validation_data_textual_all_10000.txt"
-#define LABELS_FILENAME                                                        \
-    "/home/jmh/projects/pesc_hardware/HardwareNets/../mnist/"                  \
-    "validation_labels_textual_all_10000_not_one_hot.txt"
-#define WEIGHTS_FILENAME                                                       \
-    "/home/jmh/projects/pesc_hardware/HardwareNets/../mnist/"                  \
-    "mnist_textual_weights.txt"
-
 #endif
