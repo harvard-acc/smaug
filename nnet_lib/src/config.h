@@ -73,4 +73,20 @@
 #define DATA_ALIGNMENT 0
 #endif
 
+/////////////////////////////////////////////////
+/////// SHOULD NOT NEED TO CHANGE THESE /////////
+/////////////////////////////////////////////////
+
+#if ARCHITECTURE == MONOLITHIC
+#define ARCH_STR "MONOLITHIC"
+#elif ARCHITECTURE == COMPOSABLE
+#define ARCH_STR "COMPOSABLE"
+#elif ARCHITECTURE == SMIV
+#define ARCH_STR "SMIV"
+#elif ARCHITECTURE == EIGEN
+#define ARCH_STR "EIGEN"
+#else
+#error "Unknown architecture!"
+#endif
+
 #endif

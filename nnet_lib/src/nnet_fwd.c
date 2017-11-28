@@ -1,3 +1,4 @@
+#include <argp.h>
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -30,6 +31,78 @@ int NUM_TEST_CASES;
 int NUM_CLASSES;
 int INPUT_DIM;
 float* sigmoid_table;
+
+static char prog_doc[] =
+        "\nNeural network library for gem5-aladdin.\n"
+        "   The model configuration file is written in libconfuse syntax,\n"
+        "   based loosely on the Caffe configuration style. It is case\n"
+        "   sensitive.\n\n"
+        "Build type: " ARCH_STR "\n";
+static char args_doc[] = "path/to/model-config-file";
+static struct argp_option options[] = {
+    { "num-inputs", 'n', "N", 0, "Number of input images" },
+    { "weights-init-mode", 'w', "W", 0,
+      "Weights generation mode (FIXED, RANDOM, READ_FILE)." },
+    { "data-init-mode", 'd', "D", 0,
+      "Data generation mode (FIXED, RANDOM, READ_FILE)." },
+    { 0 },
+};
+
+typedef struct _arguments {
+    char* args[1];  // Configuration file path.
+    int num_inputs;
+    data_init_mode weights_mode;
+    data_init_mode data_mode;
+} arguments;
+
+int str2mode(char* str, data_init_mode* mode) {
+    if (strncmp(str, "RANDOM", 6)) {
+        *mode = RANDOM;
+        return 0;
+    } else if (strncmp(str, "FIXED", 5)) {
+        *mode = FIXED;
+        return 0;
+    } else if (strncmp(str, "READ_FILE", 9)) {
+        *mode = READ_FILE;
+        return 0;
+    }
+    return 1;
+}
+
+static error_t parse_opt(int key, char* arg, struct argp_state* state) {
+  arguments *args = (arguments*)(state->input);
+  switch (key) {
+    case 'n': {
+      args->num_inputs = strtol(arg, NULL, 10);
+      break;
+    } case 'd': {
+      if (str2mode(arg, &args->data_mode))
+        argp_usage(state);
+      break;
+    }
+    case 'w': {
+      if (str2mode(arg, &args->weights_mode))
+        argp_usage(state);
+      break;
+    }
+    case ARGP_KEY_ARG: {
+      if (state->arg_num >= 1)
+        argp_usage(state);
+      args->args[state->arg_num] = arg;
+      break;
+    }
+    case ARGP_KEY_END: {
+      if (state->arg_num < 1)
+        argp_usage(state);
+      break;
+    }
+    default:
+      return ARGP_ERR_UNKNOWN;
+  }
+  return 0;
+}
+
+static struct argp parser = {options, parse_opt, args_doc, prog_doc};
 
 size_t calc_layer_intermediate_memory(layer_t* layers, int lnum) {
     size_t usage = 0, flattened_usage = 0;
@@ -67,47 +140,26 @@ size_t calc_layer_intermediate_memory(layer_t* layers, int lnum) {
     return usage * NUM_TEST_CASES;
 }
 
-void print_usage() {
-    printf("Usage:\n");
-    printf("  nnet_fwd path/to/model-config-file [num-inputs=1]\n\n");
-    printf("  The model configuration file is written in libconfuse syntax,\n "
-           "    based loosely on the Caffe configuration style. It is case\n"
-           "    sensitive.\n\n");
-    printf("  num-inputs specifies the number of input images to run through\n"
-           "    the network. If not specified, it defaults to 1.\n\n");
-    printf("Build type: %s\n",
-           ARCHITECTURE == MONOLITHIC ? "MONOLITHIC" :
-           ARCHITECTURE == COMPOSABLE ? "COMPOSABLE" :
-           ARCHITECTURE == SMIV ? "SMIV" :
-           ARCHITECTURE == EIGEN ? "EIGEN" :
-           "UNKNOWN");
-}
-
-int main(int argc, const char* argv[]) {
+int main(int argc, char* argv[]) {
     int i, j;
 
-    if (argc < 2 || argc > 3) {
-      print_usage();
-      return -1;
-    }
-
-    const char* conf_file = argv[1];
-    if (argc == 2)
-      NUM_TEST_CASES = 1;
-    else
-      NUM_TEST_CASES = strtol(argv[2], NULL, 10);
+    arguments args;
+    args.num_inputs = 1;
+    args.weights_mode = RANDOM;
+    args.data_mode = RANDOM;
+    argp_parse(&parser, argc, argv, 0, 0, &args);
+    NUM_TEST_CASES = args.num_inputs;
+    printf("Batch size: %d\n", NUM_TEST_CASES);
 
     // set random seed (need to #include <time.h>)
     srand(1);
 
     network_t network;
     device_t* device;
-    network.depth = configure_network_from_file(conf_file, &network.layers, &device);
+    network.depth =
+            configure_network_from_file(args.args[0], &network.layers, &device);
     printf("Size of layer configuration: %lu bytes\n",
            network.depth * sizeof(layer_t));
-
-    data_init_mode RANDOM_DATA = RANDOM;
-    data_init_mode RANDOM_WEIGHTS = RANDOM;
 
     // hid and hid_temp are the two primary buffers that will store the input
     // and output of each layer. They alternate in which one is input and which
@@ -156,7 +208,7 @@ int main(int argc, const char* argv[]) {
     }
     printf("  Largest weights per layer: %lu elements\n", weights_temp_size);
 
-    init_weights(weights.d, network.layers, network.depth, RANDOM_WEIGHTS,
+    init_weights(weights.d, network.layers, network.depth, args.weights_mode,
                  TRANSPOSE_WEIGHTS);
 
     iarray_t labels = { NULL, 0 };
@@ -164,8 +216,8 @@ int main(int argc, const char* argv[]) {
     labels.d = (int*)malloc_aligned(labels.size * sizeof(float));
     memset(labels.d, 0, labels.size * sizeof(float));
 
-    init_data(hid.d, &network, NUM_TEST_CASES, RANDOM_DATA);
-    init_labels(labels.d, NUM_TEST_CASES, RANDOM_DATA);
+    init_data(hid.d, &network, NUM_TEST_CASES, args.data_mode);
+    init_labels(labels.d, NUM_TEST_CASES, args.data_mode);
 
     // Build the sigmoid lookup table
     // May want to change this to be "non-centered"
