@@ -252,6 +252,7 @@ int main(int argc, char* argv[]) {
     memset(labels.d, 0, labels.size * sizeof(float));
 
     if (args.data_mode == READ_FILE) {
+        verify_global_parameters(args.args[DATA_FILE], &network);
         read_weights_from_file(args.args[DATA_FILE], &weights);
         read_data_from_file(args.args[DATA_FILE], &hid);
         read_labels_from_file(args.args[DATA_FILE], &labels);
@@ -264,6 +265,7 @@ int main(int argc, char* argv[]) {
 
     if (args.save_params) {
         FILE* network_dump = fopen(args.args[DATA_FILE], "w");
+        save_global_parameters(network_dump, &network);
         save_weights(network_dump, weights, weights.size);
         save_data(network_dump, hid, INPUT_DIM * NUM_TEST_CASES);
         save_labels(network_dump, labels, labels.size);

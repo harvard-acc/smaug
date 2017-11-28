@@ -27,10 +27,13 @@
 //
 // Weights and input data are floating point, while labels are integers.
 //
-// NOTE: This archival functionality saves and restores raw buffer contents,
-// without accounting for data alignment and zeropadding. If these are
-// required, then the data must already be saved with all the appropriate
-// alignment and padding in the archive!
+// This archival functionality saves and restores raw buffer contents, without
+// accounting for data alignment and zeropadding. If these are required, then
+// the data must already be saved with all the appropriate alignment and
+// padding in the archive! To help ensure that the data is appropriately
+// formatted, there is a global section that contains metadata about the
+// archive. Use the verify_global_parameters() and save_global_parameters()
+// functions to manipulate this section.
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -53,11 +56,28 @@ typedef enum _datatype {
   NUM_DATATYPES,
 } datatype;
 
-typedef struct _file_header {
+typedef enum _Architecture {
+    Arch_Monolithic = MONOLITHIC,
+    Arch_Composable = COMPOSABLE,
+    Arch_SMIV = SMIV,
+    Arch_Eigen = EIGEN,
+    Arch_END
+} Architecture;
+
+typedef struct _data_sec_header {
     unsigned num_elems;
     datatype type;
-} file_header;
+} data_sec_header;
 
+typedef struct _global_sec_header {
+    Architecture arch;
+    char* arch_str;
+    int num_layers;
+    int data_alignment;
+} global_sec_header;
+
+static const char* kGlobalHeader = "===GLOBAL BEGIN===";
+static const char* kGlobalFooter = "===GLOBAL END===";
 static const char* kWeightsHeader = "===WEIGHTS BEGIN===";
 static const char* kWeightsFooter = "===WEIGHTS END===";
 static const char* kDataHeader = "===DATA BEGIN===";
@@ -100,7 +120,46 @@ static bool find_section_start(FILE* fp, const char* section_header) {
     return found_section;
 }
 
-static file_header read_file_header(FILE* fp, const char* section_header) {
+static global_sec_header read_global_header(FILE* fp) {
+    if (!fp)
+        FATAL_MSG("Can't open data file!\n");
+
+    if (!find_section_start(fp, kGlobalHeader))
+        FATAL_MSG("Cannot find the global section header!\n");
+
+    global_sec_header header;
+    char* line = NULL;
+    size_t line_len = 0;
+    int ret = getline(&line, &line_len, fp);
+    if (ret == -1)
+        FATAL_MSG("Unable to read from the data file!\n");
+
+    header.arch_str = (char*)malloc(line_len);
+    ret = sscanf(line, "# ARCHITECTURE = %s\n", header.arch_str);
+    if (ret != 1)
+        FATAL_MSG("Could not determine the architecture that generated this "
+                  "file!\n");
+    if (strncmp(header.arch_str, "MONOLITHIC", line_len) == 0)
+        header.arch = Arch_Monolithic;
+    if (strncmp(header.arch_str, "COMPOSABLE", line_len) == 0)
+        header.arch = Arch_Composable;
+    if (strncmp(header.arch_str, "SMIV", line_len) == 0)
+        header.arch = Arch_SMIV;
+    if (strncmp(header.arch_str, "EIGEN", line_len) == 0)
+        header.arch = Arch_Eigen;
+
+    ret = fscanf(fp, "# NUM_LAYERS = %d\n", &header.num_layers);
+    if (ret != 1)
+        FATAL_MSG("Could not determine number of layers in this network!\n");
+    ret = fscanf(fp, "# DATA_ALIGNMENT = %d\n", &header.data_alignment);
+    if (ret != 1)
+        FATAL_MSG("Could not determine data alignment of this archive!\n");
+
+    return header;
+}
+
+static data_sec_header read_data_sec_header(FILE* fp,
+                                            const char* section_header) {
     if (fp == NULL)
         FATAL_MSG("Can't open data file!\n");
 
@@ -109,7 +168,7 @@ static file_header read_file_header(FILE* fp, const char* section_header) {
         FATAL_MSG("Section header was not found in the file!\n");
     }
 
-    file_header header;
+    data_sec_header header;
     int num_elems;
     char data_type[6];
     int ret = fscanf(fp, "# NUM_ELEMS %d\n", &num_elems);
@@ -137,7 +196,7 @@ static void read_fp_data_from_file(const char* filename,
                                    farray_t* data,
                                    const char* section_header) {
     FILE* fp = fopen(filename, "r");
-    file_header header = read_file_header(fp, section_header);
+    data_sec_header header = read_data_sec_header(fp, section_header);
     if (header.num_elems > data->size) {
         FATAL_MSG("This file section contains more data than can be "
                   "stored in the provided array!\n");
@@ -163,7 +222,7 @@ static void read_int_data_from_file(const char* filename,
                                     iarray_t* data,
                                     const char* section_header) {
     FILE* fp = fopen(filename, "r");
-    file_header header = read_file_header(fp, section_header);
+    data_sec_header header = read_data_sec_header(fp, section_header);
     if (header.num_elems > data->size) {
         FATAL_MSG("This file section contains more data than can be "
                   "stored in the provided array!\n");
@@ -186,6 +245,39 @@ static void read_int_data_from_file(const char* filename,
 }
 
 //=-------------- EXTERNAL API ---------------=//
+
+void verify_global_parameters(const char* filename, network_t* network) {
+    FILE* fp = fopen(filename, "r");
+    global_sec_header header = read_global_header(fp);
+    if (header.arch != ARCHITECTURE)
+        FATAL_MSG("The architecture used to generate this archive is not the "
+                  "same as the current architecture! Got %s, expected %s.\n",
+                  header.arch_str, ARCH_STR)
+
+    if (header.num_layers != network->depth)
+        FATAL_MSG("Number of layers in this archive does not match the current "
+                  "network's topology! Found %d layers, expected %d instead.\n",
+                  header.num_layers, network->depth);
+
+    if (header.data_alignment != DATA_ALIGNMENT)
+        FATAL_MSG("The data alignment of this archive does not match the "
+                  "current architecture's data alignment requirements! Found "
+                  "%d, expected %d instead.\n",
+                  header.data_alignment, DATA_ALIGNMENT);
+
+    free(header.arch_str);
+    fclose(fp);
+}
+
+void save_global_parameters(FILE* fp, network_t* network) {
+    fprintf(fp, "%s\n", kGlobalHeader);
+    fprintf(fp,
+            "# ARCHITECTURE = %s\n"
+            "# NUM_LAYERS = %d\n"
+            "# DATA_ALIGNMENT = %d\n",
+            ARCH_STR, network->depth, DATA_ALIGNMENT);
+    fprintf(fp, "%s\n", kGlobalFooter);
+}
 
 void save_weights(FILE* fp, farray_t weights, size_t num_weights) {
     fprintf(fp, "%s\n", kWeightsHeader);
