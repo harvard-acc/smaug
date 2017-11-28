@@ -7,7 +7,11 @@
 
 #include "utility.h"
 
-float randfloat() { return rand() / ((float)(RAND_MAX)); }
+static float RAND_MAX_RECIPROCAL = (1.0/RAND_MAX);
+
+float randfloat() {
+  return rand() * RAND_MAX_RECIPROCAL;
+}
 
 #ifdef BITWIDTH_REDUCTION
 float conv_float2fixed(float input) {
