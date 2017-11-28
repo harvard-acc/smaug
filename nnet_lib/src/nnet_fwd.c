@@ -13,6 +13,7 @@
 #include "utility/read_model_conf.h"
 #include "utility/utility.h"
 #include "utility/profiling.h"
+#include "utility/data_archive.h"
 #include "arch/interface.h"
 #include "arch/common.h"
 
@@ -41,28 +42,38 @@ static char prog_doc[] =
 static char args_doc[] = "path/to/model-config-file";
 static struct argp_option options[] = {
     { "num-inputs", 'n', "N", 0, "Number of input images" },
-    { "weights-init-mode", 'w', "W", 0,
-      "Weights generation mode (FIXED, RANDOM, READ_FILE)." },
     { "data-init-mode", 'd', "D", 0,
-      "Data generation mode (FIXED, RANDOM, READ_FILE)." },
+      "Data and weights generation mode (FIXED, RANDOM, READ_FILE)." },
+    { "data-file", 'f', "F", 0,
+      "File to read data and weights from (if data-init-mode == READ_FILE or "
+      "save-params is true)." },
+    { "save-params", 's', 0, 0,
+      "Save network weights, data, and labels to a file." },
     { 0 },
 };
 
+typedef enum _argnum {
+    NETWORK_CONFIG,
+    NUM_REQUIRED_ARGS,
+    DATA_FILE = NUM_REQUIRED_ARGS,
+    NUM_ARGS,
+} argnum;
+
 typedef struct _arguments {
-    char* args[1];  // Configuration file path.
+    char* args[NUM_ARGS];
     int num_inputs;
-    data_init_mode weights_mode;
+    bool save_params;
     data_init_mode data_mode;
 } arguments;
 
 int str2mode(char* str, data_init_mode* mode) {
-    if (strncmp(str, "RANDOM", 6)) {
+    if (strncmp(str, "RANDOM", 6) == 0) {
         *mode = RANDOM;
         return 0;
-    } else if (strncmp(str, "FIXED", 5)) {
+    } else if (strncmp(str, "FIXED", 5) == 0) {
         *mode = FIXED;
         return 0;
-    } else if (strncmp(str, "READ_FILE", 9)) {
+    } else if (strncmp(str, "READ_FILE", 9) == 0) {
         *mode = READ_FILE;
         return 0;
     }
@@ -75,26 +86,45 @@ static error_t parse_opt(int key, char* arg, struct argp_state* state) {
     case 'n': {
       args->num_inputs = strtol(arg, NULL, 10);
       break;
-    } case 'd': {
+    }
+    case 'd': {
       if (str2mode(arg, &args->data_mode))
         argp_usage(state);
       break;
     }
-    case 'w': {
-      if (str2mode(arg, &args->weights_mode))
-        argp_usage(state);
+    case 'f': {
+      args->args[DATA_FILE] = arg;
+      break;
+    }
+    case 's': {
+      args->save_params = true;
       break;
     }
     case ARGP_KEY_ARG: {
-      if (state->arg_num >= 1)
+      if (state->arg_num >= NUM_REQUIRED_ARGS)
         argp_usage(state);
       args->args[state->arg_num] = arg;
       break;
     }
     case ARGP_KEY_END: {
-      if (state->arg_num < 1)
-        argp_usage(state);
-      break;
+        if (state->arg_num < NUM_REQUIRED_ARGS)
+            argp_usage(state);
+        break;
+    }
+    case ARGP_KEY_FINI: {
+        if (args->data_mode == READ_FILE && !args->args[DATA_FILE]) {
+            fprintf(stderr,
+                    "[ERROR]: You must specify a data file to read parameters "
+                    "from.\n");
+            argp_usage(state);
+        }
+        if (args->save_params && !args->args[DATA_FILE]) {
+            fprintf(stderr,
+                    "[ERROR]: You must specify a data file to save parameters "
+                    "to.\n");
+            argp_usage(state);
+        }
+        break;
     }
     default:
       return ARGP_ERR_UNKNOWN;
@@ -140,14 +170,22 @@ size_t calc_layer_intermediate_memory(layer_t* layers, int lnum) {
     return usage * NUM_TEST_CASES;
 }
 
+void set_default_args(arguments* args) {
+    args->num_inputs = 1;
+    args->data_mode = RANDOM;
+    args->save_params = false;
+    for (int i = 0; i < NUM_ARGS; i++) {
+        args->args[i] = NULL;
+    }
+}
+
 int main(int argc, char* argv[]) {
     int i, j;
 
     arguments args;
-    args.num_inputs = 1;
-    args.weights_mode = RANDOM;
-    args.data_mode = RANDOM;
+    set_default_args(&args);
     argp_parse(&parser, argc, argv, 0, 0, &args);
+
     NUM_TEST_CASES = args.num_inputs;
     printf("Batch size: %d\n", NUM_TEST_CASES);
 
@@ -208,16 +246,29 @@ int main(int argc, char* argv[]) {
     }
     printf("  Largest weights per layer: %lu elements\n", weights_temp_size);
 
-    init_weights(weights.d, network.layers, network.depth, args.weights_mode,
-                 TRANSPOSE_WEIGHTS);
-
     iarray_t labels = { NULL, 0 };
     labels.size = NUM_TEST_CASES;
     labels.d = (int*)malloc_aligned(labels.size * sizeof(float));
     memset(labels.d, 0, labels.size * sizeof(float));
 
-    init_data(hid.d, &network, NUM_TEST_CASES, args.data_mode);
-    init_labels(labels.d, NUM_TEST_CASES, args.data_mode);
+    if (args.data_mode == READ_FILE) {
+        read_weights_from_file(args.args[DATA_FILE], &weights);
+        read_data_from_file(args.args[DATA_FILE], &hid);
+        read_labels_from_file(args.args[DATA_FILE], &labels);
+    } else {
+        init_weights(weights.d, network.layers, network.depth, args.data_mode,
+                     TRANSPOSE_WEIGHTS);
+        init_data(hid.d, &network, NUM_TEST_CASES, args.data_mode);
+        init_labels(labels.d, NUM_TEST_CASES, args.data_mode);
+    }
+
+    if (args.save_params) {
+        FILE* network_dump = fopen(args.args[DATA_FILE], "w");
+        save_weights(network_dump, weights, weights.size);
+        save_data(network_dump, hid, INPUT_DIM * NUM_TEST_CASES);
+        save_labels(network_dump, labels, labels.size);
+        fclose(network_dump);
+    }
 
     // Build the sigmoid lookup table
     // May want to change this to be "non-centered"
