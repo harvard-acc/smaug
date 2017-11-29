@@ -46,7 +46,8 @@ static struct argp_option options[] = {
       "Data and weights generation mode (FIXED, RANDOM, READ_FILE)." },
     { "data-file", 'f', "F", 0,
       "File to read data and weights from (if data-init-mode == READ_FILE or "
-      "save-params is true)." },
+      "save-params is true). *.txt files are decoded as text files, while *.bin "
+      "files are decoded as binary files." },
     { "save-params", 's', 0, 0,
       "Save network weights, data, and labels to a file." },
     { 0 },
@@ -266,9 +267,9 @@ int main(int argc, char* argv[]) {
     if (args.save_params) {
         FILE* network_dump = fopen(args.args[DATA_FILE], "w");
         save_global_parameters(network_dump, &network);
-        save_weights(network_dump, weights, weights.size);
-        save_data(network_dump, hid, INPUT_DIM * NUM_TEST_CASES);
-        save_labels(network_dump, labels, labels.size);
+        save_weights(network_dump, &weights, weights.size);
+        save_data(network_dump, &hid, INPUT_DIM * NUM_TEST_CASES);
+        save_labels(network_dump, &labels, labels.size);
         fclose(network_dump);
     }
 
