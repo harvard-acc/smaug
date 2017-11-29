@@ -17,7 +17,8 @@
 
 #include "core/nnet_fwd_defs.h"
 #include "utility/utility.h"
-#include "utility/data_archive_impl.h"
+#include "utility/data_archive_common.h"
+#include "utility/data_archive_txt.h"
 
 const char* kTxtGlobalHeader = "===GLOBAL BEGIN===";
 const char* kTxtGlobalFooter = "===GLOBAL END===";
@@ -216,16 +217,13 @@ void save_labels_to_txt_file(FILE* fp, iarray_t* labels, size_t num_labels) {
 }
 
 void read_weights_from_txt_file(const char* filename, farray_t* weights) {
-    printf("Reading weights from %s...\n", filename);
     read_fp_data_from_txt_file(filename, weights, kTxtWeightsHeader);
 }
 
 void read_data_from_txt_file(const char* filename, farray_t* data) {
-    printf("Reading input data from %s...\n", filename);
     read_fp_data_from_txt_file(filename, data, kTxtDataHeader);
 }
 
 void read_labels_from_txt_file(const char* filename, iarray_t* labels) {
-    printf("Reading output labels from %s...\n", filename);
     read_int_data_from_txt_file(filename, labels, kTxtLabelsHeader);
 }

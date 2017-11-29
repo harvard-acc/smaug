@@ -23,7 +23,9 @@ UTILITY_SRCS = utility/init_data.c \
 							 utility/read_model_conf.c \
 							 utility/profiling.c \
 							 utility/data_archive.c \
-							 utility/data_archive_txt.c
+							 utility/data_archive_txt.c \
+							 utility/data_archive_common.c \
+							 utility/data_archive_bin.c
 
 ARCH_SRCS = arch/common.c
 
