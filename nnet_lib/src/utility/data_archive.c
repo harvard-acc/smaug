@@ -34,27 +34,22 @@
 #include "utility/utility.h"
 #include "utility/data_archive_impl.h"
 
-void verify_global_parameters(const char* filename, network_t* network) {
-    FILE* fp = fopen(filename, "r");
-    global_sec_header header = read_global_header_from_txt_file(fp);
-    if (header.arch != ARCHITECTURE)
+void verify_global_parameters(global_sec_header* header, network_t* network) {
+    if (header->arch != ARCHITECTURE)
         FATAL_MSG("The architecture used to generate this archive is not the "
                   "same as the current architecture! Got %s, expected %s.\n",
-                  header.arch_str, ARCH_STR)
+                  header->arch_str, ARCH_STR)
 
-    if (header.num_layers != network->depth)
+    if (header->num_layers != network->depth)
         FATAL_MSG("Number of layers in this archive does not match the current "
                   "network's topology! Found %d layers, expected %d instead.\n",
-                  header.num_layers, network->depth);
+                  header->num_layers, network->depth);
 
-    if (header.data_alignment != DATA_ALIGNMENT)
+    if (header->data_alignment != DATA_ALIGNMENT)
         FATAL_MSG("The data alignment of this archive does not match the "
                   "current architecture's data alignment requirements! Found "
                   "%d, expected %d instead.\n",
-                  header.data_alignment, DATA_ALIGNMENT);
-
-    free(header.arch_str);
-    fclose(fp);
+                  header->data_alignment, DATA_ALIGNMENT);
 }
 
 void save_global_parameters(FILE* fp, network_t* network) {
@@ -83,4 +78,41 @@ void read_data_from_file(const char* filename, farray_t* data) {
 
 void read_labels_from_file(const char* filename, iarray_t* labels) {
     read_labels_from_txt_file(filename, labels);
+}
+
+bool is_txt_file(const char* filename) {
+    unsigned size = strlen(filename);
+    if (strncmp(&filename[size - 4], "txt", 3) == 0)
+      return true;
+    return false;
+}
+
+void save_all_to_file(const char* filename,
+                      network_t* network,
+                      farray_t* weights,
+                      farray_t* data,
+                      iarray_t* labels) {
+    if (is_txt_file(filename)) {
+        FILE* network_dump = fopen(filename, "w");
+        save_global_parameters(network_dump, network);
+        save_weights(network_dump, weights, weights->size);
+        save_data(network_dump, data, INPUT_DIM * NUM_TEST_CASES);
+        save_labels(network_dump, labels, labels->size);
+        fclose(network_dump);
+    }
+}
+
+void read_all_from_file(const char* filename,
+                      network_t* network,
+                      farray_t* weights,
+                      farray_t* data,
+                      iarray_t* labels) {
+    if (is_txt_file(filename)) {
+        global_sec_header header = read_global_header_from_txt_file(filename);
+        verify_global_parameters(&header, network);
+        read_weights_from_file(filename, weights);
+        read_data_from_file(filename, data);
+        read_labels_from_file(filename, labels);
+        free(header.arch_str);
+    }
 }

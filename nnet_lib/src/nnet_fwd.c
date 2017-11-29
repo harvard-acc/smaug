@@ -253,10 +253,8 @@ int main(int argc, char* argv[]) {
     memset(labels.d, 0, labels.size * sizeof(float));
 
     if (args.data_mode == READ_FILE) {
-        verify_global_parameters(args.args[DATA_FILE], &network);
-        read_weights_from_file(args.args[DATA_FILE], &weights);
-        read_data_from_file(args.args[DATA_FILE], &hid);
-        read_labels_from_file(args.args[DATA_FILE], &labels);
+        read_all_from_file(
+                args.args[DATA_FILE], &network, &weights, &hid, &labels);
     } else {
         init_weights(weights.d, network.layers, network.depth, args.data_mode,
                      TRANSPOSE_WEIGHTS);
@@ -265,12 +263,8 @@ int main(int argc, char* argv[]) {
     }
 
     if (args.save_params) {
-        FILE* network_dump = fopen(args.args[DATA_FILE], "w");
-        save_global_parameters(network_dump, &network);
-        save_weights(network_dump, &weights, weights.size);
-        save_data(network_dump, &hid, INPUT_DIM * NUM_TEST_CASES);
-        save_labels(network_dump, &labels, labels.size);
-        fclose(network_dump);
+        save_all_to_file(
+                args.args[DATA_FILE], &network, &weights, &hid, &labels);
     }
 
     // Build the sigmoid lookup table

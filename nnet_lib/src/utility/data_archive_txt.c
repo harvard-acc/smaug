@@ -157,7 +157,8 @@ void save_global_parameters_to_txt_file(FILE* fp, network_t* network) {
     fprintf(fp, "%s\n", kTxtGlobalFooter);
 }
 
-global_sec_header read_global_header_from_txt_file(FILE* fp) {
+global_sec_header read_global_header_from_txt_file(const char* filename) {
+    FILE* fp = fopen(filename, "r");
     if (!fp)
         FATAL_MSG("Can't open data file!\n");
 
@@ -192,6 +193,7 @@ global_sec_header read_global_header_from_txt_file(FILE* fp) {
     if (ret != 1)
         FATAL_MSG("Could not determine data alignment of this archive!\n");
 
+    fclose(fp);
     return header;
 }
 
