@@ -28,27 +28,59 @@ def parse_stats_txt(fname):
             data[stat_name] = {"sim_cycles": value}
   return data
 
+def get_total_accel_section(fname):
+  """ Parse the simulation trace to find total accelerated section cycles. """
+  start_stop = []
+  current_data = [0, 0]
+  with open(fname, "r") as f:
+    for line in f:
+      if "Activating accelerator" in line:
+        split = line.split(":")
+        current_data[0] = int(split[0])
+      elif "Accelerator completed" in line:
+        split = line.split(":")
+        current_data[1] = int(split[0])
+        start_stop.append(current_data)
+        current_data = [0, 0]
+
+  print start_stop
+  cycles = start_stop[-1][1] - start_stop[0][0]
+  return cycles
+
+def get_accel_sim_cycles(fname):
+  """ Get total cycles executed in the accelerator. """
+  sim_data = parse_stats_txt(fname)
+  if "sim_cycles" in sim_data:
+    return sim_data["sim_cycles"]
+
 def read_sim_data(base_dir):
   data = {}
+  # fname = "stats.txt"
+  fname = "stdout"
   for root, dirs, files in os.walk(base_dir):
-    for item in fnmatch.filter(files, "stats.txt"):
-      exp_name = root.split("/")[-2]
-      sim_data = parse_stats_txt(os.path.join(root, item))
-      if "sim_cycles" in sim_data:
-        data[exp_name] = sim_data["sim_cycles"]
+    for item in fnmatch.filter(files, fname):
+      exp_name = root.split("/")[-1]
+      if exp_name == "cpu":
+        continue
+      # data[exp_name] = get_accel_sim_cycles(os.path.join(root, item))
+      data[exp_name] = get_total_accel_section(os.path.join(root, item))
   return data
 
 def plot_accel_cycles(data):
   fig = plt.figure()
   ax = fig.add_subplot(111)
   xlabels = [k for k in data.iterkeys()]
-  data = [data[k]["sim_cycles"] for k in xlabels]
+  data = np.array([data[k] for k in xlabels]).astype(float)
+  print data
+  data = data/data[-1]
+  print data
+  print xlabels
 
-  bar_x = np.arange(len(data)) + 0.3
+  bar_x = np.arange(len(data)) + 0.6
   ax.bar(bar_x, data, width=0.6)
   ax.set_xticklabels(xlabels)
   ax.set_xticks(bar_x)
-  ylim = ax.set_ylim(bottom=0)
+  ylim = ax.set_ylim(bottom=0.9)
   plt.savefig("total_accel_cycles.pdf", bbox_inches="tight")
 
 def main():
