@@ -58,28 +58,28 @@ Layer types supported:
 * Fully connected
   - Arbitrary number of hidden nodes *
 * Convolutional
-  - Arbitrary kernel size. *
+  - Arbitrary kernel size *
 * Pooling
   - Max pooling
 
 Activation functions:
-* ReLU, ReLU thresholded.
+* ReLU, ReLU thresholded
 * Sigmoid
 
 Network configuration:
-* Caffe style configuration files.
-* Linear stack of layers.
-* Arbitrarily deep networks.
+* Caffe style configuration files
+* Linear stack of layers
+* Arbitrarily deep networks
 
 Backends:
 * Reference - manual naive implementations of each kernel.
 * Eigen - high performance on CPU.
 * Aladdin - simulation of hardware acceleration.
 
- * This depends on the SoC architecture and accelerator support.
+\* This depends on the SoC architecture and accelerator support.
 
 ### Unsupported features ###
-Planned:
+Plan to support:
 * Softmax
 * tanh activation function
 * Recurrent layers
@@ -94,12 +94,15 @@ No plans to support:
 ## Dependencies ##
 
 * [gem5-Aladdin](https://github.com/harvard-acc/gem5-aladdin)
+
   The `ALADDIN_HOME` environment variable must be set to where the Aladdin
   submodule is located.
 * [LLVM-Tracer](https://github.com/ysshao/LLVM-Tracer)
+
   The `LLVM_HOME` environment variable must be set to where LLVM 3.4 is
   installed, and `TRACER_HOME` must be set to where LLVM-Tracer is installed.
 * [libconfuse 3.2](https://github.com/martinh/libconfuse)
+
   If libconfuse cannot be installed to the system default directory
   (/usr/local), then set the `CONFUSE_ROOT` environment variable to the
   installation location.
@@ -152,9 +155,11 @@ Currently, we have four architectures and three execution targets.
 
 1. Native: this builds the executable to run everything on the host CPU.
    Naturally, Aladdin is not involved, since Aladdin is a simulator.
-2. Debug: very similar to native, except intermediate layer output and data are
-   printed to aid in debugging.
-3. gem5: this builds the executable to be run under gem5. There are two
+
+   Debug: this is a sub-target of native. It enables debug print messages.
+   Currently, intermediate layer output and data are printed to stdout.
+
+2. gem5: this builds the executable to be run under gem5. There are two
    executables that are produced:
    * gem5-cpu: This executable is designed to be simulated on a gem5 cpu, but
      since it does not invoke Aladdin, it *could* also be executed on the host
@@ -167,7 +172,7 @@ Currently, we have four architectures and three execution targets.
    architecture cannot take advantage of AVX instructions in simulation.
    However, AVX instructions are available to the native target, if the host
    machine's CPU supports them.
-4. Trace: this instruments the binary using LLVM-Tracer, so that a dynamic
+3. Trace: this instruments the binary using LLVM-Tracer, so that a dynamic
    trace can be generated and used by Aladdin.
 
 ## Build instructions ##
