@@ -82,9 +82,18 @@ void begin_profiling(const char* func_name, layer_t* layer, int layer_num) {
 void end_profiling() {
     if (!profiling_enabled)
         return;
-    assert(profile_log->end_time == 0 &&
-           "begin_profiling() must be followed by end_profiling()!");
-    profile_log->end_time = get_nsecs();
+    // To support nested profiling, search for the next zero-end-time entry.
+    log_entry_t* entry = profile_log;
+    while (entry && entry->end_time != 0)
+      entry = entry->next;
+		if (!entry || entry->end_time != 0) {
+        fprintf(stderr, "Could not find the corresponding entry for this "
+                        "end_profiling call! Please ensure that all "
+                        "begin_profiling() calls are paired with at most one "
+                        "end_profiling call.\n");
+        exit(1);
+    }
+    entry->end_time = get_nsecs();
 }
 
 void write_profiling_log(FILE* out) {
