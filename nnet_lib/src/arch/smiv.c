@@ -595,6 +595,7 @@ result_buf run_layer(float* activations,
                      int layer_num,
                      float* result,
                      device_t* device) {
+    begin_profiling("run_layer", layers + layer_num, layer_num);
     result_buf result_loc = run_layer_skip_activation_func(
             activations, weights, layers, layer_num, result, device);
 
@@ -603,7 +604,7 @@ result_buf run_layer(float* activations,
     bool do_hw_activation = is_supported_activation_func(act_func);
     if (do_activation && !do_hw_activation) {
         int output_size = get_output_activations_size(&layers[layer_num]);
-        begin_profiling("activation_fun", layers, layer_num);
+        begin_profiling("activation_fun", layers + layer_num, layer_num);
 #ifdef __cplusplus
         nnet_eigen::activation_fun(
                 result_loc, output_size, act_func, sigmoid_table, result);
@@ -613,6 +614,7 @@ result_buf run_layer(float* activations,
 #endif
         end_profiling();
     }
+    end_profiling();
     return result_loc;
 }
 
