@@ -118,7 +118,7 @@ int dump_profiling_log() {
     if (!profiling_enabled)
         return 0;
 
-    FILE* profile = fopen("profiling.log", "a");
+    FILE* profile = fopen("profiling.log", "w");
     if (!profile) {
       perror("Unable to open profiling.log file");
       return -1;
