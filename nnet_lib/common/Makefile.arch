@@ -39,6 +39,7 @@ CONFIG_H = config.h
 SRCS = $(CORE_SRCS) $(UTILITY_SRCS) $(ARCH_SRCS) $(NNET_FWD_MAIN)
 GEM5_DMA_SRC = gem5/dma_interface.c
 GEM5_SYS_SRCS = gem5/aladdin_sys_connection.cpp gem5/aladdin_sys_constants.cpp
+GEM5_UTIL_SRCS = ../../util/m5/m5op_x86.S
 
 ARCH ?= MONOLITHIC
 
@@ -61,7 +62,7 @@ endif
 endif
 endif
 
-INCLUDES += -I$(ALADDIN_HOME) -I$(ALADDIN_HOME)/gem5 -I$(SRC_DIR)
+INCLUDES += -I$(ALADDIN_HOME)/../../include -I$(ALADDIN_HOME) -I$(ALADDIN_HOME)/gem5 -I$(SRC_DIR)
 CPPFLAGS += -DARCHITECTURE=$(ARCH) $(INCLUDES)
 ifneq ($(CONFUSE_ROOT),)
 INCLUDES += -I$(CONFUSE_ROOT)/include
@@ -78,6 +79,6 @@ CFLAGS += -g \
 BMARK_SPECIFIC_CFLAGS = -DDMA_INTERFACE_V3
 
 NATIVE_FULL_PATH_SRCS = $(patsubst %.c, $(SRC_DIR)/%.c, $(SRCS))
-GEM5_FULL_PATH_SRCS = $(patsubst %, $(ALADDIN_HOME)/%, $(GEM5_DMA_SRC) $(GEM5_SYS_SRCS))
+GEM5_FULL_PATH_SRCS = $(patsubst %, $(ALADDIN_HOME)/%, $(GEM5_DMA_SRC) $(GEM5_SYS_SRCS) $(GEM5_UTIL_SRCS))
 
 LFLAGS += -lm -lconfuse -lrt
