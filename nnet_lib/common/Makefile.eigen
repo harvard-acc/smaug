@@ -1,4 +1,9 @@
+ifeq ($(ARCH), EIGEN)
+# "Makefile" guard (like a C header guard).
+# The current Makefile gets included from Makefile.gem5 as well (hacky
+# solution), so don't pull in this one twice.
 include common/Makefile.arch
+endif
 
 EIGEN_BINARY = $(BUILD_DIR)/nnet-eigen-native
 EIGEN_BINARY_FOR_GEM5 = $(BUILD_DIR)/nnet-eigen-gem5
@@ -9,7 +14,7 @@ DLEVEL = 0
 GEM5_SIMD_FLAGS = -msse
 NATIVE_SIMD_FLAGS = -march=native
 
-CFLAGS += -std=gnu++11 $(BMARK_SPECIFIC_CFLAGS)
+CFLAGS += -std=gnu++11 $(BMARK_SPECIFIC_CFLAGS) -O3
 CPPFLAGS += -DDMA_MODE -DEIGEN_ARCH_IMPL
 
 EIGEN_ARCH_SRCS = $(SRC_DIR)/arch/eigen.cpp
