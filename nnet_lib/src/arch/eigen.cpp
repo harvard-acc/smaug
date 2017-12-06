@@ -1,5 +1,7 @@
 #include <assert.h>
 
+#include "gem5/m5ops.h"
+
 #include "arch/common.h"
 #include "arch/interface.h"
 #include "core/eigen/activation_functions.h"
@@ -7,8 +9,9 @@
 #include "core/pooling.h"
 #include "core/convolution.h"
 #include "core/zeropad.h"
-#include "nnet_fwd.h"
 #include "utility/utility.h"
+#include "utility/profiling.h"
+#include "nnet_fwd.h"
 
 #ifdef DMA_MODE
 #include "gem5_harness.h"
@@ -92,23 +95,31 @@ result_buf run_layer(float* activations,
                      int layer_num,
                      float* result,
                      device_t* device) {
+    begin_profiling("run_layer", layers + layer_num, layer_num);
     layer_t curr_layer = layers[layer_num];
+
+    begin_profiling(
+            "run_layer_skip_activation_func", layers + layer_num, layer_num);
     result_buf result_loc = run_layer_skip_activation_func(
             activations, weights, layers, layer_num, result, device);
+    end_profiling();
 
     if (curr_layer.activation != NO_ACTIVATION) {
         PRINT_MSG("\nactivation function\n");
+        begin_profiling("activation_fun", layers + layer_num, layer_num);
         // Pass through activation function
         if (result_loc == activations) {
             result_loc = activation_sublayer(activations, layers, layer_num, result);
         } else {
             result_loc = activation_sublayer(result, layers, layer_num, activations);
         }
+        end_profiling();
 
         PRINT_DEBUG4D(result_loc, curr_layer.outputs.rows,
                       curr_layer.outputs.cols + curr_layer.outputs.align_pad,
                       curr_layer.outputs.height);
     }
+    end_profiling();
     return result_loc;
 }
 

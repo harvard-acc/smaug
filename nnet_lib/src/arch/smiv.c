@@ -2,6 +2,8 @@
 #include <math.h>
 #include <string.h>
 
+#include "gem5/m5ops.h"
+
 #include "nnet_fwd.h"
 #include "core/activation_functions.h"
 #include "core/convolution.h"
@@ -596,8 +598,12 @@ result_buf run_layer(float* activations,
                      float* result,
                      device_t* device) {
     begin_profiling("run_layer", layers + layer_num, layer_num);
+
+    begin_profiling(
+            "run_layer_skip_activation_func", layers + layer_num, layer_num);
     result_buf result_loc = run_layer_skip_activation_func(
             activations, weights, layers, layer_num, result, device);
+    end_profiling();
 
     activation_type act_func = layers[layer_num].activation;
     bool do_activation = act_func != NO_ACTIVATION;
