@@ -7,7 +7,7 @@ TEST_SRCS = $(wildcard $(PERFTEST_DIR)/*.cpp)
 TESTS = test_eigen_sigmoid test_eigen_maxpooling test_eigen_gemm
 TESTS_TARGETS  = $(patsubst %, $(BUILD_DIR)/%, $(TESTS))
 
-LIB_SRCS = $(CORE_SRCS) $(UTILITY_SRCS) $(ARCH_SRCS) \
+LIB_SRCS = $(CORE_SRCS) $(UTILITY_SRCS) $(ARCH_SRCS) arch/eigen.cpp \
 					 $(EIGEN_CORE_SRCS) $(EIGEN_ARCH_SRCS) \
 
 GEM5_FULL_PATH_SRCS = $(patsubst %, $(ALADDIN_HOME)/%, $(GEM5_DMA_SRC))
