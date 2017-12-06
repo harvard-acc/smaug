@@ -26,7 +26,7 @@ CFLAGS += $(GEM5_SIMD_FLAGS)
 NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smiv.cpp
 endif
 
-CFLAGS += -static -O3 -g -fno-exceptions $(BMARK_SPECIFIC_CFLAGS)
+CFLAGS += -static -O3 -g $(BMARK_SPECIFIC_CFLAGS)
 CPPFLAGS += -DDMA_MODE
 
 # Output names:
