@@ -24,6 +24,14 @@ uint64_t get_cycle() {
     return (uint64_t)(lo | ((uint64_t)(hi) << 32));
 }
 
+void barrier() {
+    unsigned long long eax = 0, ebx = 0, ecx = 0, edx = 0;
+    __asm__("cpuid"
+            : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
+            : "a"(eax), "c"(ecx)
+            :);
+}
+
 #else
 #error "Cycle-level profiling on this architecture is not supported!"
 #endif
@@ -31,6 +39,7 @@ uint64_t get_cycle() {
 uint64_t get_nsecs() {
   struct timespec time;
   uint64_t nsecs;
+  barrier();
   int ret = clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &time);
   if (ret) {
       perror("Unable to get process cpu time");

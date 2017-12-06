@@ -43,6 +43,9 @@ typedef struct _log_entry_t log_entry_t;
 // system factors.
 uint64_t get_cycle();
 
+// Executes a serializing instruction.
+void barrier();
+
 // Return the current process's CPU time in nanoseconds via clock_gettime().
 uint64_t get_nsecs();
 
