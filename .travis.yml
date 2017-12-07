@@ -4,12 +4,14 @@ dist: trusty
 before_install:
   - mkdir -p deps
   - cd deps
-  - git clone https://github.com/ysshao/aladdin
-  - cd ..
+  - git clone https://github.com/harvard-acc/gem5-aladdin
+  - cd gem5-aladdin
+  - git submodule update --init --recursive
+  - cd ../..
   - sudo apt-get install -y libconfuse-dev
 
 env:
-  - ALADDIN_HOME=$PWD/deps/aladdin
+  - ALADDIN_HOME=$PWD/deps/gem5-aladdin/src/aladdin
 
 language: c
 compiler:
