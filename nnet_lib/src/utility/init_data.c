@@ -55,6 +55,14 @@ void init_weights(float* weights,
                             else
                                 weights[sub3ind(h, i, j, w_rows, w_tot_cols) +
                                         w_offset] = val;
+                        } else if (layers[l].type == BATCH_NORM &&
+                                   (i / (w_rows / 4) == 1) && val < 0) {
+                            // For batch norm layer, the weights' rows are
+                            // organized as {mean, var, gamma, beta}. var
+                            // should not have negative values.
+                            weights[sub4ind(d, h, i, j, w_height, w_rows,
+                                            w_tot_cols) +
+                                    w_offset] = -val;
                         } else {
                             weights[sub4ind(d, h, i, j, w_height, w_rows,
                                             w_tot_cols) +

@@ -4,6 +4,7 @@
 #include "core/flatten.h"
 #include "core/matrix_multiply.h"
 #include "core/pooling.h"
+#include "core/batch_norm.h"
 #include "arch/common.h"
 #include "arch/interface.h"
 #include "utility/utility.h"
@@ -49,6 +50,10 @@ result_buf run_layer_skip_activation_func(float* activations,
         PRINT_MSG("\nPooling.\n");
         result_loc =
                 pooling_layer(activations, layers, layer_num, result, device);
+    } else if (l_type == BATCH_NORM) {
+        PRINT_MSG("\nBatch normalization.\n");
+        result_loc = batch_norm_layer(activations, weights, layers,
+        	 layer_num, result, device);
     } else if (l_type == INPUT) {
         // No work needs to be done.
         result_loc = activations;

@@ -45,6 +45,8 @@ typedef enum _layer_type {
     SOFTMAX,
     // Fully connected layer.
     FC,
+    // Batch normalization layer.
+    BATCH_NORM,
     // Output label layer, fully connected (the implicit last layer).
     OUTPUT,
     // Input layer. No actual work is done on this layer.

@@ -21,6 +21,7 @@ const char FC_TYPE[] = "INNER_PRODUCT";
 const char POOLING_TYPE[] = "POOLING";
 const char MAX_POOL_TYPE[] = "MAX";
 const char AVG_POOL_TYPE[] = "AVG";
+const char BATCH_NORM_TYPE[] = "BATCH_NORM";
 const char NONE_TYPE[] = "NONE";
 const char RELU_TYPE[] = "RELU";
 const char SIGMOID_TYPE[] = "SIGMOID";
@@ -73,7 +74,9 @@ int validate_layer_section(cfg_t* cfg, cfg_opt_t* opt) {
     }
     if (!cfg_size(layer, "inner_product_param") &&
         !cfg_size(layer, "convolution_param") &&
-        !cfg_size(layer, "pooling_param")) {
+        !cfg_size(layer, "pooling_param") &&
+        // Batch norm layer does not have user-specified parameters
+        strcmp(cfg_getstr(layer, "type"), BATCH_NORM_TYPE) != 0) {
         cfg_error(cfg, "Layer '%s' is missing layer-specific parameters!",
                   cfg_title(layer));
         return -1;
@@ -85,7 +88,8 @@ int validate_layer_type(cfg_t* cfg, cfg_opt_t* opt) {
     const char* value = cfg_opt_getnstr(opt, cfg_opt_size(opt) - 1);
     assert(value);
     if (strcmp(value, CONV_TYPE) != 0 && strcmp(value, FC_TYPE) != 0 &&
-        strcmp(value, POOLING_TYPE) != 0) {
+        strcmp(value, POOLING_TYPE) != 0 &&
+        strcmp(value, BATCH_NORM_TYPE) != 0) {
         cfg_error(cfg, "Invalid layer type '%s' for '%s'!", value, cfg->name);
         return -1;
     }
@@ -205,6 +209,8 @@ static void set_layer_type(layer_t* layers, cfg_t* layer_opts, int l) {
         }
     } else if (strcmp(type, FC_TYPE) == 0) {
         layers[l].type = FC;
+    } else if (strcmp(type, BATCH_NORM_TYPE) == 0) {
+        layers[l].type = BATCH_NORM;
     } else {
         assert(false && "Invalid layer type!");
     }
@@ -312,6 +318,20 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
       layers[l].weights.rows = 0;
       layers[l].weights.cols = 0;
       layers[l].weights.height = 0;
+      layers[l].outputs.rows = layers[l].inputs.rows;
+      layers[l].outputs.cols = layers[l].inputs.cols;
+      layers[l].outputs.height = layers[l].inputs.height;
+      return;
+    }
+
+    if (layers[l].type == BATCH_NORM) {
+      layers[l].inputs.rows = layers[l - 1].outputs.rows;
+      layers[l].inputs.cols = layers[l - 1].outputs.cols;
+      layers[l].inputs.height = layers[l - 1].outputs.height;
+      // Rows are organized as {mean, var, gamma, beta}.
+      layers[l].weights.rows = layers[l].inputs.rows * 4;
+      layers[l].weights.cols = layers[l].inputs.cols;
+      layers[l].weights.height = layers[l].inputs.height;
       layers[l].outputs.rows = layers[l].inputs.rows;
       layers[l].outputs.cols = layers[l].inputs.cols;
       layers[l].outputs.height = layers[l].inputs.height;
@@ -440,6 +460,12 @@ static void print_layer_config(layer_t* layers, int num_layers) {
             printf("    Field size: %d\n", layers[i].weights.cols);
             printf("    Stride: %d\n", layers[i].field_stride);
             printf("    Height: %d\n", layers[i].outputs.height);
+        } else if (type == BATCH_NORM) {
+            printf("  Batch normalization\n");
+            printf("    Input size: %d x %d x %d\n", layers[i].inputs.rows,
+                   layers[i].inputs.cols, layers[i].inputs.height);
+            printf("    Output size: %d x %d x %d\n", layers[i].outputs.rows,
+                   layers[i].outputs.cols, layers[i].outputs.height);
         } else if (type == SOFTMAX) {
             printf("  Softmax\n");
         } else if (type == INPUT) {

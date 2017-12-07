@@ -223,6 +223,12 @@ void get_weights_dims_layer(layer_t* layers,
         *num_height = layers[l].weights.height;
         *num_depth = layers[l].outputs.height;  // # of this layer's kernels.
         *num_pad = layers[l].weights.align_pad;
+    } else if (layers[l].type == BATCH_NORM) {
+        *num_rows = layers[l].weights.rows;
+        *num_cols = layers[l].weights.cols;
+        *num_height = layers[l].weights.height;
+        *num_depth = 1;
+        *num_pad = layers[l].weights.align_pad;
     } else {
         *num_rows = 0;
         *num_cols = 0;
@@ -241,6 +247,10 @@ int get_num_weights_layer(layer_t* layers, int l) {
         return layers[l].weights.rows *
                (layers[l].weights.cols + layers[l].weights.align_pad) *
                layers[l].weights.height * layers[l].outputs.height;
+    else if (layers[l].type == BATCH_NORM)
+        return layers[l].weights.rows *
+               (layers[l].weights.cols + layers[l].weights.align_pad) *
+               layers[l].weights.height;
     else
         return 0;
 }

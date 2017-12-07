@@ -9,6 +9,7 @@
 #include "core/convolution.h"
 #include "core/matrix_multiply.h"
 #include "core/pooling.h"
+#include "core/batch_norm.h"
 #include "core/smiv.h"
 #include "core/zeropad.h"
 #include "utility/utility.h"
@@ -73,6 +74,7 @@ typedef struct _conv_cfg_t {
 unsigned kConvolutionHw = 0x0003;
 unsigned kInnerProductHw = 0x0003;
 unsigned kReductionHw = 0x0003;
+unsigned kBatchNormHw = 0x0003;
 
 bool is_supported_activation_func(activation_type func) {
   switch (func) {
@@ -588,6 +590,56 @@ result_buf pooling_layer(float* activations,
     } else {
         assert(false && "Unsupported pooling layer type!");
     }
+    return result;
+}
+
+void batch_norm_layer_hw(float* host_activations,
+                         float* host_weights,
+                         float* host_result,
+                         float* umem,
+                         float* spad0,
+                         float* spad1,
+                         layer_t* all_layers,
+                         int lnum) {
+    layer_t curr_layer = all_layers[lnum];
+    int input_size = curr_layer.inputs.rows * curr_layer.inputs.cols *
+                     curr_layer.inputs.height;
+
+    // DMA in the weights (to UMEM)
+    setReadyBits(umem, UMEM_SIZE, 0);
+    dmaLoad(umem, host_weights, WEIGHT_BYTES(all_layers, lnum));
+
+    // DMA in the inputs (to SPAD0)
+    if (all_layers[lnum].input_req == IO_DMA) {
+        grab_input_activations_dma(host_activations, spad0, &all_layers[lnum]);
+    }
+
+    // The main kernel
+    batch_norm_fxp(spad0, umem, input_size, NUM_TEST_CASES, spad1);
+
+    // DMA out the result (from SPAD1)
+    store_output_activations_dma(host_result, spad1, &all_layers[lnum]);
+}
+
+result_buf batch_norm_layer(float* activations,
+                            float* weights,
+                            layer_t* layers,
+                            int lnum,
+                            float* result,
+                            device_t* device) {
+    float* current_layer_weights =
+            weights + get_weights_loc_for_layer(layers, lnum);
+
+    MAP_ARRAY_TO_ACCEL(kBatchNormHw, "host_activations", activations,
+                       INPUT_BYTES(layers, lnum));
+    MAP_ARRAY_TO_ACCEL(kBatchNormHw, "host_weights", current_layer_weights,
+                       WEIGHT_BYTES(layers, lnum));
+    MAP_ARRAY_TO_ACCEL(kBatchNormHw, "host_result", result,
+                       OUTPUT_BYTES(layers, lnum));
+    INVOKE_KERNEL_PROF(kBatchNormHw, batch_norm_layer_hw, activations,
+                       current_layer_weights, result, g_umem, g_spad0, g_spad1,
+                       layers, lnum);
+
     return result;
 }
 

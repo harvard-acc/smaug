@@ -10,6 +10,7 @@ CORE_SRCS = core/activation_functions.c \
 						core/matrix_multiply.c \
 						core/zeropad.c \
 						core/pooling.c \
+						core/batch_norm.c \
 						core/flatten.c \
 						core/smiv.c \
 						core/smiv/convolution.c \
@@ -45,11 +46,11 @@ ARCH ?= MONOLITHIC
 
 ifeq ($(ARCH), SMIV)
 EXEC = nnet-smiv
-export WORKLOAD=inner_product_layer_hw,inner_product_layer_acp_hw,convolution_layer_hw,activation_hw,reduction_hw,reduction_acp_hw
+export WORKLOAD=inner_product_layer_hw,inner_product_layer_acp_hw,convolution_layer_hw,activation_hw,reduction_hw,reduction_acp_hw,batch_norm_layer_hw
 else
 ifeq	($(ARCH), COMPOSABLE)
 EXEC = nnet-composable
-export WORKLOAD=inner_product_layer_hw,convolution_layer_hw,activation_hw
+export WORKLOAD=inner_product_layer_hw,convolution_layer_hw,activation_hw,batch_norm_layer_hw
 else
 ifeq ($(ARCH), MONOLITHIC)
 EXEC = nnet-monolithic

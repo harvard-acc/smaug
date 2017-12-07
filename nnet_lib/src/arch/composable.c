@@ -5,6 +5,7 @@
 #include "core/convolution.h"
 #include "core/matrix_multiply.h"
 #include "core/pooling.h"
+#include "core/batch_norm.h"
 #include "core/zeropad.h"
 #include "utility/utility.h"
 #include "arch/common.h"
@@ -20,6 +21,7 @@ unsigned kConvolutionHw = 0x0001;
 unsigned kPoolingHw = 0x0002;
 unsigned kActivationFuncHw = 0x0003;
 unsigned kInnerProductHw = 0x0004;
+unsigned kBatchNormHw = 0x0005;
 
 // This is an architecture that divides each layer type into a separate
 // hardware block. This is represented by ensuring that each layer is
@@ -54,8 +56,8 @@ result_buf inner_product_layer(float* activations,
                                float* result,
                                device_t* device) {
     MAP_ARRAY(kInnerProductHw, activations, INPUT_BYTES(layers, lnum));
-    MAP_ARRAY(kInnerProductHw, weights, OUTPUT_BYTES(layers, lnum));
-    MAP_ARRAY(kInnerProductHw, result, WEIGHT_BYTES(layers, lnum));
+    MAP_ARRAY(kInnerProductHw, weights, WEIGHT_BYTES(layers, lnum));
+    MAP_ARRAY(kInnerProductHw, result, OUTPUT_BYTES(layers, lnum));
     INVOKE_KERNEL(kInnerProductHw, inner_product_layer_hw, activations, weights,
                   layers, lnum, result);
     return result;
@@ -80,8 +82,8 @@ result_buf convolution_layer(float* activations,
                              float* result,
                              device_t* device) {
     MAP_ARRAY(kConvolutionHw, activations, INPUT_BYTES(layers, lnum));
-    MAP_ARRAY(kConvolutionHw,  weights, OUTPUT_BYTES(layers, lnum));
-    MAP_ARRAY(kConvolutionHw,  result, WEIGHT_BYTES(layers, lnum));
+    MAP_ARRAY(kConvolutionHw,  weights, WEIGHT_BYTES(layers, lnum));
+    MAP_ARRAY(kConvolutionHw,  result, OUTPUT_BYTES(layers, lnum));
 
     layer_t curr_layer = layers[lnum];
     if (curr_layer.c_padding > 0) {
@@ -121,6 +123,36 @@ result_buf pooling_layer(float* activations,
     } else {
         assert(false && "Unsupported pooling layer type!");
     }
+    return result;
+}
+
+void batch_norm_layer_hw(float* activations,
+                          float* weights,
+                          layer_t* layers,
+                          int lnum,
+                          float* result) {
+    layer_t curr_layer = layers[lnum];
+    int input_size = curr_layer.inputs.rows * curr_layer.inputs.cols *
+                     curr_layer.inputs.height;
+    grab_weights_dma(weights, weights, lnum, layers);
+    grab_input_activations_dma(activations, activations, &layers[lnum]);
+    batch_norm_fxp(activations, weights, input_size, NUM_TEST_CASES, result);
+    store_output_activations_dma(result, result, &layers[lnum]);
+}
+
+result_buf batch_norm_layer(float* activations,
+                            float* weights,
+                            layer_t* layers,
+                            int lnum,
+                            float* result,
+                            device_t* device) {
+    MAP_ARRAY(kBatchNormHw, activations, INPUT_BYTES(layers, lnum));
+    MAP_ARRAY(kBatchNormHw, weights, WEIGHT_BYTES(layers, lnum));
+    MAP_ARRAY(kBatchNormHw, result, OUTPUT_BYTES(layers, lnum));
+
+    INVOKE_KERNEL(kBatchNormHw, batch_norm_layer_hw, activations,
+                  weights, layers, lnum, result);
+
     return result;
 }
 

@@ -163,6 +163,12 @@ class SmivTests(BaseTest):
     correct_output = "smiv-unsupported-act-fun.out"
     self.runAndValidate(model_file, correct_output)
 
+class BatchNormTests(BaseTest):
+  def test_minerva_bn(self):
+    model_file = "mnist/minerva_bn.conf"
+    correct_output = "mnist-minerva-bn.out"
+    self.runAndValidate(model_file, correct_output)
+
 def run_tests():
   suite = unittest.TestSuite()
   test_loader = unittest.TestLoader()

@@ -6,6 +6,7 @@
 #include "core/convolution.h"
 #include "core/matrix_multiply.h"
 #include "core/pooling.h"
+#include "core/batch_norm.h"
 #include "core/zeropad.h"
 #include "nnet_fwd.h"
 #include "utility/utility.h"
@@ -69,6 +70,19 @@ result_buf pooling_layer(float* activations,
         max_pooling(activations, result, curr_layer);
     else
         assert(false && "Unsupported pooling layer type!");
+    return result;
+}
+
+result_buf batch_norm_layer(float* activations,
+                            float* weights,
+                            layer_t* layers,
+                            int lnum,
+                            float* result,
+                            device_t* device) {
+    int input_size = layers[lnum].inputs.rows *
+                     layers[lnum].inputs.cols *
+                     layers[lnum].inputs.height;
+    batch_norm_fxp(activations, weights, input_size, NUM_TEST_CASES, result);
     return result;
 }
 
