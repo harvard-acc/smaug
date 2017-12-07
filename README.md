@@ -1,13 +1,13 @@
-Neural Network Library for gem5-Aladdin
-=======================================
+SMAUG: Simulating Machine Learning Accelerators Using gem5-Aladdin
+==================================================================
 
-[![build status](https://travis-ci.com/xyzsam/composability.svg?token=rpmJkoccAjPMAABDKPM9&branch=master)](https://travis-ci.com/xyzsam/composability)
+[![build status](https://travis-ci.com/xyzsam/smaug.svg?token=rpmJkoccAjPMAABDKPM9&branch=master)](https://travis-ci.com/xyzsam/smaug)
 
-This is a library for building and simulationg neural networks, designed to
+SMAUG is a library for building and simulating neural networks, written to
 work with gem5-Aladdin. It supports the basic layer types and basic activation
 functions for a linearly stack network architectures.
 
-In this library, several reference implementations are provided, along with a
+In SMAUG, several reference implementations are provided, along with a
 model of an actual SoC containing multiple DNN accelerators.
 
 # Overview #
@@ -26,7 +26,7 @@ sure satisfy all dependencies (see the Dependencies section) are satisfied.
 
 To understand what is happening, please continue to read.
 
-## Why does this exist? ##
+## Why does SMAUG exist? ##
 
 The need for hardware acceleration of deep learning workloads is obvious, but
 understanding the impact of accelerator design choices on performance, power,
@@ -45,13 +45,13 @@ hardware is radically different from writing C for high performance software.
 As a result, we cannot simply run code from existing optimized linear algebra
 libraries, like BLAS, MKL, or Eigen, through Aladdin.
 
-This library provides a set of implementation of core deep learning kernels
-that comply with Aladdin's coding requirements. Some of the implementations are
-merely reference implementations, while others represent actual accelerator
-designs.  It also integrates these kernels with gem5-Aladdin, so that the
-combined SoC simulator can be used to measure overall end-to-end performance.
-The user can decide which kernels to offload to specialized hardware and which
-kernels to run on the CPU.
+SMAUG provides a set of implementation of core deep learning kernels that
+comply with Aladdin's coding style. Some of the implementations are merely
+reference implementations, while others represent actual accelerator designs.
+It also integrates these kernels with gem5-Aladdin, so that the combined SoC
+simulator can be used to measure overall end-to-end performance.  The user can
+decide which kernels to offload to specialized hardware and which kernels to
+run on the CPU.
 
 ## Features ##
 Layer types supported:
@@ -89,7 +89,7 @@ No plans to support:
 * Skip connections
 * Inception modules
 
-# Using the library #
+# Using SMAUG #
 
 ## Dependencies ##
 
@@ -111,7 +111,7 @@ No plans to support:
 
 ## Architectures and Execution Targets ##
 
-This library can be built for a particular "SoC architecture" and "execution
+SMAUG can be built for a particular "SoC architecture" and "execution
 target". These terms are described below:
 
 **SoC architecture**: this describes the collection of hardware accelerators
@@ -242,8 +242,8 @@ the `-f` option to specify the filename.
   ```
 
 This file contains weights, inputs, and output labels. Why bundle inputs and
-weights together? Well, this library is only designed to evaluate performance
-on the feed-forward pass, so the actual data values (generally) do not matter.
+weights together? Well, SMAUG is only designed to evaluate performance on the
+feed-forward pass, so the actual data values (generally) do not matter.
 
 All available options can be shown wth the `--help` flag.
 
