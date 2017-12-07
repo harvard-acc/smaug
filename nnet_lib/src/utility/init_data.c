@@ -7,14 +7,113 @@
 
 #include "init_data.h"
 
+float get_rand_weight(data_init_mode mode, int depth) {
+    if (mode == RANDOM) {
+        // Question: does nan output take longer in simulation?
+        return conv_float2fixed((randfloat() - 0.5) * 10);
+    } else {
+        // Give each depth slice a different weight so we don't get all the
+        // same value in the output.
+        return (depth + 1) * 0.1;
+    }
+}
+
+void init_fc_weights(float* weights,
+                     int w_height,
+                     int w_rows,
+                     int w_cols,
+                     int w_pad,
+                     data_init_mode mode,
+                     bool transpose) {
+    int w_tot_cols = w_cols + w_pad;
+    float val = 0;
+    for (int h = 0; h < w_height; h++) {
+        for (int i = 0; i < w_rows; i++) {
+            for (int j = 0; j < w_tot_cols; j++) {
+                if (j < w_cols) {
+                    val = get_rand_weight(mode, 0);
+                } else {  // extra zero padding.
+                    val = 0;
+                }
+                if (transpose)
+                    weights[sub3ind(h, j, i, w_tot_cols, w_rows)] = val;
+                else
+                    weights[sub3ind(h, i, j, w_rows, w_tot_cols)] = val;
+            }
+        }
+    }
+}
+
+void init_conv_weights(float* weights,
+                       int w_depth,
+                       int w_height,
+                       int w_rows,
+                       int w_cols,
+                       int w_pad,
+                       data_init_mode mode,
+                       bool transpose) {
+    int w_tot_cols = w_cols + w_pad;
+    float val = 0;
+    for (int d = 0; d < w_depth; d++) {
+        for (int h = 0; h < w_height; h++) {
+            for (int i = 0; i < w_rows; i++) {
+                for (int j = 0; j < w_tot_cols; j++) {
+                    if (j < w_cols) {
+                        val= get_rand_weight(mode, d);
+                    } else {  // extra zero padding.
+                        val = 0;
+                    }
+                    weights[sub4ind(d, h, i, j, w_height, w_rows, w_tot_cols)] =
+                            val;
+                }
+            }
+        }
+    }
+}
+
+void init_bn_weights(float* weights,
+                     int w_height,
+                     int w_rows,
+                     int w_cols,
+                     int w_pad,
+                     data_init_mode mode,
+                     bool transpose) {
+    static const float kEpsilon = 1e-5;
+
+    int w_tot_cols = w_cols + w_pad;
+    float val = 0;
+    for (int h = 0; h < w_height; h++) {
+        for (int i = 0; i < w_rows; i++) {
+            // BN parameters are stored in blocks of w_rows * w_tot_cols.
+            // The block order is:
+            //   1. mean
+            //   2. variance
+            //   3. gamma
+            //   4. beta
+            for (int j = 0; j < w_tot_cols; j++) {
+                if (j < w_cols) {
+                    val = get_rand_weight(mode, 0);
+                } else {  // extra zero padding.
+                    val = 0;
+                }
+                bool is_variance_block = (i / (w_rows / 4)) == 1;
+                if (is_variance_block) {
+                    val = val < 0 ? -val : val;
+                }
+
+                weights[sub3ind(h, i, j, w_rows, w_tot_cols)] = val;
+            }
+        }
+    }
+}
+
 void init_weights(float* weights,
                   layer_t* layers,
                   int num_layers,
                   data_init_mode mode,
                   bool transpose) {
-    int d, h, i, j, l;
+    int l;
     int w_rows, w_cols, w_height, w_depth, w_offset, w_pad;
-    float val;
 
     assert(mode == RANDOM || mode == FIXED);
     w_offset = 0;
@@ -24,53 +123,21 @@ void init_weights(float* weights,
         get_weights_dims_layer(
                 layers, l, &w_rows, &w_cols, &w_height, &w_depth, &w_pad);
         int w_tot_cols = w_cols + w_pad;
-        for (d = 0; d < w_depth; d++) {
-            for (h = 0; h < w_height; h++) {
-                for (i = 0; i < w_rows; i++) {
-                    for (j = 0; j < w_tot_cols; j++) {
-                        if (j < w_cols) {
-                            if (mode == RANDOM) {
-                                val = conv_float2fixed(
-                                        (randfloat() - 0.5) *
-                                        10);  // Question: does nan output
-                                              // take longer in simulation?
-                            } else {
-                                // Give each depth slice a different weight
-                                // so
-                                // we don't get all the same value in the
-                                // output.
-                                val = (d + 1) * 0.1;
-                            }
-                        } else {  // extra zero padding.
-                            val = 0;
-                        }
-                        // Use the subxind macros here instead of
-                        // multidimensional array indexing because the
-                        // dimensionality of the weights varies within this
-                        // single function.
-                        if (layers[l].type == FC) {
-                            if (transpose)
-                                weights[sub3ind(h, j, i, w_tot_cols, w_rows) +
-                                        w_offset] = val;
-                            else
-                                weights[sub3ind(h, i, j, w_rows, w_tot_cols) +
-                                        w_offset] = val;
-                        } else if (layers[l].type == BATCH_NORM &&
-                                   (i / (w_rows / 4) == 1) && val < 0) {
-                            // For batch norm layer, the weights' rows are
-                            // organized as {mean, var, gamma, beta}. var
-                            // should not have negative values.
-                            weights[sub4ind(d, h, i, j, w_height, w_rows,
-                                            w_tot_cols) +
-                                    w_offset] = -val;
-                        } else {
-                            weights[sub4ind(d, h, i, j, w_height, w_rows,
-                                            w_tot_cols) +
-                                    w_offset] = val;
-                        }
-                    }
-                }
-            }
+        switch (layers[l].type) {
+            case FC:
+                init_fc_weights(weights + w_offset, w_height, w_rows, w_cols,
+                                w_pad, mode, transpose);
+                break;
+            case CONV:
+                init_conv_weights(weights + w_offset, w_depth, w_height, w_rows,
+                                  w_cols, w_pad, mode, transpose);
+                break;
+            case BATCH_NORM:
+                init_bn_weights(weights + w_offset, w_height, w_rows, w_cols,
+                                w_pad, mode, transpose);
+                break;
+            default:
+                continue;
         }
         w_offset += w_rows * w_tot_cols * w_height * w_depth;
     }
