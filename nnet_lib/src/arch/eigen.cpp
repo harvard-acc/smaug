@@ -6,6 +6,7 @@
 #include "arch/interface.h"
 #include "core/eigen/activation_functions.h"
 #include "core/eigen/matrix_multiply.h"
+#include "core/eigen/batch_norm.h"
 #include "core/pooling.h"
 #include "core/convolution.h"
 #include "core/zeropad.h"
@@ -76,6 +77,20 @@ result_buf pooling_layer(float* activations,
     } else {
         assert(false && "Unsupported pooling layer type!");
     }
+    return result;
+}
+
+result_buf batch_norm_layer(float* activations,
+                            float* weights,
+                            layer_t* layers,
+                            int lnum,
+                            float* result,
+                            device_t* device) {
+    int input_size =
+            layers[lnum].inputs.rows *
+            (layers[lnum].inputs.cols + layers[lnum].inputs.align_pad) *
+            layers[lnum].inputs.height;
+    nnet_eigen::batch_norm(activations, weights, input_size, NUM_TEST_CASES, result);
     return result;
 }
 

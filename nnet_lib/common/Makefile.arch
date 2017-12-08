@@ -32,7 +32,8 @@ ARCH_SRCS = arch/common.c
 
 EIGEN_CORE_SRCS = core/eigen/activation_functions.cpp \
 									core/eigen/matrix_multiply.cpp \
-									core/eigen/pooling.cpp
+									core/eigen/pooling.cpp \
+									core/eigen/batch_norm.cpp
 
 NNET_FWD_MAIN = nnet_fwd.c
 CONFIG_H = config.h

@@ -69,6 +69,8 @@
 #error "SMIV does not support transposed weights!"
 #endif
 #define DATA_ALIGNMENT 8
+#elif ARCHITECTURE == EIGEN
+#define DATA_ALIGNMENT 0
 #else
 #define DATA_ALIGNMENT 0
 #endif
