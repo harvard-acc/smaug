@@ -80,7 +80,10 @@ class BaseTest(unittest.TestCase):
         (isinstance(ref, float) or isinstance(ref, int))):
       if ref == 0:
         return val == 0
-      return ((float(val)-ref)/float(ref)) * 100 < FP_ERR
+      diff_per = (float(val)-ref)/float(ref) * 100
+      if (diff_per < 0):
+          diff_per = -diff_per
+      return diff_per < FP_ERR
     elif isinstance(val, list) and isinstance(ref, list):
       is_equal = True
       for val_v, ref_v in zip(val, ref):
