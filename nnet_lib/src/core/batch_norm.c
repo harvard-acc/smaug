@@ -3,8 +3,6 @@
 
 #include "batch_norm.h"
 
-#define EPS 1e-5
-
 // Perform batch normalization on the data in @input.
 void batch_norm_fxp(float* inputs,
                     float* weights,
@@ -13,6 +11,7 @@ void batch_norm_fxp(float* inputs,
                     float* result) {
 
     int i, j;
+    // The weights are divided into four blocks.
     enum {
         MEAN,
         VARIANCE,
@@ -25,14 +24,18 @@ void batch_norm_fxp(float* inputs,
 
     PRINT_MSG_V("Batch normalization:\n");
 
-    bn0:
-    for (i = 0; i < input_size; i++) {
-        bn1:
-        for (j = 0; j < batch_size; j++) {
-            _result[j][i] = (_inputs[j][i] - _weights[MEAN][i]) /
-                                    sqrt(_weights[VARIANCE][i] + EPS) *
-                                    _weights[GAMMA][i] +
-                            _weights[BETA][i];
+    bn_batch:
+    for (i = 0; i < batch_size; i++) {
+        bn_input:
+        for (j = 0; j < input_size; j++) {
+            float mean = _weights[MEAN][j];
+            // This is precomputed to avoid having to run a sqrt and division
+            // in hardware.
+            float recip_sqrt_var = _weights[VARIANCE][j];
+            float gamma = _weights[GAMMA][j];
+            float beta = _weights[BETA][j];
+            _result[i][j] =
+                    ((_inputs[i][j] - mean) * recip_sqrt_var) * gamma + beta;
         }
     }
 }

@@ -98,7 +98,9 @@ void init_bn_weights(float* weights,
                 }
                 bool is_variance_block = (i / (w_rows / 4)) == 1;
                 if (is_variance_block) {
+                    // Precompute 1/sqrt(var + eps).
                     val = val < 0 ? -val : val;
+                    val = 1.0/(sqrt(val + kEpsilon));
                 }
 
                 weights[sub3ind(h, i, j, w_rows, w_tot_cols)] = val;
