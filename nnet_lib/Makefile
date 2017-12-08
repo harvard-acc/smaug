@@ -43,7 +43,7 @@ gem5-accel:
 	@$(MAKE) -f common/Makefile.gem5 --no-print-directory gem5-accel
 
 perftests:
-	@$(MAKE) -f common/Makefile.perftests --no-print-directory all
+	@$(MAKE) -f common/Makefile.perftests --no-print-directory
 
 run-perftest:
 	@$(MAKE) -f common/Makefile.perftests --no-print-directory run

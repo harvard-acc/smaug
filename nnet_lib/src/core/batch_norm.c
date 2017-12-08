@@ -39,4 +39,3 @@ void batch_norm_fxp(float* inputs,
         }
     }
 }
-

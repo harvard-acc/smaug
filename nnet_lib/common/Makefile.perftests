@@ -4,8 +4,8 @@ include common/Makefile.arch
 
 PERFTEST_DIR = $(SRC_DIR)/perftests
 TEST_SRCS = $(wildcard $(PERFTEST_DIR)/*.cpp)
-TESTS = test_eigen_sigmoid test_eigen_maxpooling test_eigen_gemm
-TESTS_TARGETS  = $(patsubst %, $(BUILD_DIR)/%, $(TESTS))
+TESTS = test_eigen_batch_norm test_eigen_sigmoid test_eigen_maxpooling test_eigen_gemm
+TESTS_TARGETS = $(patsubst %, $(BUILD_DIR)/%, $(TESTS))
 
 LIB_SRCS = $(CORE_SRCS) $(UTILITY_SRCS) $(ARCH_SRCS) arch/eigen.cpp \
 					 $(EIGEN_CORE_SRCS) $(EIGEN_ARCH_SRCS) \
@@ -15,8 +15,14 @@ LIB_FULL_PATH_SRCS = $(patsubst %, $(SRC_DIR)/%, $(LIB_SRCS))
 ALL_SRCS = $(LIB_FULL_PATH_SRCS) $(GEM5_FULL_PATH_SRCS)
 
 PERF_CFLAGS = -ffast-math -march=native -mavx2
-CPPFLAGS += -DDMA_MODE -DDMA_INTERFACE_V3
+CPPFLAGS += -DDMA_MODE -DDMA_INTERFACE_V3 -DEIGEN_NO_DEBUG
 CFLAGS += -O3 $(PERF_CFLAGS)
+
+ifeq ($(TEST),)
+TESTS_TARGETS = $(patsubst %, $(BUILD_DIR)/%, $(TESTS))
+else
+TESTS_TARGETS = $(BUILD_DIR)/test_$(TEST)
+endif
 
 all: $(TESTS_TARGETS)
 
@@ -41,6 +47,13 @@ run_test_eigen_gemm: $(BUILD_DIR)/test_eigen_gemm
 $(BUILD_DIR)/test_eigen_gemm: ARCH=EIGEN
 $(BUILD_DIR)/test_eigen_gemm: INCLUDES+=-I$(SRC_DIR)/eigen
 $(BUILD_DIR)/test_eigen_gemm: $(PERFTEST_DIR)/test_eigen_gemm.cpp $(ALL_SRCS)
+	$(CXX) $(CFLAGS) $(CPPFLAGS) -std=c++11 -DEIGEN_ARCH_IMPL $^ -o $@ $(LFLAGS)
+
+run_test_eigen_batch_norm: $(BUILD_DIR)/test_eigen_batch_norm
+	./$<
+$(BUILD_DIR)/test_eigen_batch_norm: ARCH=EIGEN
+$(BUILD_DIR)/test_eigen_batch_norm: INCLUDES+=-I$(SRC_DIR)/eigen
+$(BUILD_DIR)/test_eigen_batch_norm: $(PERFTEST_DIR)/test_eigen_batch_norm.cpp $(ALL_SRCS)
 	$(CXX) $(CFLAGS) $(CPPFLAGS) -std=c++11 -DEIGEN_ARCH_IMPL $^ -o $@ $(LFLAGS)
 
 clean-perftests:
