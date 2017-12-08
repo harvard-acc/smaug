@@ -19,8 +19,8 @@ void batch_norm_fxp(float* inputs,
         BETA
     };
     ARRAY_2D(float, _weights, weights, input_size);
-    ARRAY_2D(float, _inputs, inputs, batch_size);
-    ARRAY_2D(float, _result, result, batch_size);
+    ARRAY_2D(float, _inputs, inputs, input_size);
+    ARRAY_2D(float, _result, result, input_size);
 
     PRINT_MSG_V("Batch normalization:\n");
 
