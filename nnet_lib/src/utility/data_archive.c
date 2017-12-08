@@ -93,10 +93,6 @@ void read_all_from_file(const char* filename,
                         farray_t* weights,
                         farray_t* inputs,
                         iarray_t* labels) {
-    int input_rows = network->layers[0].inputs.rows;
-    int input_cols = network->layers[0].inputs.cols;
-    int input_height = network->layers[0].inputs.height;
-    int input_align_pad = network->layers[0].inputs.align_pad;
     if (is_txt_file(filename)) {
         printf("Reading data from text file %s...\n", filename);
         global_sec_header header = read_global_header_from_txt_file(filename);
@@ -119,6 +115,12 @@ void read_all_from_file(const char* filename,
 
         close_bin_data_file(&file);
     }
+#if DEBUG_LEVEL > 0
+    int input_rows = network->layers[0].inputs.rows;
+    int input_cols = network->layers[0].inputs.cols;
+    int input_height = network->layers[0].inputs.height;
+    int input_align_pad = network->layers[0].inputs.align_pad;
+#endif
     PRINT_MSG("Input activations:\n");
     PRINT_DEBUG4D(
             inputs->d, input_rows, input_cols + input_align_pad, input_height);
