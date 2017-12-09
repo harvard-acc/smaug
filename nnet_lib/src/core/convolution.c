@@ -76,6 +76,7 @@ void convolution2d_kernel_no_padding(float* a,
     const int k_width = curr_layer.weights.cols;
     const int k_height =  curr_layer.inputs.height;
     const int k_stride = curr_layer.field_stride;
+    const int k_pad = curr_layer.weights.align_pad;
     const int num_kerns = curr_layer.outputs.height;
 
     // Convolution borders.
@@ -87,7 +88,7 @@ void convolution2d_kernel_no_padding(float* a,
     float partial_sum, a_val, kern_val;
 
     ARRAY_4D(float, _a, a, k_height, a_height, a_width);
-    ARRAY_4D(float, _kernels, kernels, k_height, k_width, k_width);
+    ARRAY_4D(float, _kernels, kernels, k_height, k_width, k_width + k_pad);
     ARRAY_4D(float, _result, result, num_kerns, result_height, result_width);
 
 conv2d_input_rows:
