@@ -18,9 +18,66 @@ using RowMajorMap = Map<RowMajorMatrix>;
 using ColMajorMap = Map<ColMajorMatrix>;
 
 using RowVectorType = Matrix<float, 1, Dynamic, RowMajor>;
-using ColVectorType = Matrix<float, Dynamic, 1, RowMajor>;
+using ColVectorType = Matrix<float, Dynamic, 1, ColMajor>;
 using RowVectorMap = Map<RowVectorType>;
 using ColVectorMap = Map<ColVectorType>;
+
+namespace internal {
+
+// A x B[0:-1, :] + B[-1, :] = C.
+//
+// Args:
+//   A, C: An Eigen Map<Matrix>, which can be any StorageOrder.
+//   B: An Eigen Map<Matrix, ColMajor> NxM matrix, where the last row contains
+//     the biases.
+template <typename InputMapType>
+void gemm_bias_transpose_impl(InputMapType& inputs,
+                              ColMajorMap& weights,
+                              InputMapType& results) {
+    // For column major matrix, we need to construct the map with the entire
+    // matrix and then cut off the last row of biases before doing the
+    // multiply.
+    auto weights_block =
+            weights.topLeftCorner(weights.rows() - 1, weights.cols());
+    auto bias = weights.row(weights.rows() - 1);
+
+#if DEBUG_LEVEL == 2
+    std::cout << "weights matrix transpose:\n" << weights_block << std::endl;
+#endif
+
+    results.noalias() = (inputs * weights_block).rowwise() + bias;
+}
+
+// Vector-matrix multiply.
+//
+// Arguments:
+//   vector: row vector.
+//   matrix: column major matrix.
+void vector_matrix_multiply_bias_transpose(float* __restrict__ vector,
+                                           float* __restrict__ matrix,
+                                           int v_width,
+                                           int matrix_width,
+                                           float* __restrict__ result) {
+    RowVectorMap vector_map(vector, v_width);
+    ColMajorMap matrix_with_bias_map(matrix, v_width + 1, matrix_width);
+    RowVectorMap result_map(result, matrix_width);
+    gemm_bias_transpose_impl(vector_map, matrix_with_bias_map, result_map);
+}
+
+void matrix_matrix_multiply_bias_transpose(float* __restrict__ a,
+                                           float* __restrict__ b,
+                                           int a_height,
+                                           int b_height,
+                                           int b_width,
+                                           float* __restrict__ result) {
+    int a_width = b_height - 1;
+    RowMajorMap a_map(a, a_height, a_width);
+    ColMajorMap b_with_bias_map(b, b_height, b_width);
+    RowMajorMap result_map(result, a_height, b_width);
+    gemm_bias_transpose_impl(a_map, b_with_bias_map, result_map);
+}
+
+}  // namespace internal.
 
 // Multiply matrices a and b, assuming the last row of b are biases.
 //
@@ -50,6 +107,7 @@ void matrix_multiply_with_bias(float* __restrict__ a,
     result_map.rowwise() += bias;
 }
 
+
 // Multiply the matrices a and b, where b is stored columnwise. The last
 // logical row of b are still the biases.
 //
@@ -63,21 +121,13 @@ void matrix_multiply_with_bias_transpose(float* __restrict__ a,
                                          int b_height,
                                          int b_width,
                                          float* __restrict__ result) {
-    int a_width = b_height - 1;
-    RowMajorMap a_map(a, a_height, a_width);
-    // For column major matrix, we need to construct the map with the entire
-    // matrix and then cut off the last row of biases before doing the GEMM.
-    ColMajorMap b_with_bias_map(b, b_height, b_width);
-    auto b_block = b_with_bias_map.topLeftCorner(a_width, b_width);
-    auto bias = b_with_bias_map.row(b_height - 1);
-
-#if DEBUG_LEVEL == 2
-    std::cout << "B matrix transpose:\n" << b_block << std::endl;
-#endif
-
-    RowMajorMap result_map(result, a_height, b_width);
-    result_map = a_map * b_block;
-    result_map.rowwise() += bias;
+    if (a_height == 1) {
+        internal::vector_matrix_multiply_bias_transpose(
+                a, b, b_height - 1, b_width, result);
+    } else {
+        internal::matrix_matrix_multiply_bias_transpose(
+                a, b, a_height, b_height, b_width, result);
+    }
 }
 
 }  // namespace nnet_eigen
