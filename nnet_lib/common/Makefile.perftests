@@ -2,6 +2,7 @@
 
 include common/Makefile.arch
 
+DLEVEL = 0
 PERFTEST_DIR = $(SRC_DIR)/perftests
 TEST_SRCS = $(wildcard $(PERFTEST_DIR)/*.cpp)
 TESTS = test_eigen_batch_norm \
@@ -20,7 +21,7 @@ LIB_FULL_PATH_SRCS = $(patsubst %, $(SRC_DIR)/%, $(LIB_SRCS))
 ALL_SRCS = $(LIB_FULL_PATH_SRCS) $(GEM5_FULL_PATH_SRCS)
 
 PERF_CFLAGS = -ffast-math -march=native
-CPPFLAGS += -DDMA_MODE -DDMA_INTERFACE_V3 -DEIGEN_NO_DEBUG
+CPPFLAGS += -DDMA_MODE -DDMA_INTERFACE_V3 -DEIGEN_NO_DEBUG -DDEBUG_LEVEL=$(DLEVEL)
 CFLAGS += -O3 $(PERF_CFLAGS)
 
 ifeq ($(TEST),)

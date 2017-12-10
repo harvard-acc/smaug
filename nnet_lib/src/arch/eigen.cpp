@@ -36,15 +36,9 @@ result_buf inner_product_layer(float* activations,
                                int lnum,
                                float* result,
                                device_t* device) {
-#if TRANSPOSE_WEIGHTS == 1
-    nnet_eigen::matrix_multiply_with_bias_transpose(
-            activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows,
-            layers[lnum].weights.cols + layers[lnum].weights.align_pad, result);
-#else
     nnet_eigen::matrix_multiply_with_bias(
             activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows,
             layers[lnum].weights.cols + layers[lnum].weights.align_pad, result);
-#endif
     return result;
 }
 
