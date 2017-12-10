@@ -5,11 +5,10 @@
 #include "arch/common.h"
 #include "arch/interface.h"
 #include "core/eigen/activation_functions.h"
+#include "core/eigen/convolution.h"
 #include "core/eigen/matrix_multiply.h"
 #include "core/eigen/batch_norm.h"
 #include "core/pooling.h"
-#include "core/convolution.h"
-#include "core/zeropad.h"
 #include "utility/utility.h"
 #include "utility/profiling.h"
 #include "nnet_fwd.h"
@@ -56,11 +55,7 @@ result_buf convolution_layer(float* activations,
                              float* result,
                              device_t* device) {
     layer_t curr_layer = layers[lnum];
-    if (curr_layer.c_padding > 0) {
-        convolution2d_zeropad(activations, kernels, layers, lnum, result);
-        return activations;
-    }
-    convolution2d_no_padding(activations, kernels, curr_layer, result);
+    nnet_eigen::convolution3d(activations, kernels, layers + lnum, result);
     return result;
 }
 

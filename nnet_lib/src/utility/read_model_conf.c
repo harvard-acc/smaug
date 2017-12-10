@@ -245,15 +245,27 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
         layers[l].field_stride = cfg_getint(conv_params, "stride");
 
         layers[l].c_padding = cfg_getint(conv_params, "pad");
+#if ARCHITECTURE != EIGEN
         layers[l].inputs.rows += layers[l].c_padding * 2;
         layers[l].inputs.cols += layers[l].c_padding * 2;
-
         layers[l].outputs.rows =
                 (layers[l].inputs.rows - layers[l].weights.cols) /
                         layers[l].field_stride + 1;
         layers[l].outputs.cols =
                 (layers[l].inputs.cols - layers[l].weights.cols) /
                         layers[l].field_stride + 1;
+#else
+        layers[l].outputs.rows =
+                (layers[l].inputs.rows - layers[l].weights.cols +
+                 2 * layers[l].c_padding) /
+                        layers[l].field_stride + 1;
+        layers[l].outputs.cols =
+                (layers[l].inputs.cols - layers[l].weights.cols +
+                 2 * layers[l].c_padding) /
+                        layers[l].field_stride + 1;
+
+#endif
+
         // Number of kernels is the third dimension of the output.
         layers[l].outputs.height = cfg_getint(conv_params, "num_output");
 
