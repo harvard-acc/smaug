@@ -82,8 +82,8 @@ void convolution2d_kernel_no_padding(float* a,
     // Convolution borders.
     const int start_i = 0;
     const int start_j = 0;
-    const int end_i = curr_layer.outputs.cols;
-    const int end_j = result_height;
+    const int end_i = curr_layer.outputs.rows;
+    const int end_j = result_width;
 
     float partial_sum, a_val, kern_val;
 
