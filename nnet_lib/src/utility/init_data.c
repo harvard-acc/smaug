@@ -170,6 +170,7 @@ void init_data(float* data,
     // Generate random input data, size num_test_cases by num_units[0]
     // (input dimensionality)
     for (i = 0; i < num_test_cases; i++) {
+        int offset = 0;
         for (j = 0; j < input_height; j++) {
             for (k = 0; k < input_rows; k++) {
                 for (l = 0; l < input_cols; l++) {
@@ -177,11 +178,8 @@ void init_data(float* data,
                         _data[i][j][k][l] = conv_float2fixed(randfloat() - 0.5);
                     } else {
                         // Make each input image distinguishable.
-                        unsigned long addr =
-                                (unsigned long)(&_data[i][j][k][l]);
-                        addr -= (unsigned long)data;
-                        unsigned offset = addr / sizeof(float);
                         _data[i][j][k][l] = 1.0 * i + (float)offset / input_dim;
+                        offset++;
                     }
                 }
                 for (l = input_cols; l < input_cols + input_align_pad; l++) {

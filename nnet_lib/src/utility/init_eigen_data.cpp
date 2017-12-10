@@ -7,6 +7,7 @@
 
 #include "core/nnet_fwd_defs.h"
 #include "utility/init_data.h"
+#include "utility/eigen_utility.h"
 #include "utility/utility.h"
 
 #include "utility/init_eigen_data.h"
@@ -167,8 +168,9 @@ void init_data(float* data,
             }
         }
     }
-    PRINT_MSG("Input activations:\n");
-    PRINT_DEBUG4D(data, input_rows, input_cols, input_height);
+#if DEBUG_LEVEL >= 1
+    print_debug4d(data_map);
+#endif
 }
 
 void init_labels(int* labels, size_t label_size, data_init_mode mode) {
