@@ -13,7 +13,7 @@ TESTS = test_eigen_batch_norm \
 TESTS_TARGETS = $(patsubst %, $(BUILD_DIR)/%, $(TESTS))
 
 LIB_SRCS = $(CORE_SRCS) $(UTILITY_SRCS) $(ARCH_SRCS) arch/eigen.cpp \
-					 $(EIGEN_CORE_SRCS) $(EIGEN_ARCH_SRCS) \
+					 $(EIGEN_SRCS) $(EIGEN_ARCH_SRCS) \
 
 GEM5_FULL_PATH_SRCS = $(patsubst %, $(ALADDIN_HOME)/%, $(GEM5_DMA_SRC))
 LIB_FULL_PATH_SRCS = $(patsubst %, $(SRC_DIR)/%, $(LIB_SRCS))

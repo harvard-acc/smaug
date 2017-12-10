@@ -17,6 +17,10 @@
 #include "arch/interface.h"
 #include "arch/common.h"
 
+#if ARCHITECTURE == EIGEN
+#include "utility/init_eigen_data.h"
+#endif
+
 #ifdef DMA_MODE
 #include "gem5_harness.h"
 #endif
@@ -256,10 +260,17 @@ int main(int argc, char* argv[]) {
         read_all_from_file(
                 args.args[DATA_FILE], &network, &weights, &hid, &labels);
     } else {
+#if ARCHITECTURE == EIGEN
+        nnet_eigen::init_weights(
+                weights.d, network.layers, network.depth, args.data_mode);
+        nnet_eigen::init_data(hid.d, &network, NUM_TEST_CASES, args.data_mode);
+        nnet_eigen::init_labels(labels.d, NUM_TEST_CASES, args.data_mode);
+#else
         init_weights(weights.d, network.layers, network.depth, args.data_mode,
                      TRANSPOSE_WEIGHTS);
         init_data(hid.d, &network, NUM_TEST_CASES, args.data_mode);
         init_labels(labels.d, NUM_TEST_CASES, args.data_mode);
+#endif
     }
 
     if (args.save_params) {
