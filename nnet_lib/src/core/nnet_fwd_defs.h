@@ -123,18 +123,10 @@ typedef struct _layer_t {
   // Where are the class predictions stored, hid or hid_temp?
   int result_in_temp;
 
-  // Zeropadding for data alignment on input and output.
-  int input_data_align_pad;
-  int output_data_align_pad;
-
   input_pp input_preprocessing;
 
   io_req_t input_req;
   io_req_t output_req;
-  /*
-  int needs_input_dma_load;
-  int needs_output_dma_store;
-  */
 } layer_t;
 
 
