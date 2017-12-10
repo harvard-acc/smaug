@@ -4,7 +4,12 @@ include common/Makefile.arch
 
 PERFTEST_DIR = $(SRC_DIR)/perftests
 TEST_SRCS = $(wildcard $(PERFTEST_DIR)/*.cpp)
-TESTS = test_eigen_batch_norm test_eigen_sigmoid test_eigen_maxpooling test_eigen_matvecmul
+TESTS = test_eigen_batch_norm \
+				test_eigen_sigmoid \
+				test_eigen_maxpooling \
+				test_eigen_matvecmul \
+				test_eigen_convolution
+
 TESTS_TARGETS = $(patsubst %, $(BUILD_DIR)/%, $(TESTS))
 
 LIB_SRCS = $(CORE_SRCS) $(UTILITY_SRCS) $(ARCH_SRCS) arch/eigen.cpp \
@@ -55,6 +60,13 @@ run_test_eigen_batch_norm: $(BUILD_DIR)/test_eigen_batch_norm
 $(BUILD_DIR)/test_eigen_batch_norm: ARCH=EIGEN
 $(BUILD_DIR)/test_eigen_batch_norm: INCLUDES+=-I$(SRC_DIR)/eigen
 $(BUILD_DIR)/test_eigen_batch_norm: $(PERFTEST_DIR)/test_eigen_batch_norm.cpp $(ALL_SRCS)
+	$(CXX) $(CFLAGS) $(CPPFLAGS) -std=c++11 -DEIGEN_ARCH_IMPL $^ -o $@ $(LFLAGS)
+
+run_test_eigen_convolution: $(BUILD_DIR)/test_eigen_convolution
+	./$< eigen
+$(BUILD_DIR)/test_eigen_convolution: ARCH=EIGEN
+$(BUILD_DIR)/test_eigen_convolution: INCLUDES+=-I$(SRC_DIR)/eigen
+$(BUILD_DIR)/test_eigen_convolution: $(PERFTEST_DIR)/test_eigen_convolution.cpp $(ALL_SRCS)
 	$(CXX) $(CFLAGS) $(CPPFLAGS) -std=c++11 -DEIGEN_ARCH_IMPL $^ -o $@ $(LFLAGS)
 
 clean-perftests:
