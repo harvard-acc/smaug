@@ -24,6 +24,10 @@ const char AVG_POOL_TYPE[] = "AVG";
 const char BATCH_NORM_TYPE[] = "BATCH_NORM";
 const char NONE_TYPE[] = "NONE";
 const char RELU_TYPE[] = "RELU";
+const char LRELU_TYPE[] = "LRELU";
+const char ELU_TYPE[] = "ELU";
+const char SELU_TYPE[] = "SELU";
+const char TANH_TYPE[] = "TANH";
 const char SIGMOID_TYPE[] = "SIGMOID";
 const char OFFLOAD_DMA[] = "DMA";
 const char OFFLOAD_ACP[] = "ACP";
@@ -174,6 +178,8 @@ int validate_activation_func(cfg_t* cfg, cfg_opt_t* opt) {
     const char* value = cfg_opt_getnstr(opt, cfg_opt_size(opt) - 1);
     assert(value);
     if (strcmp(value, NONE_TYPE) != 0 && strcmp(value, RELU_TYPE) != 0 &&
+        strcmp(value, LRELU_TYPE) != 0 && strcmp(value, ELU_TYPE) != 0 &&
+        strcmp(value, SELU_TYPE) != 0 && strcmp(value, TANH_TYPE) != 0 &&
         strcmp(value, SIGMOID_TYPE) != 0) {
         cfg_error(cfg, "Invalid activation function '%s' for layer '%s'!",
                   value, cfg_title(cfg));
@@ -218,6 +224,14 @@ static void set_layer_type(layer_t* layers, cfg_t* layer_opts, int l) {
     const char* activation = cfg_getstr(layer_opts, "activation");
     if (strcmp(activation, RELU_TYPE) == 0) {
         layers[l].activation = RELU;
+    } else if (strcmp(activation, LRELU_TYPE) == 0) {
+        layers[l].activation = LRELU;
+    } else if (strcmp(activation, ELU_TYPE) == 0) {
+        layers[l].activation = ELU;
+    } else if (strcmp(activation, SELU_TYPE) == 0) {
+        layers[l].activation = SELU;
+    } else if (strcmp(activation, TANH_TYPE) == 0) {
+        layers[l].activation = TANH;
     } else if (strcmp(activation, SIGMOID_TYPE) == 0) {
         layers[l].activation = SIGMOID;
     } else if (strcmp(activation, NONE_TYPE) == 0) {
@@ -488,7 +502,9 @@ static void print_layer_config(layer_t* layers, int num_layers) {
         printf("    Input data padding: %d\n", layers[i].inputs.align_pad);
         printf("    Output data padding: %d\n", layers[i].outputs.align_pad);
         printf("    Activation: %s\n",
-               act == RELU ? "RELU" : act == SIGMOID ? "SIGMOID" : "NONE");
+               act == RELU ? "RELU" : act == SIGMOID ? "SIGMOID" :
+               act == LRELU ? "LRELU" : act == ELU ? "ELU" :
+               act == SELU ? "SELU" : act == TANH ? "TANH" : "NONE");
     }
 }
 

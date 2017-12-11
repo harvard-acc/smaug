@@ -27,6 +27,10 @@ typedef enum _activation_type {
     NO_ACTIVATION,
     RELU,
     RELU_THRESHOLD,
+    LRELU,
+    ELU,
+    SELU,
+    TANH,
     SIGMOID,
 } activation_type;
 

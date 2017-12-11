@@ -172,6 +172,12 @@ class BatchNormTests(BaseTest):
     correct_output = "mnist-minerva-bn.out"
     self.runAndValidate(model_file, correct_output)
 
+class ActivationFuncTests(BaseTest):
+  def test_activation_func(self):
+    model_file = "mnist/minerva_act_func.conf"
+    correct_output = "mnist-minerva-act-func.out"
+    self.runAndValidate(model_file, correct_output)
+
 def run_tests():
   suite = unittest.TestSuite()
   test_loader = unittest.TestLoader()

@@ -11,6 +11,14 @@ void activation_fun(float* activations,
                     float* sigmoid_table) {
     if (function == RELU) {
         relu(activations, size);
+    } else if (function == LRELU) {
+        lrelu(activations, size);
+    } else if (function == ELU) {
+        elu(activations, size);
+    } else if (function == SELU) {
+        selu(activations, size);
+    } else if (function == TANH) {
+        tanh_act(activations, size, sigmoid_table);
     } else if (function == SIGMOID) {
         sigmoid_inplace(activations, size, sigmoid_table);
     }
@@ -25,6 +33,65 @@ relu_loop: for (i = 0; i < num_units; i++) {
         if (a[i] < 0.0) {
             a[i] = 0.0;
         }
+    }
+}
+
+// The leaky rectified linear activation function
+// ** this function is in-place (modifies a) **
+ALWAYS_INLINE
+void lrelu(float* a, int num_units) {
+    int i;
+    static const float alpha = 0.1;
+lrelu_loop:
+    for (i = 0; i < num_units; i++) {
+        if (a[i] < 0.0) {
+            a[i] = alpha * a[i];
+        }
+    }
+}
+
+// The exponential linear activation function
+// ** this function is in-place (modifies a) **
+ALWAYS_INLINE
+void elu(float* a, int num_units) {
+    int i;
+    static const float alpha = 1.0;
+elu_loop:
+    for (i = 0; i < num_units; i++) {
+        if (a[i] < 0.0) {
+            a[i] = alpha * (exp(a[i]) - 1);
+        }
+    }
+}
+
+// The scaled exponential linear activation function
+// ** this function is in-place (modifies a) **
+ALWAYS_INLINE
+void selu(float* a, int num_units) {
+    int i;
+    static const float lamda = 1.0;
+
+    elu(a, num_units);
+selu_loop:
+    for (i = 0; i < num_units; i++) {
+        a[i] = lamda * a[i];
+    }
+}
+
+// The hyberbolic sine activation function
+// ** this function is in-place (modifies a) **
+ALWAYS_INLINE
+void tanh_act(float* a, int num_units, float* sigmoid_table) {
+    int i;
+tanh_act_loop1:
+    for (i = 0; i < num_units; i++) {
+        a[i] = 2 * a[i];
+    }
+    sigmoid_inplace(a, num_units, sigmoid_table);
+
+tanh_act_loop2:
+   for (i = 0; i < num_units; i++) {
+        a[i] = 2 * a[i] - 1;
     }
 }
 
@@ -86,22 +153,24 @@ void sigmoid_lookup(float* a, int num_units, float* sigmoid_table) {
 // the softmax function exponentiates each element and then normalizes each row
 // to sum to 1
 // ** this function is in-place (modifies a) **
-float* softmax(float* a, int num_test_cases, int num_classes) {
+void softmax(float* a,
+               int num_test_cases,
+               int num_classes,
+               float* sigmoid_table) {
     ARRAY_2D(float, _a, a, num_classes);
     int i, j;
-    float numerator, normaliz;
+    float normaliz;
+
+    sigmoid_inplace(a, num_test_cases * num_classes, sigmoid_table);
 softmax_outer: for (i = 0; i < num_test_cases; i++) {
         // compute the normalization factor
         normaliz = 0.0;
 softmax_inner0: for (j = 0; j < num_classes; j++) {
-            numerator = sigmoid(_a[i][j]);
-            // replace a[i,j] with exp(a[i,j])
-            _a[i][j] = numerator;
-            normaliz += numerator;
+            normaliz += _a[i][j];
         }
 softmax_inner1: for (j = 0; j < num_classes; j++) {
             _a[i][j] /= normaliz;
         }
     }
-    return a;
 }
+
