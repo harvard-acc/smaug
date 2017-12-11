@@ -140,9 +140,12 @@ typedef struct _network_t {
 } network_t;
 
 typedef struct _device_t {
-  io_req_t cpu_default_offload;
-  io_req_t cpu_pooling_offload;
-  io_req_t cpu_activation_func_offload;
+    io_req_t cpu_default_offload;
+    io_req_t cpu_pooling_offload;
+    io_req_t cpu_activation_func_offload;
+    // An implementation can pass any pointer containing architecture specific
+    // state that must be shared.
+    void* session;
 } device_t;
 
 // Wraps a dynamically allocated array (d for data) and its size (number of

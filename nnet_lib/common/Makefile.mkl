@@ -9,8 +9,7 @@ CFLAGS += -std=gnu++11
 CPPFLAGS += -I$(MKLDNNROOT)/include
 NATIVE_SIMD_CFLAGS = -march=native
 
-DYN_LFLAGS = -L$(MKLDNNROOT)/lib \
-						 -lmkldnn
+DYN_LFLAGS = -L$(MKLDNNROOT)/lib -lmkldnn
 
 STATIC_LFLAGS =
 STATIC_CPPFLAGS =
