@@ -147,7 +147,7 @@ size_t calc_layer_intermediate_memory(layer_t* layers, int lnum) {
         usage = layer.inputs.rows *
                 (layer.inputs.cols + layer.inputs.align_pad) *
                 layer.inputs.height;
-    } else if (layer.type == FC || layer.type == SOFTMAX) {
+    } else if (layer.type == FC) {
         usage = layer.outputs.rows *
                 (layer.outputs.cols + layer.outputs.align_pad);
         if (layer.input_preprocessing == FLATTEN) {

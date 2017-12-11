@@ -32,6 +32,7 @@ typedef enum _activation_type {
     SELU,
     TANH,
     SIGMOID,
+    SOFTMAX
 } activation_type;
 
 typedef enum _input_pp {
@@ -45,8 +46,6 @@ typedef enum _layer_type {
     CONV,
     // Pooling layer.
     POOLING,
-    // Softmax output.
-    SOFTMAX,
     // Fully connected layer.
     FC,
     // Batch normalization layer.
@@ -173,7 +172,6 @@ typedef struct _iarray_t {
 #define LAYER_TYPE_STR(arg) \
   (arg == CONV ? "CONV" : \
    arg == POOLING ? "POOLING" : \
-   arg == SOFTMAX ? "SOFTMAX" : \
    arg == FC ? "FC" : \
    arg == OUTPUT ? "OUTPUT" : \
    arg == INPUT ? "INPUT" : \

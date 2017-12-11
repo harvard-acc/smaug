@@ -21,6 +21,8 @@ void activation_fun(float* activations,
         tanh_act(activations, size, sigmoid_table);
     } else if (function == SIGMOID) {
         sigmoid_inplace(activations, size, sigmoid_table);
+    } else if (function == SOFTMAX) {
+        softmax(activations, NUM_TEST_CASES, NUM_CLASSES, sigmoid_table);
     }
 }
 

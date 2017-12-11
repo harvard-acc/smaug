@@ -29,6 +29,7 @@ const char ELU_TYPE[] = "ELU";
 const char SELU_TYPE[] = "SELU";
 const char TANH_TYPE[] = "TANH";
 const char SIGMOID_TYPE[] = "SIGMOID";
+const char SOFTMAX_TYPE[] = "SOFTMAX";
 const char OFFLOAD_DMA[] = "DMA";
 const char OFFLOAD_ACP[] = "ACP";
 const char OFFLOAD_CACHE[] = "CACHE";
@@ -180,7 +181,7 @@ int validate_activation_func(cfg_t* cfg, cfg_opt_t* opt) {
     if (strcmp(value, NONE_TYPE) != 0 && strcmp(value, RELU_TYPE) != 0 &&
         strcmp(value, LRELU_TYPE) != 0 && strcmp(value, ELU_TYPE) != 0 &&
         strcmp(value, SELU_TYPE) != 0 && strcmp(value, TANH_TYPE) != 0 &&
-        strcmp(value, SIGMOID_TYPE) != 0) {
+        strcmp(value, SIGMOID_TYPE) != 0 && strcmp(value, SOFTMAX_TYPE) != 0) {
         cfg_error(cfg, "Invalid activation function '%s' for layer '%s'!",
                   value, cfg_title(cfg));
         return -1;
@@ -234,6 +235,8 @@ static void set_layer_type(layer_t* layers, cfg_t* layer_opts, int l) {
         layers[l].activation = TANH;
     } else if (strcmp(activation, SIGMOID_TYPE) == 0) {
         layers[l].activation = SIGMOID;
+    } else if (strcmp(activation, SOFTMAX_TYPE) == 0) {
+        layers[l].activation = SOFTMAX;
     } else if (strcmp(activation, NONE_TYPE) == 0) {
         layers[l].activation = NO_ACTIVATION;
     } else {
@@ -334,19 +337,6 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
       layers[l].outputs.height = layers[l].inputs.height;
       assert(layers[l].weights.rows != -1);
       assert(layers[l].field_stride != -1);
-      return;
-    }
-
-    if (layers[l].type == SOFTMAX) {
-      layers[l].inputs.rows = layers[l - 1].outputs.rows;
-      layers[l].inputs.cols = layers[l - 1].outputs.cols;
-      layers[l].inputs.height = layers[l - 1].outputs.height;
-      layers[l].weights.rows = 0;
-      layers[l].weights.cols = 0;
-      layers[l].weights.height = 0;
-      layers[l].outputs.rows = layers[l].inputs.rows;
-      layers[l].outputs.cols = layers[l].inputs.cols;
-      layers[l].outputs.height = layers[l].inputs.height;
       return;
     }
 
@@ -492,8 +482,6 @@ static void print_layer_config(layer_t* layers, int num_layers) {
                    layers[i].inputs.cols, layers[i].inputs.height);
             printf("    Output size: %d x %d x %d\n", layers[i].outputs.rows,
                    layers[i].outputs.cols, layers[i].outputs.height);
-        } else if (type == SOFTMAX) {
-            printf("  Softmax\n");
         } else if (type == INPUT) {
             printf("  Input layer\n");
             printf("    Input size: %d x %d x %d\n", layers[i].inputs.rows,
@@ -504,7 +492,8 @@ static void print_layer_config(layer_t* layers, int num_layers) {
         printf("    Activation: %s\n",
                act == RELU ? "RELU" : act == SIGMOID ? "SIGMOID" :
                act == LRELU ? "LRELU" : act == ELU ? "ELU" :
-               act == SELU ? "SELU" : act == TANH ? "TANH" : "NONE");
+               act == SELU ? "SELU" : act == TANH ? "TANH" :
+               act == SOFTMAX ? "SOFTMAX" : "NONE");
     }
 }
 
