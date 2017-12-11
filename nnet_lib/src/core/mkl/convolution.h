@@ -2,7 +2,6 @@
 #define _MKL_CONVOLUTION_H_
 
 #include "arch/nnet_mkl.h"
-#include "utility/utility.h"
 
 namespace nnet_mkl {
 

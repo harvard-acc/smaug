@@ -48,7 +48,6 @@ void convolution3d(float* inputs,
     auto conv_padding = { curr_layer->c_padding, curr_layer->c_padding };
 
     // Create memory descriptors for the user data (using the actual data layout).
-    // Everything here must be heap allocated!
     auto user_input_md = mem_d(
             { conv_input_dims }, memory::data_type::f32, memory::format::nchw);
     auto user_weight_md = mem_d(
@@ -79,7 +78,7 @@ void convolution3d(float* inputs,
     auto conv_output_md = mem_d(
             { conv_output_dims }, memory::data_type::f32, memory::format::any);
 
-    // Create the convolution primitive.
+    // Create the convolution primitive descriptor.
     auto conv_desc = convolution_forward::desc(
             prop_kind::forward, algorithm::convolution_direct, conv_input_md,
             conv_weight_md, conv_bias_md, conv_output_md, conv_stride,
@@ -123,6 +122,9 @@ void convolution3d(float* inputs,
     }
 
     stream(stream::kind::eager).submit(network).wait();
+
+    // TODO: If the output format is not nchw, we need to convert it.
+    // Eventually we'll just stick with one data format as much as we can.
 
     delete[] biases;
 }
