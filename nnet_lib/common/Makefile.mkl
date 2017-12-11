@@ -1,0 +1,36 @@
+include common/Makefile.arch
+
+.PHONY: mkl
+
+MKL_BINARY = $(BUILD_DIR)/$(EXEC)-native
+
+CFLAGS += -std=gnu++11
+
+CPPFLAGS += -I$(MKLDNNROOT)/include
+NATIVE_SIMD_CFLAGS = -march=native
+
+DYN_LFLAGS = -L$(MKLDNNROOT)/lib \
+						 -lmkldnn
+
+STATIC_LFLAGS =
+STATIC_CPPFLAGS =
+
+MKL_BINARY = $(BUILD_DIR)/$(EXEC)-native
+# MKL_BINARY_FOR_GEM5 = $(BUILD_DIR)/nnet-mkl-gem5
+
+MKL_ARCH_SRC = arch/mkl.cpp
+MKL_FULL_PATH_SRCS = $(patsubst %, $(SRC_DIR)/%, $(MKL_SRCS) $(MKL_ARCH_SRC))
+NATIVE_FULL_PATH_SRCS += $(MKL_FULL_PATH_SRCS)
+
+mkl: $(MKL_BINARY)
+
+$(MKL_BINARY): LFLAGS += $(DYN_LFLAGS)
+$(MKL_BINARY): CFLAGS += $(DYN_CPPFLAGS) $(NATIVE_SIMD_CFLAGS)
+
+$(MKL_BINARY): $(NATIVE_FULL_PATH_SRCS)
+	@echo Building benchmark $(EXEC) with MKL backend for native host.
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LFLAGS)
+
+clean-mkl:
+	rm -f $(MKL_BINARY)

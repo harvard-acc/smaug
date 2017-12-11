@@ -39,7 +39,7 @@ EIGEN_SRCS = core/eigen/activation_functions.cpp \
 						 utility/eigen_utility.cpp
 
 NNET_FWD_MAIN = nnet_fwd.c
-EIGEN_NNET_FWD_MAIN = nnet_fwd.cpp
+CPP_NNET_FWD_MAIN = nnet_fwd.cpp
 CONFIG_H = config.h
 
 SRCS = $(CORE_SRCS) $(UTILITY_SRCS) $(ARCH_SRCS)
@@ -53,23 +53,20 @@ ifeq ($(ARCH), SMIV)
 EXEC = nnet-smiv
 export WORKLOAD=inner_product_layer_hw,inner_product_layer_acp_hw,convolution_layer_hw,activation_hw,reduction_hw,reduction_acp_hw,batch_norm_layer_hw
 SRCS += $(NNET_FWD_MAIN)
-else
-ifeq	($(ARCH), COMPOSABLE)
+else ifeq	($(ARCH), COMPOSABLE)
 EXEC = nnet-composable
 export WORKLOAD=inner_product_layer_hw,convolution_layer_hw,activation_hw,batch_norm_layer_hw
 SRCS += $(NNET_FWD_MAIN)
-else
-ifeq ($(ARCH), MONOLITHIC)
+else ifeq ($(ARCH), MONOLITHIC)
 EXEC = nnet-monolithic
 export WORKLOAD=nnet_fwd_hw
 SRCS += $(NNET_FWD_MAIN)
-else
-ifeq ($(ARCH), EIGEN)
+else ifeq ($(ARCH), EIGEN)
 EXEC = nnet-eigen
-SRCS += $(EIGEN_NNET_FWD_MAIN)
-endif
-endif
-endif
+SRCS += $(CPP_NNET_FWD_MAIN)
+else ifeq ($(ARCH), MKLDNN)
+EXEC = nnet-mkl
+SRCS += $(CPP_NNET_FWD_MAIN)
 endif
 
 INCLUDES += -I$(ALADDIN_HOME)/../../include -I$(ALADDIN_HOME) -I$(ALADDIN_HOME)/gem5 -I$(SRC_DIR)

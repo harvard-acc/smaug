@@ -87,6 +87,8 @@
 #define ARCH_STR "SMIV"
 #elif ARCHITECTURE == EIGEN
 #define ARCH_STR "EIGEN"
+#elif ARCHITECTURE == MKLDNN
+#define ARCH_STR "MKLDNN"
 #else
 #error "Unknown architecture!"
 #endif

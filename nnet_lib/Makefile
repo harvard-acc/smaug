@@ -33,6 +33,9 @@ eigen:
 eigen-gem5:
 	@$(MAKE) -f common/Makefile.eigen --no-print-directory eigen-gem5 ARCH=EIGEN
 
+mkl:
+	@$(MAKE) -f common/Makefile.mkl --no-print-directory mkl ARCH=MKLDNN
+
 dma-trace-binary:
 	@$(MAKE) -f common/Makefile.tracer --no-print-directory dma-trace-binary
 
