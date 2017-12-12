@@ -6,7 +6,7 @@ MKL_BINARY = $(BUILD_DIR)/$(EXEC)-native
 
 CFLAGS += -std=gnu++11
 
-CPPFLAGS += -I$(MKLDNNROOT)/include
+CPPFLAGS += -I$(MKLDNNROOT)/include -DTRANSPOSE_WEIGHTS=1
 NATIVE_SIMD_CFLAGS = -march=native
 
 DYN_LFLAGS = -L$(MKLDNNROOT)/lib -lmkldnn

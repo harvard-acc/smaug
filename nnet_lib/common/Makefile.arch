@@ -39,7 +39,8 @@ EIGEN_SRCS = core/eigen/activation_functions.cpp \
 						 utility/eigen_utility.cpp
 
 MKL_SRCS = core/mkl/convolution.cpp \
-					 core/mkl/matrix_multiply.cpp
+					 core/mkl/matrix_multiply.cpp \
+					 core/mkl/pooling.cpp
 
 NNET_FWD_MAIN = nnet_fwd.c
 CPP_NNET_FWD_MAIN = nnet_fwd.cpp

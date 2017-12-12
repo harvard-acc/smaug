@@ -6,6 +6,7 @@
 #include "utility/utility.h"
 #include "core/mkl/convolution.h"
 #include "core/mkl/matrix_multiply.h"
+#include "core/mkl/pooling.h"
 
 #include "nnet_fwd.h"
 
@@ -46,6 +47,7 @@ result_buf pooling_layer(float* activations,
                          int lnum,
                          float* result,
                          device_t* device) {
+    nnet_mkl::max_pooling_3d(activations, &layers[lnum], result, device);
     return result;
 }
 

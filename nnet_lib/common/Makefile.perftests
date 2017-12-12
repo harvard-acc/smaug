@@ -11,7 +11,8 @@ TESTS = test_eigen_batch_norm \
 				test_eigen_matvecmul \
 				test_eigen_convolution \
 				test_mkl_convolution \
-				test_mkl_matvecmul
+				test_mkl_matvecmul \
+				test_mkl_maxpooling
 
 TESTS_TARGETS = $(patsubst %, $(BUILD_DIR)/%, $(TESTS))
 
@@ -93,6 +94,12 @@ run_test_mkl_matvecmul: $(BUILD_DIR)/test_mkl_matvecmul
 	./$< mkl
 $(BUILD_DIR)/test_mkl_matvecmul: ARCH=MKLDNN
 $(BUILD_DIR)/test_mkl_matvecmul: $(PERFTEST_DIR)/test_mkl_matvecmul.cpp $(ALL_SRCS)
+	$(CXX) $(CFLAGS) $(CPPFLAGS) -DTRANSPOSE_WEIGHTS=1 $^ -o $@ $(LFLAGS)
+
+run_test_mkl_maxpooling: $(BUILD_DIR)/test_mkl_maxpooling
+	./$< mkl
+$(BUILD_DIR)/test_mkl_maxpooling: ARCH=MKLDNN
+$(BUILD_DIR)/test_mkl_maxpooling: $(PERFTEST_DIR)/test_mkl_maxpooling.cpp $(ALL_SRCS)
 	$(CXX) $(CFLAGS) $(CPPFLAGS) -DTRANSPOSE_WEIGHTS=1 $^ -o $@ $(LFLAGS)
 
 clean-perftests:
