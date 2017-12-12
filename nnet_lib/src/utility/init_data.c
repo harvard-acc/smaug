@@ -27,8 +27,12 @@ void init_fc_weights(float* weights,
                      bool transpose) {
     int w_tot_cols = w_cols + w_pad;
     float val = 0;
+    // Always store the biases after all the weights, regardless of whether
+    // weights are transposed or not.
+    int w_rows_minus_1 = w_rows - 1;
     for (int h = 0; h < w_height; h++) {
-        for (int i = 0; i < w_rows; i++) {
+        // First store the weights.
+        for (int i = 0; i < w_rows_minus_1; i++) {
             for (int j = 0; j < w_tot_cols; j++) {
                 if (j < w_cols) {
                     val = get_rand_weight(mode, 0);
@@ -36,10 +40,19 @@ void init_fc_weights(float* weights,
                     val = 0;
                 }
                 if (transpose)
-                    weights[sub3ind(h, j, i, w_tot_cols, w_rows)] = val;
+                    weights[sub3ind(h, j, i, w_tot_cols, w_rows_minus_1)] = val;
                 else
-                    weights[sub3ind(h, i, j, w_rows, w_tot_cols)] = val;
+                    weights[sub3ind(h, i, j, w_rows_minus_1, w_tot_cols)] = val;
             }
+        }
+        // Store the biases.
+        for (int j = 0; j < w_tot_cols; j++) {
+            if (j < w_cols) {
+                val = get_rand_weight(mode, 0);
+            } else {
+                val = 0;
+            }
+            weights[sub3ind(h, w_rows - 1, j, w_rows, w_tot_cols)] = val;
         }
     }
 }

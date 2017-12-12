@@ -107,12 +107,14 @@ void matrix_multiply_with_bias_and_copy(float* a,
 }
 
 // Multiply the matrices a and b, but assume that b has been transposed (col
-// major). The last logical row of b are still the biases.
+// major).
+//
+// The biases are stored after all elements in b.
 //
 // Args:
 //   a_height = height of the A matrix.
 //   b_height = height of the TRANSPOSED B matrix.
-//   b_width = width of the TRANSPOSED B matrix.
+//   b_width = width of the TRANSPOSED B matrix + 1.
 void matrix_multiply_with_bias_transpose(float* __restrict__ a,
                                          float* __restrict__ b,
                                          int a_height,
@@ -125,7 +127,9 @@ void matrix_multiply_with_bias_transpose(float* __restrict__ a,
     float partial_sum;
     float value;
 
-    int a_width = b_width - 1;
+    b_width--;  // b_width originally accounted for the biases, but the biases
+                // are no longer part of the main array.
+    int a_width = b_width;
 
     ARRAY_2D(float, _a, a, a_width);
     ARRAY_2D(float, _b, b, b_width);
@@ -139,7 +143,9 @@ matmulbt0:
     matmulbt1:
         for (j = 0; j < b_height; j++) {
             // Preload the bias.
-            partial_sum = conv_float2fixed(_b[j][a_width]);
+            // This indexing trick will let us safely access "beyond" the b
+            // matrix to get to the biases.
+            partial_sum = conv_float2fixed(_b[b_height][j]);
         matmulbt2:
             for (k = 0; k < a_width; k++) {
                 value = conv_float2fixed(_a[i][k]) *
