@@ -3,31 +3,36 @@ include common/Makefile.arch
 .PHONY: mkl
 
 MKL_BINARY = $(BUILD_DIR)/$(EXEC)-native
+MKL_BINARY_FOR_GEM5 = $(BUILD_DIR)/$(EXEC)-gem5
 
 CFLAGS += -std=gnu++11
 
 CPPFLAGS += -I$(MKLDNNROOT)/include -DTRANSPOSE_WEIGHTS=1
 NATIVE_SIMD_CFLAGS = -march=native
+GEM5_SIMD_CFLAGS = -msse2
 
-DYN_LFLAGS = -L$(MKLDNNROOT)/lib -lmkldnn
-
-STATIC_LFLAGS =
-STATIC_CPPFLAGS =
+LFLAGS += -L$(MKLDNNROOT)/lib -lmkldnn
 
 MKL_BINARY = $(BUILD_DIR)/$(EXEC)-native
-# MKL_BINARY_FOR_GEM5 = $(BUILD_DIR)/nnet-mkl-gem5
+MKL_BINARY_FOR_GEM5 = $(BUILD_DIR)/nnet-mkl-gem5
 
 MKL_ARCH_SRC = arch/mkl.cpp
 MKL_FULL_PATH_SRCS = $(patsubst %, $(SRC_DIR)/%, $(MKL_SRCS) $(MKL_ARCH_SRC))
 NATIVE_FULL_PATH_SRCS += $(MKL_FULL_PATH_SRCS)
 
 mkl: $(MKL_BINARY)
+mkl-gem5: $(MKL_BINARY_FOR_GEM5)
 
-$(MKL_BINARY): LFLAGS += $(DYN_LFLAGS)
-$(MKL_BINARY): CFLAGS += $(DYN_CPPFLAGS) $(NATIVE_SIMD_CFLAGS)
+$(MKL_BINARY): CFLAGS += $(NATIVE_SIMD_CFLAGS)
+$(MKL_BINARY_FOR_GEM5): CFLAGS += $(GEM5_SIMD_CFLAGS)
 
 $(MKL_BINARY): $(NATIVE_FULL_PATH_SRCS)
 	@echo Building benchmark $(EXEC) with MKL backend for native host.
+	@mkdir -p $(BUILD_DIR)
+	$(CXX) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LFLAGS)
+
+$(MKL_BINARY_FOR_GEM5): $(NATIVE_FULL_PATH_SRCS)
+	@echo Building benchmark $(EXEC) with MKL backend for gem5.
 	@mkdir -p $(BUILD_DIR)
 	$(CXX) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LFLAGS)
 
