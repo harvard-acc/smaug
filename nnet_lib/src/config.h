@@ -71,6 +71,11 @@
 #define DATA_ALIGNMENT 8
 #elif ARCHITECTURE == EIGEN
 #define DATA_ALIGNMENT 0
+#elif ARCHITECTURE == MKLDNN
+#define DATA_ALIGNMENT 0
+#if TRANSPOSE_WEIGHTS == 0
+#error "MKL-DNN does not support nontransposed weights!"
+#endif
 #else
 #define DATA_ALIGNMENT 0
 #endif

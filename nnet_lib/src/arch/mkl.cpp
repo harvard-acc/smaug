@@ -5,6 +5,7 @@
 #include "arch/nnet_mkl.h"
 #include "utility/utility.h"
 #include "core/mkl/convolution.h"
+#include "core/mkl/matrix_multiply.h"
 
 #include "nnet_fwd.h"
 
@@ -18,6 +19,12 @@ result_buf inner_product_layer(float* activations,
                                int lnum,
                                float* result,
                                device_t* device) {
+    float* curr_layer_weights =
+            weights + get_weights_loc_for_layer(layers, lnum);
+    PRINT_DEBUG(weights, layers[lnum].weights.rows, layers[lnum].weights.cols,
+                layers[lnum].weights.cols);
+    nnet_mkl::matrix_multiply_with_bias(
+            activations, curr_layer_weights, &layers[lnum], result, device);
     return result;
 }
 
