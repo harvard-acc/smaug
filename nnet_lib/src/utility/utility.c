@@ -52,9 +52,9 @@ size_t get_weights_loc_for_layer(layer_t* layers, int layer) {
     return offset;
 }
 
-#ifdef DMA_MODE
-
 #if defined(DMA_INTERFACE_V2)
+
+#ifdef DMA_MODE
 
 void grab_weights_dma(float* weights, int layer, layer_t* layers) {
     size_t offset = get_weights_loc_for_layer(layers, layer);
@@ -64,18 +64,6 @@ void grab_weights_dma(float* weights, int layer, layer_t* layers) {
 #endif
     if (size > 0)
         dmaLoad(weights, offset*sizeof(float), 0, size);
-}
-
-int get_input_activations_size(layer_t* layers, int l) {
-    int size = layers[l].inputs.rows * layers[l].inputs.height *
-               (layers[l].inputs.cols + layers[l].inputs.align_pad);
-    return size * NUM_TEST_CASES;
-}
-
-int get_output_activations_size(layer_t* layers, int l) {
-    return (layers[l].outputs.rows) *
-           (layers[l].outputs.height * NUM_TEST_CASES) *
-           (layers[l].outputs.cols + layers[l].outputs.align_pad);
 }
 
 // Fetch the input activations from DRAM.
@@ -98,7 +86,23 @@ size_t store_output_activations_dma(float* activations, int layer, layer_t* laye
     return activations_size;
 }
 
+#endif
+
+int get_input_activations_size(layer_t* layers, int l) {
+    int size = layers[l].inputs.rows * layers[l].inputs.height *
+               (layers[l].inputs.cols + layers[l].inputs.align_pad);
+    return size * NUM_TEST_CASES;
+}
+
+int get_output_activations_size(layer_t* layers, int l) {
+    return (layers[l].outputs.rows) *
+           (layers[l].outputs.height * NUM_TEST_CASES) *
+           (layers[l].outputs.cols + layers[l].outputs.align_pad);
+}
+
 #elif defined(DMA_INTERFACE_V3)
+
+#ifdef DMA_MODE
 
 void grab_weights_dma(float* host_weights,
                       float* accel_weights,
@@ -112,18 +116,6 @@ void grab_weights_dma(float* host_weights,
     if (size > 0)
         dmaLoad(accel_weights, &host_weights[offset], size);
 }
-
-int get_input_activations_size(layer_t* layer) {
-    int size = layer->inputs.rows * layer->inputs.height *
-               (layer->inputs.cols + layer->inputs.align_pad);
-    return size * NUM_TEST_CASES;
-}
-
-int get_output_activations_size(layer_t* layer) {
-    return (layer->outputs.rows) * (layer->outputs.height * NUM_TEST_CASES) *
-           (layer->outputs.cols + layer->outputs.align_pad);
-}
-
 
 size_t grab_input_activations_dma(float* host_activations,
                                   float* accel_activations,
@@ -150,6 +142,17 @@ size_t store_output_activations_dma(float* host_activations,
 }
 
 #endif
+
+int get_input_activations_size(layer_t* layer) {
+    int size = layer->inputs.rows * layer->inputs.height *
+               (layer->inputs.cols + layer->inputs.align_pad);
+    return size * NUM_TEST_CASES;
+}
+
+int get_output_activations_size(layer_t* layer) {
+    return (layer->outputs.rows) * (layer->outputs.height * NUM_TEST_CASES) *
+           (layer->outputs.cols + layer->outputs.align_pad);
+}
 
 #endif
 
