@@ -3,10 +3,11 @@
 #include "arch/common.h"
 #include "arch/interface.h"
 #include "arch/nnet_mkl.h"
-#include "utility/utility.h"
+#include "core/mkl/activation_functions.h"
 #include "core/mkl/convolution.h"
 #include "core/mkl/matrix_multiply.h"
 #include "core/mkl/pooling.h"
+#include "utility/utility.h"
 
 #include "nnet_fwd.h"
 
@@ -60,8 +61,15 @@ result_buf batch_norm_layer(float* activations,
     return result;
 }
 
-result_buf activation_sublayer(float* activations, layer_t* layers, int lnum) {
-    return activations;
+result_buf activation_sublayer(float* activations,
+                               layer_t* layers,
+                               int lnum,
+                               float* result,
+                               device_t* device) {
+    int size = get_output_activations_size(&layers[lnum]);
+    nnet_mkl::activation_fun(
+            activations, size, layers[lnum].activation, result, device);
+    return result;
 }
 
 result_buf run_layer(float* activations,
@@ -78,9 +86,10 @@ result_buf run_layer(float* activations,
         PRINT_MSG("\nactivation function\n");
         // Pass through activation function
         if (result_loc == activations) {
-            activation_sublayer(activations, layers, layer_num);
+            activation_sublayer(activations, layers, layer_num, result, device);
         } else {
-            activation_sublayer(result, layers, layer_num);
+            activation_sublayer(result, layers, layer_num, activations, device);
+            result_loc = activations;
         }
 
         PRINT_DEBUG4D(result_loc, curr_layer.outputs.rows,
