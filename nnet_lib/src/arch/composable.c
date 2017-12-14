@@ -132,11 +132,9 @@ void batch_norm_layer_hw(float* activations,
                           int lnum,
                           float* result) {
     layer_t curr_layer = layers[lnum];
-    int input_size = curr_layer.inputs.rows * curr_layer.inputs.cols *
-                     curr_layer.inputs.height;
     grab_weights_dma(weights, weights, lnum, layers);
     grab_input_activations_dma(activations, activations, &layers[lnum]);
-    batch_norm_fxp(activations, weights, input_size, NUM_TEST_CASES, result);
+    batch_norm_fxp(activations, weights, &layers[lnum], NUM_TEST_CASES, result);
     store_output_activations_dma(result, result, &layers[lnum]);
 }
 

@@ -601,10 +601,6 @@ void batch_norm_layer_hw(float* host_activations,
                          float* spad1,
                          layer_t* all_layers,
                          int lnum) {
-    layer_t curr_layer = all_layers[lnum];
-    int input_size = curr_layer.inputs.rows * curr_layer.inputs.cols *
-                     curr_layer.inputs.height;
-
     // DMA in the weights (to UMEM)
     setReadyBits(umem, UMEM_SIZE, 0);
     dmaLoad(umem, host_weights, WEIGHT_BYTES(all_layers, lnum));
@@ -615,7 +611,7 @@ void batch_norm_layer_hw(float* host_activations,
     }
 
     // The main kernel
-    batch_norm_fxp(spad0, umem, input_size, NUM_TEST_CASES, spad1);
+    batch_norm_fxp(spad0, umem, &all_layers[lnum], NUM_TEST_CASES, spad1);
 
     // DMA out the result (from SPAD1)
     store_output_activations_dma(host_result, spad1, &all_layers[lnum]);

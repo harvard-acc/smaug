@@ -79,10 +79,7 @@ result_buf batch_norm_layer(float* activations,
                             int lnum,
                             float* result,
                             device_t* device) {
-    int input_size = layers[lnum].inputs.rows *
-                     layers[lnum].inputs.cols *
-                     layers[lnum].inputs.height;
-    batch_norm_fxp(activations, weights, input_size, NUM_TEST_CASES, result);
+    batch_norm_fxp(activations, weights, &layers[lnum], NUM_TEST_CASES, result);
     return result;
 }
 

@@ -345,9 +345,24 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
       layers[l].inputs.cols = layers[l - 1].outputs.cols;
       layers[l].inputs.height = layers[l - 1].outputs.height;
       // Rows are organized as {mean, var, gamma, beta}.
-      layers[l].weights.rows = layers[l].inputs.rows * 4;
-      layers[l].weights.cols = layers[l].inputs.cols;
-      layers[l].weights.height = layers[l].inputs.height;
+      layer_type prev_layer_type = layers[l - 1].type;
+      switch (prev_layer_type) {
+          case CONV:
+          case INPUT:
+          case POOLING:
+              layers[l].weights.rows = 4;
+              layers[l].weights.cols = layers[l].inputs.height;
+              layers[l].weights.height = 1;
+              break;
+          case FC:
+              layers[l].weights.rows = layers[l].inputs.rows * 4;
+              layers[l].weights.cols = layers[l].inputs.cols;
+              layers[l].weights.height = layers[l].inputs.height;
+              break;
+          default:
+              cfg_error(layer_opts, "Invalid location for batch norm layer.");
+              break;
+      }
       layers[l].outputs.rows = layers[l].inputs.rows;
       layers[l].outputs.cols = layers[l].inputs.cols;
       layers[l].outputs.height = layers[l].inputs.height;
@@ -480,6 +495,8 @@ static void print_layer_config(layer_t* layers, int num_layers) {
             printf("  Batch normalization\n");
             printf("    Input size: %d x %d x %d\n", layers[i].inputs.rows,
                    layers[i].inputs.cols, layers[i].inputs.height);
+            printf("    Weight size: %d x %d x %d\n", layers[i].weights.rows,
+                   layers[i].weights.cols, layers[i].weights.height);
             printf("    Output size: %d x %d x %d\n", layers[i].outputs.rows,
                    layers[i].outputs.cols, layers[i].outputs.height);
         } else if (type == INPUT) {
@@ -488,6 +505,7 @@ static void print_layer_config(layer_t* layers, int num_layers) {
                    layers[i].inputs.cols, layers[i].inputs.height);
         }
         printf("    Input data padding: %d\n", layers[i].inputs.align_pad);
+        printf("    Weight data padding: %d\n", layers[i].weights.align_pad);
         printf("    Output data padding: %d\n", layers[i].outputs.align_pad);
         printf("    Activation: %s\n",
                act == RELU ? "RELU" : act == SIGMOID ? "SIGMOID" :
