@@ -5,10 +5,10 @@
 #include "arch/common.h"
 #include "arch/interface.h"
 #include "core/eigen/activation_functions.h"
+#include "core/eigen/batch_norm.h"
 #include "core/eigen/convolution.h"
 #include "core/eigen/matrix_multiply.h"
-#include "core/eigen/batch_norm.h"
-#include "core/pooling.h"
+#include "core/eigen/pooling.h"
 #include "utility/utility.h"
 #include "utility/profiling.h"
 #include "nnet_fwd.h"
@@ -60,9 +60,7 @@ result_buf pooling_layer(float* activations,
                          device_t* device) {
     layer_t curr_layer = layers[lnum];
     if (curr_layer.pool == MAX) {
-        // The Eigen implementation is actually slower than this simple one, so
-        // use this simpler one instead.
-        max_pooling_image3d(activations, 0, result, curr_layer);
+        nnet_eigen::max_pooling(activations, result, curr_layer);
     } else {
         assert(false && "Unsupported pooling layer type!");
     }
