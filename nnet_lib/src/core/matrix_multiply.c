@@ -133,7 +133,7 @@ void matrix_multiply_with_bias_transpose(float* __restrict__ a,
 
     ARRAY_2D(float, _a, a, a_width);
     ARRAY_2D(float, _b, b, b_width);
-    ARRAY_2D(float, _result, result, b_width);
+    ARRAY_2D(float, _result, result, b_height);  // The width of the untransposed B.
 
     PRINT_MSG_V("B matrix transpose:\n");
     PRINT_DEBUG_V(b, b_height, b_width, b_width);

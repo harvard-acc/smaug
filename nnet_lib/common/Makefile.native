@@ -8,7 +8,7 @@ endif
 ifeq ($(ARCH), MONOLITHIC)
 NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/monolithic.c
 COMP = $(CC)
-CFLAGS += -std=gnu99
+CFLAGS += -std=gnu99 -DTRANSPOSE_WEIGHTS=1
 else ifeq ($(ARCH), COMPOSABLE)
 NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/composable.c
 COMP = $(CC)
