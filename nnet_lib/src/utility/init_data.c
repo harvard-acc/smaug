@@ -90,7 +90,7 @@ void init_bn_weights(float* weights,
                      int w_cols,
                      int w_pad,
                      data_init_mode mode,
-                     bool transpose) {
+                     bool precompute_variance) {
     static const float kEpsilon = 1e-5;
 
     int w_tot_cols = w_cols + w_pad;
@@ -111,9 +111,13 @@ void init_bn_weights(float* weights,
                 }
                 bool is_variance_block = (i / (w_rows / 4)) == 1;
                 if (is_variance_block) {
-                    // Precompute 1/sqrt(var + eps).
+                    // Variance cannot be negative.
                     val = val < 0 ? -val : val;
-                    val = 1.0/(sqrt(val + kEpsilon));
+                    if (precompute_variance) {
+                        // Precompute 1/sqrt(var + eps) if ARCH is not MKLDNN
+                        // (in MKLDNN, we can't do this trick yet).
+                        val = 1.0 / (sqrt(val + kEpsilon));
+                    }
                 }
 
                 weights[sub3ind(h, i, j, w_rows, w_tot_cols)] = val;
@@ -149,7 +153,7 @@ void init_weights(float* weights,
                 break;
             case BATCH_NORM:
                 init_bn_weights(weights + w_offset, w_height, w_rows, w_cols,
-                                w_pad, mode, transpose);
+                                w_pad, mode, PRECOMPUTE_BN_VARIANCE);
                 break;
             default:
                 continue;

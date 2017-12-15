@@ -4,6 +4,7 @@
 #include "arch/interface.h"
 #include "arch/nnet_mkl.h"
 #include "core/mkl/activation_functions.h"
+#include "core/mkl/batch_norm.h"
 #include "core/mkl/convolution.h"
 #include "core/mkl/matrix_multiply.h"
 #include "core/mkl/pooling.h"
@@ -58,6 +59,10 @@ result_buf batch_norm_layer(float* activations,
                             int lnum,
                             float* result,
                             device_t* device) {
+    float* curr_layer_weights =
+            weights + get_weights_loc_for_layer(layers, lnum);
+    nnet_mkl::batch_norm(activations, curr_layer_weights, &layers[lnum],
+                         NUM_TEST_CASES, result, device);
     return result;
 }
 

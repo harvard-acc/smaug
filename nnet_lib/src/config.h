@@ -69,15 +69,23 @@
 #error "SMIV does not support transposed weights!"
 #endif
 #define DATA_ALIGNMENT 8
+#define PRECOMPUTE_BN_VARIANCE 1
+
 #elif ARCHITECTURE == EIGEN
 #define DATA_ALIGNMENT 0
+#define PRECOMPUTE_BN_VARIANCE 1
+
 #elif ARCHITECTURE == MKLDNN
 #define DATA_ALIGNMENT 0
+#define PRECOMPUTE_BN_VARIANCE 0
 #if TRANSPOSE_WEIGHTS == 0
 #error "MKL-DNN does not support nontransposed weights!"
 #endif
+
 #else
 #define DATA_ALIGNMENT 0
+#define PRECOMPUTE_BN_VARIANCE 1
+
 #endif
 
 /////////////////////////////////////////////////

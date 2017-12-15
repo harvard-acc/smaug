@@ -29,7 +29,7 @@ void init_bn_weights(float* weights,
                      int w_cols,
                      int w_pad,
                      data_init_mode mode,
-                     bool transpose);
+                     bool precompute_variance);
 
 void init_weights(float* weights,
                   layer_t* layers,

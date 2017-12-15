@@ -38,6 +38,7 @@ EIGEN_SRCS = core/eigen/activation_functions.cpp \
 						 utility/init_eigen_data.cpp
 
 MKL_SRCS = core/mkl/convolution.cpp \
+					 core/mkl/batch_norm.cpp \
 					 core/mkl/matrix_multiply.cpp \
 					 core/mkl/pooling.cpp \
 					 core/mkl/activation_functions.cpp

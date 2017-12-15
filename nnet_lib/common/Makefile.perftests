@@ -13,7 +13,8 @@ TESTS = test_eigen_batch_norm \
 				test_mkl_convolution \
 				test_mkl_matvecmul \
 				test_mkl_maxpooling \
-				test_mkl_sigmoid
+				test_mkl_sigmoid \
+				test_mkl_batch_norm
 
 TESTS_TARGETS = $(patsubst %, $(BUILD_DIR)/%, $(TESTS))
 
@@ -107,6 +108,12 @@ run_test_mkl_sigmoid: $(BUILD_DIR)/test_mkl_sigmoid
 	./$< mkl
 $(BUILD_DIR)/test_mkl_sigmoid: ARCH=MKLDNN
 $(BUILD_DIR)/test_mkl_sigmoid: $(PERFTEST_DIR)/test_mkl_sigmoid.cpp $(ALL_SRCS)
+	$(CXX) $(CFLAGS) $(CPPFLAGS) -DTRANSPOSE_WEIGHTS=1 $^ -o $@ $(LFLAGS)
+
+run_test_mkl_batch_norm: $(BUILD_DIR)/test_mkl_batch_norm
+	./$< mkl
+$(BUILD_DIR)/test_mkl_batch_norm: ARCH=MKLDNN
+$(BUILD_DIR)/test_mkl_batch_norm: $(PERFTEST_DIR)/test_mkl_batch_norm.cpp $(ALL_SRCS)
 	$(CXX) $(CFLAGS) $(CPPFLAGS) -DTRANSPOSE_WEIGHTS=1 $^ -o $@ $(LFLAGS)
 
 clean-perftests:
