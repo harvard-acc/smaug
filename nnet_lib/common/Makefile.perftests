@@ -2,119 +2,15 @@
 
 include common/Makefile.arch
 
-DLEVEL = 0
-PERFTEST_DIR = $(SRC_DIR)/perftests
-TEST_SRCS = $(wildcard $(PERFTEST_DIR)/*.cpp)
-TESTS = test_eigen_batch_norm \
-				test_eigen_sigmoid \
-				test_eigen_maxpooling \
-				test_eigen_matvecmul \
-				test_eigen_convolution \
-				test_mkl_convolution \
-				test_mkl_matvecmul \
-				test_mkl_maxpooling \
-				test_mkl_sigmoid \
-				test_mkl_batch_norm
+TEST_TARGET = test_$(TEST)
+all: $(TEST_TARGET)
 
-TESTS_TARGETS = $(patsubst %, $(BUILD_DIR)/%, $(TESTS))
+test_eigen_%:
+	@make -f common/Makefile.perftests.eigen --no-print-directory $@
 
-LIB_SRCS = $(CORE_SRCS) $(UTILITY_SRCS) $(ARCH_SRCS)
-EIGEN_LIB_SRCS = arch/eigen.cpp $(EIGEN_SRCS)
-MKL_LIB_SRCS = arch/mkl.cpp $(MKL_SRCS)
-
-GEM5_FULL_PATH_SRCS = $(patsubst %, $(ALADDIN_HOME)/%, $(GEM5_DMA_SRC))
-LIB_FULL_PATH_SRCS = $(patsubst %, $(SRC_DIR)/%, $(LIB_SRCS))
-ALL_SRCS = $(LIB_FULL_PATH_SRCS) $(GEM5_FULL_PATH_SRCS)
-
-PERF_CFLAGS = -ffast-math -march=native
-CPPFLAGS += -DDMA_MODE -DDMA_INTERFACE_V3 -DDEBUG_LEVEL=$(DLEVEL)
-CFLAGS += -std=c++11 -O3 $(PERF_CFLAGS)
-
-EIGEN_CPPFLAGS += -DEIGEN_NO_DEBUG -DEIGEN_ARCH_IMPL
-MKL_CPPFLAGS +=
-MKL_LFLAGS = -L$(MKLDNNROOT)/lib -lmkldnn
-
-ifeq ($(TEST),)
-TESTS_TARGETS = $(patsubst %, $(BUILD_DIR)/%, $(TESTS))
-else
-TESTS_TARGETS = $(BUILD_DIR)/test_$(TEST)
-endif
-
-ifeq ($(ARCH), EIGEN)
-LIB_SRCS += $(EIGEN_LIB_SRCS)
-INCLUDES += -I$(SRC_DIR)/eigen
-CPPFLAGS += $(EIGEN_CPPFLAGS)
-else
-LIB_SRCS += $(MKL_LIB_SRCS)
-INCLUDES += -I$(MKLDNNROOT)/include
-CPPFLAGS += $(MKL_CPPFLAGS)
-LFLAGS += $(MKL_LFLAGS)
-endif
-
-all: $(TESTS_TARGETS)
-
-run: run_$(RUN_TEST)
-
-run_test_eigen_sigmoid: $(BUILD_DIR)/test_eigen_sigmoid
-	perf stat -e cycles ./$< manual
-$(BUILD_DIR)/test_eigen_sigmoid: ARCH=EIGEN
-$(BUILD_DIR)/test_eigen_sigmoid: $(PERFTEST_DIR)/test_eigen_sigmoid.cpp $(ALL_SRCS)
-	$(CXX) $(CFLAGS) $(CPPFLAGS) $^ -o $@ $(LFLAGS)
-
-run_test_eigen_maxpooling: $(BUILD_DIR)/test_eigen_maxpooling
-	perf stat -e cycles ./$< rowmajor
-$(BUILD_DIR)/test_eigen_maxpooling: ARCH=EIGEN
-$(BUILD_DIR)/test_eigen_maxpooling: $(PERFTEST_DIR)/test_eigen_maxpooling.cpp $(ALL_SRCS)
-	$(CXX) $(CFLAGS) $(CPPFLAGS) $^ -o $@ $(LFLAGS)
-
-run_test_eigen_matvecmul: $(BUILD_DIR)/test_eigen_matvecmul
-	./$< eigen
-	./$< manual
-$(BUILD_DIR)/test_eigen_matvecmul: ARCH=EIGEN
-$(BUILD_DIR)/test_eigen_matvecmul: $(PERFTEST_DIR)/test_eigen_matvecmul.cpp $(ALL_SRCS)
-	$(CXX) $(CFLAGS) $(CPPFLAGS) $^ -o $@ $(LFLAGS)
-
-run_test_eigen_batch_norm: $(BUILD_DIR)/test_eigen_batch_norm
-	./$<
-$(BUILD_DIR)/test_eigen_batch_norm: ARCH=EIGEN
-$(BUILD_DIR)/test_eigen_batch_norm: $(PERFTEST_DIR)/test_eigen_batch_norm.cpp $(ALL_SRCS)
-	$(CXX) $(CFLAGS) $(CPPFLAGS) $^ -o $@ $(LFLAGS)
-
-run_test_eigen_convolution: $(BUILD_DIR)/test_eigen_convolution
-	./$< eigen
-$(BUILD_DIR)/test_eigen_convolution: ARCH=EIGEN
-$(BUILD_DIR)/test_eigen_convolution: $(PERFTEST_DIR)/test_eigen_convolution.cpp $(ALL_SRCS)
-	$(CXX) $(CFLAGS) $(CPPFLAGS) $^ -o $@ $(LFLAGS)
-
-run_test_mkl_convolution: $(BUILD_DIR)/test_mkl_convolution
-	./$< mkl
-$(BUILD_DIR)/test_mkl_convolution: ARCH=MKLDNN
-$(BUILD_DIR)/test_mkl_convolution: $(PERFTEST_DIR)/test_mkl_convolution.cpp $(ALL_SRCS)
-	$(CXX) $(CFLAGS) $(CPPFLAGS) $^ -o $@ $(LFLAGS)
-
-run_test_mkl_matvecmul: $(BUILD_DIR)/test_mkl_matvecmul
-	./$< mkl
-$(BUILD_DIR)/test_mkl_matvecmul: ARCH=MKLDNN
-$(BUILD_DIR)/test_mkl_matvecmul: $(PERFTEST_DIR)/test_mkl_matvecmul.cpp $(ALL_SRCS)
-	$(CXX) $(CFLAGS) $(CPPFLAGS) -DTRANSPOSE_WEIGHTS=1 $^ -o $@ $(LFLAGS)
-
-run_test_mkl_maxpooling: $(BUILD_DIR)/test_mkl_maxpooling
-	./$< mkl
-$(BUILD_DIR)/test_mkl_maxpooling: ARCH=MKLDNN
-$(BUILD_DIR)/test_mkl_maxpooling: $(PERFTEST_DIR)/test_mkl_maxpooling.cpp $(ALL_SRCS)
-	$(CXX) $(CFLAGS) $(CPPFLAGS) -DTRANSPOSE_WEIGHTS=1 $^ -o $@ $(LFLAGS)
-
-run_test_mkl_sigmoid: $(BUILD_DIR)/test_mkl_sigmoid
-	./$< mkl
-$(BUILD_DIR)/test_mkl_sigmoid: ARCH=MKLDNN
-$(BUILD_DIR)/test_mkl_sigmoid: $(PERFTEST_DIR)/test_mkl_sigmoid.cpp $(ALL_SRCS)
-	$(CXX) $(CFLAGS) $(CPPFLAGS) -DTRANSPOSE_WEIGHTS=1 $^ -o $@ $(LFLAGS)
-
-run_test_mkl_batch_norm: $(BUILD_DIR)/test_mkl_batch_norm
-	./$< mkl
-$(BUILD_DIR)/test_mkl_batch_norm: ARCH=MKLDNN
-$(BUILD_DIR)/test_mkl_batch_norm: $(PERFTEST_DIR)/test_mkl_batch_norm.cpp $(ALL_SRCS)
-	$(CXX) $(CFLAGS) $(CPPFLAGS) -DTRANSPOSE_WEIGHTS=1 $^ -o $@ $(LFLAGS)
+test_mkl_%:
+	@make -f common/Makefile.perftests.mkl --no-print-directory $@
 
 clean-perftests:
-	rm -f $(TESTS_TARGETS)
+	@make -f common/Makefile.perftests.eigen --no-print-directory clean
+	@make -f common/Makefile.perftests.mkl --no-print-directory clean
