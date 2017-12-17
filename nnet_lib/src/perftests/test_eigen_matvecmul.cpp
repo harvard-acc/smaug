@@ -99,12 +99,12 @@ int main(int argc, const char* argv[]) {
 
     if (mode == eigen) {
         for (int it = 0; it < iterations; it++) {
-            nnet_eigen::matrix_multiply_with_bias_transpose(inputs,
-                                                            weights,
-                                                            NUM_TEST_CASES,
-                                                            layer->weights.rows,
-                                                            layer->weights.cols,
-                                                            results);
+            nnet_eigen::matrix_multiply_with_bias(inputs,
+                                                  weights,
+                                                  NUM_TEST_CASES,
+                                                  layer->weights.rows,
+                                                  layer->weights.cols,
+                                                  results);
         }
     } else {
         for (int it = 0; it < iterations; it++) {

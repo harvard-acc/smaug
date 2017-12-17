@@ -20,7 +20,7 @@
 #include "nnet_fwd.h"
 
 int INPUT_DIM;
-int NUM_TEST_CASES;
+int NUM_TEST_CASES = 4;
 int NUM_CLASSES;
 float* sigmoid_table;
 
@@ -52,34 +52,41 @@ int main(int argc, const char* argv[]) {
 
     Eigen::internal::set_is_malloc_allowed(false);
     int iterations = 256 * 1024;
-    int batches = 4;
-    size_t input_size = 4096;
-    float* inputs =
-            (float*)malloc_aligned(input_size * batches * sizeof(float));
-    float* weights =
-            (float*)malloc_aligned(4 * input_size * sizeof(float));
-    float* results =
-            (float*)malloc_aligned(input_size * batches * sizeof(float));
+    int batches = NUM_TEST_CASES;
+    layer_t layer;
+    layer.type = BATCH_NORM;  // Assume previous layer was FC.
+    layer.inputs = { 64, 64, 1, 0 };
+    layer.outputs = { 64, 64, 1, 0 };
+    layer.weights = { 64 * 4, 64, 1, 0 };
+    size_t input_size = get_input_activations_size(&layer);
+    size_t weight_size = get_num_weights_layer(&layer, 0);
+    size_t output_size = get_output_activations_size(&layer);
+    float* inputs = (float*)malloc_aligned(input_size * sizeof(float));
+    float* weights = (float*)malloc_aligned(weight_size * sizeof(float));
+    float* results = (float*)malloc_aligned(output_size * sizeof(float));
 
-    for (unsigned i = 0; i < input_size * batches; i++) {
+    for (unsigned i = 0; i < input_size; i++) {
       inputs[i] = randfloat() - 0.5;
     }
-    init_bn_weights(weights, 1, 4, input_size, 0, RANDOM, false);
-
-    layer_t fake_layer;
-    fake_layer.type = OUTPUT;
+    init_bn_weights(weights,
+                    layer.weights.height,
+                    layer.weights.rows,
+                    layer.weights.cols,
+                    layer.weights.align_pad,
+                    RANDOM,
+                    true);
 
     auto start = std::chrono::high_resolution_clock::now();
 
     if (use_eigen) {
         for (int it = 0; it < iterations; it++) {
             nnet_eigen::batch_norm(
-                    inputs, weights, input_size, batches, results);
+                    inputs, weights, input_size / batches, batches, results);
         }
 
     } else {
         for (int it = 0; it < iterations; it++) {
-            batch_norm_fxp(inputs, weights, input_size, batches, results);
+            batch_norm_fxp(inputs, weights, &layer, batches, results);
         }
     }
 
@@ -89,7 +96,7 @@ int main(int argc, const char* argv[]) {
 
     // Use the result (just to be safe).
     float sum = 0;
-    for (int i = 0; i < input_size * batches; i++)
+    for (unsigned i = 0; i < input_size; i++)
       sum += results[i];
     printf("sum = %f\n", sum);
 
