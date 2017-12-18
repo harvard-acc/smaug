@@ -19,7 +19,9 @@
 #include "arch/interface.h"
 
 #ifdef __cplusplus
-#include "core/eigen/activation_functions.h"
+#include "mkldnn.hpp"
+#include "arch/nnet_mkl.h"
+#include "core/mkl/activation_functions.h"
 #endif
 
 #ifdef DMA_MODE
@@ -401,7 +403,7 @@ conv_cfg_t convolution_divide_work(layer_t* layers, int lnum) {
         conv_cfgs.iteration =
                 (dims_t*)malloc(conv_cfgs.num_iterations * sizeof(dims_t));
         unsigned total_channels = input_channels;
-        for (int i = 0; i < conv_cfgs.num_iterations; i++) {
+        for (unsigned i = 0; i < conv_cfgs.num_iterations; i++) {
             conv_cfgs.iteration[i].rows = layers[lnum].inputs.rows;
             conv_cfgs.iteration[i].cols = layers[lnum].inputs.cols;
             conv_cfgs.iteration[i].height =
@@ -463,7 +465,7 @@ void convolution_runner(float* host_activations,
                           input_height);
             unsigned start_chan = 0;
             float* result_loc = temp_result;
-            for (int iter = 0; iter < conv_cfgs.num_iterations; iter++) {
+            for (unsigned iter = 0; iter < conv_cfgs.num_iterations; iter++) {
                 PRINT_MSG("Iteration %d\n", iter);
                 dims_t iter_cfg = conv_cfgs.iteration[iter];
 
@@ -666,16 +668,28 @@ result_buf run_layer(float* activations,
     bool do_activation = act_func != NO_ACTIVATION;
     bool do_hw_activation = is_supported_activation_func(act_func);
     if (do_activation && !do_hw_activation) {
-        int output_size = get_output_activations_size(&layers[layer_num]);
+        int output_size = get_output_activations_size(&layers[layer_num]) /
+                          NUM_TEST_CASES;
         begin_profiling("activation_fun", layers + layer_num, layer_num);
 #ifdef __cplusplus
-        nnet_eigen::activation_fun(
-                result_loc, output_size, act_func, sigmoid_table, result);
-        result_loc = result_loc == activations ? result : activations;
+        if (result_loc == activations) {
+            nnet_mkl::activation_fun(activations, NUM_TEST_CASES, output_size,
+                                     act_func, result, device);
+            result_loc = result;
+        } else {
+            nnet_mkl::activation_fun(result, NUM_TEST_CASES, output_size,
+                                     act_func, activations, device);
+            result_loc = activations;
+        }
 #else
         activation_fun(result_loc, output_size, act_func, sigmoid_table);
 #endif
         end_profiling();
+        PRINT_MSG("\nactivation function\n");
+        PRINT_DEBUG4D(result_loc, layers[layer_num].outputs.rows,
+                      layers[layer_num].outputs.cols +
+                              layers[layer_num].outputs.align_pad,
+                      layers[layer_num].outputs.height);
     }
     end_profiling();
     return result_loc;
@@ -738,6 +752,11 @@ void nnet_fwd(farray_t activations,
     g_umem = (float*)malloc_aligned(UMEM_SIZE);
     g_spad0 = (float*)malloc_aligned(SPAD_SIZE);
     g_spad1 = (float*)malloc_aligned(SPAD_SIZE);
+
+#ifdef __cplusplus
+    nnet_mkl::MklSession* session = new nnet_mkl::MklSession();
+    device->session = (void*)session;
+#endif
 
     // Alternate between reading from/writing to activations and result so we
     // can avoid copying matrices. The initial activations is obviously in

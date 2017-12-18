@@ -15,9 +15,11 @@ COMP = $(CC)
 CFLAGS += -std=gnu99
 else ifeq ($(ARCH), SMIV)
 COMP = $(CXX)
-include common/Makefile.eigen   # Will add all the core Eigen srcs.
-CFLAGS += $(NATIVE_SIMD_FLAGS)
-NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smiv.cpp
+CPPFLAGS += -I$(MKLDNNROOT)/include
+CFLAGS += -std=gnu++11 $(NATIVE_SIMD_FLAGS)
+NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smiv.cpp \
+												 $(SRC_DIR)/core/mkl/activation_functions.cpp
+LFLAGS += -L$(MKLDNNROOT)/lib -lmkldnn
 endif
 
 # Output binary name
