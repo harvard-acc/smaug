@@ -41,9 +41,7 @@ class ActivationFunctionOp {
                                       int size,
                                       bool is_output = false) {
         mkldnn::memory::dims dims = { size };
-        auto md = mem_d({ dims },
-                        mkl_traits<DType>::mfmt,
-                        mkldnn::memory::format::x);
+        auto md = mem_d({ dims }, mkl_traits<DType>::dtype, mem_fmt::x);
         auto mempd = mem_pd(md, engine);
         if (buffer)
             memories.emplace_back(mempd, buffer);
@@ -126,8 +124,74 @@ class SigmoidActivationFunctionOp : public ActivationFunctionOp<dtype> {
     virtual ~SigmoidActivationFunctionOp() {}
 };
 
+class EluActivationFunctionOp : public ActivationFunctionOp<dtype> {
+   public:
+    EluActivationFunctionOp(
+            dtype* input_buffer,
+            dtype* output_buffer,
+            int size,
+            mkldnn::engine& engine,
+            dtype negative_slope = mkl_traits<dtype>::to_type(0.1))
+            : ActivationFunctionOp(engine) {
+        auto input_mem_index = create_memory(input_buffer, size);
+        auto output_mem_index = create_memory(output_buffer, size, true);
+        create_primitive(mkldnn::algorithm::eltwise_elu,
+                         input_mem_index,
+                         output_mem_index,
+                         negative_slope);
+    }
+    virtual ~EluActivationFunctionOp() {}
+};
+
+class TanhActivationFunctionOp : public ActivationFunctionOp<dtype> {
+   public:
+    TanhActivationFunctionOp(dtype* input_buffer,
+                             dtype* output_buffer,
+                             int size,
+                             mkldnn::engine& engine)
+            : ActivationFunctionOp(engine) {
+        auto input_mem_index = create_memory(input_buffer, size);
+        auto output_mem_index = create_memory(output_buffer, size, true);
+        create_primitive(mkldnn::algorithm::eltwise_tanh,
+                         input_mem_index,
+                         output_mem_index);
+    }
+    virtual ~TanhActivationFunctionOp() {}
+};
+
+class SeluActivationFunctionOp : public ActivationFunctionOp<dtype> {
+   public:
+    static constexpr dtype alpha = mkl_traits<dtype>::to_type(1.6733);
+    static constexpr dtype lambda = mkl_traits<dtype>::to_type(1.0507);
+
+    SeluActivationFunctionOp(dtype* input_buffer,
+                             dtype* output_buffer,
+                             int size,
+                             mkldnn::engine& engine)
+            : ActivationFunctionOp(engine) {
+        auto input_mem_index = create_memory(input_buffer, size);
+        auto intermediate_mem_index = create_memory(nullptr, size);
+        auto output_mem_index = create_memory(output_buffer, size);
+        // SELU can be implemented using an ELU, followed by a scaling.
+        create_primitive(mkldnn::algorithm::eltwise_elu,
+                         input_mem_index,
+                         intermediate_mem_index,
+                         alpha);
+        // The linear algorithm performs y = Ax + B.
+        create_primitive(mkldnn::algorithm::eltwise_linear,
+                         intermediate_mem_index,
+                         output_mem_index,
+                         lambda);
+    }
+    virtual ~SeluActivationFunctionOp() {}
+};
+
 void sigmoid(float* activations, int size, mkldnn::engine& cpu, float* results);
 void relu(float* activations, int size, mkldnn::engine& cpu, float* results);
+void elu(float* activations, int size, mkldnn::engine& cpu, float* results);
+void selu(float* activations, int size, mkldnn::engine& cpu, float* results);
+void tanh(float* activations, int size, mkldnn::engine& cpu, float* results);
+
 void activation_fun(float* activations,
                     int size,
                     activation_type function,
