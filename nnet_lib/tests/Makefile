@@ -19,7 +19,7 @@ all:
 	@$(MAKE) -C . --no-print-directory monolithic
 	@$(MAKE) -C . --no-print-directory composable
 	@$(MAKE) -C . --no-print-directory smiv
-	@$(MAKE) -C . --no-print-directory eigen
+#	@$(MAKE) -C . --no-print-directory eigen
 	@$(MAKE) -C . --no-print-directory mkl
 
 build:
