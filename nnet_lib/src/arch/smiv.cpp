@@ -707,9 +707,20 @@ void set_dma_requirements(network_t* network) {
             network->layers[layer_num].output_req = IO_DMA;
             continue;
         }
+#if DEBUG_LEVEL > 0
+        // When debugging, if we don't DMA the results back, we won't be able
+        // to see what's happening.
+        network->layers[layer_num].output_req = IO_DMA;
+#else
         // First, determine if we need to dma store the output.
         if (layer_num == network->depth - 1 ||
+            // All these activation functions are unsupported.
+            network->layers[layer_num].activation == LRELU ||
+            network->layers[layer_num].activation == ELU ||
+            network->layers[layer_num].activation == SELU ||
+            network->layers[layer_num].activation == TANH ||
             network->layers[layer_num].activation == SIGMOID ||
+            network->layers[layer_num].activation == SOFTMAX ||
             network->layers[layer_num].type == POOLING ||
             // For now, conv layers also do not support local caching.
             network->layers[layer_num].type == CONV ||
@@ -721,7 +732,7 @@ void set_dma_requirements(network_t* network) {
         }
         if(network->layers[layer_num].input_preprocessing == FLATTEN)
             network->layers[layer_num - 1].output_req = IO_DMA;
-
+#endif
         // Whether we need to load the input on this layer is just whether we
         // had to store the outputs in the previous layer.
         network->layers[layer_num].input_req =
