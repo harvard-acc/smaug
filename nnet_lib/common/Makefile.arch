@@ -35,7 +35,8 @@ EIGEN_SRCS = core/eigen/activation_functions.cpp \
 						 core/eigen/pooling.cpp \
 						 core/eigen/batch_norm.cpp \
 						 core/eigen/convolution.cpp \
-						 utility/init_eigen_data.cpp
+						 utility/init_eigen_data.cpp \
+						 utility/eigen_utility.cpp
 
 MKL_SRCS = core/mkl/convolution.cpp \
 					 core/mkl/batch_norm.cpp \

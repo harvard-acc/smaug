@@ -58,6 +58,15 @@ int get_total_num_weights(layer_t* layers, int num_layers);
 bool is_dummy_layer(layer_t* layers, int l);
 size_t next_multiple(size_t request, size_t align);
 
+float compute_errors(float* network_pred,
+                     int* correct_labels,
+                     int batch_size,
+                     int num_classes);
+void write_output_labels(const char* fname,
+                         float* network_pred,
+                         int batch_size,
+                         int num_classes);
+
 void print_debug(float* array,
                  int rows_to_print,
                  int cols_to_print,

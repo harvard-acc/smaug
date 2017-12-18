@@ -1,6 +1,8 @@
 #ifndef _EIGEN_UTILITY_H_
 #define _EIGEN_UTILITY_H_
 
+#include <iostream>
+
 #include "unsupported/Eigen/CXX11/Tensor"
 
 namespace nnet_eigen {
@@ -31,6 +33,35 @@ void print_debug4d(TensorMap<Tensor<float, 4>, MapOptions>& tensor) {
         }
     }
 }
+
+template <int MapOptions>
+Tensor<float, 1> compute_hard_targets(
+        TensorMap<Tensor<float, 2>, MapOptions>& soft_targets) {
+    auto dims = soft_targets.dimensions();
+    Tensor<float, 1> argmax(dims[0]);
+    for (int i = 0; i < dims[0]; i++) {
+        int index = 0;
+        float max = soft_targets(i, 0);
+        for (int j = 1; j < dims[1]; j++) {
+            if (soft_targets(i, j) > max) {
+                index = j;
+                max = soft_targets(i, j);
+            }
+        }
+        argmax[i] = index;
+    }
+    return argmax;
+}
+
+float compute_errors(float* network_soft_pred,
+                     int* correct_labels,
+                     int batch_size,
+                     int num_classes);
+
+void write_output_labels(const char* fname,
+                         float* network_soft_pred,
+                         int batch_size,
+                         int num_classes);
 
 }  // namespace nnet_eigen
 

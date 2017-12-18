@@ -11,6 +11,7 @@
 #include "core/zeropad.h"
 #include "utility/init_data.h"
 #include "utility/read_model_conf.h"
+#include "utility/eigen_utility.h"
 #include "utility/utility.h"
 #include "utility/profiling.h"
 #include "utility/data_archive.h"
@@ -185,7 +186,7 @@ void set_default_args(arguments* args) {
 }
 
 int main(int argc, char* argv[]) {
-    int i, j;
+    int i;
 
     arguments args;
     set_default_args(&args);
@@ -302,36 +303,24 @@ int main(int argc, char* argv[]) {
     dump_profiling_log();
     close_profiling_log();
 
-    // Print the result, maybe not all the test_cases
-    int num_to_print = 1;
-    // don't try to print more test cases than there are
-    num_to_print =
-            num_to_print < NUM_TEST_CASES ? num_to_print : NUM_TEST_CASES;
-
     // Compute the classification error rate
     float* result = network.layers[network.depth - 1].result_in_temp
                             ? hid_temp.d
                             : hid.d;
-    int num_errors = 0;
-    for (i = 0; i < NUM_TEST_CASES; i++) {
-        if (arg_max(result + i * NUM_CLASSES, NUM_CLASSES, 1) != labels.d[i]) {
-            num_errors = num_errors + 1;
-        }
-    }
-    float error_fraction = ((float)num_errors) / ((float)NUM_TEST_CASES);
+#if ARCHITECTURE == EIGEN
+    float error_fraction = nnet_eigen::compute_errors(
+            result, labels.d, NUM_TEST_CASES, NUM_CLASSES);
+    nnet_eigen::write_output_labels(
+            "output_labels.out", result, NUM_TEST_CASES, NUM_CLASSES);
+#else
+    float error_fraction =
+            compute_errors(result, labels.d, NUM_TEST_CASES, NUM_CLASSES);
+    write_output_labels(
+            "output_labels.out", result, NUM_TEST_CASES, NUM_CLASSES);
+#endif
+
     printf("Fraction incorrect (over %d cases) = %f\n", NUM_TEST_CASES,
            error_fraction);
-
-    // Print the output labels and soft outputs.
-    FILE* output_labels = fopen("output_labels.out", "w");
-    for (i = 0; i < NUM_TEST_CASES; i++) {
-        int pred = arg_max(result + i * NUM_CLASSES, NUM_CLASSES, 1);
-        fprintf(output_labels, "Test %d: %d\n  [", i, pred);
-        for (j = 0; j < NUM_CLASSES; j++)
-            fprintf(output_labels, "%f  ", result[sub2ind(i, j, NUM_CLASSES)]);
-        fprintf(output_labels, "]\n");
-    }
-    fclose(output_labels);
 
     free(sigmoid_table);
     free(hid.d);
