@@ -86,8 +86,10 @@ result_buf batch_norm_layer(float* activations,
 result_buf activation_sublayer(float* activations,
                                layer_t* layers,
                                int lnum) {
-    int size = get_output_activations_size(&layers[lnum]);
-    activation_fun(activations, size, layers[lnum].activation, sigmoid_table);
+    int input_size =
+            get_output_activations_size(&layers[lnum]) / NUM_TEST_CASES;
+    activation_fun(activations, NUM_TEST_CASES, input_size,
+                   layers[lnum].activation, sigmoid_table);
     return activations;
 }
 

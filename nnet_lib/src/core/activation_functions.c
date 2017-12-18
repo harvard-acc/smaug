@@ -1,3 +1,5 @@
+#include <float.h>
+
 #include "utility/utility.h"
 #include "nnet_fwd.h"
 
@@ -6,23 +8,25 @@
 // Dispatch to the appropriate activation function.
 ALWAYS_INLINE
 void activation_fun(float* activations,
-                    int size,
+                    int batch_size,
+                    int input_size,
                     activation_type function,
                     float* sigmoid_table) {
+    int total_size = input_size * batch_size;
     if (function == RELU) {
-        relu(activations, size);
+        relu(activations, total_size);
     } else if (function == LRELU) {
-        lrelu(activations, size);
+        lrelu(activations, total_size);
     } else if (function == ELU) {
-        elu(activations, size);
+        elu(activations, total_size);
     } else if (function == SELU) {
-        selu(activations, size);
+        selu(activations, total_size);
     } else if (function == TANH) {
-        tanh_act(activations, size, sigmoid_table);
+        tanh_act(activations, total_size, sigmoid_table);
     } else if (function == SIGMOID) {
-        sigmoid_inplace(activations, size, sigmoid_table);
+        sigmoid_inplace(activations, total_size, sigmoid_table);
     } else if (function == SOFTMAX) {
-        softmax(activations, NUM_TEST_CASES, NUM_CLASSES, sigmoid_table);
+        softmax(activations, batch_size, input_size, sigmoid_table);
     }
 }
 
@@ -150,28 +154,79 @@ void sigmoid_lookup(float* a, int num_units, float* sigmoid_table) {
     }
 }
 
-// Softmax function on matrix a
-// a is num_test_cases by num_classes
-// the softmax function exponentiates each element and then normalizes each row
-// to sum to 1
-// ** this function is in-place (modifies a) **
+// Softmax function on matrix a.
+//
+// The softmax function exponentiates each element and then normalizes each row
+// to sum to 1.
+//
+// Args:
+//   a: Matrix of size num_test_cases x softmax_size, stored rowmajor. This
+//      contains both inputs and the outputs.
+//   num_test_cases: batch size.
+//   softmax_size: number of activations per input.
+//   sigmoid_table: Table for lookup based sigmoid (unused right now).
+//
+// To improve numerical stability, we use the max trick: all elements are first
+// subtracted by the maximum value in each input before being exponentiated.
+//
+// This function is in-place (modifies a).
 void softmax(float* a,
-               int num_test_cases,
-               int num_classes,
-               float* sigmoid_table) {
-    ARRAY_2D(float, _a, a, num_classes);
-    int i, j;
-    float normaliz;
+             int num_test_cases,
+             int softmax_size,
+             float* sigmoid_table) {
+    ARRAY_2D(float, _a, a, softmax_size);
 
-    sigmoid_inplace(a, num_test_cases * num_classes, sigmoid_table);
-softmax_outer: for (i = 0; i < num_test_cases; i++) {
-        // compute the normalization factor
-        normaliz = 0.0;
-softmax_inner0: for (j = 0; j < num_classes; j++) {
+    // Compute the maximum of the elements in groups of 8 and the remainder one
+    // by one.
+    int max8_remainder = softmax_size - ((softmax_size >> 3) << 3);
+
+    softmax_batch:
+    for (int i = 0; i < num_test_cases; i++) {
+        // Find the maximum of each input.
+        float max_elem = -FLT_MAX;
+        softmax_max_loop0:
+        for (int j = 0; j < softmax_size - max8_remainder; j += 8) {
+            max_elem = max9(max_elem,
+                            _a[i][j],
+                            _a[i][j + 1],
+                            _a[i][j + 2],
+                            _a[i][j + 3],
+                            _a[i][j + 4],
+                            _a[i][j + 5],
+                            _a[i][j + 6],
+                            _a[i][j + 7]);
+        }
+        // Do the remainder.
+        softmax_max_loop1:
+        for (int j = softmax_size - max8_remainder - 1; j < softmax_size; j++) {
+            max_elem = max2(max_elem, _a[i][j]);
+        }
+
+        // Subtract the max from each activation.
+        softmax_max_sub:
+        for (int j = 0; j < softmax_size; j++) {
+            _a[i][j] -= max_elem;
+        }
+
+        // Now exponentiate.
+        softmax_exp:
+        for (int j =0; j < softmax_size; j++) {
+            _a[i][j] = exp(_a[i][j]);
+        }
+
+        // Compute the normalization factor, separately from the exponentiation,
+        // making it easier for Aladdin to turn this into an adder tree.
+        float normaliz = 0.0;
+        softmax_inner0:
+        for (int j = 0; j < softmax_size; j++) {
             normaliz += _a[i][j];
         }
-softmax_inner1: for (j = 0; j < num_classes; j++) {
-            _a[i][j] /= normaliz;
+        // Precompute the division so that later we can just do a multiplication.
+        normaliz = 1.0 / (normaliz + 1e-6);  // epsilon for numerical stability.
+
+        softmax_inner1:
+        for (int j = 0; j < softmax_size; j++) {
+            _a[i][j] *= normaliz;
         }
     }
 }

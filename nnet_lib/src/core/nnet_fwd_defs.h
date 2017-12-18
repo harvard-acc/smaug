@@ -247,14 +247,14 @@ typedef struct _iarray_t {
 //
 // I've only implemented a few of these. These are only meant for the pooling
 // layers, and we shouldn't need more than a 3x3 pooling layer anyways.
-#define max(A, B) (((A) > (B)) ? (A) : (B))
-#define max4(e0, e1, e2, e3) max(max(e0, e1), max(e2, e3))
+#define max2(A, B) (((A) > (B)) ? (A) : (B))
+#define max4(e0, e1, e2, e3) max2(max2(e0, e1), max2(e2, e3))
 #define max8(e0, e1, e2, e3, e4, e5, e6, e7)                                   \
-    max(max4(e0, e1, e2, e3), max4(e4, e5, e6, e7))
+    max2(max4(e0, e1, e2, e3), max4(e4, e5, e6, e7))
 #define max9(e0, e1, e2, e3, e4, e5, e6, e7, e8)                               \
-    max(max8(e0, e1, e2, e3, e4, e5, e6, e7), e8)
+    max2(max8(e0, e1, e2, e3, e4, e5, e6, e7), e8)
 
-#define min(A, B) (((A) < (B)) ? (A) : (B))
+#define min2(A, B) (((A) < (B)) ? (A) : (B))
 
 #define FRAC_CEIL(A, B) ((A) / (B) + ((A) % (B) != 0))
 

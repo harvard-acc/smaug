@@ -396,7 +396,7 @@ conv_cfg_t convolution_divide_work(layer_t* layers, int lnum) {
             conv_cfgs.iteration[i].rows = layers[lnum].inputs.rows;
             conv_cfgs.iteration[i].cols = layers[lnum].inputs.cols;
             conv_cfgs.iteration[i].height =
-                    min(total_channels, max_channels_per_iter);
+                    min2(total_channels, max_channels_per_iter);
             conv_cfgs.iteration[i].align_pad =
                     calc_padding(conv_cfgs.iteration[i].cols, DATA_ALIGNMENT);
             total_channels -= max_channels_per_iter;
@@ -506,7 +506,7 @@ void convolution_runner(float* host_activations,
                              (float)SPAD_SIZE);
                 assert(result_iter <= 1 &&
                        "Only support 1 last iteration of reduction!");
-                int num_result_chans = min(
+                int num_result_chans = min2(
                         conv_cfgs.num_iterations, SPAD_SIZE / result_2d_size);
 
                 // Create a new layer description for this iteration.

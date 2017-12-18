@@ -157,13 +157,13 @@ size_t calc_layer_intermediate_memory(layer_t* layers, int lnum) {
                     prev_layer.outputs.rows *
                     (prev_layer.outputs.cols + prev_layer.outputs.align_pad) *
                     prev_layer.outputs.height;
-            usage = max(usage, flattened_usage);
+            usage = max2(usage, flattened_usage);
         } else {
             usage = layer.outputs.rows *
                     (layer.outputs.cols + layer.outputs.align_pad);
         }
     } else if (layer.type == CONV || layer.type == POOLING) {
-        usage = max(layer.inputs.rows *
+        usage = max2(layer.inputs.rows *
                             (layer.inputs.cols + layer.inputs.align_pad) *
                             layer.inputs.height,
                     layer.outputs.rows *
@@ -224,14 +224,14 @@ int main(int argc, char* argv[]) {
     for (i = 0; i < network.depth; i++) {
         size_t curr_layer_usage =
                 calc_layer_intermediate_memory(network.layers, i);
-        hid_temp.size = max(hid_temp.size, curr_layer_usage);
+        hid_temp.size = max2(hid_temp.size, curr_layer_usage);
     }
     printf("  Largest intermediate output size is %lu elements\n",
            hid_temp.size);
     hid_temp.d = (float*)malloc_aligned(hid_temp.size * sizeof(float));
     memset(hid_temp.d, 0, hid_temp.size * sizeof(float));
 
-    hid.size = max(data_size, hid_temp.size);
+    hid.size = max2(data_size, hid_temp.size);
     printf("  hid has %lu elements\n", hid.size);
     hid.d = (float*)malloc_aligned(hid.size * sizeof(float));
     memset(hid.d, 0, hid.size * sizeof(float));
@@ -247,7 +247,7 @@ int main(int argc, char* argv[]) {
     size_t weights_temp_size = 0;
     for (i = 0; i < network.depth; i++) {
         size_t curr_layer_weights = get_num_weights_layer(network.layers, i);
-        weights_temp_size = max(weights_temp_size, curr_layer_weights);
+        weights_temp_size = max2(weights_temp_size, curr_layer_weights);
     }
     printf("  Largest weights per layer: %lu elements\n", weights_temp_size);
 

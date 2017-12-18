@@ -182,13 +182,13 @@ void convolution3d_smiv_1kernel_noreduce_fxp(float* a,
                 if (double_tp) {
                   remaining_per_dp = remaining_cols / 2;
                   remainder = remaining_cols % 2;
-                  dp0_iters = min(max_psums_per_act, remaining_per_dp + remainder);
-                  dp1_iters = min(max_psums_per_act, remaining_per_dp);
+                  dp0_iters = min2(max_psums_per_act, remaining_per_dp + remainder);
+                  dp1_iters = min2(max_psums_per_act, remaining_per_dp);
                   total_outpx = dp0_iters + dp1_iters;
                 } else {
                   remaining_per_dp = remaining_cols;
-                  dp0_iters = min(max_psums_per_act, remaining_per_dp);
-                  dp1_iters = min(max_psums_per_act, remaining_per_dp);
+                  dp0_iters = min2(max_psums_per_act, remaining_per_dp);
+                  dp1_iters = min2(max_psums_per_act, remaining_per_dp);
                   total_outpx = dp0_iters;
                 }
                 PRINT_MSG_V("dp0_iters: %d, dp1_iters: %d\n", dp0_iters, dp1_iters);
@@ -208,7 +208,7 @@ void convolution3d_smiv_1kernel_noreduce_fxp(float* a,
 
                     // Load activations into shift registers.
                     conv2d_load_sr_pipe0:
-                    for (sr = 0; sr < min(VECTOR_SIZE, a_width - in_col); sr++) {
+                    for (sr = 0; sr < min2(VECTOR_SIZE, a_width - in_col); sr++) {
                         pipe0_shift_reg[sr] =
                                 _a[in_chan][in_row + kern_row][in_col + sr];
                         pipe1_shift_reg[sr] =
@@ -216,7 +216,7 @@ void convolution3d_smiv_1kernel_noreduce_fxp(float* a,
                     }
                     if (!(has_boundary_case && in_col == end_col_marker)) {
                         conv2d_load_sr_pipe1:
-                        for (sr = 8; sr < min(SHIFT_REG_SIZE, a_width - in_col);
+                        for (sr = 8; sr < min2(SHIFT_REG_SIZE, a_width - in_col);
                              sr++) {
                             pipe0_shift_reg[sr] =
                                     _a[in_chan][in_row + kern_row][in_col + sr];
@@ -239,7 +239,7 @@ void convolution3d_smiv_1kernel_noreduce_fxp(float* a,
                           weights_buffer[DATAPATH_WIDTH + w] = weight;
                       }
                     } else {
-                      int bound = min(k_width, VECTOR_SIZE);
+                      int bound = min2(k_width, VECTOR_SIZE);
                       conv2d_load_wgts_single_tp:
                       for (int w = 0; w < bound; w++) {
                           weights_buffer[w] = _kernels[in_chan][kern_row][w];
