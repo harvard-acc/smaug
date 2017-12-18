@@ -186,14 +186,65 @@ class SeluActivationFunctionOp : public ActivationFunctionOp<dtype> {
     virtual ~SeluActivationFunctionOp() {}
 };
 
+class SoftmaxActivationFunctionOp : public ActivationFunctionOp<dtype> {
+   public:
+    SoftmaxActivationFunctionOp(dtype* input_buffer,
+                                dtype* output_buffer,
+                                int batch_size,
+                                int softmax_size,
+                                mkldnn::engine& engine)
+            : ActivationFunctionOp(engine) {
+        auto input_mem_index =
+                create_memory(input_buffer, softmax_size, batch_size);
+        auto output_mem_index =
+                create_memory(output_buffer, softmax_size, batch_size, true);
+        create_primitive(input_mem_index, output_mem_index);
+    }
+
+    virtual mem_index_t create_memory(dtype* buffer,
+                                      int softmax_size,
+                                      int batch_size,
+                                      bool is_output = false) {
+        mkldnn::memory::dims dims = { batch_size, softmax_size };
+        auto md = mem_d({ dims }, mkl_traits<dtype>::dtype, mem_fmt::nc);
+        auto mempd = mem_pd(md, engine);
+        if (buffer)
+            memories.emplace_back(mempd, buffer);
+        else
+            memories.emplace_back(mempd);
+        mem_index_t retval = memories.size() - 1;
+        if (is_output)
+            output_idx = retval;
+        return retval;
+    }
+
+    virtual mkldnn::softmax_forward& create_primitive(mem_index_t input_idx,
+                                                      mem_index_t output_idx) {
+        auto& input_memory = memories.at(input_idx);
+        auto& output_memory = memories.at(output_idx);
+        auto desc = mkldnn::softmax_forward::desc(
+                mkldnn::prop_kind::forward_inference,
+                input_memory.get_primitive_desc().desc(),
+                1);
+        auto pd = mkldnn::softmax_forward::primitive_desc(desc, engine);
+        worklist.emplace_back(
+                mkldnn::softmax_forward(pd, input_memory, output_memory));
+        return static_cast<mkldnn::softmax_forward&>(worklist.back());
+    }
+
+    virtual ~SoftmaxActivationFunctionOp() {}
+};
+
 void sigmoid(float* activations, int size, mkldnn::engine& cpu, float* results);
 void relu(float* activations, int size, mkldnn::engine& cpu, float* results);
 void elu(float* activations, int size, mkldnn::engine& cpu, float* results);
 void selu(float* activations, int size, mkldnn::engine& cpu, float* results);
 void tanh(float* activations, int size, mkldnn::engine& cpu, float* results);
+void softmax(float* a, int num_test_cases, int softmax_size, float* results);
 
 void activation_fun(float* activations,
-                    int size,
+                    int batch_size,
+                    int input_size,
                     activation_type function,
                     float* results,
                     device_t* device);

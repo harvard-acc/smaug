@@ -38,30 +38,45 @@ void tanh(float* activations, int size, engine& cpu, float* results) {
     tanh_op.run();
 }
 
+void softmax(float* activations,
+             int batch_size,
+             int softmax_size,
+             engine& cpu,
+             float* results) {
+    SoftmaxActivationFunctionOp softmax_op(
+            activations, results, batch_size, softmax_size, cpu);
+    softmax_op.run();
+}
+
 void activation_fun(float* activations,
-                    int size,
+                    int batch_size,
+                    int input_size,
                     activation_type function,
                     float* results,
                     device_t* device) {
     nnet_mkl::MklSession* session =
             reinterpret_cast<nnet_mkl::MklSession*>(device->session);
+    // Most of these functions are element-wise, so they don't need to know
+    // about batches.
+    int total_size = batch_size * input_size;
     if (function == RELU) {
-        relu(activations, size, session->cpu, results, 0);
+        relu(activations, total_size, session->cpu, results, 0);
     } else if (function == SIGMOID) {
-        sigmoid(activations, size, session->cpu, results);
+        sigmoid(activations, total_size, session->cpu, results);
     } else if (function == LRELU) {
         static const float alpha = 0.1;
-        relu(activations, size, session->cpu, results, alpha);
+        relu(activations, total_size, session->cpu, results, alpha);
     } else if (function == ELU) {
-        elu(activations, size, session->cpu, results);
+        elu(activations, total_size, session->cpu, results);
     } else if (function == SELU) {
-        selu(activations, size, session->cpu, results);
+        selu(activations, total_size, session->cpu, results);
     } else if (function == TANH) {
-        tanh(activations, size, session->cpu, results);
+        tanh(activations, total_size, session->cpu, results);
+    } else if (function == SOFTMAX) {
+        softmax(activations, batch_size, input_size, session->cpu, results);
     } else {
         assert(false && "This activation function is currently unsupported!");
     }
 }
-
 
 }  // namespace nnet_mkl
