@@ -7,6 +7,7 @@
 #include "unsupported/Eigen/CXX11/Tensor"
 
 #include "core/eigen/convolution.h"
+#include "utility/eigen_utility.h"
 #include "nnet_fwd.h"
 
 namespace nnet_eigen {
@@ -35,45 +36,35 @@ void convolution3d(float* activations,
     const int k_stride = curr_layer->field_stride;
     const int num_kerns = curr_layer->outputs.height;
 
-    typedef Tensor<float, 4, RowMajor> InputTensorType;
-    typedef Tensor<float, 4, RowMajor> KernelTensorType;
+    typedef Tensor<float, 4, ColMajor> InputTensorType;
+    typedef Tensor<float, 4, ColMajor> KernelTensorType;
 
     TensorMap<InputTensorType> input_map(
-            activations, 1, a_height * NUM_TEST_CASES, a_rows, a_cols);
+            activations, NUM_TEST_CASES, a_height, a_rows, a_cols);
     TensorMap<KernelTensorType> kernel_map(
             kernels, num_kerns, k_height, k_rows, k_cols);
     TensorMap<InputTensorType> result_map(
             result, NUM_TEST_CASES, o_height, o_rows, o_cols);
 
-    // RowMajor storage layout requires a specific reordering of the
-    // dimensions.
-    // TODO: Now that we support all the kernels in Eigen, use Eigen from the
-    // very beginning to initialize the data into the right order and storage
-    // layout so that these shuffles can be removed!
-    array<ptrdiff_t, 4> preshuffle_idx({ 3, 2, 1, 0 });
-    array<ptrdiff_t, 4> postshuffle_idx({ 2, 3, 1, 0 });
-    Tensor<float, 2>::Dimensions input_precontract_dims;
+    Tensor<float, 3>::Dimensions input_precontract_dims;
     Tensor<float, 2>::Dimensions kernel_precontract_dims;
     Tensor<float, 4>::Dimensions postcontract_dims;
 
-    // Precontract dimensions: the first dimension separates different output
-    // pixels, and the second dimension goes over all the input pixels that
-    // will be contracted.
-    input_precontract_dims[0] = o_rows * o_cols * NUM_TEST_CASES;
+    input_precontract_dims[0] = NUM_TEST_CASES;
     input_precontract_dims[1] = k_rows * k_cols * k_height;
+    input_precontract_dims[2] = o_rows * o_cols;
 
-    // Precontract dimensions: first dimension is the contraction dimension.
-    kernel_precontract_dims[0] = k_rows * k_cols * k_height;
-    kernel_precontract_dims[1] = num_kerns;
+    kernel_precontract_dims[0] = num_kerns;
+    kernel_precontract_dims[1] = k_rows * k_cols * k_height;
 
     // Postcontract dimensions: output dimensions.
-    postcontract_dims[3] = o_height;
-    postcontract_dims[2] = NUM_TEST_CASES;
-    postcontract_dims[1] = o_rows;
-    postcontract_dims[0] = o_cols;
+    postcontract_dims[0] = NUM_TEST_CASES;
+    postcontract_dims[1] = o_height;
+    postcontract_dims[2] = o_rows;
+    postcontract_dims[3] = o_cols;
 
     // The dimensions along which to perform the contraction.
-    array<IndexPair<int>, 1> contract_dims = { IndexPair<int>(1, 0) };
+    array<IndexPair<int>, 1> contract_dims = { IndexPair<int>(1, 1) };
 
 #if DEBUG_LEVEL >= 1
     std::cout << "input precontract dims:\n";
@@ -90,8 +81,8 @@ void convolution3d(float* activations,
 
 
 #if DEBUG_LEVEL >= 1
-    Tensor<float, 5, RowMajor> volume_patches =
-            input_map.shuffle(preshuffle_idx)
+    Tensor<float, 5, ColMajor> volume_patches =
+            input_map
                     .extract_volume_patches(k_height,
                                             k_rows,
                                             k_cols,
@@ -114,39 +105,38 @@ void convolution3d(float* activations,
       std::cout << i << ",";
     std::cout << "\nVolume patches:\n" << volume_patches << "\n\n";
 
-    Tensor<float, 2, RowMajor> precontracted_patches =
+    Tensor<float, 3, ColMajor> precontracted_patches =
             volume_patches.reshape(input_precontract_dims);
     for (int i : precontracted_patches.dimensions())
       std::cout << i << ",";
     std::cout << "\nReshaped patches:\n" << precontracted_patches << "\n\n";
 
-    Tensor<float, 2, RowMajor> precontracted_kernels =
-        kernel_map.shuffle(preshuffle_idx).reshape(kernel_precontract_dims);
+    Tensor<float, 2, ColMajor> precontracted_kernels =
+            kernel_map.reshape(kernel_precontract_dims);
     std::cout << "\nReshaped kernel:\n" << precontracted_kernels << "\n\n";
 
-    Tensor<float, 2, RowMajor> contracted = precontracted_patches.contract(
+    Tensor<float, 3, ColMajor> contracted = precontracted_patches.contract(
             precontracted_kernels, contract_dims);
+    for (int i : contracted.dimensions())
+      std::cout << i << ",";
     std::cout << "\nContraction:\n" << contracted << "\n\n";
 
-    Tensor<float, 4, RowMajor> postcontracted =
+    Tensor<float, 4, ColMajor> postcontracted =
             contracted.reshape(postcontract_dims);
     for (int i : postcontracted.dimensions())
       std::cout << i << ",";
     std::cout << "\nReshaped:\n" << postcontracted << "\n\n";
 
-    Tensor<float, 4, RowMajor> reshuffled =
-            postcontracted.shuffle(postshuffle_idx);
-    for (int i : reshuffled.dimensions())
-      std::cout << i << ",";
-    std::cout << "\nReshuffled:\n" << reshuffled << "\n\n";
+    result_map = postcontracted;
 
-    result_map = reshuffled;
+    std::cout << "Final:\n";
+    print_debug4d(result_map);
 
 #else
 
     // This is the "high-performance version".
 
-    result_map = input_map.shuffle(preshuffle_idx)
+    result_map = input_map
                          .extract_volume_patches(k_height,
                                                  k_rows,
                                                  k_cols,
@@ -164,11 +154,9 @@ void convolution3d(float* activations,
                                                  c_pad,
                                                  0)  // padding value.
                          .reshape(input_precontract_dims)
-                         .contract(kernel_map.shuffle(preshuffle_idx)
-                                           .reshape(kernel_precontract_dims),
+                         .contract(kernel_map.reshape(kernel_precontract_dims),
                                    contract_dims)
-                         .reshape(postcontract_dims)
-                         .shuffle(postshuffle_idx);
+                         .reshape(postcontract_dims);
 
 #endif
 
