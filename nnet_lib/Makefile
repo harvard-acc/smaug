@@ -66,6 +66,9 @@ clean-native:
 clean-eigen:
 	@$(MAKE) -f common/Makefile.eigen --no-print-directory clean-eigen ARCH=EIGEN
 
+clean-mkl:
+	@$(MAKE) -f common/Makefile.mkl --no-print-directory clean-mkl ARCH=MKLDNN
+
 clean-perftests:
 	@$(MAKE) -f common/Makefile.perftests --no-print-directory clean-perftests
 

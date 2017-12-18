@@ -38,4 +38,4 @@ $(MKL_BINARY_FOR_GEM5): $(NATIVE_FULL_PATH_SRCS)
 	$(CXX) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LFLAGS)
 
 clean-mkl:
-	rm -f $(MKL_BINARY)
+	@rm -f $(MKL_BINARY)
