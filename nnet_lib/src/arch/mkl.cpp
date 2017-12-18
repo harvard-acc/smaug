@@ -3,6 +3,7 @@
 #include "arch/common.h"
 #include "arch/interface.h"
 #include "arch/nnet_mkl.h"
+#include "core/flatten.h"
 #include "core/mkl/activation_functions.h"
 #include "core/mkl/batch_norm.h"
 #include "core/mkl/convolution.h"
@@ -15,6 +16,13 @@
 #include "mkldnn.hpp"
 
 #if ARCHITECTURE == MKLDNN
+
+result_buf flatten_input(float* activations,
+                         layer_t* layers,
+                         int lnum,
+                         float* result) {
+    return flatten_input_rowmajor(activations, layers, lnum, result);
+}
 
 result_buf inner_product_layer(float* activations,
                                float* weights,

@@ -7,6 +7,7 @@
 #include "core/eigen/activation_functions.h"
 #include "core/eigen/batch_norm.h"
 #include "core/eigen/convolution.h"
+#include "core/eigen/flatten.h"
 #include "core/eigen/matrix_multiply.h"
 #include "core/eigen/pooling.h"
 #include "utility/utility.h"
@@ -29,6 +30,15 @@
 // responsible for ensuring that all activations and weights data is available
 // when
 // each layer needs them.
+
+result_buf flatten_input(float* activations,
+                         layer_t* layers,
+                         int lnum,
+                         float* result) {
+    nnet_eigen::flatten_input(
+            activations, &layers[lnum - 1], NUM_TEST_CASES, result);
+    return result;
+}
 
 result_buf inner_product_layer(float* activations,
                                float* weights,

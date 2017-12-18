@@ -7,6 +7,7 @@
 #include "nnet_fwd.h"
 #include "core/activation_functions.h"
 #include "core/convolution.h"
+#include "core/flatten.h"
 #include "core/matrix_multiply.h"
 #include "core/pooling.h"
 #include "core/batch_norm.h"
@@ -75,6 +76,14 @@ unsigned kConvolutionHw = 0x0003;
 unsigned kInnerProductHw = 0x0003;
 unsigned kReductionHw = 0x0003;
 unsigned kBatchNormHw = 0x0003;
+
+result_buf flatten_input(float* activations,
+                         layer_t* layers,
+                         int lnum,
+                         float* result) {
+    return flatten_input_rowmajor(activations, layers, lnum, result);
+}
+
 
 bool is_supported_activation_func(activation_type func) {
   switch (func) {

@@ -4,6 +4,7 @@
 #include "arch/interface.h"
 #include "core/activation_functions.h"
 #include "core/convolution.h"
+#include "core/flatten.h"
 #include "core/matrix_multiply.h"
 #include "core/pooling.h"
 #include "core/batch_norm.h"
@@ -24,6 +25,13 @@ unsigned kNnetFwdHw = 0x0001;
 // responsible for ensuring that all activations and weights data is available
 // when
 // each layer needs them.
+
+result_buf flatten_input(float* activations,
+                         layer_t* layers,
+                         int lnum,
+                         float* result) {
+    return flatten_input_rowmajor(activations, layers, lnum, result);
+}
 
 result_buf inner_product_layer(float* activations,
                                float* weights,

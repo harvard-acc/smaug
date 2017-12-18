@@ -3,6 +3,7 @@
 #include "nnet_fwd.h"
 #include "core/activation_functions.h"
 #include "core/convolution.h"
+#include "core/flatten.h"
 #include "core/matrix_multiply.h"
 #include "core/pooling.h"
 #include "core/batch_norm.h"
@@ -27,6 +28,13 @@ unsigned kBatchNormHw = 0x0005;
 // hardware block. This is represented by ensuring that each layer is
 // responsible for loading its own input activations and weights. For clarity,
 // all functions to be turned into hardware are suffixed with _hw.
+
+result_buf flatten_input(float* activations,
+                         layer_t* layers,
+                         int lnum,
+                         float* result) {
+    return flatten_input_rowmajor(activations, layers, lnum, result);
+}
 
 void inner_product_layer_hw(float* activations,
                             float* weights,

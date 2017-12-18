@@ -1,8 +1,11 @@
 #ifndef _EIGEN_UTILITY_H_
 #define _EIGEN_UTILITY_H_
 
+#ifdef EIGEN_ARCH_IMPL
+
 #include <iostream>
 
+#include "Eigen/Core"
 #include "unsupported/Eigen/CXX11/Tensor"
 
 namespace nnet_eigen {
@@ -16,8 +19,10 @@ using namespace ::Eigen;
 // 2. channels
 // 3. rows
 // 4. cols
-template <int MapOptions>
-void print_debug4d(TensorMap<Tensor<float, 4>, MapOptions>& tensor) {
+template <typename TensorType>
+void print_debug4d(TensorType& tensor) {
+    EIGEN_STATIC_ASSERT(TensorType::NumIndices == 4,
+                        THIS_METHOD_IS_ONLY_FOR_OBJECTS_OF_A_SPECIFIC_SIZE);
     Tensor<float, 2>::Dimensions print_dims;
     auto input_dims = tensor.dimensions();
     print_dims[0] = input_dims[2];
@@ -64,5 +69,7 @@ void write_output_labels(const char* fname,
                          int num_classes);
 
 }  // namespace nnet_eigen
+
+#endif
 
 #endif

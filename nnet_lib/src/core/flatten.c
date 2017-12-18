@@ -12,10 +12,10 @@
 
 #include "flatten.h"
 
-result_buf flatten_input(float* input,
-                         layer_t* layers,
-                         int lnum,
-                         float* result) {
+result_buf flatten_input_rowmajor(float* input,
+                                  layer_t* layers,
+                                  int lnum,
+                                  float* result) {
     // Check if we actually need to do anything.
     if (layers[lnum - 1].outputs.align_pad == 0 &&
         layers[lnum].inputs.align_pad == 0)

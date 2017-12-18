@@ -52,6 +52,11 @@ result_buf batch_norm_layer(float* activations,
                             float* result,
                             device_t* device);
 
+result_buf flatten_input(float* activations,
+                         layer_t* layers,
+                         int lnum,
+                         float* result);
+
 /*
 result_buf activation_sublayer(float* activations,
                                layer_t* layers,
