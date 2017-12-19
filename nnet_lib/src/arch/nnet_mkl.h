@@ -169,13 +169,28 @@ class BaseMklOp {
     size_t output_idx;
 };
 
+using BaseMklOpPtr = std::unique_ptr<BaseMklOp<dtype>>;
+
 class MklSession {
    public:
     MklSession() : cpu(mkldnn::engine::cpu, 0) {}
 
+    void run() {
+        // Now actually run the network.
+        for (auto& op : oplist) {
+            op->run();
+        }
+    }
+
     // Stream object.
     mkldnn::engine cpu;
+
+    // List of operations to run.
+    std::vector<BaseMklOpPtr> oplist;
 };
+
+// Return the session pointer in this device.
+MklSession* get_session(device_t* device);
 
 }  // namespace nnet_mkl
 

@@ -15,13 +15,13 @@ void convolution3d(float* inputs,
                    layer_t* curr_layer,
                    float* results,
                    device_t* device) {
-    std::vector<primitive> network;
-    nnet_mkl::MklSession* session =
-            reinterpret_cast<nnet_mkl::MklSession*>(device->session);
-
-    Convolution3dOp<dtype> conv_op(
-            inputs, weights, results, curr_layer, NUM_TEST_CASES, session->cpu);
-    conv_op.run();
+    auto session = get_session(device);
+    session->oplist.emplace_back(new Convolution3dOp<dtype>(inputs,
+                                                            weights,
+                                                            results,
+                                                            curr_layer,
+                                                            NUM_TEST_CASES,
+                                                            session->cpu));
 }
 
 }  // namespace nnet_mkl

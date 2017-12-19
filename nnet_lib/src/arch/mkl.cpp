@@ -17,6 +17,10 @@
 
 #if ARCHITECTURE == MKLDNN
 
+nnet_mkl::MklSession* nnet_mkl::get_session(device_t* device) {
+    return reinterpret_cast<nnet_mkl::MklSession*>(device->session);
+}
+
 result_buf flatten_input(float* activations,
                          layer_t* layers,
                          int lnum,
@@ -153,6 +157,8 @@ nnet_fwd_outer:
                     activations.d, weights.d, layers, l, result.d, device);
         }
     }
+
+    session->run();
 
     layers[network.depth - 1].result_in_temp = result_loc == result.d;
 

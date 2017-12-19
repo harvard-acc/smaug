@@ -15,12 +15,13 @@ void matrix_multiply_with_bias(float* inputs,
                                layer_t* curr_layer,
                                float* results,
                                device_t* device) {
-    std::vector<primitive> network;
-    nnet_mkl::MklSession* session =
-            reinterpret_cast<nnet_mkl::MklSession*>(device->session);
-    InnerProductOp<dtype> inner_product_op(
-            inputs, weights, results, curr_layer, NUM_TEST_CASES, session->cpu);
-    inner_product_op.run();
+    auto session = get_session(device);
+    session->oplist.emplace_back(new InnerProductOp<dtype>(inputs,
+                                                           weights,
+                                                           results,
+                                                           curr_layer,
+                                                           NUM_TEST_CASES,
+                                                           session->cpu));
 }
 
 }  // namespace nnet_mkl

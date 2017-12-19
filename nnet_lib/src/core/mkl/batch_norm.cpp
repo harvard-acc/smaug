@@ -13,13 +13,9 @@ void batch_norm(float* inputs,
                 int batch_size,
                 float* results,
                 device_t* device) {
-    std::vector<primitive> network;
-    nnet_mkl::MklSession* session =
-            reinterpret_cast<nnet_mkl::MklSession*>(device->session);
-
-    BatchNormOp<dtype> batch_norm_op(
-            inputs, weights, results, curr_layer, batch_size, session->cpu);
-    batch_norm_op.run();
+    auto session = get_session(device);
+    session->oplist.emplace_back(new BatchNormOp<dtype>(
+            inputs, weights, results, curr_layer, batch_size, session->cpu));
 }
 
 }  // namespace nnet_mkl

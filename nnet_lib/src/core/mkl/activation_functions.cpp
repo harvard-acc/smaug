@@ -7,45 +7,46 @@ namespace nnet_mkl {
 
 using namespace mkldnn;
 
-void sigmoid(float* activations, int size, engine& cpu, float* results) {
-    SigmoidActivationFunctionOp sigmoid_op(activations, results, size, cpu);
-    sigmoid_op.run();
+BaseMklOpPtr sigmoid(float* activations,
+                     int size,
+                     engine& cpu,
+                     float* results) {
+    return BaseMklOpPtr(
+            new SigmoidActivationFunctionOp(activations, results, size, cpu));
 }
 
-void relu(float* activations,
-          int size,
-          engine& cpu,
-          float* results,
-          float negative_slope = 0) {
-    ReluActivationFunctionOp relu_op(
-            activations, results, size, cpu, negative_slope);
-    relu_op.run();
+BaseMklOpPtr relu(float* activations,
+                  int size,
+                  engine& cpu,
+                  float* results,
+                  float negative_slope = 0) {
+    return BaseMklOpPtr(new ReluActivationFunctionOp(
+            activations, results, size, cpu, negative_slope));
 }
 
-void elu(float* activations, int size, engine& cpu, float* results) {
+BaseMklOpPtr elu(float* activations, int size, engine& cpu, float* results) {
     static const float alpha = 0.1;
-    EluActivationFunctionOp elu_op(activations, results, size, cpu, alpha);
-    elu_op.run();
+    return BaseMklOpPtr(new EluActivationFunctionOp(
+            activations, results, size, cpu, alpha));
 }
 
-void selu(float* activations, int size, engine& cpu, float* results) {
-    SeluActivationFunctionOp selu_op(activations, results, size, cpu);
-    selu_op.run();
+BaseMklOpPtr selu(float* activations, int size, engine& cpu, float* results) {
+    return BaseMklOpPtr(
+            new SeluActivationFunctionOp(activations, results, size, cpu));
 }
 
-void tanh(float* activations, int size, engine& cpu, float* results) {
-    TanhActivationFunctionOp tanh_op(activations, results, size, cpu);
-    tanh_op.run();
+BaseMklOpPtr tanh(float* activations, int size, engine& cpu, float* results) {
+    return BaseMklOpPtr(
+            new TanhActivationFunctionOp(activations, results, size, cpu));
 }
 
-void softmax(float* activations,
-             int batch_size,
-             int softmax_size,
-             engine& cpu,
-             float* results) {
-    SoftmaxActivationFunctionOp softmax_op(
-            activations, results, batch_size, softmax_size, cpu);
-    softmax_op.run();
+BaseMklOpPtr softmax(float* activations,
+                     int batch_size,
+                     int softmax_size,
+                     engine& cpu,
+                     float* results) {
+    return BaseMklOpPtr(new SoftmaxActivationFunctionOp(
+            activations, results, batch_size, softmax_size, cpu));
 }
 
 void activation_fun(float* activations,
@@ -54,26 +55,32 @@ void activation_fun(float* activations,
                     activation_type function,
                     float* results,
                     device_t* device) {
-    nnet_mkl::MklSession* session =
-            reinterpret_cast<nnet_mkl::MklSession*>(device->session);
+    auto session = get_session(device);
     // Most of these functions are element-wise, so they don't need to know
     // about batches.
     int total_size = batch_size * input_size;
     if (function == RELU) {
-        relu(activations, total_size, session->cpu, results, 0);
+        session->oplist.emplace_back(
+                relu(activations, total_size, session->cpu, results, 0));
     } else if (function == SIGMOID) {
-        sigmoid(activations, total_size, session->cpu, results);
+        session->oplist.emplace_back(
+                sigmoid(activations, total_size, session->cpu, results));
     } else if (function == LRELU) {
         static const float alpha = 0.1;
-        relu(activations, total_size, session->cpu, results, alpha);
+        session->oplist.emplace_back(
+                relu(activations, total_size, session->cpu, results, alpha));
     } else if (function == ELU) {
-        elu(activations, total_size, session->cpu, results);
+        session->oplist.emplace_back(
+                elu(activations, total_size, session->cpu, results));
     } else if (function == SELU) {
-        selu(activations, total_size, session->cpu, results);
+        session->oplist.emplace_back(
+                selu(activations, total_size, session->cpu, results));
     } else if (function == TANH) {
-        tanh(activations, total_size, session->cpu, results);
+        session->oplist.emplace_back(
+                tanh(activations, total_size, session->cpu, results));
     } else if (function == SOFTMAX) {
-        softmax(activations, batch_size, input_size, session->cpu, results);
+        session->oplist.emplace_back(softmax(
+                activations, batch_size, input_size, session->cpu, results));
     } else {
         assert(false && "This activation function is currently unsupported!");
     }

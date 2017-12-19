@@ -174,12 +174,30 @@ class SoftmaxActivationFunctionOp : public ActivationFunctionOp<dtype> {
     virtual ~SoftmaxActivationFunctionOp() {}
 };
 
-void sigmoid(float* activations, int size, mkldnn::engine& cpu, float* results);
-void relu(float* activations, int size, mkldnn::engine& cpu, float* results);
-void elu(float* activations, int size, mkldnn::engine& cpu, float* results);
-void selu(float* activations, int size, mkldnn::engine& cpu, float* results);
-void tanh(float* activations, int size, mkldnn::engine& cpu, float* results);
-void softmax(float* a, int num_test_cases, int softmax_size, float* results);
+BaseMklOpPtr sigmoid(float* activations,
+                     int size,
+                     mkldnn::engine& cpu,
+                     float* results);
+BaseMklOpPtr relu(float* activations,
+                  int size,
+                  mkldnn::engine& cpu,
+                  float* results);
+BaseMklOpPtr elu(float* activations,
+                 int size,
+                 mkldnn::engine& cpu,
+                 float* results);
+BaseMklOpPtr selu(float* activations,
+                  int size,
+                  mkldnn::engine& cpu,
+                  float* results);
+BaseMklOpPtr tanh(float* activations,
+                  int size,
+                  mkldnn::engine& cpu,
+                  float* results);
+BaseMklOpPtr softmax(float* a,
+                     int num_test_cases,
+                     int softmax_size,
+                     float* results);
 
 void activation_fun(float* activations,
                     int batch_size,
