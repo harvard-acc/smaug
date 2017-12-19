@@ -1,25 +1,17 @@
 sudo: required
 dist: trusty
+services:
+  - docker
 
 before_install:
-  - mkdir -p deps
-  - cd deps
-  - git clone https://github.com/harvard-acc/gem5-aladdin
-  - cd gem5-aladdin
-  - git submodule update --init --recursive
-  - cd ../..
-  - sudo apt-get install -y libconfuse-dev
-
-env:
-  - ALADDIN_HOME=$PWD/deps/gem5-aladdin/src/aladdin
+  - docker pull xyzsam/smaug
 
 language: c
 compiler:
   - gcc
 
 script:
-  - cd nnet_lib/tests
-  - make all
+  - docker run --rm -v $PWD:/workspace/smaug:rw xyzsam/smaug /bin/bash -c "cd smaug/nnet_lib/tests && make all"
 
 notifications:
   email:
