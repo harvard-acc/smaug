@@ -60,13 +60,15 @@ int main(int argc, const char* argv[]) {
     auto start = std::chrono::high_resolution_clock::now();
 
     if (use_mkl) {
+        nnet_mkl::activation_fun(
+                inputs, NUM_TEST_CASES, size, SIGMOID, results, &device);
         for (int it = 0; it < iterations; it++) {
-            nnet_mkl::activation_fun(inputs, size, SIGMOID, results, &device);
+            session->run();
         }
 
     } else {
         for (int it = 0; it < iterations; it++) {
-            activation_fun(inputs, size, SIGMOID, nullptr);
+            activation_fun(inputs, NUM_TEST_CASES, size, SIGMOID, nullptr);
         }
     }
 

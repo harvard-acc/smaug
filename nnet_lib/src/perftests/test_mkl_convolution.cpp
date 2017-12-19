@@ -122,9 +122,9 @@ int main(int argc, const char* argv[]) {
     auto start = std::chrono::high_resolution_clock::now();
 
     if (use_mkl) {
+        nnet_mkl::convolution3d(inputs, weights, &curr_layer, results, &device);
         for (int it = 0; it < iterations; it++) {
-            nnet_mkl::convolution3d(
-                    inputs, weights, &curr_layer, results, &device);
+            session->run();
         }
     } else {
         for (int it = 0; it < iterations; it++) {

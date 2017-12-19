@@ -76,8 +76,9 @@ int main(int argc, const char* argv[]) {
     auto start = std::chrono::high_resolution_clock::now();
 
     if (mode == mkl) {
+        nnet_mkl::max_pooling_3d(inputs, &layer, results, &device);
         for (int it = 0; it < iterations; it++) {
-            nnet_mkl::max_pooling_3d(inputs, &layer, results, &device);
+            session->run();
         }
 
     } else {

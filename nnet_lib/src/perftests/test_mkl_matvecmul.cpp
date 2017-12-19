@@ -99,12 +99,10 @@ int main(int argc, const char* argv[]) {
     auto start = std::chrono::high_resolution_clock::now();
 
     if (use_mkl) {
+        nnet_mkl::matrix_multiply_with_bias(
+                inputs, weights, layer, results, &device);
         for (int it = 0; it < iterations; it++) {
-            nnet_mkl::matrix_multiply_with_bias(inputs,
-                                                weights,
-                                                layer,
-                                                results,
-                                                &device);
+            session->run();
         }
     } else {
         for (int it = 0; it < iterations; it++) {

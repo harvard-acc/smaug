@@ -45,7 +45,7 @@ int main(int argc, const char* argv[]) {
 
     printf("Using MKL: %d\n", use_mkl);
 
-    int iterations = 256 * 1024;
+    int iterations = 1024;
     int batches = NUM_TEST_CASES;
     layer_t layer;
     layer.type = BATCH_NORM;  // Assume previous layer was FC.
@@ -77,9 +77,10 @@ int main(int argc, const char* argv[]) {
     auto start = std::chrono::high_resolution_clock::now();
 
     if (use_mkl) {
+        nnet_mkl::batch_norm(
+                inputs, weights, &layer, batches, results, &device);
         for (int it = 0; it < iterations; it++) {
-            nnet_mkl::batch_norm(
-                    inputs, weights, &layer, batches, results, &device);
+            session->run();
         }
 
     } else {
