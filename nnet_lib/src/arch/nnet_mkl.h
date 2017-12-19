@@ -54,6 +54,47 @@ class BaseMklOp {
     }
 
    protected:
+
+    // Create a operation primitive object, handling output reformatting.
+    //
+    // The primitive type is determined by the template parameter primitive_t.
+    // This assumes that one of the constructors of primitive_t takes as the final
+    // argument a memory primitive representing the result of the output.
+    //
+    // Args:
+    //    pd: A primitive descriptor for this primitive.
+    //    output_memory: The user-managed memory to store the output.
+    //    input_args: All the rest constructor arguments for primitive_t,
+    //      (other than the primitive descriptor and output memory).
+    //
+    //  Example:
+    //    create_primitive_with_output_reorder<mkldnn::convolution_forward>(
+    //        conv_pd, output_memory, inputs, weights, biases);
+    //
+    //    will construct the convolution_forward primitive like so:
+    //      mkldnn::convolution_forward(conv_pd, inputs, weights, biases,
+    //                                  output_memory);
+    template <typename primitive_t, typename... Args>
+    void create_primitive_with_output_reorder(
+            const typename primitive_t::primitive_desc& pd,
+            mem_ref_t output_memory,
+            Args... input_args) {
+        mkldnn::memory temp_output = output_memory;
+        bool reordered = false;
+        if (needs_reorder(output_memory, pd.dst_primitive_desc())) {
+            temp_output = create_memory(pd.dst_primitive_desc());
+            reordered = true;
+        }
+
+        // Using temp_output is okay because it's just a wrapper around a shared
+        // ptr?
+        worklist.emplace_back(primitive_t(pd, input_args..., temp_output));
+
+        if (reordered) {
+            worklist.emplace_back(mkldnn::reorder(temp_output, output_memory));
+        }
+    }
+
     // Create a memory primitive from an existing buffer.
     //
     // A reference to the created memory primitive is returned.
@@ -105,7 +146,7 @@ class BaseMklOp {
             mem_ref_t current_mem,
             const mkldnn::memory::primitive_desc& target_desc) {
         if (needs_reorder(current_mem, target_desc)) {
-            memories.emplace_back(std::make_shared<mkldnn::memory>(target_desc));
+            memories.emplace_back(target_desc);
             worklist.emplace_back(
                     mkldnn::reorder(current_mem, memories.back()));
             return memories.back();

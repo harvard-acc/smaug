@@ -33,7 +33,7 @@ run_test_mkl_convolution: $(BUILD_DIR)/test_mkl_convolution
 	./$< mkl
 $(BUILD_DIR)/test_mkl_convolution: ARCH=MKLDNN
 $(BUILD_DIR)/test_mkl_convolution: $(PERFTEST_DIR)/test_mkl_convolution.cpp $(ALL_SRCS)
-	$(CXX) $(CFLAGS) $(CPPFLAGS) $^ -o $@ $(LFLAGS)
+	$(CXX) $(CFLAGS) $(CPPFLAGS) -DTRANSPOSE_WEIGHTS=1 $^ -o $@ $(LFLAGS)
 
 run_test_mkl_matvecmul: $(BUILD_DIR)/test_mkl_matvecmul
 	./$< mkl
