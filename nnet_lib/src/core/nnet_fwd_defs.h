@@ -373,6 +373,13 @@ typedef struct _iarray_t {
 // (otherwise we run into all the issues of function call barriers in Aladdin).
 // Add this macro before the function declaration to force inlining on this
 // function.
+//
+// Don't do this except when we're tracing though; usually it is not necessary
+// and it generates a lot of compiler warnings.
+#ifdef TRACE_MODE
 #define ALWAYS_INLINE __attribute__((__always_inline__))
+#else
+#define ALWAYS_INLINE
+#endif
 
 #endif
