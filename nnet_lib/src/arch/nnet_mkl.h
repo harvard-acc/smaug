@@ -50,6 +50,10 @@ class BaseMklOp {
     // This is useful if execution should be delayed.
     std::vector<mkldnn::primitive>& get_worklist() { return worklist; }
 
+    const mkldnn::memory& get_output_mem() const {
+        return memories.at(output_idx);
+    }
+
     mem_d get_output_mem_desc() const {
         return memories.at(output_idx).get_primitive_desc().desc();
     }

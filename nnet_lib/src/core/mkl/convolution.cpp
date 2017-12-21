@@ -16,12 +16,22 @@ void convolution3d(float* inputs,
                    float* results,
                    device_t* device) {
     auto session = get_session(device);
-    session->oplist.emplace_back(new Convolution3dOp<dtype>(inputs,
-                                                            weights,
-                                                            results,
-                                                            curr_layer,
-                                                            NUM_TEST_CASES,
-                                                            session->cpu));
+    if (session->empty()) {
+        session->oplist.emplace_back(new Convolution3dOp<dtype>(inputs,
+                                                                weights,
+                                                                results,
+                                                                curr_layer,
+                                                                NUM_TEST_CASES,
+                                                                session->cpu));
+    } else {
+        session->oplist.emplace_back(
+                new Convolution3dOp<dtype>(session->last_op(),
+                                           weights,
+                                           results,
+                                           curr_layer,
+                                           NUM_TEST_CASES,
+                                           session->cpu));
+    }
 }
 
 }  // namespace nnet_mkl

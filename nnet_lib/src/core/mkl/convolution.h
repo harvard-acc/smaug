@@ -15,15 +15,25 @@ class Convolution3dOp : public BaseMklOp<DType> {
                     int _batch_size,
                     mkldnn::engine& engine)
             : BaseMklOp<DType>(engine), layer(_layer), batch_size(_batch_size) {
-        auto input_mem_index = create_input_memory(input_buffer);
-        auto weight_mem_index = create_weight_memory(weights_buffer);
-        auto bias_mem_index = create_bias_memory();
-        auto output_mem_index = create_output_memory(output_buffer);
+        auto input_mem = create_input_memory(input_buffer);
+        auto weight_mem = create_weight_memory(weights_buffer);
+        auto bias_mem = create_bias_memory();
 
-        create_primitive(input_mem_index,
-                         weight_mem_index,
-                         bias_mem_index,
-                         output_mem_index);
+        create_primitive(input_mem, weight_mem, bias_mem, output_buffer);
+    }
+
+    Convolution3dOp(const BaseMklOpPtr& prev_op,
+                    DType* weights_buffer,
+                    DType* output_buffer,
+                    layer_t* _layer,
+                    int _batch_size,
+                    mkldnn::engine& engine)
+            : BaseMklOp<DType>(engine), layer(_layer), batch_size(_batch_size) {
+        auto input_mem = prev_op->get_output_mem();
+        auto weight_mem = create_weight_memory(weights_buffer);
+        auto bias_mem = create_bias_memory();
+
+        create_primitive(input_mem, weight_mem, bias_mem, output_buffer);
     }
 
    protected:
@@ -83,11 +93,10 @@ class Convolution3dOp : public BaseMklOp<DType> {
     // Supply the memory indices for inputs, weights, bias, and outputs.
     // If the output format is not mem_fmt::any, then the output will be
     // reordered if necessary into that specified format.
-    mkldnn::primitive& create_primitive(
-            mem_ref_t input,
-            mem_ref_t weights,
-            mem_ref_t bias,
-            mem_ref_t output) {
+    mkldnn::primitive& create_primitive(mem_ref_t inputs,
+                                        mem_ref_t weights,
+                                        mem_ref_t bias,
+                                        DType* output_buffer) {
         mem_dtype dtype = mkl_traits<DType>::dtype;
         auto conv_input_md = mem_d({ get_input_dims() }, dtype, mem_fmt::any);
         auto conv_weight_md = mem_d({ get_weight_dims() }, dtype, mem_fmt::any);
@@ -108,23 +117,23 @@ class Convolution3dOp : public BaseMklOp<DType> {
 
         // Inputs can be eagerly reordered if required.
         mem_ref_t conv_input = this->reorder_input_if_needed(
-                input, conv_pd.src_primitive_desc());
+                inputs, conv_pd.src_primitive_desc());
         mem_ref_t conv_weights = this->reorder_input_if_needed(
                 weights, conv_pd.weights_primitive_desc());
 
-        this->template create_primitive_with_output_reorder<
+        this->template create_primitive_no_output_reorder<
                 mkldnn::convolution_forward>(
-                conv_pd, output, conv_input, conv_weights, bias);
+                conv_pd, output_buffer, conv_input, conv_weights, bias);
 
         return this->worklist.back();
-   }
+    }
 
-   // The convolutional layer configuration.
-   const layer_t* layer;
-   const int batch_size;
+    // The convolutional layer configuration.
+    const layer_t* layer;
+    const int batch_size;
 
-   // TODO: We don't actually have biases in the weights yet!
-   std::unique_ptr<DType[]> biases;
+    // TODO: We don't actually have biases in the weights yet!
+    std::unique_ptr<DType[]> biases;
 };
 
 void convolution3d(float* inputs,
