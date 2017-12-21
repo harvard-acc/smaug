@@ -19,20 +19,43 @@ class ActivationFunctionOp : public BaseMklOp<DType> {
                 buffer, mem_dims({ size }), mem_fmt::x, is_output);
     }
 
-    // Create a return a reference to the operation primitive.
+    // Create a primitive descriptor for this eltwise primitive.
+    mkldnn::eltwise_forward::primitive_desc create_primitive_desc(
+            mkldnn::algorithm alg,
+            mem_d input_md,
+            DType alpha = 0,
+            DType beta = 0) {
+        auto desc =
+                mkldnn::eltwise_forward::desc(mkldnn::prop_kind::forward,
+                                              alg,
+                                              input_md,
+                                              alpha,
+                                              beta);
+        return mkldnn::eltwise_forward::primitive_desc(desc, this->engine);
+    }
+
+    // Return a reference to the eltwise primitive.
     mkldnn::eltwise_forward& create_primitive(mkldnn::algorithm alg,
                                               mem_ref_t input,
                                               mem_ref_t output,
                                               DType alpha = 0,
                                               DType beta = 0) {
-        auto desc =
-                mkldnn::eltwise_forward::desc(mkldnn::prop_kind::forward,
-                                              alg,
-                                              input.get_primitive_desc().desc(),
-                                              alpha,
-                                              beta);
-        auto pd = mkldnn::eltwise_forward::primitive_desc(desc, this->engine);
+        auto pd = create_primitive_desc(
+                alg, input.get_primitive_desc().desc(), alpha, beta);
         this->worklist.emplace_back(mkldnn::eltwise_forward(pd, input, output));
+        return static_cast<mkldnn::eltwise_forward&>(this->worklist.back());
+    }
+
+    mkldnn::eltwise_forward& create_primitive(mkldnn::algorithm alg,
+                                              const mkldnn::primitive& input_prim,
+                                              mem_d input_md,
+                                              DType* output_buffer,
+                                              DType alpha = 0,
+                                              DType beta = 0) {
+        auto pd = create_primitive_desc(alg, input_md, alpha, beta);
+        mem_ref_t output = BaseMklOp<dtype>::create_memory(
+                pd.dst_primitive_desc(), output_buffer, true);
+        this->worklist.emplace_back(mkldnn::eltwise_forward(pd, input_prim, output));
         return static_cast<mkldnn::eltwise_forward&>(this->worklist.back());
     }
 };
@@ -45,13 +68,27 @@ class ReluActivationFunctionOp : public ActivationFunctionOp<dtype> {
                              mkldnn::engine& engine,
                              dtype negative_slope = 0)
             : ActivationFunctionOp(engine) {
-        auto input_mem_index = create_memory(input_buffer, size);
-        auto output_mem_index = create_memory(output_buffer, size, true);
+        auto input_mem = create_memory(input_buffer, size);
+        auto output_mem = create_memory(output_buffer, size, true);
         create_primitive(mkldnn::algorithm::eltwise_relu,
-                         input_mem_index,
-                         output_mem_index,
+                         input_mem,
+                         output_mem,
                          negative_slope);
     }
+
+    ReluActivationFunctionOp(const BaseMklOpPtr& prev_op,
+                             dtype* output_buffer,
+                             int size,
+                             mkldnn::engine& engine,
+                             dtype negative_slope = 0)
+            : ActivationFunctionOp(engine) {
+        create_primitive(mkldnn::algorithm::eltwise_relu,
+                         prev_op->get_final_primitive(),
+                         prev_op->get_output_mem_desc(),
+                         output_buffer,
+                         negative_slope);
+    }
+
     virtual ~ReluActivationFunctionOp() {}
 };
 
@@ -62,11 +99,21 @@ class SigmoidActivationFunctionOp : public ActivationFunctionOp<dtype> {
                                 int size,
                                 mkldnn::engine& engine)
             : ActivationFunctionOp(engine) {
-        auto input_mem_index = create_memory(input_buffer, size);
-        auto output_mem_index = create_memory(output_buffer, size, true);
+        auto input_mem = create_memory(input_buffer, size);
+        auto output_mem = create_memory(output_buffer, size, true);
+        create_primitive(
+                mkldnn::algorithm::eltwise_logistic, input_mem, output_mem);
+    }
+
+    SigmoidActivationFunctionOp(const BaseMklOpPtr& prev_op,
+                                dtype* output_buffer,
+                                int size,
+                                mkldnn::engine& engine)
+            : ActivationFunctionOp(engine) {
         create_primitive(mkldnn::algorithm::eltwise_logistic,
-                         input_mem_index,
-                         output_mem_index);
+                         prev_op->get_final_primitive(),
+                         prev_op->get_output_mem_desc(),
+                         output_buffer);
     }
     virtual ~SigmoidActivationFunctionOp() {}
 };
@@ -80,11 +127,24 @@ class EluActivationFunctionOp : public ActivationFunctionOp<dtype> {
             mkldnn::engine& engine,
             dtype negative_slope = mkl_traits<dtype>::to_type(0.1))
             : ActivationFunctionOp(engine) {
-        auto input_mem_index = create_memory(input_buffer, size);
-        auto output_mem_index = create_memory(output_buffer, size, true);
+        auto input_mem = create_memory(input_buffer, size);
+        auto output_mem = create_memory(output_buffer, size, true);
         create_primitive(mkldnn::algorithm::eltwise_elu,
-                         input_mem_index,
-                         output_mem_index,
+                         input_mem,
+                         output_mem,
+                         negative_slope);
+    }
+    EluActivationFunctionOp(
+            const BaseMklOpPtr& prev_op,
+            dtype* output_buffer,
+            int size,
+            mkldnn::engine& engine,
+            dtype negative_slope = mkl_traits<dtype>::to_type(0.1))
+            : ActivationFunctionOp(engine) {
+        create_primitive(mkldnn::algorithm::eltwise_elu,
+                         prev_op->get_final_primitive(),
+                         prev_op->get_output_mem_desc(),
+                         output_buffer,
                          negative_slope);
     }
     virtual ~EluActivationFunctionOp() {}
@@ -97,11 +157,20 @@ class TanhActivationFunctionOp : public ActivationFunctionOp<dtype> {
                              int size,
                              mkldnn::engine& engine)
             : ActivationFunctionOp(engine) {
-        auto input_mem_index = create_memory(input_buffer, size);
-        auto output_mem_index = create_memory(output_buffer, size, true);
+        auto input_mem = create_memory(input_buffer, size);
+        auto output_mem = create_memory(output_buffer, size, true);
+        create_primitive(
+                mkldnn::algorithm::eltwise_tanh, input_mem, output_mem);
+    }
+    TanhActivationFunctionOp(const BaseMklOpPtr& prev_op,
+                             dtype* output_buffer,
+                             int size,
+                             mkldnn::engine& engine)
+            : ActivationFunctionOp(engine) {
         create_primitive(mkldnn::algorithm::eltwise_tanh,
-                         input_mem_index,
-                         output_mem_index);
+                         prev_op->get_final_primitive(),
+                         prev_op->get_output_mem_desc(),
+                         output_buffer);
     }
     virtual ~TanhActivationFunctionOp() {}
 };
@@ -116,20 +185,44 @@ class SeluActivationFunctionOp : public ActivationFunctionOp<dtype> {
                              int size,
                              mkldnn::engine& engine)
             : ActivationFunctionOp(engine) {
-        auto input_mem_index = create_memory(input_buffer, size);
-        auto intermediate_mem_index = create_memory(nullptr, size);
-        auto output_mem_index = create_memory(output_buffer, size);
+        auto input_mem = create_memory(input_buffer, size);
+        auto intermediate_mem = create_memory(nullptr, size);
+        auto output_mem = create_memory(output_buffer, size);
         // SELU can be implemented using an ELU, followed by a scaling.
         create_primitive(mkldnn::algorithm::eltwise_elu,
-                         input_mem_index,
-                         intermediate_mem_index,
+                         input_mem,
+                         intermediate_mem,
                          alpha);
         // The linear algorithm performs y = Ax + B.
         create_primitive(mkldnn::algorithm::eltwise_linear,
-                         intermediate_mem_index,
-                         output_mem_index,
+                         intermediate_mem,
+                         output_mem,
                          lambda);
     }
+
+    SeluActivationFunctionOp(const BaseMklOpPtr& prev_op,
+                             dtype* output_buffer,
+                             int size,
+                             mkldnn::engine& engine)
+            : ActivationFunctionOp(engine) {
+        auto elu_pd = this->create_primitive_desc(
+                mkldnn::algorithm::eltwise_elu, prev_op->get_output_mem_desc(),
+                alpha);
+        auto intermediate_mem =
+                BaseMklOp<dtype>::create_memory(elu_pd.dst_primitive_desc());
+
+        auto linear_pd = this->create_primitive_desc(
+                mkldnn::algorithm::eltwise_linear,
+                elu_pd.dst_primitive_desc().desc(), lambda);
+        auto output_mem = BaseMklOp<dtype>::create_memory(
+                linear_pd.dst_primitive_desc(), output_buffer, true);
+
+        this->worklist.emplace_back(mkldnn::eltwise_forward(
+                elu_pd, prev_op->get_final_primitive(), intermediate_mem));
+        this->worklist.emplace_back(mkldnn::eltwise_forward(
+                linear_pd, this->worklist.back(), output_mem));
+    }
+
     virtual ~SeluActivationFunctionOp() {}
 };
 
@@ -141,11 +234,22 @@ class SoftmaxActivationFunctionOp : public ActivationFunctionOp<dtype> {
                                 int softmax_size,
                                 mkldnn::engine& engine)
             : ActivationFunctionOp(engine) {
-        auto input_mem_index =
-                create_memory(input_buffer, softmax_size, batch_size);
-        auto output_mem_index =
+        auto input_mem = create_memory(input_buffer, softmax_size, batch_size);
+        auto output_mem =
                 create_memory(output_buffer, softmax_size, batch_size, true);
-        create_primitive(input_mem_index, output_mem_index);
+        create_primitive(input_mem, output_mem);
+    }
+
+    SoftmaxActivationFunctionOp(const BaseMklOpPtr& prev_op,
+                                dtype* output_buffer,
+                                int batch_size,
+                                int softmax_size,
+                                mkldnn::engine& engine)
+            : ActivationFunctionOp(engine) {
+        auto output_mem =
+                create_memory(output_buffer, softmax_size, batch_size, true);
+        create_primitive(prev_op->get_final_primitive(),
+                         prev_op->get_output_mem_desc(), output_mem);
     }
 
     mem_ref_t create_memory(dtype* buffer,
@@ -159,8 +263,8 @@ class SoftmaxActivationFunctionOp : public ActivationFunctionOp<dtype> {
                 is_output);
     }
 
-    virtual mkldnn::softmax_forward& create_primitive(mem_ref_t input,
-                                                      mem_ref_t output) {
+    mkldnn::softmax_forward& create_primitive(mem_ref_t input,
+                                              mem_ref_t output) {
         auto desc = mkldnn::softmax_forward::desc(
                 mkldnn::prop_kind::forward_inference,
                 input.get_primitive_desc().desc(),
@@ -168,6 +272,16 @@ class SoftmaxActivationFunctionOp : public ActivationFunctionOp<dtype> {
         auto pd = mkldnn::softmax_forward::primitive_desc(desc, engine);
         worklist.emplace_back(
                 mkldnn::softmax_forward(pd, input, output));
+        return static_cast<mkldnn::softmax_forward&>(worklist.back());
+    }
+
+    mkldnn::softmax_forward& create_primitive(const mkldnn::primitive& input,
+                                              mem_d input_md,
+                                              mem_ref_t output) {
+        auto desc = mkldnn::softmax_forward::desc(
+                mkldnn::prop_kind::forward_inference, input_md, 1);
+        auto pd = mkldnn::softmax_forward::primitive_desc(desc, engine);
+        worklist.emplace_back(mkldnn::softmax_forward(pd, input, output));
         return static_cast<mkldnn::softmax_forward&>(worklist.back());
     }
 

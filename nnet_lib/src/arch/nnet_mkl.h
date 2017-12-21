@@ -1,6 +1,7 @@
 #ifndef _ARCH_MKL_H_
 #define _ARCH_MKL_H_
 
+#include <iostream>
 #include <memory>
 
 #include "mkldnn.hpp"
@@ -49,8 +50,12 @@ class BaseMklOp {
     // This is useful if execution should be delayed.
     std::vector<mkldnn::primitive>& get_worklist() { return worklist; }
 
-    const mem_d& get_output_mem_desc() const {
+    mem_d get_output_mem_desc() const {
         return memories.at(output_idx).get_primitive_desc().desc();
+    }
+
+    const mkldnn::primitive& get_final_primitive() const {
+        return worklist.back();
     }
 
    protected:
@@ -95,6 +100,16 @@ class BaseMklOp {
         }
     }
 
+    template <typename primitive_t, typename... Args>
+    void create_primitive_no_output_reorder(
+            const typename primitive_t::primitive_desc& pd,
+            DType* output_buffer,
+            Args... input_args) {
+        mem_ref_t output =
+                create_memory(pd.dst_primitive_desc(), output_buffer, true);
+        worklist.emplace_back(primitive_t(pd, input_args..., output));
+    }
+
     // Create a memory primitive from an existing buffer.
     //
     // A reference to the created memory primitive is returned.
@@ -120,8 +135,12 @@ class BaseMklOp {
     //
     // An index to the created memory primitive is returned.
     mem_ref_t create_memory(mkldnn::memory::primitive_desc pd,
+                            DType* buffer = nullptr,
                             bool is_output = false) {
-        memories.emplace_back(pd);
+        if (buffer)
+            memories.emplace_back(pd, buffer);
+        else
+            memories.emplace_back(pd);
         if (is_output)
             output_idx = memories.size() - 1;
         return memories.back();
@@ -131,6 +150,10 @@ class BaseMklOp {
     bool needs_reorder(mem_ref_t current_mem,
                        const mkldnn::memory::primitive_desc& target_desc) {
         return (mem_pd(target_desc) != current_mem.get_primitive_desc());
+    }
+
+    bool needs_reorder(const mem_pd& current_mem_pd, const mem_pd& target_desc) {
+        return (mem_pd(target_desc) != current_mem_pd);
     }
 
     // Adds a reorder primitive to the worklist if required for this memory.
@@ -180,6 +203,13 @@ class MklSession {
         for (auto& op : oplist) {
             op->run();
         }
+    }
+
+    bool empty() const { return oplist.empty(); }
+
+    const BaseMklOpPtr& last_op() {
+        assert(!empty());
+        return oplist.back();
     }
 
     // Stream object.
