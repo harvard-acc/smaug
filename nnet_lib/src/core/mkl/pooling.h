@@ -14,7 +14,7 @@ class MaxPoolingOp : public BaseMklOp<DType> {
                  layer_t* _layer,
                  int _batch_size,
                  mkldnn::engine& engine)
-            : BaseMklOp<DType>(engine), layer(_layer), batch_size(_batch_size) {
+            : BaseMklOp<DType>(_layer, _batch_size, engine) {
         auto input_mem = create_input_memory(input_buffer);
         auto output_mem = create_output_memory(output_buffer);
 
@@ -26,7 +26,7 @@ class MaxPoolingOp : public BaseMklOp<DType> {
                  layer_t* _layer,
                  int _batch_size,
                  mkldnn::engine& engine)
-            : BaseMklOp<DType>(engine), layer(_layer), batch_size(_batch_size) {
+            : BaseMklOp<DType>(_layer, _batch_size, engine) {
         create_primitive(prev_op->get_final_primitive(),
                          prev_op->get_output_mem_desc(),
                          output_buffer);
@@ -35,24 +35,24 @@ class MaxPoolingOp : public BaseMklOp<DType> {
    protected:
     // Return a mem_dims object for the input, assuming nchw format.
     mem_dims get_input_dims() {
-        return { batch_size, layer->inputs.height, layer->inputs.rows,
-                 layer->inputs.cols };
+        return { this->batch_size, this->layer->inputs.height,
+                 this->layer->inputs.rows, this->layer->inputs.cols };
     }
 
     // Return a mem_dims object for the output, assuming nchw format.
     mem_dims get_output_dims() {
-        return { batch_size, layer->outputs.height, layer->outputs.rows,
-                 layer->outputs.cols };
+        return { this->batch_size, this->layer->outputs.height,
+                 this->layer->outputs.rows, this->layer->outputs.cols };
     }
 
     // Return a mem_dims object for the pooling dims.
     mem_dims get_pool_dims() {
-        return { layer->weights.cols, layer->weights.cols };
+        return { this->layer->weights.cols, this->layer->weights.cols };
     }
 
     // Return a mem_dims object for the pooling strides.
     mem_dims get_pool_strides() {
-        return { layer->field_stride, layer->field_stride };
+        return { this->layer->field_stride, this->layer->field_stride };
     }
 
     // Return a mem_dims object for the pooling padding.
@@ -113,10 +113,6 @@ class MaxPoolingOp : public BaseMklOp<DType> {
                 mkldnn::pooling_forward>(pool_pd, output_buffer, input_prim);
         return this->worklist.back();
     }
-
-   // The pooling layer configuration.
-   const layer_t* layer;
-   const int batch_size;
 };
 
 void max_pooling_3d(float* inputs,

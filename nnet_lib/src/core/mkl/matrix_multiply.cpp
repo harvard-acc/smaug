@@ -16,12 +16,22 @@ void matrix_multiply_with_bias(float* inputs,
                                float* results,
                                device_t* device) {
     auto session = get_session(device);
-    session->oplist.emplace_back(new InnerProductOp<dtype>(inputs,
-                                                           weights,
-                                                           results,
-                                                           curr_layer,
-                                                           NUM_TEST_CASES,
-                                                           session->cpu));
+    if (session->empty()) {
+        session->oplist.emplace_back(new InnerProductOp<dtype>(inputs,
+                                                               weights,
+                                                               results,
+                                                               curr_layer,
+                                                               NUM_TEST_CASES,
+                                                               session->cpu));
+    } else {
+        session->oplist.emplace_back(
+                new InnerProductOp<dtype>(session->last_op(),
+                                          weights,
+                                          results,
+                                          curr_layer,
+                                          NUM_TEST_CASES,
+                                          session->cpu));
+    }
 }
 
 }  // namespace nnet_mkl

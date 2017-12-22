@@ -26,7 +26,7 @@ class BatchNormOp : public BaseMklOp<DType> {
                 layer_t* _layer,
                 int _batch_size,
                 mkldnn::engine& engine)
-            : BaseMklOp<DType>(engine), layer(_layer), batch_size(_batch_size) {
+            : BaseMklOp<DType>(_layer, _batch_size, engine) {
         auto input_mem = create_input_memory(input_buffer);
         auto mean_mem = create_mean_memory(weights_buffer);
         auto variance_mem = create_variance_memory(weights_buffer);
@@ -40,22 +40,24 @@ class BatchNormOp : public BaseMklOp<DType> {
    protected:
     // Returns true if the input to BN is the output of an FC layer.
     bool is_fc_output() {
-        return layer->inputs.height == 1;
+        return this->layer->inputs.height == 1;
     }
 
     // Return a mem_dims object for the input, assuming nchw format.
     mem_dims get_input_dims() {
-        int input_size = layer->inputs.rows * layer->inputs.height *
-                         (layer->inputs.cols + layer->inputs.align_pad);
+        int input_size =
+                this->layer->inputs.rows * this->layer->inputs.height *
+                (this->layer->inputs.cols + this->layer->inputs.align_pad);
         // The size of the batch normalization is indicated by the channel
         // dimension. Therefore, the output of a FC layer must have all its
         // dimensionality (except for batch size) compressed into the channel
         // dimension, with rows = cols = 1. Output of CONV layers can remain
         // the same.
-        return is_fc_output()
-                       ? mem_dims({ batch_size, input_size, 1, 1 })
-                       : mem_dims({ batch_size, layer->inputs.height,
-                                    layer->inputs.rows, layer->inputs.cols });
+        return is_fc_output() ? mem_dims({ this->batch_size, input_size, 1, 1 })
+                              : mem_dims({ this->batch_size,
+                                           this->layer->inputs.height,
+                                           this->layer->inputs.rows,
+                                           this->layer->inputs.cols });
     }
 
     // Return a mem_dims object for the output, assuming nchw format.
@@ -146,10 +148,6 @@ class BatchNormOp : public BaseMklOp<DType> {
 
         return this->worklist.back();
    }
-
-    // The batch norm layer configuration.
-    const layer_t* layer;
-    const int batch_size;
 };
 
 void batch_norm(float* inputs,

@@ -8,18 +8,18 @@ namespace nnet_mkl {
 template <typename DType>
 class Convolution3dOp : public BaseMklOp<DType> {
   public:
-    Convolution3dOp(DType* input_buffer,
-                    DType* weights_buffer,
-                    DType* output_buffer,
-                    layer_t* _layer,
-                    int _batch_size,
-                    mkldnn::engine& engine)
-            : BaseMklOp<DType>(engine), layer(_layer), batch_size(_batch_size) {
-        auto input_mem = create_input_memory(input_buffer);
-        auto weight_mem = create_weight_memory(weights_buffer);
-        auto bias_mem = create_bias_memory();
+   Convolution3dOp(DType* input_buffer,
+                   DType* weights_buffer,
+                   DType* output_buffer,
+                   layer_t* _layer,
+                   int _batch_size,
+                   mkldnn::engine& engine)
+           : BaseMklOp<DType>(_layer, _batch_size, engine) {
+       auto input_mem = create_input_memory(input_buffer);
+       auto weight_mem = create_weight_memory(weights_buffer);
+       auto bias_mem = create_bias_memory();
 
-        create_primitive(input_mem, weight_mem, bias_mem, output_buffer);
+       create_primitive(input_mem, weight_mem, bias_mem, output_buffer);
     }
 
     Convolution3dOp(const BaseMklOpPtr& prev_op,
@@ -28,7 +28,7 @@ class Convolution3dOp : public BaseMklOp<DType> {
                     layer_t* _layer,
                     int _batch_size,
                     mkldnn::engine& engine)
-            : BaseMklOp<DType>(engine), layer(_layer), batch_size(_batch_size) {
+            : BaseMklOp<DType>(_layer, _batch_size, engine) {
         auto input_mem = prev_op->get_output_mem();
         auto weight_mem = create_weight_memory(weights_buffer);
         auto bias_mem = create_bias_memory();
@@ -39,27 +39,27 @@ class Convolution3dOp : public BaseMklOp<DType> {
    protected:
     // Return a mem_dims object for the input, assuming nchw format.
     mem_dims get_input_dims() {
-        int c_padding = layer->c_padding;
-        return { batch_size, layer->inputs.height,
-                 layer->inputs.rows - 2 * c_padding,
-                 layer->inputs.cols - 2 * c_padding };
+        int c_padding = this->layer->c_padding;
+        return { this->batch_size, this->layer->inputs.height,
+                 this->layer->inputs.rows - 2 * c_padding,
+                 this->layer->inputs.cols - 2 * c_padding };
     }
 
     // Return a mem_dims object for the output, assuming nchw format.
     mem_dims get_output_dims() {
-        return { batch_size, layer->outputs.height, layer->outputs.rows,
-                 layer->outputs.cols };
+        return { this->batch_size, this->layer->outputs.height,
+                 this->layer->outputs.rows, this->layer->outputs.cols };
     }
 
     // Return a mem_dims object for the weight, assuming oihw format.
     mem_dims get_weight_dims() {
-        return { layer->outputs.height, layer->weights.height,
-                 layer->weights.rows, layer->weights.cols };
+        return { this->layer->outputs.height, this->layer->weights.height,
+                 this->layer->weights.rows, this->layer->weights.cols };
     }
 
     // Return a mem_dims object for the bias, assuming x format.
     mem_dims get_bias_dims() {
-        return { layer->outputs.height };
+        return { this->layer->outputs.height };
     }
 
     // Create an input memory primitive from a pointer, assuming nchw format.
@@ -82,8 +82,9 @@ class Convolution3dOp : public BaseMklOp<DType> {
 
     // Create a bias memory primitive from a pointer, assuming nchw format.
     mem_ref_t create_bias_memory() {
-        biases = std::unique_ptr<DType[]>(new DType[layer->outputs.height]);
-        for (int i = 0; i < layer->outputs.height; i++)
+        biases = std::unique_ptr<DType[]>(
+                new DType[this->layer->outputs.height]);
+        for (int i = 0; i < this->layer->outputs.height; i++)
             biases[i] = 0;
         return this->create_memory(biases.get(), get_bias_dims(), mem_fmt::x);
     }
@@ -103,9 +104,11 @@ class Convolution3dOp : public BaseMklOp<DType> {
         auto conv_bias_md = mem_d({ get_bias_dims() }, dtype, mem_fmt::any);
         auto conv_output_md = mem_d({ get_output_dims() }, dtype, mem_fmt::any);
 
-        mem_dims conv_stride = { layer->field_stride, layer->field_stride };
+        mem_dims conv_stride = { this->layer->field_stride,
+                                 this->layer->field_stride };
         // We pass this twice...?
-        mem_dims conv_padding = { layer->c_padding, layer->c_padding };
+        mem_dims conv_padding = { this->layer->c_padding,
+                                  this->layer->c_padding };
 
         auto conv_desc = mkldnn::convolution_forward::desc(
                 mkldnn::prop_kind::forward,
@@ -127,10 +130,6 @@ class Convolution3dOp : public BaseMklOp<DType> {
 
         return this->worklist.back();
     }
-
-    // The convolutional layer configuration.
-    const layer_t* layer;
-    const int batch_size;
 
     // TODO: We don't actually have biases in the weights yet!
     std::unique_ptr<DType[]> biases;

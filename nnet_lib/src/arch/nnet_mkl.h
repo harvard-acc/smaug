@@ -38,10 +38,15 @@ struct mkl_traits<float> {
 template <typename DType>
 class BaseMklOp {
    public:
-    BaseMklOp(mkldnn::engine& eng) : engine(eng), output_idx(-1) {}
+    BaseMklOp(int _batch_size, mkldnn::engine& eng)
+            : engine(eng), layer(nullptr), batch_size(_batch_size),
+              output_idx(-1) {}
+    BaseMklOp(layer_t* _layer, int _batch_size, mkldnn::engine& eng)
+            : engine(eng), layer(_layer), batch_size(_batch_size),
+              output_idx(-1) {}
     virtual ~BaseMklOp() {}
 
-    void run() {
+    virtual void run() {
         mkldnn::stream(mkldnn::stream::kind::eager).submit(worklist).wait();
     }
 
@@ -60,6 +65,10 @@ class BaseMklOp {
 
     const mkldnn::primitive& get_final_primitive() const {
         return worklist.back();
+    }
+
+    const layer_t* get_layer() const {
+        return layer;
     }
 
    protected:
@@ -104,6 +113,8 @@ class BaseMklOp {
         }
     }
 
+    // TODO: Make this take a mem_ref_t for output instead! We can construct it
+    // outside since we already have the pd.
     template <typename primitive_t, typename... Args>
     void create_primitive_no_output_reorder(
             const typename primitive_t::primitive_desc& pd,
@@ -190,6 +201,9 @@ class BaseMklOp {
 
     // A list of primitives to execute.
     std::vector<mkldnn::primitive> worklist;
+
+    const layer_t* layer;
+    const int batch_size;
 
    private:
     // The index of the memory storing the output.

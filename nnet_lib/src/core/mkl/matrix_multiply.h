@@ -14,39 +14,85 @@ class InnerProductOp : public BaseMklOp<DType> {
                    layer_t* _layer,
                    int _batch_size,
                    mkldnn::engine& engine)
-            : BaseMklOp<DType>(engine), layer(_layer), batch_size(_batch_size) {
+            : BaseMklOp<DType>(_layer, _batch_size, engine),
+              prev_layer(nullptr) {
         auto input_mem = create_input_memory(input_buffer);
         auto weight_mem = create_weight_memory(weights_buffer);
         auto bias_mem = create_bias_memory(weights_buffer);
-        auto output_mem = create_output_memory(output_buffer);
 
-        create_primitive(input_mem, weight_mem, bias_mem, output_mem);
+        create_primitive(input_mem, weight_mem, bias_mem, output_buffer);
+    }
+
+    InnerProductOp(const BaseMklOpPtr& prev_op,
+                   DType* weights_buffer,
+                   DType* output_buffer,
+                   layer_t* _layer,
+                   int _batch_size,
+                   mkldnn::engine& engine)
+            : BaseMklOp<DType>(_layer, _batch_size, engine),
+              prev_layer(prev_op->get_layer()) {
+        auto last_mem = prev_op->get_output_mem();
+        // Batch norm layers have a requirement on the input dims which makes it
+        // hard to chain with an upcoming FC layer, so we'll just skip chaining
+        // for those.
+        auto input_mem = (prev_layer && prev_layer->type == BATCH_NORM)
+                                 ? create_input_memory(
+                                           (float*)last_mem.get_data_handle())
+                                 : last_mem;
+        auto weight_mem = create_weight_memory(weights_buffer);
+        auto bias_mem = create_bias_memory(weights_buffer);
+
+        create_primitive(input_mem, weight_mem, bias_mem, output_buffer);
     }
 
    protected:
     // Return a mem_dims object for the input, assuming nc format.
     mem_dims get_input_dims() {
-        return { batch_size, layer->inputs.cols };
+        if (prev_layer &&
+            (prev_layer->type == CONV || prev_layer->type == POOLING)) {
+            return { this->batch_size, prev_layer->outputs.height,
+                     prev_layer->outputs.rows,
+                     prev_layer->outputs.cols + prev_layer->outputs.align_pad };
+        } else {
+            return { this->batch_size,
+                     this->layer->inputs.cols + this->layer->inputs.align_pad };
+        }
     }
 
     // Return a mem_dims object for the output, assuming nc format.
     mem_dims get_output_dims() {
-        return { batch_size, layer->outputs.cols };
+        return { this->batch_size, this->layer->outputs.cols };
     }
 
-    // Return a mem_dims object for the weight, assuming oi format.
+    // Return a mem_dims object for the weight.
+    //
+    // If the previous layer was a convolution or pooling layer, then we have
+    // to provide 4 dimensions for the weights (aka unflattened weights);
+    // otherwise, we provide 2.
     mem_dims get_weight_dims() {
-        return { layer->weights.cols, layer->weights.rows - 1 };
+        if (prev_layer &&
+            (prev_layer->type == CONV || prev_layer->type == POOLING)) {
+            return { this->layer->weights.cols, prev_layer->outputs.height,
+                     prev_layer->outputs.rows, prev_layer->outputs.cols };
+        } else {
+            return { this->layer->weights.cols, this->layer->weights.rows - 1 };
+        }
     }
 
     // Return a mem_dims object for the bias, assuming x format.
-    mem_dims get_bias_dims() { return { layer->weights.cols }; }
+    mem_dims get_bias_dims() {
+        return { this->layer->weights.cols };
+    }
 
     // Create an input memory primitive from a raw pointer.
     //
     // Returns the index to this primitive.
     mem_ref_t create_input_memory(DType* buffer) {
-        return this->create_memory(buffer, get_input_dims(), mem_fmt::nc);
+        mem_dims dims = get_input_dims();
+        if (dims.size() == 4)
+            return this->create_memory(buffer, dims, mem_fmt::nchw);
+        else
+            return this->create_memory(buffer, dims, mem_fmt::nc);
     }
 
     // Create an output memory primitive from a raw pointer.
@@ -57,7 +103,13 @@ class InnerProductOp : public BaseMklOp<DType> {
 
     // Create a weight memory primitive from a raw pointer.
     mem_ref_t create_weight_memory(DType* buffer) {
-        return this->create_memory(buffer, get_weight_dims(), mem_fmt::oi);
+        mem_dims dims = get_input_dims();
+        if (dims.size() == 4) {
+            return this->create_memory(
+                    buffer, get_weight_dims(), mem_fmt::oihw);
+        } else {
+            return this->create_memory(buffer, get_weight_dims(), mem_fmt::oi);
+        }
     }
 
     // Create a bias memory primitive from a pointer, assuming nchw format.
@@ -66,8 +118,8 @@ class InnerProductOp : public BaseMklOp<DType> {
     // biases stored at the end.
     mem_ref_t create_bias_memory(DType* weights_buffer) {
         // Biases are assumed to not be transposed.
-        float* biases = weights_buffer + ((layer->weights.rows - 1) *
-                                          layer->weights.cols);
+        float* biases = weights_buffer + ((this->layer->weights.rows - 1) *
+                                          this->layer->weights.cols);
         return this->create_memory(biases, get_bias_dims(), mem_fmt::x);
     }
 
@@ -79,7 +131,7 @@ class InnerProductOp : public BaseMklOp<DType> {
     mkldnn::primitive& create_primitive(mem_ref_t input,
                                         mem_ref_t weights,
                                         mem_ref_t bias,
-                                        mem_ref_t output) {
+                                        DType* output_buffer) {
         mem_dtype dtype = mkl_traits<DType>::dtype;
         auto mm_input_md = mem_d({ get_input_dims() }, dtype, mem_fmt::any);
         auto mm_weight_md = mem_d({ get_weight_dims() }, dtype, mem_fmt::any);
@@ -97,16 +149,14 @@ class InnerProductOp : public BaseMklOp<DType> {
         auto mm_weights = this->reorder_input_if_needed(
                 weights, mm_pd.weights_primitive_desc());
 
-        this->template create_primitive_with_output_reorder<
+        this->template create_primitive_no_output_reorder<
                 mkldnn::inner_product_forward>(
-                mm_pd, output, mm_inputs, mm_weights, bias);
+                mm_pd, output_buffer, mm_inputs, mm_weights, bias);
 
         return this->worklist.back();
     }
 
-    // The inner product layer configuration.
-    const layer_t* layer;
-    const int batch_size;
+    const layer_t* prev_layer;
 };
 
 void matrix_multiply_with_bias(float* inputs,
