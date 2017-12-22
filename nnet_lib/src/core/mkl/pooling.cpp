@@ -11,8 +11,16 @@ void max_pooling_3d(float* inputs,
                     float* results,
                     device_t* device) {
     auto session = get_session(device);
-    session->oplist.emplace_back(new MaxPoolingOp<dtype>(
-            inputs, results, curr_layer, NUM_TEST_CASES, session->cpu));
+    if (session->empty()) {
+        session->oplist.emplace_back(new MaxPoolingOp<dtype>(
+                inputs, results, curr_layer, NUM_TEST_CASES, session->cpu));
+    } else {
+        session->oplist.emplace_back(new MaxPoolingOp<dtype>(session->last_op(),
+                                                             results,
+                                                             curr_layer,
+                                                             NUM_TEST_CASES,
+                                                             session->cpu));
+    }
 }
 
 } // namespace nnet_mkl

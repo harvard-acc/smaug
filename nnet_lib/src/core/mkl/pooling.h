@@ -21,6 +21,17 @@ class MaxPoolingOp : public BaseMklOp<DType> {
         create_primitive(input_mem, output_mem);
     }
 
+    MaxPoolingOp(const BaseMklOpPtr& prev_op,
+                 DType* output_buffer,
+                 layer_t* _layer,
+                 int _batch_size,
+                 mkldnn::engine& engine)
+            : BaseMklOp<DType>(engine), layer(_layer), batch_size(_batch_size) {
+        create_primitive(prev_op->get_final_primitive(),
+                         prev_op->get_output_mem_desc(),
+                         output_buffer);
+    }
+
    protected:
     // Return a mem_dims object for the input, assuming nchw format.
     mem_dims get_input_dims() {
@@ -60,46 +71,46 @@ class MaxPoolingOp : public BaseMklOp<DType> {
                 buffer, get_output_dims(), mem_fmt::nchw, true);
     }
 
-    // Create an inner product primitive.
-    //
-    // Supply the memory indices for inputs, weights, bias, and outputs.
-    // Optionally, set force_output_format = true to force the output into nchw
-    // format; otherwise, it will simply use whatever format MKL-DNN decides.
-    mkldnn::primitive& create_primitive(mem_ref_t input, mem_ref_t output) {
+    // Create a pooling descriptor.
+    mkldnn::pooling_forward::desc create_pooling_desc(mem_d input_md) {
         auto pool_output_md = mem_d(
                 { get_output_dims() }, mkl_traits<DType>::dtype, mem_fmt::any);
+        return mkldnn::pooling_forward::desc(
+                mkldnn::prop_kind::forward_inference, mkldnn::algorithm::pooling_max,
+                input_md, pool_output_md, get_pool_strides(), get_pool_dims(),
+                get_pool_padding(), get_pool_padding(),
+                mkldnn::padding_kind::zero);
+    }
 
-        // Create the pooling primitive descriptor.
-        auto pool_desc = mkldnn::pooling_forward::desc(
-                mkldnn::prop_kind::forward, mkldnn::algorithm::pooling_max,
-                input.get_primitive_desc().desc(), pool_output_md,
-                get_pool_strides(), get_pool_dims(), get_pool_padding(),
-                get_pool_padding(), mkldnn::padding_kind::zero);
+    // Create a pooling primitive.
+    //
+    // This overload assumes that the input/output memory primitive have
+    // already been created, so the pooling primitive will reorder the output
+    // into that format.
+    mkldnn::primitive& create_primitive(mem_ref_t input, mem_ref_t output) {
+        auto pool_desc = create_pooling_desc(input.get_primitive_desc().desc());
         auto pool_pd = mkldnn::pooling_forward::primitive_desc(
                 pool_desc, this->engine);
 
-        // Pooling requires a separate workspace memory.
-        // There seems to be a bug in MKL-DNN where we can't not use the
-        // workspace (or an exception gets thrown).
-        mem_ref_t workspace =
-                this->create_memory(pool_pd.workspace_primitive_desc());
+        this->template create_primitive_with_output_reorder<
+                mkldnn::pooling_forward>(pool_pd, output, input);
+        return this->worklist.back();
+    }
 
-        // The output reorder needs to be delayed until after the operation
-        // primitive.
-        mkldnn::memory temp_output = output;
-        bool reordered = false;
-        if (this->needs_reorder(output, pool_pd.dst_primitive_desc())) {
-            temp_output = this->create_memory(pool_pd.dst_primitive_desc());
-            reordered = true;
-        }
+    // Create a pooling primitive.
+    //
+    // This overload takes as input the output of another (e.g. previous)
+    // primitive, and it stores the output in the format specified by the
+    // pooling primitive.
+    mkldnn::primitive& create_primitive(const mkldnn::primitive& input_prim,
+                                        mem_d input_mem_d,
+                                        DType* output_buffer) {
+        auto pool_desc = create_pooling_desc(input_mem_d);
+        auto pool_pd = mkldnn::pooling_forward::primitive_desc(
+                pool_desc, this->engine);
 
-        this->worklist.emplace_back(mkldnn::pooling_forward(
-                pool_pd, input, temp_output, workspace));
-
-        if (reordered) {
-            this->worklist.emplace_back(mkldnn::reorder(temp_output, output));
-        }
-
+        this->template create_primitive_no_output_reorder<
+                mkldnn::pooling_forward>(pool_pd, output_buffer, input_prim);
         return this->worklist.back();
     }
 
