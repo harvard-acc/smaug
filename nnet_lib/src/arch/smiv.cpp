@@ -15,6 +15,7 @@
 #include "core/zeropad.h"
 #include "utility/utility.h"
 #include "utility/profiling.h"
+#include "utility/mkl/utility.h"
 #include "arch/common.h"
 #include "arch/interface.h"
 
@@ -681,6 +682,9 @@ result_buf run_layer(float* activations,
                                      act_func, activations, device);
             result_loc = activations;
         }
+        nnet_mkl::MklSession* session = nnet_mkl::get_session(device);
+        session->run();
+        session->clear();
 #else
         activation_fun(result_loc, output_size, act_func, sigmoid_table);
 #endif
