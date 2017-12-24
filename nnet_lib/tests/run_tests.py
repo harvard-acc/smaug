@@ -16,21 +16,10 @@ import shutil
 import re
 
 # Floating point equality comparison tolerance in percent.
-FP_ERR = 0.005
+FP_ERR = 0.03
 
 # This gets set by the command line argument.
 BINARY = ""
-
-# Configuration file, correct output file.
-TESTS = [
-    ("generic/cnn-1c1k-1p-3fc.conf", "generic-cnn-1c1k.out"),
-    ("generic/cnn-1c2k-1p-3fc.conf", "generic-cnn-1c2k.out"),
-    ("mnist/minerva.conf",           "mnist-minerva.out"),
-    ("mnist/lenet5-ish.conf",        "mnist-lenet5-ish.out"),
-    ("imagenet/simple.conf",         "imagenet-simple.out"),
-    ("imagenet/vgg16.conf",          "imagenet-vgg16.out"),
-    ("smiv/smiv-multi-rounds.conf",  "smiv-multi-rounds.out"),
-]
 
 MODEL_DIR = "../../models/"
 CORRECT_OUTPUT_DIR = "correct"

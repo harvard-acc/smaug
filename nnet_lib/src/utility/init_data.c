@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 
@@ -7,10 +8,35 @@
 
 #include "init_data.h"
 
+inline float gen_uniform() {
+    return randfloat();
+}
+
+// Returns an approximately normally distributed random value, using the
+// Box-Muller method.
+float gen_gaussian() {
+    static bool return_saved = false;
+    static float saved = 0;
+
+    if (return_saved) {
+        return_saved = false;
+        return saved;
+    } else {
+        float u = gen_uniform();
+        float v = gen_uniform();
+        float scale = sqrt(-2 * log(u));
+        float x = scale * cos(2 * 3.1415926535 * v);
+        float y = scale * sin(2 * 3.1415926535 * v);
+        saved = y;
+        return_saved = true;
+        return x;
+    }
+}
+
 float get_rand_weight(data_init_mode mode, int depth) {
     if (mode == RANDOM) {
         // Question: does nan output take longer in simulation?
-        return conv_float2fixed((randfloat() - 0.5) * 10);
+        return conv_float2fixed(gen_gaussian());
     } else {
         // Give each depth slice a different weight so we don't get all the
         // same value in the output.
@@ -192,7 +218,7 @@ void init_data(float* data,
             for (k = 0; k < input_rows; k++) {
                 for (l = 0; l < input_cols; l++) {
                     if (mode == RANDOM) {
-                        _data[i][j][k][l] = conv_float2fixed(randfloat() - 0.5);
+                        _data[i][j][k][l] = conv_float2fixed(gen_gaussian());
                     } else {
                         // Make each input image distinguishable.
                         _data[i][j][k][l] = 1.0 * i + (float)offset / input_dim;

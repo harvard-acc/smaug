@@ -5,6 +5,8 @@
 #include "nnet_fwd.h"
 
 float get_rand_weight(data_init_mode mode, int depth);
+float gen_uniform();
+float gen_gaussian();
 
 void init_fc_weights(float* weights,
                      int w_height,

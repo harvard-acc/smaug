@@ -156,8 +156,7 @@ void init_data(float* data,
             for (int k = 0; k < input_rows; k++) {
                 for (int l = 0; l < input_cols; l++) {
                     if (mode == RANDOM) {
-                        data_map(i, j, k, l) =
-                                conv_float2fixed(randfloat() - 0.5);
+                        data_map(i, j, k, l) = conv_float2fixed(gen_gaussian());
                     } else {
                         // Make each input image distinguishable.
                         data_map(i, j, k, l) =
