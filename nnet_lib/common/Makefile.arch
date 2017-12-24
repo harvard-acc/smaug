@@ -43,7 +43,8 @@ MKL_SRCS = core/mkl/convolution.cpp \
 					 core/mkl/batch_norm.cpp \
 					 core/mkl/matrix_multiply.cpp \
 					 core/mkl/pooling.cpp \
-					 core/mkl/activation_functions.cpp
+					 core/mkl/activation_functions.cpp \
+					 utility/mkl/utility.cpp
 
 NNET_FWD_MAIN = nnet_fwd.c
 CPP_NNET_FWD_MAIN = nnet_fwd.cpp

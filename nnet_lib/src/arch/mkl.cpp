@@ -10,16 +10,13 @@
 #include "core/mkl/matrix_multiply.h"
 #include "core/mkl/pooling.h"
 #include "utility/utility.h"
+#include "utility/mkl/utility.h"
 
 #include "nnet_fwd.h"
 
 #include "mkldnn.hpp"
 
 #if ARCHITECTURE == MKLDNN
-
-nnet_mkl::MklSession* nnet_mkl::get_session(device_t* device) {
-    return reinterpret_cast<nnet_mkl::MklSession*>(device->session);
-}
 
 result_buf flatten_input(float* activations,
                          layer_t* layers,

@@ -1,6 +1,8 @@
 #ifndef _NNET_FWD_DEFS_H_
 #define _NNET_FWD_DEFS_H_
 
+#include <stdlib.h>
+
 // This is the core header of nnet_lib.
 
 extern int NUM_TEST_CASES;
