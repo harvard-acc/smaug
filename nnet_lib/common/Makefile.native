@@ -28,8 +28,8 @@ DEBUG = $(BUILD_DIR)/$(EXEC)-debug
 
 # Debug flags
 native: DLEVEL=0
-debug: DLEVEL=1
-debug-verbose: DLEVEL=2
+debug: DLEVEL=2
+debug-verbose: DLEVEL=3
 
 # NOTE: Do not remove -std=gnu99! Required for Travis CI toolchain.
 native: CFLAGS+=-O3
