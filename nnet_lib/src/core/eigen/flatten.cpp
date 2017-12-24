@@ -5,7 +5,7 @@
 #include "unsupported/Eigen/CXX11/Tensor"
 
 #include "core/nnet_fwd_defs.h"
-#include "utility/eigen_utility.h"
+#include "utility/eigen/utility.h"
 
 namespace nnet_eigen {
 

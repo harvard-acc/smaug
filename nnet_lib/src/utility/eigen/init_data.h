@@ -1,5 +1,5 @@
-#ifndef _INIT_EIGEN_DATA_H_
-#define _INIT_EIGEN_DATA_H_
+#ifndef _EIGEN_INIT_DATA_H_
+#define _EIGEN_INIT_DATA_H_
 
 #include "core/nnet_fwd_defs.h"
 

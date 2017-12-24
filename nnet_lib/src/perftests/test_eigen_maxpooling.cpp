@@ -8,11 +8,11 @@
 
 #include "core/pooling.h"
 #include "core/eigen/pooling.h"
-#include "utility/init_eigen_data.h"
 #include "utility/init_data.h"
-#include "utility/eigen_utility.h"
 #include "utility/utility.h"
 #include "utility/profiling.h"
+#include "utility/eigen/init_data.h"
+#include "utility/eigen/utility.h"
 
 #include "nnet_fwd.h"
 

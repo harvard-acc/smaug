@@ -7,10 +7,9 @@
 
 #include "core/nnet_fwd_defs.h"
 #include "utility/init_data.h"
-#include "utility/eigen_utility.h"
 #include "utility/utility.h"
-
-#include "utility/init_eigen_data.h"
+#include "utility/eigen/init_data.h"
+#include "utility/eigen/utility.h"
 
 namespace nnet_eigen {
 

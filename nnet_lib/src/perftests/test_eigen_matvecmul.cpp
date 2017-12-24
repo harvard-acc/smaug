@@ -15,10 +15,10 @@
 
 #include "core/matrix_multiply.h"
 #include "core/eigen/matrix_multiply.h"
-#include "utility/init_eigen_data.h"
 #include "utility/init_data.h"
 #include "utility/utility.h"
 #include "utility/profiling.h"
+#include "utility/eigen/init_data.h"
 
 #include "nnet_fwd.h"
 

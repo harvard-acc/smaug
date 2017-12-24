@@ -7,7 +7,7 @@
 #include "core/nnet_fwd_defs.h"
 #include "core/pooling.h"
 #include "core/eigen/pooling.h"
-#include "utility/eigen_utility.h"
+#include "utility/eigen/utility.h"
 
 namespace nnet_eigen {
 

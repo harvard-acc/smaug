@@ -2,7 +2,7 @@
 
 #include "unsupported/Eigen/CXX11/Tensor"
 
-#include "utility/eigen_utility.h"
+#include "utility/eigen/utility.h"
 
 namespace nnet_eigen {
 

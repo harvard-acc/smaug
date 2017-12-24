@@ -11,7 +11,6 @@
 #include "core/zeropad.h"
 #include "utility/init_data.h"
 #include "utility/read_model_conf.h"
-#include "utility/eigen_utility.h"
 #include "utility/utility.h"
 #include "utility/profiling.h"
 #include "utility/data_archive.h"
@@ -19,7 +18,8 @@
 #include "arch/common.h"
 
 #if ARCHITECTURE == EIGEN
-#include "utility/init_eigen_data.h"
+#include "utility/eigen/init_data.h"
+#include "utility/eigen/utility.h"
 #endif
 
 #ifdef DMA_MODE

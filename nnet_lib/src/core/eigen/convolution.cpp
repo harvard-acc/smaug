@@ -7,7 +7,7 @@
 #include "unsupported/Eigen/CXX11/Tensor"
 
 #include "core/eigen/convolution.h"
-#include "utility/eigen_utility.h"
+#include "utility/eigen/utility.h"
 #include "nnet_fwd.h"
 
 namespace nnet_eigen {
