@@ -69,6 +69,7 @@ class ReluActivationFunctionOp : public ActivationFunctionOp<dtype> {
                              mkldnn::engine& engine,
                              dtype negative_slope = 0)
             : ActivationFunctionOp(batch_size, engine) {
+        INFO_MSG("RELU\n");
         auto input_mem = create_memory(input_buffer, size);
         auto output_mem = create_memory(output_buffer, size, true);
         create_primitive(mkldnn::algorithm::eltwise_relu,
@@ -83,6 +84,7 @@ class ReluActivationFunctionOp : public ActivationFunctionOp<dtype> {
                              mkldnn::engine& engine,
                              dtype negative_slope = 0)
             : ActivationFunctionOp(batch_size, engine) {
+        INFO_MSG("RELU, chaining\n");
         create_primitive(mkldnn::algorithm::eltwise_relu,
                          prev_op->get_final_primitive(),
                          prev_op->get_output_mem_desc(),
@@ -102,6 +104,7 @@ class SigmoidActivationFunctionOp : public ActivationFunctionOp<dtype> {
             : ActivationFunctionOp(batch_size, engine) {
         auto input_mem = create_memory(input_buffer, size);
         auto output_mem = create_memory(output_buffer, size, true);
+        INFO_MSG("Sigmoid\n");
         create_primitive(
                 mkldnn::algorithm::eltwise_logistic, input_mem, output_mem);
     }
@@ -111,6 +114,7 @@ class SigmoidActivationFunctionOp : public ActivationFunctionOp<dtype> {
                                 int size,
                                 mkldnn::engine& engine)
             : ActivationFunctionOp(batch_size, engine) {
+        INFO_MSG("Sigmoid, chaining\n");
         create_primitive(mkldnn::algorithm::eltwise_logistic,
                          prev_op->get_final_primitive(),
                          prev_op->get_output_mem_desc(),
@@ -130,6 +134,7 @@ class EluActivationFunctionOp : public ActivationFunctionOp<dtype> {
             : ActivationFunctionOp(batch_size, engine) {
         auto input_mem = create_memory(input_buffer, size);
         auto output_mem = create_memory(output_buffer, size, true);
+        INFO_MSG("ELU\n");
         create_primitive(mkldnn::algorithm::eltwise_elu,
                          input_mem,
                          output_mem,
@@ -142,6 +147,7 @@ class EluActivationFunctionOp : public ActivationFunctionOp<dtype> {
             mkldnn::engine& engine,
             dtype negative_slope = mkl_traits<dtype>::to_type(0.1))
             : ActivationFunctionOp(batch_size, engine) {
+        INFO_MSG("ELU, chaining\n");
         create_primitive(mkldnn::algorithm::eltwise_elu,
                          prev_op->get_final_primitive(),
                          prev_op->get_output_mem_desc(),
@@ -160,14 +166,17 @@ class TanhActivationFunctionOp : public ActivationFunctionOp<dtype> {
             : ActivationFunctionOp(batch_size, engine) {
         auto input_mem = create_memory(input_buffer, size);
         auto output_mem = create_memory(output_buffer, size, true);
+        INFO_MSG("Tanh\n");
         create_primitive(
                 mkldnn::algorithm::eltwise_tanh, input_mem, output_mem);
     }
+
     TanhActivationFunctionOp(const BaseMklOpPtr& prev_op,
                              dtype* output_buffer,
                              int size,
                              mkldnn::engine& engine)
             : ActivationFunctionOp(batch_size, engine) {
+        INFO_MSG("Tanh, chaining\n");
         create_primitive(mkldnn::algorithm::eltwise_tanh,
                          prev_op->get_final_primitive(),
                          prev_op->get_output_mem_desc(),
@@ -186,6 +195,7 @@ class SeluActivationFunctionOp : public ActivationFunctionOp<dtype> {
                              int size,
                              mkldnn::engine& engine)
             : ActivationFunctionOp(batch_size, engine) {
+        INFO_MSG("SELU\n");
         auto input_mem = create_memory(input_buffer, size);
         auto intermediate_mem = create_memory(nullptr, size);
         auto output_mem = create_memory(output_buffer, size);
@@ -206,6 +216,7 @@ class SeluActivationFunctionOp : public ActivationFunctionOp<dtype> {
                              int size,
                              mkldnn::engine& engine)
             : ActivationFunctionOp(batch_size, engine) {
+        INFO_MSG("SELU, chaining\n");
         auto elu_pd = this->create_primitive_desc(
                 mkldnn::algorithm::eltwise_elu, prev_op->get_output_mem_desc(),
                 alpha);
@@ -235,6 +246,7 @@ class SoftmaxActivationFunctionOp : public ActivationFunctionOp<dtype> {
                                 int softmax_size,
                                 mkldnn::engine& engine)
             : ActivationFunctionOp(batch_size, engine) {
+        INFO_MSG("Softmax\n");
         auto input_mem =
                 create_memory(input_buffer, softmax_size, this->batch_size);
         auto output_mem = create_memory(
@@ -248,6 +260,7 @@ class SoftmaxActivationFunctionOp : public ActivationFunctionOp<dtype> {
                                 int softmax_size,
                                 mkldnn::engine& engine)
             : ActivationFunctionOp(batch_size, engine) {
+        INFO_MSG("Softmax, chaining\n");
         auto output_mem = create_memory(
                 output_buffer, softmax_size, this->batch_size, true);
         create_primitive(prev_op->get_final_primitive(),

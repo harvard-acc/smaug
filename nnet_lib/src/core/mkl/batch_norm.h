@@ -33,6 +33,7 @@ class BatchNormOp : public BaseMklOp<DType> {
         auto scaleshift_mem = create_scaleshift_memory(weights_buffer);
         auto output_mem = create_output_memory(output_buffer);
 
+        INFO_MSG("BN, no input chaining\n");
         create_primitive(
                 input_mem, mean_mem, variance_mem, scaleshift_mem, output_mem);
     }

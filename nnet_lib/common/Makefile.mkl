@@ -4,7 +4,7 @@ include common/Makefile.arch
 
 MKL_BINARY = $(BUILD_DIR)/$(EXEC)-native
 MKL_BINARY_FOR_GEM5 = $(BUILD_DIR)/$(EXEC)-gem5
-DLEVEL = 0
+DLEVEL ?= 0
 
 CFLAGS += -std=gnu++11 $(BMARK_SPECIFIC_CFLAGS) -O3
 

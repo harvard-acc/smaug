@@ -2,6 +2,7 @@
 #define _MKL_MATRIX_MULTIPLY_H_
 
 #include "arch/nnet_mkl.h"
+#include "core/nnet_fwd_defs.h"
 
 namespace nnet_mkl {
 
@@ -20,6 +21,7 @@ class InnerProductOp : public BaseMklOp<DType> {
         auto weight_mem = create_weight_memory(weights_buffer);
         auto bias_mem = create_bias_memory(weights_buffer);
 
+        INFO_MSG("Fully connected\n");
         create_primitive(input_mem, weight_mem, bias_mem, output_buffer);
     }
 
@@ -42,6 +44,10 @@ class InnerProductOp : public BaseMklOp<DType> {
         auto weight_mem = create_weight_memory(weights_buffer);
         auto bias_mem = create_bias_memory(weights_buffer);
 
+        if (input_mem == last_mem)
+            INFO_MSG("Fully connected, chaining\n");
+        else
+            INFO_MSG("Fully connected after BN, so no chaining\n");
         create_primitive(input_mem, weight_mem, bias_mem, output_buffer);
     }
 
@@ -144,8 +150,10 @@ class InnerProductOp : public BaseMklOp<DType> {
         auto mm_pd = mkldnn::inner_product_forward::primitive_desc(
                 mm_desc, this->engine);
 
+        INFO_MSG("  FC input activations...\n");
         auto mm_inputs = this->reorder_input_if_needed(
                 input, mm_pd.src_primitive_desc());
+        INFO_MSG("  FC weights...\n");
         auto mm_weights = this->reorder_input_if_needed(
                 weights, mm_pd.weights_primitive_desc());
 

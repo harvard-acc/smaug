@@ -2,6 +2,7 @@
 #define _MKL_CONVOLUTION_H_
 
 #include "arch/nnet_mkl.h"
+#include "core/nnet_fwd_defs.h"
 
 namespace nnet_mkl {
 
@@ -19,6 +20,7 @@ class Convolution3dOp : public BaseMklOp<DType> {
        auto weight_mem = create_weight_memory(weights_buffer);
        auto bias_mem = create_bias_memory();
 
+       INFO_MSG("Convolution\n");
        create_primitive(input_mem, weight_mem, bias_mem, output_buffer);
     }
 
@@ -33,6 +35,7 @@ class Convolution3dOp : public BaseMklOp<DType> {
         auto weight_mem = create_weight_memory(weights_buffer);
         auto bias_mem = create_bias_memory();
 
+        INFO_MSG("Convolution, chaining\n");
         create_primitive(input_mem, weight_mem, bias_mem, output_buffer);
     }
 
@@ -119,8 +122,10 @@ class Convolution3dOp : public BaseMklOp<DType> {
                 conv_desc, this->engine);
 
         // Inputs can be eagerly reordered if required.
+        INFO_MSG("  Conv input activations...\n");
         mem_ref_t conv_input = this->reorder_input_if_needed(
                 inputs, conv_pd.src_primitive_desc());
+        INFO_MSG("  Conv weights...\n");
         mem_ref_t conv_weights = this->reorder_input_if_needed(
                 weights, conv_pd.weights_primitive_desc());
 

@@ -18,6 +18,7 @@ class MaxPoolingOp : public BaseMklOp<DType> {
         auto input_mem = create_input_memory(input_buffer);
         auto output_mem = create_output_memory(output_buffer);
 
+        INFO_MSG("Pooling\n");
         create_primitive(input_mem, output_mem);
     }
 
@@ -27,6 +28,7 @@ class MaxPoolingOp : public BaseMklOp<DType> {
                  int _batch_size,
                  mkldnn::engine& engine)
             : BaseMklOp<DType>(_layer, _batch_size, engine) {
+        INFO_MSG("Pooling, chaining\n");
         create_primitive(prev_op->get_final_primitive(),
                          prev_op->get_output_mem_desc(),
                          output_buffer);

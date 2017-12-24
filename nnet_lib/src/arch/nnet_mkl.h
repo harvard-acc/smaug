@@ -1,7 +1,6 @@
 #ifndef _ARCH_MKL_H_
 #define _ARCH_MKL_H_
 
-#include <iostream>
 #include <memory>
 
 #include "mkldnn.hpp"
@@ -100,6 +99,7 @@ class BaseMklOp {
         mkldnn::memory temp_output = output_memory;
         bool reordered = false;
         if (needs_reorder(output_memory, pd.dst_primitive_desc())) {
+            INFO_MSG("  Output needs reorder!\n");
             temp_output = create_memory(pd.dst_primitive_desc());
             reordered = true;
         }
@@ -158,7 +158,7 @@ class BaseMklOp {
     // Returns true if the given memory format != target descriptor format.
     bool needs_reorder(mem_ref_t current_mem,
                        const mkldnn::memory::primitive_desc& target_desc) {
-        return (mem_pd(target_desc) != current_mem.get_primitive_desc());
+        return needs_reorder(current_mem.get_primitive_desc(), target_desc);
     }
 
     bool needs_reorder(const mem_pd& current_mem_pd, const mem_pd& target_desc) {
@@ -178,6 +178,7 @@ class BaseMklOp {
             mem_ref_t current_mem,
             const mkldnn::memory::primitive_desc& target_desc) {
         if (needs_reorder(current_mem, target_desc)) {
+            INFO_MSG("  Needs reorder!\n");
             memories.emplace_back(new mkldnn::memory(target_desc));
             worklist.emplace_back(
                     mkldnn::reorder(current_mem, *memories.back()));
