@@ -55,12 +55,12 @@ class BaseMklOp {
     // This is useful if execution should be delayed.
     std::vector<mkldnn::primitive>& get_worklist() { return worklist; }
 
-    const mkldnn::memory& get_output_mem() const {
-        return memories.at(output_idx);
+    mem_ref_t get_output_mem() const {
+        return *memories.at(output_idx);
     }
 
     mem_d get_output_mem_desc() const {
-        return memories.at(output_idx).get_primitive_desc().desc();
+        return memories.at(output_idx)->get_primitive_desc().desc();
     }
 
     const mkldnn::primitive& get_final_primitive() const {
@@ -137,13 +137,7 @@ class BaseMklOp {
                             bool is_output = false) {
         auto md = mem_d({ dims }, mkl_traits<DType>::dtype, fmt);
         auto mempd = mem_pd(md, engine);
-        if (buffer)
-            memories.emplace_back(mempd, buffer);
-        else
-            memories.emplace_back(mempd);
-        if (is_output)
-            output_idx = memories.size() - 1;
-        return memories.back();
+        return create_memory(mempd, buffer, is_output);
     }
 
     // Create a memory primitive from a primitive descriptor.
@@ -153,12 +147,12 @@ class BaseMklOp {
                             DType* buffer = nullptr,
                             bool is_output = false) {
         if (buffer)
-            memories.emplace_back(pd, buffer);
+            memories.emplace_back(new mkldnn::memory(pd, buffer));
         else
-            memories.emplace_back(pd);
+            memories.emplace_back(new mkldnn::memory(pd));
         if (is_output)
             output_idx = memories.size() - 1;
-        return memories.back();
+        return *memories.back();
     }
 
     // Returns true if the given memory format != target descriptor format.
@@ -184,10 +178,10 @@ class BaseMklOp {
             mem_ref_t current_mem,
             const mkldnn::memory::primitive_desc& target_desc) {
         if (needs_reorder(current_mem, target_desc)) {
-            memories.emplace_back(target_desc);
+            memories.emplace_back(new mkldnn::memory(target_desc));
             worklist.emplace_back(
-                    mkldnn::reorder(current_mem, memories.back()));
-            return memories.back();
+                    mkldnn::reorder(current_mem, *memories.back()));
+            return *memories.back();
         }
         return current_mem;
     }
@@ -197,7 +191,7 @@ class BaseMklOp {
 
     // A list of all the memory objects required. These cannot be destroyed
     // before the list of primitives has been executed!
-    std::vector<mkldnn::memory> memories;
+    std::vector<std::unique_ptr<mkldnn::memory>> memories;
 
     // A list of primitives to execute.
     std::vector<mkldnn::primitive> worklist;
@@ -207,7 +201,7 @@ class BaseMklOp {
 
    private:
     // The index of the memory storing the output.
-    size_t output_idx;
+    int output_idx;
 };
 
 using BaseMklOpPtr = std::unique_ptr<BaseMklOp<dtype>>;
