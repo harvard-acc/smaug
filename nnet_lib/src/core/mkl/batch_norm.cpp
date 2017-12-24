@@ -14,8 +14,8 @@ void batch_norm(float* inputs,
                 float* results,
                 device_t* device) {
     auto session = get_session(device);
-    session->oplist.emplace_back(new BatchNormOp<dtype>(
-            inputs, weights, results, curr_layer, batch_size, session->cpu));
+    session->add_op(new BatchNormOp<dtype>(
+            inputs, weights, results, curr_layer, batch_size, session->cpu()));
 }
 
 }  // namespace nnet_mkl

@@ -37,10 +37,10 @@ struct mkl_traits<float> {
 template <typename DType>
 class BaseMklOp {
    public:
-    BaseMklOp(int _batch_size, mkldnn::engine& eng)
+    BaseMklOp(int _batch_size, const mkldnn::engine& eng)
             : engine(eng), layer(nullptr), batch_size(_batch_size),
               output_idx(-1) {}
-    BaseMklOp(layer_t* _layer, int _batch_size, mkldnn::engine& eng)
+    BaseMklOp(layer_t* _layer, int _batch_size, const mkldnn::engine& eng)
             : engine(eng), layer(_layer), batch_size(_batch_size),
               output_idx(-1) {}
     virtual ~BaseMklOp() {}
@@ -209,27 +209,42 @@ using BaseMklOpPtr = std::unique_ptr<BaseMklOp<dtype>>;
 
 class MklSession {
    public:
-    MklSession() : cpu(mkldnn::engine::cpu, 0) {}
+    MklSession() : _cpu(mkldnn::engine::cpu, 0) {}
 
+    // Run all ops in this session.
     void run() {
-        // Now actually run the network.
         for (auto& op : oplist) {
             op->run();
         }
     }
 
+    void clear() { oplist.clear(); }
     bool empty() const { return oplist.empty(); }
+
+    // Add an operation to the session.
+    //
+    // This merely forwards the constructor arguments to vector.emplace_back()
+    // to construct the operation in-place.
+    template <typename... Args>
+    void add_op(Args... args) {
+        oplist.emplace_back(std::forward<Args...>(args...));
+    }
 
     const BaseMklOpPtr& last_op() {
         assert(!empty());
         return oplist.back();
     }
 
-    // Stream object.
-    mkldnn::engine cpu;
+    const mkldnn::engine& cpu() const {
+        return _cpu;
+    }
 
+  protected:
     // List of operations to run.
     std::vector<BaseMklOpPtr> oplist;
+
+    // Stream engine.
+    mkldnn::engine _cpu;
 };
 
 // Return the session pointer in this device.

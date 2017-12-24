@@ -25,7 +25,7 @@ class BatchNormOp : public BaseMklOp<DType> {
                 DType* output_buffer,
                 layer_t* _layer,
                 int _batch_size,
-                mkldnn::engine& engine)
+                const mkldnn::engine& engine)
             : BaseMklOp<DType>(_layer, _batch_size, engine) {
         auto input_mem = create_input_memory(input_buffer);
         auto mean_mem = create_mean_memory(weights_buffer);

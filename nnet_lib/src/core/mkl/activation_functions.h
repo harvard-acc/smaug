@@ -10,7 +10,7 @@ namespace nnet_mkl {
 template <typename DType>
 class ActivationFunctionOp : public BaseMklOp<DType> {
    public:
-    ActivationFunctionOp(int batch_size, mkldnn::engine& eng)
+    ActivationFunctionOp(int batch_size, const mkldnn::engine& eng)
             : BaseMklOp<DType>(batch_size, eng) {}
     virtual ~ActivationFunctionOp() {}
 
@@ -66,7 +66,7 @@ class ReluActivationFunctionOp : public ActivationFunctionOp<dtype> {
     ReluActivationFunctionOp(dtype* input_buffer,
                              dtype* output_buffer,
                              int size,
-                             mkldnn::engine& engine,
+                             const mkldnn::engine& engine,
                              dtype negative_slope = 0)
             : ActivationFunctionOp(batch_size, engine) {
         INFO_MSG("RELU\n");
@@ -81,7 +81,7 @@ class ReluActivationFunctionOp : public ActivationFunctionOp<dtype> {
     ReluActivationFunctionOp(const BaseMklOpPtr& prev_op,
                              dtype* output_buffer,
                              int size,
-                             mkldnn::engine& engine,
+                             const mkldnn::engine& engine,
                              dtype negative_slope = 0)
             : ActivationFunctionOp(batch_size, engine) {
         INFO_MSG("RELU, chaining\n");
@@ -100,7 +100,7 @@ class SigmoidActivationFunctionOp : public ActivationFunctionOp<dtype> {
     SigmoidActivationFunctionOp(dtype* input_buffer,
                                 dtype* output_buffer,
                                 int size,
-                                mkldnn::engine& engine)
+                                const mkldnn::engine& engine)
             : ActivationFunctionOp(batch_size, engine) {
         auto input_mem = create_memory(input_buffer, size);
         auto output_mem = create_memory(output_buffer, size, true);
@@ -112,7 +112,7 @@ class SigmoidActivationFunctionOp : public ActivationFunctionOp<dtype> {
     SigmoidActivationFunctionOp(const BaseMklOpPtr& prev_op,
                                 dtype* output_buffer,
                                 int size,
-                                mkldnn::engine& engine)
+                                const mkldnn::engine& engine)
             : ActivationFunctionOp(batch_size, engine) {
         INFO_MSG("Sigmoid, chaining\n");
         create_primitive(mkldnn::algorithm::eltwise_logistic,
@@ -129,7 +129,7 @@ class EluActivationFunctionOp : public ActivationFunctionOp<dtype> {
             dtype* input_buffer,
             dtype* output_buffer,
             int size,
-            mkldnn::engine& engine,
+            const mkldnn::engine& engine,
             dtype negative_slope = mkl_traits<dtype>::to_type(0.1))
             : ActivationFunctionOp(batch_size, engine) {
         auto input_mem = create_memory(input_buffer, size);
@@ -144,7 +144,7 @@ class EluActivationFunctionOp : public ActivationFunctionOp<dtype> {
             const BaseMklOpPtr& prev_op,
             dtype* output_buffer,
             int size,
-            mkldnn::engine& engine,
+            const mkldnn::engine& engine,
             dtype negative_slope = mkl_traits<dtype>::to_type(0.1))
             : ActivationFunctionOp(batch_size, engine) {
         INFO_MSG("ELU, chaining\n");
@@ -162,7 +162,7 @@ class TanhActivationFunctionOp : public ActivationFunctionOp<dtype> {
     TanhActivationFunctionOp(dtype* input_buffer,
                              dtype* output_buffer,
                              int size,
-                             mkldnn::engine& engine)
+                             const mkldnn::engine& engine)
             : ActivationFunctionOp(batch_size, engine) {
         auto input_mem = create_memory(input_buffer, size);
         auto output_mem = create_memory(output_buffer, size, true);
@@ -174,7 +174,7 @@ class TanhActivationFunctionOp : public ActivationFunctionOp<dtype> {
     TanhActivationFunctionOp(const BaseMklOpPtr& prev_op,
                              dtype* output_buffer,
                              int size,
-                             mkldnn::engine& engine)
+                             const mkldnn::engine& engine)
             : ActivationFunctionOp(batch_size, engine) {
         INFO_MSG("Tanh, chaining\n");
         create_primitive(mkldnn::algorithm::eltwise_tanh,
@@ -193,7 +193,7 @@ class SeluActivationFunctionOp : public ActivationFunctionOp<dtype> {
     SeluActivationFunctionOp(dtype* input_buffer,
                              dtype* output_buffer,
                              int size,
-                             mkldnn::engine& engine)
+                             const mkldnn::engine& engine)
             : ActivationFunctionOp(batch_size, engine) {
         INFO_MSG("SELU\n");
         auto input_mem = create_memory(input_buffer, size);
@@ -214,7 +214,7 @@ class SeluActivationFunctionOp : public ActivationFunctionOp<dtype> {
     SeluActivationFunctionOp(const BaseMklOpPtr& prev_op,
                              dtype* output_buffer,
                              int size,
-                             mkldnn::engine& engine)
+                             const mkldnn::engine& engine)
             : ActivationFunctionOp(batch_size, engine) {
         INFO_MSG("SELU, chaining\n");
         auto elu_pd = this->create_primitive_desc(
@@ -244,7 +244,7 @@ class SoftmaxActivationFunctionOp : public ActivationFunctionOp<dtype> {
                                 dtype* output_buffer,
                                 int batch_size,
                                 int softmax_size,
-                                mkldnn::engine& engine)
+                                const mkldnn::engine& engine)
             : ActivationFunctionOp(batch_size, engine) {
         INFO_MSG("Softmax\n");
         auto input_mem =
@@ -258,7 +258,7 @@ class SoftmaxActivationFunctionOp : public ActivationFunctionOp<dtype> {
                                 dtype* output_buffer,
                                 int batch_size,
                                 int softmax_size,
-                                mkldnn::engine& engine)
+                                const mkldnn::engine& engine)
             : ActivationFunctionOp(batch_size, engine) {
         INFO_MSG("Softmax, chaining\n");
         auto output_mem = create_memory(
@@ -305,23 +305,23 @@ class SoftmaxActivationFunctionOp : public ActivationFunctionOp<dtype> {
 
 BaseMklOpPtr sigmoid(float* activations,
                      int size,
-                     mkldnn::engine& cpu,
+                     const mkldnn::engine& cpu,
                      float* results);
 BaseMklOpPtr relu(float* activations,
                   int size,
-                  mkldnn::engine& cpu,
+                  const mkldnn::engine& cpu,
                   float* results);
 BaseMklOpPtr elu(float* activations,
                  int size,
-                 mkldnn::engine& cpu,
+                 const mkldnn::engine& cpu,
                  float* results);
 BaseMklOpPtr selu(float* activations,
                   int size,
-                  mkldnn::engine& cpu,
+                  const mkldnn::engine& cpu,
                   float* results);
 BaseMklOpPtr tanh(float* activations,
                   int size,
-                  mkldnn::engine& cpu,
+                  const mkldnn::engine& cpu,
                   float* results);
 BaseMklOpPtr softmax(float* a,
                      int num_test_cases,

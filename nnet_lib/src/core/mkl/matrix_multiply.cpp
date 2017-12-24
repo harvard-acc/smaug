@@ -17,20 +17,19 @@ void matrix_multiply_with_bias(float* inputs,
                                device_t* device) {
     auto session = get_session(device);
     if (session->empty()) {
-        session->oplist.emplace_back(new InnerProductOp<dtype>(inputs,
-                                                               weights,
-                                                               results,
-                                                               curr_layer,
-                                                               NUM_TEST_CASES,
-                                                               session->cpu));
+        session->add_op(new InnerProductOp<dtype>(inputs,
+                                                  weights,
+                                                  results,
+                                                  curr_layer,
+                                                  NUM_TEST_CASES,
+                                                  session->cpu()));
     } else {
-        session->oplist.emplace_back(
-                new InnerProductOp<dtype>(session->last_op(),
-                                          weights,
-                                          results,
-                                          curr_layer,
-                                          NUM_TEST_CASES,
-                                          session->cpu));
+        session->add_op(new InnerProductOp<dtype>(session->last_op(),
+                                                  weights,
+                                                  results,
+                                                  curr_layer,
+                                                  NUM_TEST_CASES,
+                                                  session->cpu()));
     }
 }
 

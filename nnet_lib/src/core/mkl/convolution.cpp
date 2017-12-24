@@ -17,20 +17,19 @@ void convolution3d(float* inputs,
                    device_t* device) {
     auto session = get_session(device);
     if (session->empty()) {
-        session->oplist.emplace_back(new Convolution3dOp<dtype>(inputs,
-                                                                weights,
-                                                                results,
-                                                                curr_layer,
-                                                                NUM_TEST_CASES,
-                                                                session->cpu));
+        session->add_op(new Convolution3dOp<dtype>(inputs,
+                                                   weights,
+                                                   results,
+                                                   curr_layer,
+                                                   NUM_TEST_CASES,
+                                                   session->cpu()));
     } else {
-        session->oplist.emplace_back(
-                new Convolution3dOp<dtype>(session->last_op(),
-                                           weights,
-                                           results,
-                                           curr_layer,
-                                           NUM_TEST_CASES,
-                                           session->cpu));
+        session->add_op(new Convolution3dOp<dtype>(session->last_op(),
+                                                   weights,
+                                                   results,
+                                                   curr_layer,
+                                                   NUM_TEST_CASES,
+                                                   session->cpu()));
     }
 }
 

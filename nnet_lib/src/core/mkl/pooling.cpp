@@ -12,14 +12,14 @@ void max_pooling_3d(float* inputs,
                     device_t* device) {
     auto session = get_session(device);
     if (session->empty()) {
-        session->oplist.emplace_back(new MaxPoolingOp<dtype>(
-                inputs, results, curr_layer, NUM_TEST_CASES, session->cpu));
+        session->add_op(new MaxPoolingOp<dtype>(
+                inputs, results, curr_layer, NUM_TEST_CASES, session->cpu()));
     } else {
-        session->oplist.emplace_back(new MaxPoolingOp<dtype>(session->last_op(),
-                                                             results,
-                                                             curr_layer,
-                                                             NUM_TEST_CASES,
-                                                             session->cpu));
+        session->add_op(new MaxPoolingOp<dtype>(session->last_op(),
+                                                results,
+                                                curr_layer,
+                                                NUM_TEST_CASES,
+                                                session->cpu()));
     }
 }
 

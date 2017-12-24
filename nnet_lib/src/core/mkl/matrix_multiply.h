@@ -14,7 +14,7 @@ class InnerProductOp : public BaseMklOp<DType> {
                    DType* output_buffer,
                    layer_t* _layer,
                    int _batch_size,
-                   mkldnn::engine& engine)
+                   const mkldnn::engine& engine)
             : BaseMklOp<DType>(_layer, _batch_size, engine),
               prev_layer(nullptr) {
         auto input_mem = create_input_memory(input_buffer);
@@ -30,7 +30,7 @@ class InnerProductOp : public BaseMklOp<DType> {
                    DType* output_buffer,
                    layer_t* _layer,
                    int _batch_size,
-                   mkldnn::engine& engine)
+                   const mkldnn::engine& engine)
             : BaseMklOp<DType>(_layer, _batch_size, engine),
               prev_layer(prev_op->get_layer()) {
         auto last_mem = prev_op->get_output_mem();

@@ -14,7 +14,7 @@ class Convolution3dOp : public BaseMklOp<DType> {
                    DType* output_buffer,
                    layer_t* _layer,
                    int _batch_size,
-                   mkldnn::engine& engine)
+                   const mkldnn::engine& engine)
            : BaseMklOp<DType>(_layer, _batch_size, engine) {
        auto input_mem = create_input_memory(input_buffer);
        auto weight_mem = create_weight_memory(weights_buffer);
@@ -29,7 +29,7 @@ class Convolution3dOp : public BaseMklOp<DType> {
                     DType* output_buffer,
                     layer_t* _layer,
                     int _batch_size,
-                    mkldnn::engine& engine)
+                    const mkldnn::engine& engine)
             : BaseMklOp<DType>(_layer, _batch_size, engine) {
         auto input_mem = prev_op->get_output_mem();
         auto weight_mem = create_weight_memory(weights_buffer);
