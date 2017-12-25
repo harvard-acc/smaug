@@ -16,7 +16,7 @@ import shutil
 import re
 
 # Floating point equality comparison tolerance in percent.
-FP_ERR = 0.03
+FP_ERR = 0.05
 
 # This gets set by the command line argument.
 BINARY = ""
