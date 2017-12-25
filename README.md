@@ -63,8 +63,10 @@ Layer types supported:
   - Max pooling
 
 Activation functions:
-* ReLU, ReLU thresholded
-* Sigmoid
+* ReLU, ReLU clipped, leaky RELU
+* Sigmoid, tanh
+* ELU, SELU
+* Softmax
 
 Network configuration:
 * Caffe style configuration files
@@ -73,15 +75,14 @@ Network configuration:
 
 Backends:
 * Reference - manual naive implementations of each kernel.
-* Eigen - high performance on CPU.
+* MKL-DNN - high performance for Intel CPUs.
+* Eigen - high performance on CPUs, cross-platforms.
 * Aladdin - simulation of hardware acceleration.
 
 \* This depends on the SoC architecture and accelerator support.
 
 ### Unsupported features ###
 Plan to support:
-* Softmax
-* tanh activation function
 * Recurrent layers
 * Average pooling
 
@@ -108,6 +109,15 @@ No plans to support:
   installation location.
 * gcc 5.4.0 or later
 * Eigen 3.3.4 (this is bundled so you don't need to install it separately).
+* [MKL-DNN v0.11](https://github.com/01org/mkl-dnn).
+
+  If you want to simulate the MKL-DNN backend on gem5, you will also need to
+  install the full Intel MKL package and direct MKL-DNN to link with those
+  shared libraries, instead of using MKL-DNN's scripts to download a
+  pre-packaged set of MKL-related binaries. This is so you can disable OpenMP
+  (gem5in SE mode has incomplete support for pthreads) and restrict MKL to
+  only using SSE4.2 instructions, instead of AVX (which is unsupported in
+  gem5).
 
 ## Architectures and Execution Targets ##
 
@@ -122,7 +132,7 @@ dedicated hardware blocks.
 **Execution target**: This determines where the actual binary executable will
 be run: on a native host or in simulation under gem5.
 
-Currently, we have four architectures and three execution targets.
+Currently, we have five architectures and three execution targets.
 
 **Architectures**
 
@@ -148,8 +158,14 @@ Currently, we have four architectures and three execution targets.
    Functionality that cannot be accelerated in hardware are offloaded to the
    CPU, using the Eigen backend whenever possible.
 
-4. Eigen: This represents a CPU-only scenario in which we use Eigen as a highly
+4. MKL-DNN: This represents an x86 CPU-only scenario, where we use MKL-DNN to
+   invoke Intel MKL for its highly optimized linear algebra kernels. MKL-DNN
+   uses a JIT to generate code specialized for the particular layer sizes.
+   No accelerators are involved here.
+
+5. Eigen: This represents a CPU-only scenario in which we use Eigen as a highly
    optimized backend for all computation. No accelerators are involved here.
+   Unlike MKL-DNN, Eigen is cross-platform.
 
 **Execution targets**
 
