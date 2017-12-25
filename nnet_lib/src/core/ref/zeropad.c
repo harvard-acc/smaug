@@ -1,6 +1,6 @@
 #include "nnet_fwd.h"
 
-#include "zeropad.h"
+#include "core/ref/zeropad.h"
 
 // Zeropad each image in @a by layer.c_padding zeros.
 //

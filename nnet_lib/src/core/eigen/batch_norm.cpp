@@ -2,7 +2,7 @@
 
 #include "Eigen/Dense"
 
-#include "batch_norm.h"
+#include "core/eigen/batch_norm.h"
 
 namespace nnet_eigen {
 

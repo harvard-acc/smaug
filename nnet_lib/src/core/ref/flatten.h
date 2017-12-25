@@ -1,6 +1,8 @@
 #ifndef _FLATTEN_H_
 #define _FLATTEN_H_
 
+#include "nnet_fwd.h"
+
 result_buf flatten_input_rowmajor(float* input,
                                   layer_t* layers,
                                   int lnum,

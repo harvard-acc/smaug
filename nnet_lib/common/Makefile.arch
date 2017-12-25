@@ -5,14 +5,14 @@ BUILD_DIR = build
 COMMON_DIR := $(CURRENT_DIR)
 CURRENT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
-CORE_SRCS = core/activation_functions.c \
-						core/convolution.c \
-						core/matrix_multiply.c \
-						core/zeropad.c \
-						core/pooling.c \
-						core/batch_norm.c \
-						core/flatten.c \
-						core/smiv.c \
+CORE_SRCS = core/ref/activation_functions.c \
+						core/ref/convolution.c \
+						core/ref/matrix_multiply.c \
+						core/ref/zeropad.c \
+						core/ref/pooling.c \
+						core/ref/batch_norm.c \
+						core/ref/flatten.c \
+						core/smiv/smiv.c \
 						core/smiv/convolution.c \
 						core/smiv/convolution_simd.c \
 						core/smiv/matrix_multiply.c \

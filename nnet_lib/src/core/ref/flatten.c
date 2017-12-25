@@ -7,10 +7,8 @@
 
 #include <string.h>
 
+#include "core/ref/flatten.h"
 #include "utility/utility.h"
-#include "nnet_fwd.h"
-
-#include "flatten.h"
 
 result_buf flatten_input_rowmajor(float* input,
                                   layer_t* layers,

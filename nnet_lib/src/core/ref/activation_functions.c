@@ -1,9 +1,8 @@
 #include <float.h>
 
+#include "core/ref/activation_functions.h"
 #include "utility/utility.h"
 #include "nnet_fwd.h"
-
-#include "activation_functions.h"
 
 // Dispatch to the appropriate activation function.
 ALWAYS_INLINE

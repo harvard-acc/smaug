@@ -1,7 +1,6 @@
+#include "core/ref/matrix_multiply.h"
 #include "utility/utility.h"
 #include "nnet_fwd.h"
-
-#include "matrix_multiply.h"
 
 // Multiply matrices a and b with given sizes and store into result_goes_here.
 //

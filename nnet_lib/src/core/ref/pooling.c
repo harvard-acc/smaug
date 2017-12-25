@@ -1,9 +1,8 @@
 #include <assert.h>
 #include <float.h>
 
+#include "core/ref/pooling.h"
 #include "nnet_fwd.h"
-
-#include "pooling.h"
 
 // Downsample the input using a max-pooling operation.
 //

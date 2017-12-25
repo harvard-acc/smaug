@@ -4,5 +4,6 @@
 #include "nnet_fwd.h"
 
 void max_pooling(float* input, float* result, layer_t curr_layer);
-void max_pooling_image3d(float* input, int ni, float* reslut, layer_t curr_layer);
+void max_pooling_image3d(float* input, int ni, float* result, layer_t curr_layer);
+
 #endif

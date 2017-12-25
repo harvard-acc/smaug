@@ -4,18 +4,13 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "core/activation_functions.h"
-#include "core/convolution.h"
-#include "core/matrix_multiply.h"
-#include "core/pooling.h"
-#include "core/zeropad.h"
+#include "arch/common.h"
+#include "arch/interface.h"
+#include "utility/data_archive.h"
 #include "utility/init_data.h"
+#include "utility/profiling.h"
 #include "utility/read_model_conf.h"
 #include "utility/utility.h"
-#include "utility/profiling.h"
-#include "utility/data_archive.h"
-#include "arch/interface.h"
-#include "arch/common.h"
 
 #if ARCHITECTURE == EIGEN
 #include "utility/eigen/init_data.h"

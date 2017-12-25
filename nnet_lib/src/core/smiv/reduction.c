@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
 
-#include "core/activation_functions.h"
+#include "core/ref/activation_functions.h"
 #include "utility/utility.h"
 #include "nnet_fwd.h"
 

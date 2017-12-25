@@ -1,7 +1,6 @@
+#include "core/ref/batch_norm.h"
 #include "utility/utility.h"
 #include "nnet_fwd.h"
-
-#include "batch_norm.h"
 
 // The weights are divided into four blocks.
 enum {

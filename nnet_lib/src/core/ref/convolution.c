@@ -1,9 +1,9 @@
-#include "core/pooling.h"
-#include "core/zeropad.h"
+#include "core/ref/convolution.h"
+#include "core/ref/pooling.h"
+#include "core/ref/zeropad.h"
 #include "utility/utility.h"
 #include "nnet_fwd.h"
 
-#include "convolution.h"
 
 // Perform a 2D convolution on the data in @input with zero padding.
 //

@@ -3,7 +3,7 @@
 #include "arch/common.h"
 #include "arch/interface.h"
 #include "arch/nnet_mkl.h"
-#include "core/flatten.h"
+#include "core/ref/flatten.h"
 #include "core/mkl/activation_functions.h"
 #include "core/mkl/batch_norm.h"
 #include "core/mkl/convolution.h"

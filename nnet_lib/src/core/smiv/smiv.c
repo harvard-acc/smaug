@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <string.h>
 
-#include "core/activation_functions.h"
+#include "core/ref/activation_functions.h"
 #include "core/smiv/impls.h"
 #include "utility/utility.h"
 #include "nnet_fwd.h"
