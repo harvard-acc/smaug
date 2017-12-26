@@ -54,22 +54,21 @@ void init_profiling_log() {
     profiling_enabled = true;
 }
 
-void begin_profiling(const char* func_name, layer_t* layer, int layer_num) {
+void begin_profiling(const char* label, int layer_num) {
     if (!profiling_enabled)
         return;
 
     log_entry_t* entry = (log_entry_t*)malloc(sizeof(log_entry_t));
 
     // Copy the function name.
-    entry->function_name.len = strlen(func_name) + 1;
+    entry->function_name.len = strlen(label) + 1;
     entry->function_name.str =
             (char*)malloc(entry->function_name.len * sizeof(char));
-    strncpy(entry->function_name.str, func_name, entry->function_name.len - 1);
+    strncpy(entry->function_name.str, label, entry->function_name.len - 1);
     entry->function_name.str[entry->function_name.len - 1] = 0;
 
     // Assign the rest of the metadata fields.
     entry->end_time = 0;
-    entry->layer = layer;
     entry->layer_num = layer_num;
 
     // Push this new entry onto the stack.
@@ -105,24 +104,27 @@ void end_profiling() {
     entry->end_time = get_nsecs();
 }
 
+// Format is:
+//
+// num,label,function,invocation,start_time,end_time,elapsed_time
 void write_profiling_log(FILE* out) {
     fprintf(out,
-            "layer_num,layer_type,function,invocation,start_time,end_time,"
+            "num,label,function,invocation,start_time,end_time,"
             "elapsed_time\n");
     log_entry_t* curr_entry = profile_log;
     while (curr_entry) {
-        fprintf(out, "%d,%s,%s,%d,%lu,%lu,%lu\n", curr_entry->layer_num,
-                LAYER_TYPE_STR(curr_entry->layer->type),
-                curr_entry->function_name.str, curr_entry->invocation,
-                curr_entry->start_time, curr_entry->end_time,
+        fprintf(out,
+                "%d,%s,%d,%lu,%lu,%lu\n",
+                curr_entry->layer_num,
+                curr_entry->function_name.str,
+                curr_entry->invocation,
+                curr_entry->start_time,
+                curr_entry->end_time,
                 curr_entry->end_time - curr_entry->start_time);
         curr_entry = curr_entry->next;
     }
 }
 
-// Format is:
-//
-// layer_num,layer_type,function,invocation,start_time,end_time,elapsed_time
 int dump_profiling_log() {
     if (!profiling_enabled)
         return 0;

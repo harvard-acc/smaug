@@ -183,6 +183,17 @@ typedef struct _iarray_t {
    arg == INPUT ? "INPUT" : \
    "UNKNOWN")
 
+#define ACTIVATION_TYPE_STR(arg) \
+    (arg == NO_ACTIVATION ? "NONE" : \
+     arg == RELU ? "RELU" : \
+     arg == RELU_THRESHOLD ? "RELU_THRESHOLD" : \
+     arg == LRELU ? "LRELU" : \
+     arg == ELU ? "ELU" : \
+     arg == SELU ? "SELU" : \
+     arg == TANH ? "TANH" : \
+     arg == SIGMOID ?  "SIGMOID" : \
+     arg == SOFTMAX ? "SOFTMAX" : "UNKNOWN")
+
 
 #define STRING(arg) #arg
 

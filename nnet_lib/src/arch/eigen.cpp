@@ -107,18 +107,17 @@ result_buf run_layer(float* activations,
                      int layer_num,
                      float* result,
                      device_t* device) {
-    begin_profiling("run_layer", layers + layer_num, layer_num);
+    begin_profiling("run_layer", layer_num);
     layer_t curr_layer = layers[layer_num];
 
-    begin_profiling(
-            "run_layer_skip_activation_func", layers + layer_num, layer_num);
+    begin_profiling("run_layer_skip_activation_func", layer_num);
     result_buf result_loc = run_layer_skip_activation_func(
             activations, weights, layers, layer_num, result, device);
     end_profiling();
 
     if (curr_layer.activation != NO_ACTIVATION) {
         PRINT_MSG("\nactivation function\n");
-        begin_profiling("activation_fun", layers + layer_num, layer_num);
+        begin_profiling(ACTIVATION_TYPE_STR(curr_layer.activation), layer_num);
         // Pass through activation function
         if (result_loc == activations) {
             result_loc = activation_sublayer(activations, layers, layer_num, result);

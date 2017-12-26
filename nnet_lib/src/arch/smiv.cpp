@@ -38,7 +38,7 @@
 //   - int lnum: The current layer number.
 #define INVOKE_KERNEL_PROF(req_code, kernel_ptr, args...)                      \
     do {                                                                       \
-        begin_profiling(STRING(kernel_ptr), &layers[lnum], lnum);              \
+        begin_profiling(STRING(kernel_ptr), lnum);                             \
         INVOKE_KERNEL(req_code, kernel_ptr, args);                             \
         end_profiling();                                                       \
     } while (0)
@@ -657,10 +657,9 @@ result_buf run_layer(float* activations,
                      int layer_num,
                      float* result,
                      device_t* device) {
-    begin_profiling("run_layer", layers + layer_num, layer_num);
+    begin_profiling("run_layer", layer_num);
 
-    begin_profiling(
-            "run_layer_skip_activation_func", layers + layer_num, layer_num);
+    begin_profiling("run_layer_skip_activation_func", layer_num);
     result_buf result_loc = run_layer_skip_activation_func(
             activations, weights, layers, layer_num, result, device);
     end_profiling();
@@ -671,7 +670,7 @@ result_buf run_layer(float* activations,
     if (do_activation && !do_hw_activation) {
         int output_size = get_output_activations_size(&layers[layer_num]) /
                           NUM_TEST_CASES;
-        begin_profiling("activation_fun", layers + layer_num, layer_num);
+        begin_profiling(ACTIVATION_TYPE_STR(act_func), layer_num);
 #ifdef __cplusplus
         if (result_loc == activations) {
             nnet_mkl::activation_fun(activations, NUM_TEST_CASES, output_size,

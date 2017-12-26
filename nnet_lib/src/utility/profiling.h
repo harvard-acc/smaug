@@ -27,7 +27,6 @@ typedef struct _string_t {
 // Implemented as a stack as a singly linked-list.
 struct _log_entry_t {
   string_t function_name;
-  layer_t* layer;
   int layer_num;
   int invocation;
   uint64_t start_time;
@@ -54,7 +53,7 @@ uint64_t get_nsecs();
 // This creates a new profiling log entry and records the current cpu process
 // time in this entry's start_time field along with the metadata in the call
 // arguments.
-void begin_profiling(const char* func_name, layer_t* layer, int layer_num);
+void begin_profiling(const char* label, int layer_num);
 
 // End profiling.
 //
