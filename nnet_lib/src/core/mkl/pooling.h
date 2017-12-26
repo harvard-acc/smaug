@@ -34,6 +34,8 @@ class MaxPoolingOp : public BaseMklOp<DType> {
                          output_buffer);
     }
 
+    virtual std::string name() const { return "Max pooling"; }
+
    protected:
     // Return a mem_dims object for the input, assuming nchw format.
     mem_dims get_input_dims() {

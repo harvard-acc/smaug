@@ -2,10 +2,12 @@
 #define _ARCH_MKL_H_
 
 #include <memory>
+#include <string>
 
 #include "mkldnn.hpp"
 
 #include "core/nnet_fwd_defs.h"
+#include "utility/profiling.h"
 
 namespace nnet_mkl {
 
@@ -69,6 +71,8 @@ class BaseMklOp {
     const layer_t* get_layer() const {
         return layer;
     }
+
+    virtual std::string name() const = 0;
 
    protected:
 
@@ -213,8 +217,12 @@ class MklSession {
 
     // Run all ops in this session.
     void run() {
+        int i = 0;
         for (auto& op : oplist) {
+            begin_profiling(op->name().c_str(), i);
             op->run();
+            end_profiling();
+            i++;
         }
     }
 

@@ -51,6 +51,8 @@ class InnerProductOp : public BaseMklOp<DType> {
         create_primitive(input_mem, weight_mem, bias_mem, output_buffer);
     }
 
+    virtual std::string name() const { return "Inner product"; }
+
    protected:
     // Return a mem_dims object for the input, assuming nc format.
     mem_dims get_input_dims() {

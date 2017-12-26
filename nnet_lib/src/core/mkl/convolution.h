@@ -39,6 +39,8 @@ class Convolution3dOp : public BaseMklOp<DType> {
         create_primitive(input_mem, weight_mem, bias_mem, output_buffer);
     }
 
+    virtual std::string name() const { return "Convolution"; }
+
    protected:
     // Return a mem_dims object for the input, assuming nchw format.
     mem_dims get_input_dims() {

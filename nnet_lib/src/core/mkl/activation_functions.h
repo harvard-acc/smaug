@@ -67,8 +67,9 @@ class ReluActivationFunctionOp : public ActivationFunctionOp<dtype> {
                              dtype* output_buffer,
                              int size,
                              const mkldnn::engine& engine,
-                             dtype negative_slope = 0)
-            : ActivationFunctionOp(batch_size, engine) {
+                             dtype _negative_slope = 0)
+            : ActivationFunctionOp(batch_size, engine),
+              negative_slope(_negative_slope) {
         INFO_MSG("RELU\n");
         auto input_mem = create_memory(input_buffer, size);
         auto output_mem = create_memory(output_buffer, size, true);
@@ -82,8 +83,9 @@ class ReluActivationFunctionOp : public ActivationFunctionOp<dtype> {
                              dtype* output_buffer,
                              int size,
                              const mkldnn::engine& engine,
-                             dtype negative_slope = 0)
-            : ActivationFunctionOp(batch_size, engine) {
+                             dtype _negative_slope = 0)
+            : ActivationFunctionOp(batch_size, engine),
+              negative_slope(_negative_slope) {
         INFO_MSG("RELU, chaining\n");
         create_primitive(mkldnn::algorithm::eltwise_relu,
                          prev_op->get_final_primitive(),
@@ -93,6 +95,12 @@ class ReluActivationFunctionOp : public ActivationFunctionOp<dtype> {
     }
 
     virtual ~ReluActivationFunctionOp() {}
+    virtual std::string name() const {
+        return negative_slope == 0 ? "RELU" : "LRELU";
+    }
+
+   protected:
+    dtype negative_slope;
 };
 
 class SigmoidActivationFunctionOp : public ActivationFunctionOp<dtype> {
@@ -121,6 +129,7 @@ class SigmoidActivationFunctionOp : public ActivationFunctionOp<dtype> {
                          output_buffer);
     }
     virtual ~SigmoidActivationFunctionOp() {}
+    virtual std::string name() const { return "Sigmoid"; }
 };
 
 class EluActivationFunctionOp : public ActivationFunctionOp<dtype> {
@@ -155,6 +164,7 @@ class EluActivationFunctionOp : public ActivationFunctionOp<dtype> {
                          negative_slope);
     }
     virtual ~EluActivationFunctionOp() {}
+    virtual std::string name() const { return "ELU"; }
 };
 
 class TanhActivationFunctionOp : public ActivationFunctionOp<dtype> {
@@ -183,6 +193,7 @@ class TanhActivationFunctionOp : public ActivationFunctionOp<dtype> {
                          output_buffer);
     }
     virtual ~TanhActivationFunctionOp() {}
+    virtual std::string name() const { return "Tanh"; }
 };
 
 class SeluActivationFunctionOp : public ActivationFunctionOp<dtype> {
@@ -236,6 +247,7 @@ class SeluActivationFunctionOp : public ActivationFunctionOp<dtype> {
     }
 
     virtual ~SeluActivationFunctionOp() {}
+    virtual std::string name() const { return "SELU"; }
 };
 
 class SoftmaxActivationFunctionOp : public ActivationFunctionOp<dtype> {
@@ -301,6 +313,7 @@ class SoftmaxActivationFunctionOp : public ActivationFunctionOp<dtype> {
     }
 
     virtual ~SoftmaxActivationFunctionOp() {}
+    virtual std::string name() const { return "Softmax"; }
 };
 
 BaseMklOpPtr sigmoid(float* activations,

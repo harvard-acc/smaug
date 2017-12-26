@@ -38,6 +38,8 @@ class BatchNormOp : public BaseMklOp<DType> {
                 input_mem, mean_mem, variance_mem, scaleshift_mem, output_mem);
     }
 
+    virtual std::string name() const { return "Batch normalization"; }
+
    protected:
     // Returns true if the input to BN is the output of an FC layer.
     bool is_fc_output() {
