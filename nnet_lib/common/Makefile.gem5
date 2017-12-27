@@ -21,12 +21,16 @@ COMP = $(CC)
 CFLAGS += -std=gnu99
 else ifeq ($(ARCH), SMIV)
 COMP = $(CXX)
-include common/Makefile.eigen
-CFLAGS += $(GEM5_SIMD_FLAGS)
-NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smiv.cpp
+GEM5_SIMD_CFLAGS = -msse4.2
+CFLAGS += -std=gnu++11 $(GEM5_SIMD_FLAGS)
+CPPFLAGS += -I$(MKLDNNROOT)/include
+LFLAGS += -L$(MKLDNNROOT)/lib -lmkldnn
+NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smiv.cpp \
+												 $(SRC_DIR)/core/mkl/activation_functions.cpp \
+												 $(SRC_DIR)/utility/mkl/utility.cpp
 endif
 
-CFLAGS += -static -O3 -g $(BMARK_SPECIFIC_CFLAGS)
+CFLAGS += -O3 -g $(BMARK_SPECIFIC_CFLAGS)
 CPPFLAGS += -DDMA_MODE
 
 # Output names:
