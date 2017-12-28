@@ -15,6 +15,8 @@ Architecture str2arch(const char* arch_str, size_t len) {
         return Arch_SMIV;
     if (strncmp(arch_str, "EIGEN", len) == 0)
         return Arch_Eigen;
+    if (strncmp(arch_str, "MKLDNN", len) == 0)
+        return Arch_MKLDNN;
     return Arch_END;
 }
 
@@ -36,6 +38,9 @@ char* arch2str(Architecture arch) {
         break;
       case Arch_Eigen:
         snprintf(arch_str, 6, "%s", "EIGEN");
+        break;
+      case Arch_MKLDNN:
+        snprintf(arch_str, 6, "%s", "MKLDNN");
         break;
       default:
         snprintf(arch_str, 8, "%s", "UNKNOWN");

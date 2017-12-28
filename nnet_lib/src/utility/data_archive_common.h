@@ -20,6 +20,7 @@ typedef enum _Architecture {
     Arch_Composable = COMPOSABLE,
     Arch_SMIV = SMIV,
     Arch_Eigen = EIGEN,
+    Arch_MKLDNN = MKLDNN,
     Arch_END
 } Architecture;
 
