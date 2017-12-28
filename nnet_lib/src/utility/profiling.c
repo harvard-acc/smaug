@@ -61,11 +61,10 @@ void begin_profiling(const char* label, int layer_num) {
     log_entry_t* entry = (log_entry_t*)malloc(sizeof(log_entry_t));
 
     // Copy the function name.
-    entry->function_name.len = strlen(label) + 1;
-    entry->function_name.str =
-            (char*)malloc(entry->function_name.len * sizeof(char));
-    strncpy(entry->function_name.str, label, entry->function_name.len - 1);
-    entry->function_name.str[entry->function_name.len - 1] = 0;
+    entry->label.len = strlen(label) + 1;
+    entry->label.str = (char*)malloc(entry->label.len * sizeof(char));
+    strncpy(entry->label.str, label, entry->label.len - 1);
+    entry->label.str[entry->label.len - 1] = 0;
 
     // Assign the rest of the metadata fields.
     entry->end_time = 0;
@@ -109,14 +108,13 @@ void end_profiling() {
 // num,label,function,invocation,start_time,end_time,elapsed_time
 void write_profiling_log(FILE* out) {
     fprintf(out,
-            "num,label,function,invocation,start_time,end_time,"
-            "elapsed_time\n");
+            "layer_num,label,invocation,start_time,end_time,elapsed_time\n");
     log_entry_t* curr_entry = profile_log;
     while (curr_entry) {
         fprintf(out,
                 "%d,%s,%d,%lu,%lu,%lu\n",
                 curr_entry->layer_num,
-                curr_entry->function_name.str,
+                curr_entry->label.str,
                 curr_entry->invocation,
                 curr_entry->start_time,
                 curr_entry->end_time,

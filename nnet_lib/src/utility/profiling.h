@@ -26,7 +26,7 @@ typedef struct _string_t {
 //
 // Implemented as a stack as a singly linked-list.
 struct _log_entry_t {
-  string_t function_name;
+  string_t label;
   int layer_num;
   int invocation;
   uint64_t start_time;
