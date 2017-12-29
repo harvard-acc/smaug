@@ -1,6 +1,7 @@
 #ifndef _NNET_FWD_DEFS_H_
 #define _NNET_FWD_DEFS_H_
 
+#include <stdbool.h>
 #include <stdlib.h>
 
 // This is the core header of nnet_lib.
@@ -145,6 +146,7 @@ typedef struct _device_t {
     io_req_t cpu_default_offload;
     io_req_t cpu_pooling_offload;
     io_req_t cpu_activation_func_offload;
+    bool use_hw_activation_func;
     // An implementation can pass any pointer containing architecture specific
     // state that must be shared.
     void* session;

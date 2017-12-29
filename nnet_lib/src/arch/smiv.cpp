@@ -455,7 +455,8 @@ void convolution_runner(float* host_activations,
             result_2d_size * conv_cfgs.num_iterations * sizeof(float);
     float* temp_result = (float*)malloc_aligned(temp_result_size);
 
-    bool do_hw_activation = is_supported_activation_func(curr_layer.activation);
+    bool do_hw_activation = device->use_hw_activation_func &&
+                            is_supported_activation_func(curr_layer.activation);
     bool use_acp_offload = (device->cpu_activation_func_offload == IO_ACP);
     for (int img = 0; img < NUM_TEST_CASES; img++) {
         for (int kern = 0; kern < num_kerns; kern++) {
@@ -486,7 +487,7 @@ void convolution_runner(float* host_activations,
 
                 // Reduce the results.
                 //
-                // If the activation function is suported in hardware, then run
+                // If the activation function is supported in hardware, then run
                 // the standard reduction function with DMA. If the act func is
                 // not supported, then use the ACP reduction impl, except if
                 // the user specified to use DMA anyways.
@@ -666,7 +667,8 @@ result_buf run_layer(float* activations,
 
     activation_type act_func = layers[layer_num].activation;
     bool do_activation = act_func != NO_ACTIVATION;
-    bool do_hw_activation = is_supported_activation_func(act_func);
+    bool do_hw_activation = device->use_hw_activation_func &&
+                            is_supported_activation_func(act_func);
     if (do_activation && !do_hw_activation) {
         int output_size = get_output_activations_size(&layers[layer_num]) /
                           NUM_TEST_CASES;
@@ -702,7 +704,7 @@ result_buf run_layer(float* activations,
 //
 // Since SMIV can share scratchpads between the conv/fc blocks, we only need
 // DMA if we need to send data back to the CPU.
-void set_dma_requirements(network_t* network) {
+void set_dma_requirements(network_t* network, device_t* device) {
     for (int layer_num = 0; layer_num < network->depth; layer_num++) {
         // The input layer is easy.
         if (layer_num == 0) {
@@ -724,6 +726,10 @@ void set_dma_requirements(network_t* network) {
             network->layers[layer_num].activation == TANH ||
             network->layers[layer_num].activation == SIGMOID ||
             network->layers[layer_num].activation == SOFTMAX ||
+            // If we disabled HW activation functions but an activation
+            // function is necessary, we need to DMA.
+            (!device->use_hw_activation_func &&
+             network->layers[layer_num].activation != NO_ACTIVATION) ||
             network->layers[layer_num].type == POOLING ||
             // For now, conv layers also do not support local caching.
             network->layers[layer_num].type == CONV ||
@@ -786,7 +792,7 @@ void nnet_fwd(farray_t activations,
 
     l = 0;
 
-    set_dma_requirements(&network);
+    set_dma_requirements(&network, device);
 
     MAP_ARRAY_TO_ACCEL(kConvolutionHw, "host_activations", activations.d,
                        activations.size);

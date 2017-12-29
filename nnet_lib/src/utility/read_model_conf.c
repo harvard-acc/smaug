@@ -449,10 +449,13 @@ static void read_device_parameters(cfg_t* all_opts, device_t* device) {
                 str_to_io_req(cfg_getstr(device_opts, "cpu_pooling_offload"));
         device->cpu_activation_func_offload = str_to_io_req(
                 cfg_getstr(device_opts, "cpu_activation_func_offload"));
+        device->use_hw_activation_func =
+                cfg_getbool(device_opts, "use_hw_activation_func");
     } else {
         device->cpu_default_offload = IO_DMA;
         device->cpu_pooling_offload = IO_DMA;
         device->cpu_activation_func_offload = IO_DMA;
+        device->use_hw_activation_func = true;
     }
 }
 
@@ -523,10 +526,12 @@ void print_device_config(device_t* device) {
     printf("CPU offload mechanisms:\n"
            "   Default: %s\n"
            "   Pooling: %s\n"
-           "   Activation function: %s\n",
+           "   Activation function: %s\n"
+           "   Use HW activation function: %s\n",
            io_req_to_str(device->cpu_default_offload),
            io_req_to_str(device->cpu_pooling_offload),
-           io_req_to_str(device->cpu_activation_func_offload));
+           io_req_to_str(device->cpu_activation_func_offload),
+           device->use_hw_activation_func ? "yes" : "no");
     printf("==================================\n");
 }
 
