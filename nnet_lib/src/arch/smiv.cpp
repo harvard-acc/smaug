@@ -672,7 +672,6 @@ result_buf run_layer(float* activations,
     if (do_activation && !do_hw_activation) {
         int output_size = get_output_activations_size(&layers[layer_num]) /
                           NUM_TEST_CASES;
-        begin_profiling(ACTIVATION_TYPE_STR(act_func), layer_num);
 #ifdef __cplusplus
         if (result_loc == activations) {
             nnet_mkl::activation_fun(activations, NUM_TEST_CASES, output_size,
@@ -687,9 +686,10 @@ result_buf run_layer(float* activations,
         session->run();
         session->clear();
 #else
+        begin_profiling(ACTIVATION_TYPE_STR(act_func), layer_num);
         activation_fun(result_loc, output_size, act_func, sigmoid_table);
-#endif
         end_profiling();
+#endif
         PRINT_MSG("\nactivation function\n");
         PRINT_DEBUG4D(result_loc, layers[layer_num].outputs.rows,
                       layers[layer_num].outputs.cols +
