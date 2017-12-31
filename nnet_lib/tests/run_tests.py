@@ -155,6 +155,12 @@ class SmivTests(BaseTest):
     correct_output = "smiv-unsupported-act-fun.out"
     self.runAndValidate(model_file, correct_output)
 
+class Cifar10Tests(BaseTest):
+  def test_keras_example(self):
+    model_file = "cifar10/keras_example.conf"
+    correct_output = "cifar10-keras-example.out"
+    self.runAndValidate(model_file, correct_output)
+
 class BatchNormTests(BaseTest):
   def test_minerva_bn(self):
     model_file = "mnist/minerva_bn.conf"
