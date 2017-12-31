@@ -297,15 +297,15 @@ float compute_errors(float* network_pred,
 void write_output_labels(const char* fname,
                          float* network_pred,
                          int batch_size,
-                         int num_classes) {
+                         int num_classes,
+                         int pred_pad) {
     FILE* output_labels = fopen(fname, "w");
+    ARRAY_2D(float, _network_pred, network_pred, num_classes + pred_pad);
     for (int i = 0; i < batch_size; i++) {
-        int pred = arg_max(network_pred + i * num_classes, num_classes, 1);
+        int pred = arg_max(&_network_pred[i][0], num_classes, 1);
         fprintf(output_labels, "Test %d: %d\n  [", i, pred);
         for (int j = 0; j < num_classes; j++)
-            fprintf(output_labels,
-                    "%f  ",
-                    network_pred[sub2ind(i, j, num_classes)]);
+            fprintf(output_labels, "%f  ", _network_pred[i][j]);
         fprintf(output_labels, "]\n");
     }
     fclose(output_labels);

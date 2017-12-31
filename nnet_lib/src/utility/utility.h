@@ -65,7 +65,8 @@ float compute_errors(float* network_pred,
 void write_output_labels(const char* fname,
                          float* network_pred,
                          int batch_size,
-                         int num_classes);
+                         int num_classes,
+                         int pred_pad);
 
 void print_debug(float* array,
                  int rows_to_print,

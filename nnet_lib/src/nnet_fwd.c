@@ -310,8 +310,11 @@ int main(int argc, char* argv[]) {
 #else
     float error_fraction =
             compute_errors(result, labels.d, NUM_TEST_CASES, NUM_CLASSES);
-    write_output_labels(
-            "output_labels.out", result, NUM_TEST_CASES, NUM_CLASSES);
+    write_output_labels("output_labels.out",
+                        result,
+                        NUM_TEST_CASES,
+                        NUM_CLASSES,
+                        network.layers[network.depth - 1].outputs.align_pad);
 #endif
 
     printf("Fraction incorrect (over %d cases) = %f\n", NUM_TEST_CASES,
