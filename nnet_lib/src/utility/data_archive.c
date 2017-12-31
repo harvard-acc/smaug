@@ -115,7 +115,7 @@ void read_all_from_file(const char* filename,
 
         close_bin_data_file(&file);
     }
-#if DEBUG_LEVEL > 2
+#if DEBUG_LEVEL >= 2
     int input_rows = network->layers[0].inputs.rows;
     int input_cols = network->layers[0].inputs.cols;
     int input_height = network->layers[0].inputs.height;

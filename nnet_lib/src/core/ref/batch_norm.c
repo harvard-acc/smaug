@@ -12,12 +12,11 @@ enum {
 
 // 1/sqrt(var + eps) is precomputed to avoid having to run a sqrt and division
 // in the ASIC.
-ALWAYS_INLINE
-inline float batch_norm_op(float input,
-                           float mean,
-                           float recip_sqrt_var,
-                           float gamma,
-                           float beta) {
+float batch_norm_op(float input,
+                    float mean,
+                    float recip_sqrt_var,
+                    float gamma,
+                    float beta) {
     return ((input - mean) * recip_sqrt_var) * gamma + beta;
 }
 
