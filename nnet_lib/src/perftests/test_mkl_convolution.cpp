@@ -47,7 +47,7 @@ int main(int argc, const char* argv[]) {
     int iterations = 128;
 
     layer_t curr_layer;
-    curr_layer.type = CONV;
+    curr_layer.type = CONV_STANDARD;
     curr_layer.inputs.height = 64;
     curr_layer.inputs.rows = 64;
     curr_layer.inputs.cols = 64;

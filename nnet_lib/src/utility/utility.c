@@ -213,49 +213,59 @@ void get_weights_dims_layer(layer_t* layers,
                             int* num_height,
                             int* num_depth,
                             int* num_pad) {
-
-    if (layers[l].type == FC) {
-        *num_rows = layers[l].weights.rows;
-        *num_cols = layers[l].weights.cols;
-        *num_height = layers[l].weights.height;
-        *num_depth = 1;
-        *num_pad = layers[l].weights.align_pad;
-    } else if (layers[l].type == CONV) {
-        *num_rows = layers[l].weights.rows;
-        *num_cols = layers[l].weights.cols;
-        *num_height = layers[l].weights.height;
-        *num_depth = layers[l].outputs.height;  // # of this layer's kernels.
-        *num_pad = layers[l].weights.align_pad;
-    } else if (layers[l].type == BATCH_NORM) {
-        *num_rows = layers[l].weights.rows;
-        *num_cols = layers[l].weights.cols;
-        *num_height = layers[l].weights.height;
-        *num_depth = 1;
-        *num_pad = layers[l].weights.align_pad;
-    } else {
-        *num_rows = 0;
-        *num_cols = 0;
-        *num_height = 0;
-        *num_depth = 0;
-        *num_pad = 0;
+    switch (layers[l].type) {
+        case FC:
+            *num_rows = layers[l].weights.rows;
+            *num_cols = layers[l].weights.cols;
+            *num_height = layers[l].weights.height;
+            *num_depth = 1;
+            *num_pad = layers[l].weights.align_pad;
+            break;
+        case CONV_STANDARD:
+        case CONV_DEPTHWISE:
+        case CONV_POINTWISE:
+            *num_rows = layers[l].weights.rows;
+            *num_cols = layers[l].weights.cols;
+            *num_height = layers[l].weights.height;
+            // # of this layer's kernels.
+            *num_depth = layers[l].outputs.height;
+            *num_pad = layers[l].weights.align_pad;
+            break;
+        case BATCH_NORM:
+            *num_rows = layers[l].weights.rows;
+            *num_cols = layers[l].weights.cols;
+            *num_height = layers[l].weights.height;
+            *num_depth = 1;
+            *num_pad = layers[l].weights.align_pad;
+            break;
+        default:
+            *num_rows = 0;
+            *num_cols = 0;
+            *num_height = 0;
+            *num_depth = 0;
+            *num_pad = 0;
+            break;
     }
 }
 
 // Get the total number of weights for layer @l in the network.
 int get_num_weights_layer(layer_t* layers, int l) {
-    if (layers[l].type == FC)
+    if (layers[l].type == FC) {
         return layers[l].weights.rows *
                (layers[l].weights.cols + layers[l].weights.align_pad);
-    else if (layers[l].type == CONV)
+    } else if (layers[l].type == CONV_STANDARD ||
+               layers[l].type == CONV_DEPTHWISE ||
+               layers[l].type == CONV_POINTWISE) {
         return layers[l].weights.rows *
                (layers[l].weights.cols + layers[l].weights.align_pad) *
                layers[l].weights.height * layers[l].outputs.height;
-    else if (layers[l].type == BATCH_NORM)
+    } else if (layers[l].type == BATCH_NORM) {
         return layers[l].weights.rows *
                (layers[l].weights.cols + layers[l].weights.align_pad) *
                layers[l].weights.height;
-    else
+    } else {
         return 0;
+    }
 }
 
 // Get the total number of weights for the entire network.

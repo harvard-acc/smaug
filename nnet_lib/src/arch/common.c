@@ -36,7 +36,7 @@ result_buf run_layer_skip_activation_func(float* activations,
             result_loc = inner_product_layer(
                     activations, weights, layers, layer_num, result, device);
         }
-    } else if (l_type == CONV) {
+    } else if (l_type == CONV_STANDARD) {
         PRINT_MSG("\nConvolution.\n");
         result_loc = convolution_layer(
                 activations, weights, layers, layer_num, result, device);

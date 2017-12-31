@@ -1,6 +1,7 @@
 #include "confuse.h"
 
 cfg_opt_t convolution_param_cfg[] = {
+    CFG_STR("type", "STANDARD", CFGF_NONE),
     CFG_INT("num_output", -1, CFGF_NODEFAULT),
     CFG_INT("pad", -1, CFGF_NODEFAULT),
     CFG_INT("kernel_size", -1, CFGF_NODEFAULT),

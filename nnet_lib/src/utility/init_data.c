@@ -173,7 +173,9 @@ void init_weights(float* weights,
                 init_fc_weights(weights + w_offset, w_height, w_rows, w_cols,
                                 w_pad, mode, transpose);
                 break;
-            case CONV:
+            case CONV_STANDARD:
+            case CONV_DEPTHWISE:
+            case CONV_POINTWISE:
                 init_conv_weights(weights + w_offset, w_depth, w_height, w_rows,
                                   w_cols, w_pad, mode, transpose);
                 break;

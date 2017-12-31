@@ -45,8 +45,12 @@ typedef enum _input_pp {
 } input_pp;
 
 typedef enum _layer_type {
-    // 2D convolutional layer.
-    CONV,
+    // Standard 3D convolutional layer.
+    CONV_STANDARD,
+    // Depthwise convolution layer.
+    CONV_DEPTHWISE,
+    // Pointwise convolution layer.
+    CONV_POINTWISE,
     // Pooling layer.
     POOLING,
     // Fully connected layer.
@@ -178,7 +182,9 @@ typedef struct _iarray_t {
 
 // Convert a layer_type enum to a string
 #define LAYER_TYPE_STR(arg) \
-  (arg == CONV ? "CONV" : \
+  (arg == CONV_STANDARD ? "CONV_STANDARD" : \
+  (arg == CONV_DEPTHWISE ? "CONV_DEPTHWISE" : \
+  (arg == CONV_POINTWISE ? "CONV_POINTWISE" : \
    arg == POOLING ? "POOLING" : \
    arg == FC ? "FC" : \
    arg == OUTPUT ? "OUTPUT" : \

@@ -16,7 +16,9 @@ extern cfg_opt_t layer_cfg[];
 extern cfg_opt_t network_cfg[];
 extern cfg_opt_t top_level_cfg[];
 
-const char CONV_TYPE[] = "CONVOLUTION";
+const char CONV_STANDARD_TYPE[] = "CONVOLUTION";
+const char CONV_DEPTHWISE_TYPE[] = "DEPTHWISE_CONVOLUTION";
+const char CONV_POINTWISE_TYPE[] = "POINTWISE_CONVOLUTION";
 const char FC_TYPE[] = "INNER_PRODUCT";
 const char POOLING_TYPE[] = "POOLING";
 const char MAX_POOL_TYPE[] = "MAX";
@@ -92,7 +94,10 @@ int validate_layer_section(cfg_t* cfg, cfg_opt_t* opt) {
 int validate_layer_type(cfg_t* cfg, cfg_opt_t* opt) {
     const char* value = cfg_opt_getnstr(opt, cfg_opt_size(opt) - 1);
     assert(value);
-    if (strcmp(value, CONV_TYPE) != 0 && strcmp(value, FC_TYPE) != 0 &&
+    if (strcmp(value, CONV_STANDARD_TYPE) != 0 &&
+        strcmp(value, CONV_DEPTHWISE_TYPE) != 0 &&
+        strcmp(value, CONV_POINTWISE_TYPE) != 0 &&
+        strcmp(value, FC_TYPE) != 0 &&
         strcmp(value, POOLING_TYPE) != 0 &&
         strcmp(value, BATCH_NORM_TYPE) != 0) {
         cfg_error(cfg, "Invalid layer type '%s' for '%s'!", value, cfg->name);
@@ -127,21 +132,43 @@ int validate_inner_product_params(cfg_t* cfg, cfg_opt_t* opt) {
     return 0;
 }
 int validate_conv_params(cfg_t* cfg, cfg_opt_t* opt) {
-    cfg_t* layer = cfg_opt_getnsec(opt, cfg_opt_size(opt) - 1);
-    if (!cfg_size(layer, "num_output")) {
-        cfg_error(cfg, "Missing required option 'num_output'!", opt->name);
+    cfg_t* conv_params = cfg_opt_getnsec(opt, cfg_opt_size(opt) - 1);
+    const char* conv_type = cfg_getstr(cfg, "type");
+    bool is_depthwise_conv = (strcmp(conv_type, CONV_DEPTHWISE_TYPE) == 0);
+    if (!cfg_size(conv_params, "num_output")) {
+        if (!is_depthwise_conv) {
+            cfg_error(conv_params, "Missing required option 'num_output'!",
+                      opt->name);
+            return -1;
+        }
+    } else if (is_depthwise_conv) {
+        cfg_error(
+                conv_params,
+                "Depthwise convolution layers do not need 'num_output' "
+                "specified, as it is implied by the number of input channels!",
+                opt->name);
         return -1;
     }
-    if (!cfg_size(layer, "kernel_size")) {
-        cfg_error(cfg, "Missing required option 'kernel_size'!", opt->name);
+    if (!cfg_size(conv_params, "kernel_size")) {
+        cfg_error(conv_params, "Missing required option 'kernel_size'!",
+                  opt->name);
         return -1;
     }
-    if (!cfg_size(layer, "stride")) {
-        cfg_error(cfg, "Missing required option 'stride'!", opt->name);
+    if (!cfg_size(conv_params, "stride")) {
+        cfg_error(conv_params, "Missing required option 'stride'!", opt->name);
         return -1;
     }
-    if (!cfg_size(layer, "pad")) {
-        cfg_error(cfg, "Missing required option 'pad'!", opt->name);
+    bool is_pointwise_conv = (strcmp(conv_type, CONV_POINTWISE_TYPE) == 0);
+    if (!cfg_size(conv_params, "pad")) {
+        if (!is_pointwise_conv) {
+            cfg_error(conv_params, "Missing required option 'pad'!", opt->name);
+            return -1;
+        }
+    } else if (is_pointwise_conv) {
+        cfg_error(conv_params,
+                  "Pointwise convolution layers do not accept a padding "
+                  "parameter (implied padding is 0)!",
+                  opt->name);
         return -1;
     }
     return 0;
@@ -159,6 +186,17 @@ int validate_pool_layer(cfg_t* cfg, cfg_opt_t* opt) {
     }
     if (!cfg_size(layer, "stride")) {
         cfg_error(cfg, "Missing required option 'stride'!", opt->name);
+        return -1;
+    }
+    return 0;
+}
+
+int validate_conv_type(cfg_t* cfg, cfg_opt_t* opt) {
+    const char* value = cfg_opt_getnstr(opt, cfg_opt_size(opt) - 1);
+    assert(value);
+    if (strcmp(value, CONV_STANDARD_TYPE) != 0 &&
+        strcmp(value, CONV_DEPTHWISE_TYPE) != 0) {
+        cfg_error(cfg, "Invalid pooling type '%s'!", value);
         return -1;
     }
     return 0;
@@ -201,8 +239,12 @@ int validate_unsigned_int(cfg_t* cfg, cfg_opt_t* opt) {
 
 static void set_layer_type(layer_t* layers, cfg_t* layer_opts, int l) {
     const char* type = cfg_getstr(layer_opts, "type");
-    if (strcmp(type, CONV_TYPE) == 0) {
-        layers[l].type = CONV;
+    if (strcmp(type, CONV_STANDARD_TYPE) == 0) {
+        layers[l].type = CONV_STANDARD;
+    } else if (strcmp(type, CONV_DEPTHWISE_TYPE) == 0) {
+        layers[l].type = CONV_DEPTHWISE;
+    } else if (strcmp(type, CONV_POINTWISE_TYPE) == 0) {
+        layers[l].type = CONV_POINTWISE;
     } else if (strcmp(type, POOLING_TYPE) == 0) {
         layers[l].type = POOLING;
         cfg_t* pool_cfg = cfg_getsec(layer_opts, "pooling_param");
@@ -250,7 +292,7 @@ static void set_layer_type(layer_t* layers, cfg_t* layer_opts, int l) {
 }
 
 static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
-    if (layers[l].type == CONV) {
+    if (layers[l].type == CONV_STANDARD) {
         layers[l].inputs.rows = layers[l - 1].outputs.rows;
         layers[l].inputs.cols = layers[l - 1].outputs.cols;
         layers[l].inputs.height = layers[l - 1].outputs.height;
@@ -286,9 +328,55 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
         // Number of kernels is the third dimension of the output.
         layers[l].outputs.height = cfg_getint(conv_params, "num_output");
 
-        assert(layers[l].weights.rows != -1);
-        assert(layers[l].c_padding != -1);
-        assert(layers[l].outputs.height != -1);
+        assert(layers[l].outputs.rows > 0);
+        assert(layers[l].outputs.cols > 0);
+        return;
+    }
+
+    if (layers[l].type == CONV_DEPTHWISE) {
+        layers[l].inputs.rows = layers[l - 1].outputs.rows;
+        layers[l].inputs.cols = layers[l - 1].outputs.cols;
+        layers[l].inputs.height = layers[l - 1].outputs.height;
+
+        cfg_t* conv_params = cfg_getsec(layer_opts, "convolution_param");
+        layers[l].weights.rows = cfg_getint(conv_params, "kernel_size");
+        layers[l].weights.cols = cfg_getint(conv_params, "kernel_size");
+        layers[l].weights.height = 1;
+        layers[l].field_stride = cfg_getint(conv_params, "stride");
+
+        layers[l].c_padding = cfg_getint(conv_params, "pad");
+        layers[l].inputs.rows += layers[l].c_padding * 2;
+        layers[l].inputs.cols += layers[l].c_padding * 2;
+        layers[l].outputs.rows =
+                (layers[l].inputs.rows - layers[l].weights.cols) /
+                        layers[l].field_stride + 1;
+        layers[l].outputs.cols =
+                (layers[l].inputs.cols - layers[l].weights.cols) /
+                        layers[l].field_stride + 1;
+        layers[l].outputs.height = layers[l].inputs.height;
+
+        assert(layers[l].outputs.rows > 0);
+        assert(layers[l].outputs.cols > 0);
+        return;
+    }
+
+    if (layers[l].type == CONV_POINTWISE) {
+        layers[l].inputs.rows = layers[l - 1].outputs.rows;
+        layers[l].inputs.cols = layers[l - 1].outputs.cols;
+        layers[l].inputs.height = layers[l - 1].outputs.height;
+
+        // 1x1 convolutions use transposed weights, so each row is a filter and
+        // each col maps to a channel in the input.
+        cfg_t* conv_params = cfg_getsec(layer_opts, "convolution_param");
+        layers[l].weights.rows = 1;
+        layers[l].weights.cols = layers[l].inputs.height;
+        layers[l].weights.height = 1;
+        layers[l].field_stride = cfg_getint(conv_params, "stride");
+
+        layers[l].c_padding = 0;
+        layers[l].outputs.rows = layers[l].inputs.rows;
+        layers[l].outputs.cols = layers[l].inputs.cols;
+        layers[l].outputs.height = cfg_getint(conv_params, "num_output");
         return;
     }
 
@@ -347,7 +435,9 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
       // Rows are organized as {mean, var, gamma, beta}.
       layer_type prev_layer_type = layers[l - 1].type;
       switch (prev_layer_type) {
-          case CONV:
+          case CONV_STANDARD:
+          case CONV_DEPTHWISE:
+          case CONV_POINTWISE:
           case INPUT:
           case POOLING:
               layers[l].weights.rows = 4;
@@ -467,8 +557,11 @@ static void print_layer_config(layer_t* layers, int num_layers) {
         layer_type type = layers[i].type;
         activation_type act = layers[i].activation;
         printf("  Layer %d: ", i);
-        if (type == CONV) {
-            printf("  Convolutional\n");
+        if (type == CONV_STANDARD || type == CONV_DEPTHWISE) {
+            if (type == CONV_STANDARD)
+                printf("  Standard convolution\n");
+            else
+                printf("  Depthwise convolution\n");
             printf("    Input size: %d x %d x %d (after padding)\n",
                    layers[i].inputs.rows, layers[i].inputs.cols,
                    layers[i].inputs.height);
@@ -478,6 +571,17 @@ static void print_layer_config(layer_t* layers, int num_layers) {
                    layers[i].weights.cols, layers[i].inputs.height);
             printf("    Num kernels: %d\n", layers[i].outputs.height);
             printf("    Padding: %d\n", layers[i].c_padding);
+            printf("    Stride: %d\n", layers[i].field_stride);
+        } else if (type == CONV_POINTWISE) {
+            printf("  Pointwise convolution\n");
+            printf("    Input size: %d x %d x %d (after padding)\n",
+                   layers[i].inputs.rows, layers[i].inputs.cols,
+                   layers[i].inputs.height);
+            printf("    Output size: %d x %d x %d\n", layers[i].outputs.rows,
+                   layers[i].outputs.cols, layers[i].outputs.height);
+            printf("    Kernel size: 1 x 1 x %d\n", layers[i].weights.cols);
+            printf("    Num kernels: %d\n", layers[i].outputs.height);
+            printf("    Padding: 0\n");
             printf("    Stride: %d\n", layers[i].field_stride);
         } else if (type == FC) {
             printf("  Fully connected\n");
@@ -546,6 +650,8 @@ static void install_validation_callbacks(cfg_t* cfg) {
     cfg_set_validate_func(cfg, "network|input_height", validate_unsigned_int);
     cfg_set_validate_func(cfg, "network|layer|inner_product_param|num_output",
                           validate_unsigned_int);
+    cfg_set_validate_func(cfg, "network|layer|convolution_param|type",
+                          validate_conv_type);
     cfg_set_validate_func(cfg, "network|layer|convolution_param|num_output",
                           validate_unsigned_int);
     cfg_set_validate_func(cfg, "network|layer|convolution_param|kernel_size",
@@ -613,7 +719,10 @@ int configure_network_from_file(const char* cfg_file,
     for (int i = 1; i < num_layers; i++) {
         if (layers[i].type == FC && layers[i-1].type != FC) {
             layers[i].input_preprocessing = FLATTEN;
-        } else if (layers[i].type == CONV && layers[i-1].type == FC) {
+        } else if ((layers[i].type == CONV_STANDARD ||
+                    layers[i].type == CONV_DEPTHWISE ||
+                    layers[i].type == CONV_POINTWISE) &&
+                   layers[i - 1].type == FC) {
             layers[i].input_preprocessing = UNFLATTEN;
         } else {
             layers[i].input_preprocessing = NO_PREPROCESSING;

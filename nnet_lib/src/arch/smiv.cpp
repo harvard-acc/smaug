@@ -974,7 +974,7 @@ void set_dma_requirements(network_t* network, device_t* device) {
              curr_layer->activation != NO_ACTIVATION) ||
             curr_layer->type == POOLING ||
             // For now, conv layers also do not support local caching.
-            curr_layer->type == CONV ||
+            curr_layer->type == CONV_STANDARD ||
             curr_layer->type == BATCH_NORM ||
             next_layer->type == BATCH_NORM ||
             next_layer->type == POOLING ||

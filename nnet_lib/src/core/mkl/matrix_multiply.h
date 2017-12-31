@@ -56,8 +56,10 @@ class InnerProductOp : public BaseMklOp<DType> {
    protected:
     // Return a mem_dims object for the input, assuming nc format.
     mem_dims get_input_dims() {
-        if (prev_layer &&
-            (prev_layer->type == CONV || prev_layer->type == POOLING)) {
+        if (prev_layer && (prev_layer->type == CONV_STANDARD ||
+                           prev_layer->type == CONV_DEPTHWISE ||
+                           prev_layer->type == CONV_POINTWISE ||
+                           prev_layer->type == POOLING)) {
             return { this->batch_size, prev_layer->outputs.height,
                      prev_layer->outputs.rows,
                      prev_layer->outputs.cols + prev_layer->outputs.align_pad };
@@ -78,8 +80,10 @@ class InnerProductOp : public BaseMklOp<DType> {
     // to provide 4 dimensions for the weights (aka unflattened weights);
     // otherwise, we provide 2.
     mem_dims get_weight_dims() {
-        if (prev_layer &&
-            (prev_layer->type == CONV || prev_layer->type == POOLING)) {
+        if (prev_layer && (prev_layer->type == CONV_STANDARD ||
+                           prev_layer->type == CONV_DEPTHWISE ||
+                           prev_layer->type == CONV_POINTWISE ||
+                           prev_layer->type == POOLING)) {
             return { this->layer->weights.cols, prev_layer->outputs.height,
                      prev_layer->outputs.rows, prev_layer->outputs.cols };
         } else {

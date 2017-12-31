@@ -158,7 +158,8 @@ size_t calc_layer_intermediate_memory(layer_t* layers, int lnum) {
             usage = layer.outputs.rows *
                     (layer.outputs.cols + layer.outputs.align_pad);
         }
-    } else if (layer.type == CONV || layer.type == POOLING) {
+    } else if (layer.type == CONV_STANDARD || layer.type == CONV_DEPTHWISE ||
+               layer.type == CONV_POINTWISE || layer.type == POOLING) {
         usage = max2(layer.inputs.rows *
                             (layer.inputs.cols + layer.inputs.align_pad) *
                             layer.inputs.height,

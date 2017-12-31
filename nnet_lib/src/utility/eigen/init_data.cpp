@@ -113,7 +113,7 @@ void init_weights(float* weights,
                 init_fc_weights(
                         curr_weight_buf, w_height, w_rows, w_cols, mode);
                 break;
-            case CONV:
+            case CONV_STANDARD:
                 init_conv_weights(curr_weight_buf, w_depth, w_height, w_rows,
                                   w_cols, mode);
                 break;
@@ -121,6 +121,10 @@ void init_weights(float* weights,
                 init_bn_weights(
                         curr_weight_buf, w_height, w_rows, w_cols, mode);
                 break;
+            case CONV_DEPTHWISE:
+            case CONV_POINTWISE:
+                assert(false &&
+                       "Depthwise/pointwise convolutions unsupported!");
             default:
                 continue;
         }
