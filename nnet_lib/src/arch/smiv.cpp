@@ -23,6 +23,7 @@
 #include "mkldnn.hpp"
 #include "arch/nnet_mkl.h"
 #include "core/mkl/activation_functions.h"
+#include "core/mkl/batch_norm.h"
 #endif
 
 #ifdef DMA_MODE
@@ -636,18 +637,29 @@ result_buf batch_norm_layer(float* activations,
                             int lnum,
                             float* result,
                             device_t* device) {
-    float* current_layer_weights =
+    float* curr_layer_weights =
             weights + get_weights_loc_for_layer(layers, lnum);
 
+#ifdef SMIV_ENABLE_BN_HW
     MAP_ARRAY_TO_ACCEL(kBatchNormHw, "host_activations", activations,
                        INPUT_BYTES(layers, lnum));
-    MAP_ARRAY_TO_ACCEL(kBatchNormHw, "host_weights", current_layer_weights,
+    MAP_ARRAY_TO_ACCEL(kBatchNormHw, "host_weights", curr_layer_weights,
                        WEIGHT_BYTES(layers, lnum));
     MAP_ARRAY_TO_ACCEL(kBatchNormHw, "host_result", result,
                        OUTPUT_BYTES(layers, lnum));
     INVOKE_KERNEL_PROF(kBatchNormHw, batch_norm_layer_hw, activations,
-                       current_layer_weights, result, g_umem, g_spad0, g_spad1,
+                       curr_layer_weights, result, g_umem, g_spad0, g_spad1,
                        layers, lnum);
+#else
+    // By default, use the reference implementation.
+    // TODO: Replace this with an MKL implementation after we've made one that
+    // can take advantage of precomputed 1/sqrt(var).
+    batch_norm_fxp(activations,
+                   curr_layer_weights,
+                   &layers[lnum],
+                   NUM_TEST_CASES,
+                   result);
+#endif
 
     return result;
 }
@@ -731,10 +743,11 @@ void set_dma_requirements(network_t* network, device_t* device) {
             (!device->use_hw_activation_func &&
              network->layers[layer_num].activation != NO_ACTIVATION) ||
             network->layers[layer_num].type == POOLING ||
+            network->layers[layer_num].type == BATCH_NORM ||
             // For now, conv layers also do not support local caching.
             network->layers[layer_num].type == CONV ||
-            network->layers[layer_num + 1].type == POOLING ||
-            network->layers[layer_num + 1].type == BATCH_NORM) {
+            network->layers[layer_num + 1].type == BATCH_NORM ||
+            network->layers[layer_num + 1].type == POOLING) {
             network->layers[layer_num].output_req = IO_DMA;
         } else {
             network->layers[layer_num].output_req = IO_NONE;

@@ -19,6 +19,7 @@ CPPFLAGS += -I$(MKLDNNROOT)/include
 CFLAGS += -std=gnu++11 $(NATIVE_SIMD_FLAGS)
 NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smiv.cpp \
 												 $(SRC_DIR)/core/mkl/activation_functions.cpp \
+												 $(SRC_DIR)/core/mkl/batch_norm.cpp \
 												 $(SRC_DIR)/utility/mkl/utility.cpp
 LFLAGS += -L$(MKLDNNROOT)/lib -lmkldnn
 endif
