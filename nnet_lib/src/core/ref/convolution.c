@@ -5,7 +5,7 @@
 #include "nnet_fwd.h"
 
 
-// Perform a 2D convolution on the data in @input with zero padding.
+// Perform a 3D convolution on the data in @input with zero padding.
 //
 // The amount of padding is determined by the convolution operation configured
 // in the @curr_layer struct.
@@ -14,7 +14,7 @@
 // This is because the input data is zero-padded and copied into result. To
 // avoid a second copy back into @input, we simply execute the convolution using
 // @result as the input array instead.
-void convolution2d_zeropad(float* input,
+void convolution3d_zeropad(float* input,
                            float* kernels,
                            layer_t* layers,
                            int lnum,
@@ -26,10 +26,10 @@ void convolution2d_zeropad(float* input,
                   curr_layer.inputs.rows,
                   curr_layer.inputs.cols + curr_layer.inputs.align_pad,
                   curr_layer.inputs.height);
-    convolution2d_no_padding(result, kernels, curr_layer, input);
+    convolution3d_no_padding(result, kernels, curr_layer, input);
 }
 
-// Perform a 2D convolution operation over the data in @a with all kernels.
+// Perform a 3D convolution operation over the data in @a with all kernels.
 //
 // The convolutions are specified through the curr_layers struct. Zero padding
 // for borders is not handled.
@@ -39,7 +39,7 @@ void convolution2d_zeropad(float* input,
 //
 // The result of the operation is placed into @result, which is assumed to be
 // large enough to hold the data. @result is also a stack of 3D images.
-void convolution2d_no_padding(float* a,
+void convolution3d_no_padding(float* a,
                               float* kernels,
                               layer_t curr_layer,
                               float* result) {
@@ -51,13 +51,13 @@ conv2d_per_image:
         // Loop over all inputs in this batch.
     conv2d_per_kernel:
         for (nk = 0; nk < curr_layer.outputs.height; nk++) {
-            convolution2d_kernel_no_padding(a, kernels, ni, nk, curr_layer, result);
+            convolution3d_kernel_no_padding(a, kernels, ni, nk, curr_layer, result);
         }
     }
 }
 
-// Perform a 2D convolution over one 3D image and one 3D kernel.
-void convolution2d_kernel_no_padding(float* a,
+// Perform a 3D convolution over one 3D image and one 3D kernel.
+void convolution3d_kernel_no_padding(float* a,
                                      float* kernels,
                                      int img,
                                      int kern,
