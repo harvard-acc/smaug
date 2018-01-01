@@ -9,13 +9,28 @@ float* grab_matrix(float* w, int n, int* n_rows, int* n_columns);
 size_t get_weights_loc_for_layer(layer_t* layers, int layer);
 
 #if defined(DMA_INTERFACE_V2)
+#define INPUT_BYTES(layers, lnum)                                              \
+    get_input_activations_size(layers, lnum) * sizeof(float)
+#define OUTPUT_BYTES(layers, lnum)                                             \
+    get_output_activations_size(layers, lnum) * sizeof(float)
+#define WEIGHT_BYTES(layers, lnum)                                             \
+    get_num_weights_layer(layers, lnum) * sizeof(float)
+
 int get_input_activations_size(layer_t* layers, int num_layers);
 int get_output_activations_size(layer_t* layers, int num_layers);
 void grab_weights_dma(float* weights, int layer, layer_t* layers);
 size_t grab_input_activations_dma(float* activations, int layer, layer_t* layers);
 size_t grab_output_activations_dma(float* activations, int layer, layer_t* layers);
 size_t store_output_activations_dma(float* activations, int layer, layer_t* layers);
+
 #elif defined(DMA_INTERFACE_V3)
+#define INPUT_BYTES(layers, lnum)                                              \
+    get_input_activations_size(&layers[lnum]) * sizeof(float)
+#define OUTPUT_BYTES(layers, lnum)                                             \
+    get_output_activations_size(&layers[lnum]) * sizeof(float)
+#define WEIGHT_BYTES(layers, lnum)                                             \
+    get_num_weights_layer(layers, lnum) * sizeof(float)
+
 int get_input_activations_size(layer_t* layer);
 int get_output_activations_size(layer_t* layer);
 void grab_weights_dma(float* host_weights,

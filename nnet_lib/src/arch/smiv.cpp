@@ -13,12 +13,12 @@
 #include "core/ref/pooling.h"
 #include "core/ref/zeropad.h"
 #include "core/smiv/smiv.h"
-#include "core/smiv/params.h"
 #include "utility/utility.h"
 #include "utility/profiling.h"
 #include "utility/mkl/utility.h"
 #include "arch/common.h"
 #include "arch/interface.h"
+#include "arch/smiv_common.h"
 
 #ifdef __cplusplus
 #include "mkldnn.hpp"
@@ -33,47 +33,21 @@
 
 #if ARCHITECTURE == SMIV
 
-// Convenience macro for profiling a kernel invocation.
-//
-// This macro assumes that the current scope contains:
-//   - layer_t* layers: A pointer to the base layers array.
-//   - int lnum: The current layer number.
-#define INVOKE_KERNEL_PROF(req_code, kernel_ptr, args...)                      \
-    do {                                                                       \
-        begin_profiling(STRING(kernel_ptr), lnum);                             \
-        INVOKE_KERNEL(req_code, kernel_ptr, args);                             \
-        end_profiling();                                                       \
-    } while (0)
-
 // These are GLOBAL arrays which cannot be referenced directly by a HW
 // function. Instead, pass them to the top level functions as function
 // arguments, and use a boolean flag to indicate which one contains the data
 // needed.
-static float* g_umem;
-static float* g_spad0;
-static float* g_spad1;
+float* g_umem;
+float* g_spad0;
+float* g_spad1;
 
-// Each SMIV block has two scratchpads of 64KB each, but the real accelerator
-// operates on 16-bit data, whereas we are using 32-bit data. To make sure we
-// can fit the same size inputs, we double the per-scratchpad size.
-#define SPAD_SIZE (131072)
+void init_work_cfg(work_cfg_t* cfg, unsigned num_iterations) {
+    cfg->num_iterations = num_iterations;
+    cfg->iteration = (dims_t*)malloc(sizeof(dims_t) * num_iterations);
+}
 
-// The UMEM on the NIC is 3 blocks of 1MB each.
-#define UMEM_SIZE (3*1048576)
-
-typedef struct _conv_cfg_t {
-    // An array of dim_t objects. Specify the rows, cols, channels, and padding
-    // for each iteration.
-    dims_t* iteration;
-    // Size of the array.
-    unsigned num_iterations;
-} conv_cfg_t;
-
-typedef conv_cfg_t fc_cfg_t;
-
-void init_cfg_t(conv_cfg_t* ptr, unsigned num_iterations) {
-    ptr->num_iterations = num_iterations;
-    ptr->iteration = (dims_t*)malloc(sizeof(dims_t) * num_iterations);
+void free_work_cfg(work_cfg_t* cfg) {
+    free(cfg->iteration);
 }
 
 // Use the same accelerator id for both the convolutional and FC blocks. This
@@ -108,688 +82,23 @@ bool is_supported_activation_func(activation_type func) {
   }
 }
 
-void inner_product_layer_hw_impl(float* host_activations,
-                                 float* host_weights,
-                                 float* local_weights,
-                                 float* local_inputs,
-                                 float* results,
-                                 layer_t* all_layers,
-                                 int lnum) {
-    activation_type act_func = all_layers[lnum].activation;
-    bool run_activation = act_func == RELU || act_func == RELU_THRESHOLD;
-    int weights_size = get_num_weights_layer(all_layers, lnum) * sizeof(float);
-    setReadyBits(local_weights, UMEM_SIZE, 0);
-    dmaLoad(local_weights, host_weights, weights_size);
-
-    if (all_layers[lnum].input_req == IO_DMA) {
-        grab_input_activations_dma(
-                host_activations, local_inputs, &all_layers[lnum]);
-    }
-
-    matrix_multiply_with_bias_smiv(
-            local_inputs,
-            local_weights,
-            NUM_TEST_CASES,
-            all_layers[lnum].weights.rows,
-            all_layers[lnum].weights.cols + all_layers[lnum].weights.align_pad,
-            all_layers[lnum].inputs.align_pad,
-            run_activation,
-            results);
-}
-
-// HW accelerated inner product, using DMA for data movement.
-//
-// All arguments prefixed with host_ are host memory pointers and can only be
-// deferenced from the host, except when performing a DMA operation.
-void inner_product_layer_hw(float* host_activations,
-                            float* host_weights,
-                            float* umem,
-                            float* spad0,
-                            float* spad1,
-                            layer_t* all_layers,
-                            int lnum,
-                            bool input_in_spad0,
-                            float* host_result) {
-    bool output_dma_req = (all_layers[lnum].output_req == IO_DMA);
-    if (input_in_spad0) {
-        inner_product_layer_hw_impl(host_activations,
-                                    host_weights,
-                                    umem,
-                                    spad0,
-                                    spad1,
-                                    all_layers,
-                                    lnum);
-        if (output_dma_req)
-            store_output_activations_dma(host_result, spad1, &all_layers[lnum]);
-    } else {
-        inner_product_layer_hw_impl(host_activations,
-                                    host_weights,
-                                    umem,
-                                    spad1,
-                                    spad0,
-                                    all_layers,
-                                    lnum);
-        if (output_dma_req)
-            store_output_activations_dma(host_result, spad0, &all_layers[lnum]);
-    }
-}
-
-// HW accelerated inner product, using ACP for output data movement.
-//
-// All arguments prefixed with host_ are host memory pointers. acp_result is
-// the host result pointer to be accessed over ACP.
-void inner_product_layer_acp_hw(float* host_activations,
-                                float* host_weights,
-                                float* acp_result,
-                                float* umem,
-                                float* spad0,
-                                float* spad1,
-                                layer_t* all_layers,
-                                int lnum,
-                                bool input_in_spad0) {
-    if (input_in_spad0) {
-        inner_product_layer_hw_impl(host_activations,
-                                    host_weights,
-                                    umem,
-                                    spad0,
-                                    acp_result,
-                                    all_layers,
-                                    lnum);
-    } else {
-        inner_product_layer_hw_impl(host_activations,
-                                    host_weights,
-                                    umem,
-                                    spad1,
-                                    acp_result,
-                                    all_layers,
-                                    lnum);
-    }
-}
-
-// Returns true if this inner product layer will require multiple iterations.
-bool inner_product_needs_work_division(layer_t* layers, int lnum) {
-    const unsigned total_weight_bytes = WEIGHT_BYTES(layers, lnum);
-    return total_weight_bytes > UMEM_SIZE;
-}
-
-// Divides the work for a FC layer into several iterations on SMIV.
-//
-// Work division is required when the number of weights exceeds what can be fit
-// on the UMEM. The weight matrix is In x On, where In is the number of input
-// neurons and On is the number of output neurons. Dividing the work means to
-// do the matrix multiply in groups of In x W, where W = On/iterations.
-fc_cfg_t inner_product_divide_work(layer_t* layers, int lnum) {
-    fc_cfg_t fc_cfgs;
-    // TODO: These are not quite the right constraints.
-    const unsigned total_input_bytes =
-            INPUT_BYTES(layers, lnum) / NUM_TEST_CASES;
-    if (total_input_bytes > SPAD_SIZE) {
-        printf("A single input does not fit in the SPAD, which is not "
-               "supported!\n");
-        assert(false);
-    }
-    const unsigned total_output_bytes =
-            OUTPUT_BYTES(layers, lnum) / NUM_TEST_CASES;
-    if (total_output_bytes > SPAD_SIZE) {
-        printf("A single output does not fit in the SPAD, which is not "
-               "supported!\n");
-        assert(false);
-    }
-    if (!inner_product_needs_work_division(layers, lnum)) {
-        // No work division means to return an fc_cfg_t that is holds the
-        // entire weights.
-        init_cfg_t(&fc_cfgs, 1);
-        fc_cfgs.iteration[0] = layers[lnum].weights;
-        return fc_cfgs;
-    }
-    // Divide up the weights. The minimum required work (for now) is an Nx8
-    // strip of weights, where N is the number of hidden neurons.
-    const int num_inputs = layers[lnum].weights.rows;
-    const unsigned num_neurons =
-            layers[lnum].weights.cols + layers[lnum].weights.align_pad;
-    const unsigned minimum_work_size = num_inputs * VECTOR_SIZE * sizeof(float);
-    if (minimum_work_size > UMEM_SIZE) {
-        printf("This weights layer exceeds our current capability to run!\n");
-        assert(false);
-    }
-    const unsigned max_work_units_per_iteration = UMEM_SIZE / minimum_work_size;
-    const unsigned bytes_per_iteration =
-            max_work_units_per_iteration * minimum_work_size;
-    const unsigned num_cols_per_iteration =
-            bytes_per_iteration / num_inputs / sizeof(float);
-    const unsigned total_weight_bytes = WEIGHT_BYTES(layers, lnum);
-    const unsigned num_iterations =
-            ceil(((float)total_weight_bytes) / bytes_per_iteration);
-
-    init_cfg_t(&fc_cfgs, num_iterations);
-    unsigned num_cols_remaining = num_neurons;
-    for (unsigned i = 0; i < num_iterations; i++) {
-        int num_cols_this_iter =
-                min2(num_cols_remaining, num_cols_per_iteration);
-        // We can ignore align_pad here because num_neurons has already
-        // accounted for the original required padding.
-        fc_cfgs.iteration[i] = (dims_t){ num_inputs, num_cols_this_iter, 1, 0 };
-        num_cols_remaining -= num_cols_this_iter;
-    }
-    return fc_cfgs;
-}
-
-// Copy the weights section from (0, start_col) to (num_rows, start_col +
-// num_cols). This will include the biases for that section.
-//
-// TODO: Can we avoid this copy by using a really large align_pad?
-void copy_weights_block(float* host_weights,
-                        layer_t* layers,
-                        int lnum,
-                        int start_col,
-                        int num_cols,
-                        float* weights_buffer) {
-    int num_rows = layers[lnum].weights.rows;
-    int num_total_cols =
-            layers[lnum].weights.cols + layers[lnum].weights.align_pad;
-    ARRAY_2D(float, _weights, host_weights, num_total_cols);
-    for (int r = 0; r < num_rows; r++) {
-        memcpy(weights_buffer + r * num_cols,
-               &_weights[r][start_col],
-               num_cols * sizeof(float));
-    }
-}
-
 result_buf inner_product_layer(float* host_activations,
                                float* host_weights,
                                layer_t* layers,
                                int lnum,
                                float* host_result,
                                device_t* device) {
-    static float* current_result_loc = NULL;
-    if (current_result_loc == NULL) {
-        current_result_loc = g_spad1;
-    } else if (current_result_loc == g_spad0) {
-        current_result_loc = g_spad1;
-    } else if (current_result_loc == g_spad1) {
-        current_result_loc = g_spad0;
-    }
-    float* host_weights_layer =
-            host_weights + get_weights_loc_for_layer(layers, lnum);
-
-    PRINT_MSG("Weights:\n");
-    PRINT_DEBUG(host_weights_layer,
-                layers[lnum].weights.rows,
-                layers[lnum].weights.cols,
-                layers[lnum].weights.cols + layers[lnum].weights.align_pad);
-
-    fc_cfg_t fc_cfgs = inner_product_divide_work(layers, lnum);
-    bool needs_multiple_iter = (fc_cfgs.num_iterations > 1);
-
-    MAP_ARRAY(kInnerProductHw, host_activations, INPUT_BYTES(layers, lnum));
-
-    // Holds a contiguous column of weights and the partial results. If work
-    // division is required, then each iteration's chunk of weights is copied
-    // into the buffer; otherwise, we just use the original weights and results
-    // buffers.
-    float* host_weights_buffer;
-    float* host_results_buffer;
-    const size_t weights_buffer_size =
-            (fc_cfgs.iteration[0].cols + fc_cfgs.iteration[0].align_pad) *
-            fc_cfgs.iteration[0].rows * sizeof(float);
-    if (needs_multiple_iter) {
-        host_weights_buffer = (float*)malloc_aligned(weights_buffer_size);
-    } else {
-        host_weights_buffer = host_weights_layer;
-    }
-    if (NUM_TEST_CASES > 1 && needs_multiple_iter) {
-        host_results_buffer =
-                (float*)malloc_aligned(OUTPUT_BYTES(layers, lnum));
-    } else {
-        host_results_buffer = host_result;
-    }
-
-    int current_col = 0;
-    float* current_result = host_results_buffer;
-    for (unsigned it = 0; it < fc_cfgs.num_iterations; it++) {
-        layer_t partial_layer = layers[lnum];
-        partial_layer.weights = fc_cfgs.iteration[it];
-        partial_layer.outputs.cols = fc_cfgs.iteration[it].cols;
-        PRINT_MSG("FC iteration %d: weights %dx%d\n",
-                    it,
-                    partial_layer.weights.rows,
-                    partial_layer.weights.cols);
-
-        if (needs_multiple_iter) {
-            copy_weights_block(host_weights_layer,
-                               layers,
-                               lnum,
-                               current_col,
-                               fc_cfgs.iteration[it].cols +
-                                       fc_cfgs.iteration[it].align_pad,
-                               host_weights_buffer);
-
-            PRINT_DEBUG_V(host_weights_buffer,
-                          fc_cfgs.iteration[it].rows,
-                          fc_cfgs.iteration[it].cols,
-                          fc_cfgs.iteration[it].cols +
-                                  fc_cfgs.iteration[it].align_pad);
-        }
-
-        MAP_ARRAY_TO_ACCEL(kInnerProductHw,
-                           "host_weights",
-                           host_weights_buffer,
-                           weights_buffer_size);
-
-        size_t result_size = NUM_TEST_CASES * partial_layer.outputs.rows *
-                             partial_layer.outputs.cols;
-
-        // If the result is to be in g_spad1, then the input is in g_spad0.
-        bool input_in_spad0 = (current_result_loc == g_spad1);
-        bool use_acp_offload = (device->cpu_activation_func_offload == IO_ACP);
-        if (use_acp_offload) {
-            MAP_ARRAY_TO_ACCEL(kInnerProductHw,
-                               "acp_result",
-                               current_result,
-                               result_size * sizeof(float));
-            INVOKE_KERNEL_PROF(kInnerProductHw,
-                               inner_product_layer_acp_hw,
-                               host_activations,
-                               host_weights_buffer,
-                               current_result,
-                               g_umem,
-                               g_spad0,
-                               g_spad1,
-                               &partial_layer,
-                               0,
-                               input_in_spad0);
-        } else {
-            MAP_ARRAY_TO_ACCEL(kInnerProductHw,
-                               "host_result",
-                               current_result,
-                               result_size * sizeof(float));
-            INVOKE_KERNEL_PROF(kInnerProductHw,
-                               inner_product_layer_hw,
-                               host_activations,
-                               host_weights_buffer,
-                               g_umem,
-                               g_spad0,
-                               g_spad1,
-                               &partial_layer,
-                               0,
-                               input_in_spad0,
-                               current_result);
-        }
-        PRINT_MSG_V("Partial results:\n");
-        PRINT_DEBUG_V(
-                current_result,
-                NUM_TEST_CASES,
-                fc_cfgs.iteration[it].cols,
-                fc_cfgs.iteration[it].cols + fc_cfgs.iteration[it].align_pad);
-
-        current_col += fc_cfgs.iteration[it].cols;
-        current_result += result_size;
-    }
-
-    // Fix up the results if required.
-    //
-    // The desired result looks like (for batch size 2):
-    //
-    // [ input 1, iter 1 results ] [ input 1, iter 2 results ] ...
-    // [ input 1, iter 1 results ] [ input 1, iter 2 results ] ...
-    //
-    // But, when the batch size > 1 and multiple iterations are needed, the
-    // results buffer will end up looking like this:
-    //
-    // [ input 1, iter 1 results ] [ input 2, iter 1 results ] ...
-    // [ input 1, iter 2 results ] [ input 2, iter 2 results ] ...
-    //
-    // This routine reorders the results buffer and stores the result into the
-    // final result array (host_result).
-    if (NUM_TEST_CASES > 1 && needs_multiple_iter) {
-        int output_size =
-                layers[lnum].outputs.cols + layers[lnum].outputs.align_pad;
-        ARRAY_2D(float, _host_results, host_result, output_size);  // dst buffer.
-        current_result = host_results_buffer;  // temporary buffer.
-        int curr_col = 0;
-        for (unsigned it = 0; it < fc_cfgs.num_iterations; it++) {
-            int it_output_size = (fc_cfgs.iteration[it].cols +
-                                  fc_cfgs.iteration[it].align_pad);
-            for (int tc = 0; tc < NUM_TEST_CASES; tc++) {
-                memcpy(&_host_results[tc][curr_col],
-                       current_result,
-                       it_output_size * sizeof(float));
-                current_result += it_output_size;
-            }
-            curr_col += it_output_size;
-        }
-    }
-
-    if (needs_multiple_iter) {
-        free(host_weights_buffer);
-    }
-    if (NUM_TEST_CASES > 1 && needs_multiple_iter) {
-        free(host_results_buffer);
-    }
-
+    inner_product_layer_impl(
+            host_activations, host_weights, layers, lnum, host_result, device);
     return host_result;
 }
 
-void reduction_hw_impl(float* spad0,
-                       float* spad1,
-                       float* local_result,
-                       bool input_in_spad0,
-                       bool needs_input_load,
-                       layer_t partial_layer,
-                       size_t result_size,
-                       float* host_result) {
-    if (needs_input_load) {
-        size_t input_bytes =
-                result_size * partial_layer.inputs.height * sizeof(float);
-        if (input_in_spad0) {
-            setReadyBits(spad0, input_bytes, 0);
-            dmaLoad(spad0, host_result, input_bytes);
-        } else {
-            setReadyBits(spad1, input_bytes, 0);
-            dmaLoad(spad1, host_result, input_bytes);
-        }
-    }
-
-    if (input_in_spad0)
-        reduction_smiv(spad0, partial_layer, local_result);
-    else
-        reduction_smiv(spad1, partial_layer, local_result);
-}
-
-// Default Reduction module.
-//
-// Call this when we want to use DMA exclusively for moving data.
-void reduction_hw(float* spad0,
-                  float* spad1,
-                  float* umem,
-                  bool input_in_spad0,
-                  bool needs_input_load,
-                  layer_t partial_layer,
-                  size_t result_size,
-                  float* host_result) {
-    reduction_hw_impl(spad0, spad1, umem, input_in_spad0, needs_input_load,
-                      partial_layer, result_size, host_result);
-
-    if (partial_layer.output_req == IO_DMA) {
-        dmaStore(host_result, umem, result_size * sizeof(float));
-    }
-}
-
-// ACP reduction module.
-//
-// The two scratchpads must remain named spad0 and spad1, but we use a
-// different name for the result, called acp_result (instead of umem), to
-// distinguish that the Aladdin config file should mark this array with acp.
-//
-// Importantly, acp_result is a pointer that corresponds to the host, unlike
-// spad0/spad1/umem, which are accelerator-local memory.
-void reduction_acp_hw(float* spad0,
-                      float* spad1,
-                      float* acp_result,
-                      bool input_in_spad0,
-                      bool needs_input_load,
-                      layer_t partial_layer,
-                      size_t result_size) {
-    reduction_hw_impl(spad0, spad1, acp_result, input_in_spad0,
-                      needs_input_load, partial_layer, result_size,
-                      acp_result);
-}
-
-void convolution_layer_hw(float* host_activations,
-                          float* host_weights,
-                          float* umem,
-                          float* spad0,
-                          float* spad1,
-                          bool input_in_spad0,
-                          layer_t* all_layers,
-                          layer_t partial_layer,
-                          int layer_num,
-                          int img,
-                          int kern,
-                          int start_chan) {
-    layer_t curr_layer = all_layers[layer_num];
-    const int input_height = curr_layer.inputs.height;
-    const int input_rows= curr_layer.inputs.rows;
-    const int input_cols = curr_layer.inputs.cols;
-    const int input_pad = curr_layer.inputs.align_pad;
-    const int k_width = curr_layer.weights.cols;
-    const int k_pad = curr_layer.weights.align_pad;
-
-    ARRAY_4D(float, _a, host_activations, input_height, input_rows,
-             input_cols + input_pad);
-    ARRAY_4D(float, _kernels, host_weights, input_height, k_width,
-             k_width + k_pad);
-
-    // We should only DMA part of the weights.
-    size_t num_weights =
-            partial_layer.weights.rows * partial_layer.weights.height *
-            (partial_layer.weights.cols + partial_layer.weights.align_pad);
-    if (input_in_spad0) {
-        setReadyBits(spad0, num_weights * sizeof(float), 0);
-        dmaLoad(spad0, &_kernels[kern][start_chan][0][0],
-                num_weights * sizeof(float));
-    } else {
-        setReadyBits(spad1, num_weights * sizeof(float), 0);
-        dmaLoad(spad1, &_kernels[kern][start_chan][0][0],
-                num_weights * sizeof(float));
-    }
-    if (partial_layer.input_req == IO_DMA) {
-        size_t num_input_pixels =
-                partial_layer.inputs.rows * partial_layer.inputs.height *
-                (partial_layer.inputs.cols + partial_layer.inputs.align_pad);
-        setReadyBits(umem, num_input_pixels * sizeof(float), 0);
-        dmaLoad(umem, &_a[img][start_chan][0][0],
-                num_input_pixels * sizeof(float));
-    }
-
-    if (input_in_spad0)
-        convolution3d_smiv(umem, spad0, partial_layer, spad1);
-    else
-        convolution3d_smiv(umem, spad1, partial_layer, spad0);
-}
-
-// Find a good way to pack the convolution into the accelerator.
-conv_cfg_t convolution_divide_work(layer_t* layers, int lnum) {
-    conv_cfg_t conv_cfgs;
-    unsigned total_input_bytes = INPUT_BYTES(layers, lnum) / NUM_TEST_CASES;
-    // This is the unreduced output for a single output channel.
-    unsigned total_output_bytes =
-            layers[lnum].outputs.rows *
-            (layers[lnum].outputs.cols + layers[lnum].outputs.align_pad) *
-            layers[lnum].inputs.height * sizeof(float);
-    if (total_input_bytes > UMEM_SIZE) {
-        printf("A single input image exceeds the capacity of the UMEM, which "
-               "is not supported!\n");
-        assert(false);
-    }
-    if (total_output_bytes <= SPAD_SIZE) {
-        PRINT_MSG_V("Entire input problem fits into the local memory.\n");
-        conv_cfgs.iteration = (dims_t*)malloc(sizeof(dims_t));
-        conv_cfgs.iteration[0].rows = layers[lnum].inputs.rows;
-        conv_cfgs.iteration[0].cols = layers[lnum].inputs.cols;
-        conv_cfgs.iteration[0].height = layers[lnum].inputs.height;
-        conv_cfgs.iteration[0].align_pad =
-                calc_padding(conv_cfgs.iteration[0].cols, DATA_ALIGNMENT);
-        conv_cfgs.num_iterations = 1;
-        return conv_cfgs;
-    }
-
-    // Divide the problem up per input channel.
-
-    unsigned output_channel_size =
-            layers[lnum].outputs.rows *
-            (layers[lnum].outputs.cols + layers[lnum].outputs.align_pad) *
-            sizeof(float);
-    unsigned input_channels = layers[lnum].inputs.height;
-
-    unsigned max_channels_per_iter = SPAD_SIZE / output_channel_size;
-    if (max_channels_per_iter >= 2) {
-        PRINT_MSG_V("We can fit at least 2 unreduced input channels at once.\n");
-        conv_cfgs.num_iterations =
-                ceil((float)input_channels / max_channels_per_iter);
-        conv_cfgs.iteration =
-                (dims_t*)malloc(conv_cfgs.num_iterations * sizeof(dims_t));
-        unsigned total_channels = input_channels;
-        for (unsigned i = 0; i < conv_cfgs.num_iterations; i++) {
-            conv_cfgs.iteration[i].rows = layers[lnum].inputs.rows;
-            conv_cfgs.iteration[i].cols = layers[lnum].inputs.cols;
-            conv_cfgs.iteration[i].height =
-                    min2(total_channels, max_channels_per_iter);
-            conv_cfgs.iteration[i].align_pad =
-                    calc_padding(conv_cfgs.iteration[i].cols, DATA_ALIGNMENT);
-            total_channels -= max_channels_per_iter;
-        }
-        return conv_cfgs;
-    }
-
-    // We can't fit more than a single channel onto the accelerator, which
-    // means we won't be able to reduce in the accelerator. So now we have to
-    // start chopping up the image into blocks.
-
-    assert(false && "Tiled input handling is not yet supported!\n");
-    return conv_cfgs;
-}
-
-void convolution_runner(float* host_activations,
-                        float* host_weights,
-                        layer_t* layers,
-                        int lnum,
-                        float* host_result,
-                        device_t* device) {
-
-    layer_t curr_layer = layers[lnum];
-    const int result_height = curr_layer.outputs.rows;
-    const int result_width = curr_layer.outputs.cols;
-    const int result_pad = curr_layer.outputs.align_pad;
-    const int num_kerns = curr_layer.outputs.height;
-    const int result_2d_size = result_height * (result_width + result_pad);
-    ARRAY_4D(float, _result, host_result, num_kerns, result_height,
-             result_width + result_pad);
-
-#if DEBUG_LEVEL >= 1
-    const int input_height = curr_layer.inputs.height;
-    const int k_width = curr_layer.weights.cols;
-    const int k_pad = curr_layer.weights.align_pad;
-    ARRAY_4D(float, _kernels, host_weights, input_height, k_width,
-             k_width + k_pad);
-#endif
-
-    conv_cfg_t conv_cfgs = convolution_divide_work(layers, lnum);
-    PRINT_MSG_V("Number of iterations: %d\n", conv_cfgs.num_iterations);
-    // temp_result stores the partially reduced results of each iteration.
-    size_t temp_result_size =
-            result_2d_size * conv_cfgs.num_iterations * sizeof(float);
-    float* temp_result = (float*)malloc_aligned(temp_result_size);
-
-    bool do_hw_activation = device->use_hw_activation_func &&
-                            is_supported_activation_func(curr_layer.activation);
-    bool use_acp_offload = (device->cpu_activation_func_offload == IO_ACP);
-    for (int img = 0; img < NUM_TEST_CASES; img++) {
-        for (int kern = 0; kern < num_kerns; kern++) {
-            PRINT_MSG("Kernel %d\n", kern);
-            PRINT_DEBUG4D(&_kernels[kern][0][0][0],
-                          k_width,
-                          k_width + k_pad,
-                          input_height);
-            unsigned start_chan = 0;
-            float* result_loc = temp_result;
-            for (unsigned iter = 0; iter < conv_cfgs.num_iterations; iter++) {
-                PRINT_MSG("Iteration %d\n", iter);
-                dims_t iter_cfg = conv_cfgs.iteration[iter];
-
-                // Create a new layer description for this iteration.
-                layer_t partial_layer = curr_layer;
-                partial_layer.inputs.height = iter_cfg.height;
-                partial_layer.outputs.height = iter_cfg.height;
-                partial_layer.weights.height = iter_cfg.height;
-                partial_layer.activation =
-                        conv_cfgs.num_iterations > 1 || !do_hw_activation
-                                ? NO_ACTIVATION
-                                : curr_layer.activation;
-                INVOKE_KERNEL_PROF(kConvolutionHw, convolution_layer_hw,
-                                   host_activations, host_weights, g_umem,
-                                   g_spad0, g_spad1, true, layers,
-                                   partial_layer, lnum, img, kern, start_chan);
-
-                // Reduce the results.
-                //
-                // If the activation function is supported in hardware, then run
-                // the standard reduction function with DMA. If the act func is
-                // not supported, then use the ACP reduction impl, except if
-                // the user specified to use DMA anyways.
-                if (do_hw_activation || !use_acp_offload) {
-                    MAP_ARRAY_TO_ACCEL(kReductionHw, "host_result", result_loc,
-                                       temp_result_size);
-                    INVOKE_KERNEL_PROF(kReductionHw, reduction_hw, g_spad0,
-                                       g_spad1, g_umem, false, false,
-                                       partial_layer, result_2d_size,
-                                       result_loc);
-                } else {
-                    MAP_ARRAY_TO_ACCEL(kReductionHw, "acp_result", result_loc,
-                                       temp_result_size);
-                    INVOKE_KERNEL_PROF(kReductionHw, reduction_acp_hw, g_spad0,
-                                       g_spad1, result_loc, false, false,
-                                       partial_layer, result_2d_size);
-                }
-
-                result_loc += result_2d_size;
-                start_chan += iter_cfg.height;
-            }
-
-            // Finish off the reduction here.
-            if (conv_cfgs.num_iterations > 1) {
-                result_loc = temp_result;
-
-                int result_iter =
-                        ceil(result_2d_size * conv_cfgs.num_iterations /
-                             (float)SPAD_SIZE);
-                assert(result_iter <= 1 &&
-                       "Only support 1 last iteration of reduction!");
-                int num_result_chans = min2(
-                        conv_cfgs.num_iterations, SPAD_SIZE / result_2d_size);
-
-                // Create a new layer description for this iteration.
-                layer_t partial_layer = curr_layer;
-                partial_layer.inputs.height = num_result_chans;
-                partial_layer.outputs.height = 1;
-                for (int iter = 0; iter < result_iter; iter++) {
-                    PRINT_MSG("Final reduction round %d\n", iter);
-                    if (do_hw_activation || !use_acp_offload) {
-                        MAP_ARRAY_TO_ACCEL(kReductionHw, "host_result",
-                                           result_loc, temp_result_size);
-                        INVOKE_KERNEL_PROF(kReductionHw, reduction_hw, g_spad0,
-                                           g_spad1, g_umem, false, true,
-                                           partial_layer, result_2d_size,
-                                           result_loc);
-                    } else {
-                        MAP_ARRAY_TO_ACCEL(kReductionHw, "acp_result",
-                                           result_loc, result_2d_size);
-                        INVOKE_KERNEL_PROF(kReductionHw, reduction_acp_hw,
-                                           g_spad0, g_spad1, result_loc, false,
-                                           true, partial_layer, result_2d_size);
-                    }
-                    result_loc += result_2d_size;
-                }
-            }
-
-            // If the HW doesn't support the activation function, don't run the
-            // activation function yet - we'll run it all at once when we're
-            // done with all the kernels.
-
-            memcpy(&_result[img][kern][0][0], temp_result,
-                   result_2d_size * sizeof(float));
-        }
-    }
-    free(conv_cfgs.iteration);
-    free(temp_result);
-}
-
-result_buf convolution_layer(float* activations,
-                             float* weights,
-                             layer_t* layers,
-                             int lnum,
-                             float* result,
-                             device_t* device) {
+result_buf standard_convolution_layer(float* activations,
+                                      float* weights,
+                                      layer_t* layers,
+                                      int lnum,
+                                      float* result,
+                                      device_t* device) {
 
     float* current_layer_weights =
             weights + get_weights_loc_for_layer(layers, lnum);
@@ -807,14 +116,32 @@ result_buf convolution_layer(float* activations,
         PRINT_DEBUG4D_V(weights, curr_layer.weights.rows,
                         curr_layer.weights.cols + curr_layer.weights.align_pad,
                         curr_layer.weights.height);
-        convolution_runner(result, current_layer_weights, layers, lnum,
-                           activations, device);
+        standard_convolution_layer_impl(result, current_layer_weights, layers,
+                                        lnum, activations, device);
 
         return activations;
     }
-    convolution_runner(
+    standard_convolution_layer_impl(
             activations, current_layer_weights, layers, lnum, result, device);
     return result;
+}
+
+result_buf depthwise_convolution_layer(float* activations,
+                                       float* weights,
+                                       layer_t* layers,
+                                       int lnum,
+                                       float* result,
+                                       device_t* device) {
+    assert(false && "Unsupported layer type!");
+}
+
+result_buf pointwise_convolution_layer(float* activations,
+                                       float* weights,
+                                       layer_t* layers,
+                                       int lnum,
+                                       float* result,
+                                       device_t* device) {
+    assert(false && "Unsupported layer type!");
 }
 
 // Software implementation. SMIV doesn't accelerate pooling.
