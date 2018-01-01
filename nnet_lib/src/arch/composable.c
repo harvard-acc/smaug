@@ -71,11 +71,11 @@ result_buf inner_product_layer(float* activations,
     return result;
 }
 
-void convolution_layer_hw(float* activations,
-                          float* weights,
-                          layer_t* layers,
-                          int lnum,
-                          float* result) {
+void standard_convolution_layer_hw(float* activations,
+                                   float* weights,
+                                   layer_t* layers,
+                                   int lnum,
+                                   float* result) {
     layer_t curr_layer = layers[lnum];
     grab_weights_dma(weights, weights, lnum, layers);
     grab_input_activations_dma(activations, activations, &layers[lnum]);
@@ -83,27 +83,88 @@ void convolution_layer_hw(float* activations,
     store_output_activations_dma(result, result, &layers[lnum]);
 }
 
-result_buf convolution_layer(float* activations,
-                             float* weights,
-                             layer_t* layers,
-                             int lnum,
-                             float* result,
-                             device_t* device) {
+void depthwise_convolution_layer_hw(float* activations,
+                                    float* weights,
+                                    layer_t* layers,
+                                    int lnum,
+                                    float* result) {
+    layer_t curr_layer = layers[lnum];
+    grab_weights_dma(weights, weights, lnum, layers);
+    grab_input_activations_dma(activations, activations, &layers[lnum]);
+    convolution2d_depthwise_nopadding(activations, weights, curr_layer, result);
+    store_output_activations_dma(result, result, &layers[lnum]);
+}
+
+void pointwise_convolution_layer_hw(float* activations,
+                                    float* weights,
+                                    layer_t* layers,
+                                    int lnum,
+                                    float* result) {
+    layer_t curr_layer = layers[lnum];
+    grab_weights_dma(weights, weights, lnum, layers);
+    grab_input_activations_dma(activations, activations, &layers[lnum]);
+    convolution3d_pointwise_nopadding(activations, weights, curr_layer, result);
+    store_output_activations_dma(result, result, &layers[lnum]);
+}
+
+result_buf standard_convolution_layer(float* activations,
+                                      float* weights,
+                                      layer_t* layers,
+                                      int lnum,
+                                      float* result,
+                                      device_t* device) {
     MAP_ARRAY(kConvolutionHw, activations, INPUT_BYTES(layers, lnum));
-    MAP_ARRAY(kConvolutionHw,  weights, WEIGHT_BYTES(layers, lnum));
-    MAP_ARRAY(kConvolutionHw,  result, OUTPUT_BYTES(layers, lnum));
+    MAP_ARRAY(kConvolutionHw, weights, WEIGHT_BYTES(layers, lnum));
+    MAP_ARRAY(kConvolutionHw, result, OUTPUT_BYTES(layers, lnum));
 
     layer_t curr_layer = layers[lnum];
     if (curr_layer.c_padding > 0) {
         // TODO: Replace this with a memcpy implementation.
         copy_zeropad(activations, layers, lnum, result);
-        INVOKE_KERNEL(kConvolutionHw, convolution_layer_hw, result, weights,
-                      layers, lnum, activations);
+        INVOKE_KERNEL(kConvolutionHw, standard_convolution_layer_hw, result,
+                      weights, layers, lnum, activations);
 
         return activations;
     }
-    INVOKE_KERNEL(kConvolutionHw, convolution_layer_hw, activations, weights, layers,
-                  lnum, result);
+    INVOKE_KERNEL(kConvolutionHw, standard_convolution_layer_hw, activations,
+                  weights, layers, lnum, result);
+    return result;
+}
+
+result_buf depthwise_convolution_layer(float* activations,
+                                       float* weights,
+                                       layer_t* layers,
+                                       int lnum,
+                                       float* result,
+                                       device_t* device) {
+    MAP_ARRAY(kConvolutionHw, activations, INPUT_BYTES(layers, lnum));
+    MAP_ARRAY(kConvolutionHw, weights, WEIGHT_BYTES(layers, lnum));
+    MAP_ARRAY(kConvolutionHw, result, OUTPUT_BYTES(layers, lnum));
+
+    layer_t curr_layer = layers[lnum];
+    if (curr_layer.c_padding > 0) {
+        copy_zeropad(activations, layers, lnum, result);
+        INVOKE_KERNEL(kConvolutionHw, depthwise_convolution_layer_hw, result,
+                      weights, layers, lnum, activations);
+
+        return activations;
+    }
+    INVOKE_KERNEL(kConvolutionHw, depthwise_convolution_layer_hw, activations,
+                  weights, layers, lnum, result);
+    return result;
+}
+
+result_buf pointwise_convolution_layer(float* activations,
+                                       float* weights,
+                                       layer_t* layers,
+                                       int lnum,
+                                       float* result,
+                                       device_t* device) {
+    MAP_ARRAY(kConvolutionHw, activations, INPUT_BYTES(layers, lnum));
+    MAP_ARRAY(kConvolutionHw, weights, WEIGHT_BYTES(layers, lnum));
+    MAP_ARRAY(kConvolutionHw, result, OUTPUT_BYTES(layers, lnum));
+    INVOKE_KERNEL(kConvolutionHw, pointwise_convolution_layer_hw, activations,
+                  weights, layers, lnum, result);
     return result;
 }
 

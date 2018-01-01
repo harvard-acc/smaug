@@ -32,12 +32,26 @@ result_buf inner_product_layer(float* activations,
                                float* result,
                                device_t* device);
 
-result_buf convolution_layer(float* activations,
-                             float* weights,
-                             layer_t* layers,
-                             int lnum,
-                             float* result,
-                             device_t* device);
+result_buf standard_convolution_layer(float* activations,
+                                      float* weights,
+                                      layer_t* layers,
+                                      int lnum,
+                                      float* result,
+                                      device_t* device);
+
+result_buf depthwise_convolution_layer(float* activations,
+                                       float* weights,
+                                       layer_t* layers,
+                                       int lnum,
+                                       float* result,
+                                       device_t* device);
+
+result_buf pointwise_convolution_layer(float* activations,
+                                       float* weights,
+                                       layer_t* layers,
+                                       int lnum,
+                                       float* result,
+                                       device_t* device);
 
 result_buf pooling_layer(float* activations,
                          layer_t* layers,

@@ -37,8 +37,16 @@ result_buf run_layer_skip_activation_func(float* activations,
                     activations, weights, layers, layer_num, result, device);
         }
     } else if (l_type == CONV_STANDARD) {
-        PRINT_MSG("\nConvolution.\n");
-        result_loc = convolution_layer(
+        PRINT_MSG("\nStandard convolution.\n");
+        result_loc = standard_convolution_layer(
+                activations, weights, layers, layer_num, result, device);
+    } else if (l_type == CONV_DEPTHWISE) {
+        PRINT_MSG("\nDepthwise convolution.\n");
+        result_loc = depthwise_convolution_layer(
+                activations, weights, layers, layer_num, result, device);
+    } else if (l_type == CONV_POINTWISE) {
+        PRINT_MSG("\nPointwise convolution.\n");
+        result_loc = pointwise_convolution_layer(
                 activations, weights, layers, layer_num, result, device);
     } else if (l_type == POOLING) {
         PRINT_MSG("\nPooling.\n");

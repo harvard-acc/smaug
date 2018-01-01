@@ -53,18 +53,42 @@ result_buf inner_product_layer(float* activations,
     return result;
 }
 
-result_buf convolution_layer(float* activations,
-                             float* kernels,
-                             layer_t* layers,
-                             int lnum,
-                             float* result,
-                             device_t* device) {
-    layer_t curr_layer = layers[lnum];
-    if (curr_layer.c_padding > 0) {
+result_buf standard_convolution_layer(float* activations,
+                                      float* kernels,
+                                      layer_t* layers,
+                                      int lnum,
+                                      float* result,
+                                      device_t* device) {
+    if (layers[lnum].c_padding > 0) {
         convolution3d_zeropad(activations, kernels, layers, lnum, result);
         return activations;
     }
-    convolution3d_no_padding(activations, kernels, curr_layer, result);
+    convolution3d_no_padding(activations, kernels, layers[lnum], result);
+    return result;
+}
+
+result_buf depthwise_convolution_layer(float* activations,
+                                       float* kernels,
+                                       layer_t* layers,
+                                       int lnum,
+                                       float* result,
+                                       device_t* device) {
+    if (layers[lnum].c_padding > 0) {
+        convolution2d_depthwise_zeropad(
+                activations, kernels, layers, lnum, result);
+        return activations;
+    }
+    convolution2d_depthwise_nopadding(activations, kernels, layers[lnum], result);
+    return result;
+}
+
+result_buf pointwise_convolution_layer(float* activations,
+                                       float* kernels,
+                                       layer_t* layers,
+                                       int lnum,
+                                       float* result,
+                                       device_t* device) {
+    convolution3d_pointwise_nopadding(activations, kernels, layers[lnum], result);
     return result;
 }
 
