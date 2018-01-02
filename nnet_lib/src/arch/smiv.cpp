@@ -132,7 +132,30 @@ result_buf depthwise_convolution_layer(float* activations,
                                        int lnum,
                                        float* result,
                                        device_t* device) {
-    assert(false && "Unsupported layer type!");
+    float* current_layer_weights =
+            weights + get_weights_loc_for_layer(layers, lnum);
+    MAP_ARRAY_TO_ACCEL(kConvolutionHw, "host_weights", current_layer_weights,
+                       get_num_weights_layer(layers, lnum) * sizeof(float));
+    layer_t curr_layer = layers[lnum];
+    if (curr_layer.c_padding > 0) {
+        // TODO: Replace this with a memcpy implementation.
+        copy_zeropad(activations, layers, lnum, result);
+        PRINT_MSG("After zeropadding:\n");
+        PRINT_DEBUG4D(result,
+                      curr_layer.inputs.rows,
+                      curr_layer.inputs.cols + curr_layer.inputs.align_pad,
+                      curr_layer.inputs.height);
+        PRINT_DEBUG4D_V(weights, curr_layer.weights.rows,
+                        curr_layer.weights.cols + curr_layer.weights.align_pad,
+                        curr_layer.weights.height);
+        depthwise_convolution_layer_impl(result, current_layer_weights, layers,
+                                         lnum, activations, device);
+
+        return activations;
+    }
+    depthwise_convolution_layer_impl(
+            activations, current_layer_weights, layers, lnum, result, device);
+    return result;
 }
 
 result_buf pointwise_convolution_layer(float* activations,

@@ -3,6 +3,7 @@
 
 #include "arch/smiv_common.h"
 #include "core/nnet_fwd_defs.h"
+#include "core/ref/activation_functions.h"
 #include "core/smiv/smiv.h"
 #include "utility/utility.h"
 
@@ -78,6 +79,7 @@ void reduction_acp_hw(float* spad0,
 
 static void convolution_layer_hw(float* host_activations,
                                  float* host_weights,
+                                 float* host_results,
                                  float* umem,
                                  float* spad0,
                                  float* spad1,
@@ -127,6 +129,17 @@ static void convolution_layer_hw(float* host_activations,
         convolution3d_smiv(umem, spad0, partial_layer, spad1);
     else
         convolution3d_smiv(umem, spad1, partial_layer, spad0);
+
+    if (partial_layer.output_req == IO_DMA) {
+        size_t num_output_pixels =
+                partial_layer.outputs.rows * partial_layer.outputs.height *
+                (partial_layer.outputs.cols + partial_layer.outputs.align_pad);
+        if (input_in_spad0)
+            dmaStore(host_results, spad1, num_output_pixels * sizeof(float));
+        else
+            dmaStore(host_results, spad0, num_output_pixels * sizeof(float));
+    }
+
 }
 
 // Find a good way to pack the convolution into the accelerator.
@@ -222,6 +235,9 @@ void standard_convolution_layer_impl(float* host_activations,
     bool do_hw_activation = device->use_hw_activation_func &&
                             is_supported_activation_func(curr_layer.activation);
     bool use_acp_offload = (device->cpu_activation_func_offload == IO_ACP);
+
+    MAP_ARRAY_TO_ACCEL(kConvolutionHw, "host_activations", host_activations,
+                       get_dims_size(&curr_layer.inputs));
     for (int img = 0; img < NUM_TEST_CASES; img++) {
         for (int kern = 0; kern < num_kerns; kern++) {
             PRINT_MSG("Kernel %d\n", kern);
@@ -244,8 +260,9 @@ void standard_convolution_layer_impl(float* host_activations,
                         conv_cfgs.num_iterations > 1 || !do_hw_activation
                                 ? NO_ACTIVATION
                                 : curr_layer.activation;
+                partial_layer.output_req = IO_NONE;
                 INVOKE_KERNEL_PROF(kConvolutionHw, convolution_layer_hw,
-                                   host_activations, host_weights, g_umem,
+                                   host_activations, host_weights, NULL, g_umem,
                                    g_spad0, g_spad1, true, layers,
                                    partial_layer, lnum, img, kern, start_chan);
 
@@ -319,8 +336,92 @@ void standard_convolution_layer_impl(float* host_activations,
                    result_2d_size * sizeof(float));
         }
     }
-    free(conv_cfgs.iteration);
+    free_work_cfg(&conv_cfgs);
     free(temp_result);
+}
+
+void depthwise_convolution_layer_impl(float* host_activations,
+                                      float* host_weights,
+                                      layer_t* layers,
+                                      int lnum,
+                                      float* host_result,
+                                      device_t* device) {
+
+    layer_t curr_layer = layers[lnum];
+    const int result_height = curr_layer.outputs.rows;
+    const int result_width = curr_layer.outputs.cols;
+    const int result_pad = curr_layer.outputs.align_pad;
+    ARRAY_3D(float, _result, host_result, result_height,
+             result_width + result_pad);
+
+#if DEBUG_LEVEL >= 1
+    const int input_height = curr_layer.inputs.height;
+    const int k_width = curr_layer.weights.cols;
+    const int k_pad = curr_layer.weights.align_pad;
+    ARRAY_3D(float, _kernels, host_weights, k_width, k_width + k_pad);
+#endif
+
+    conv_cfg_t conv_cfgs = convolution_divide_work(layers, lnum);
+    PRINT_MSG_V("Number of iterations: %d\n", conv_cfgs.num_iterations);
+    bool do_hw_activation = device->use_hw_activation_func &&
+                            is_supported_activation_func(curr_layer.activation);
+    MAP_ARRAY_TO_ACCEL(kConvolutionHw, "host_activations", host_activations,
+                       get_dims_size(&curr_layer.inputs));
+    for (int img = 0; img < NUM_TEST_CASES; img++) {
+        float* current_result = &_result[img][0][0];
+        unsigned start_chan = 0;
+        for (unsigned iter = 0; iter < conv_cfgs.num_iterations; iter++) {
+            PRINT_MSG("Iteration %d\n", iter);
+            dims_t iter_cfg = conv_cfgs.iteration[iter];
+            size_t current_iter_result_size =
+                    iter_cfg.rows * iter_cfg.height *
+                    (iter_cfg.cols + iter_cfg.align_pad);
+            PRINT_MSG_V("Depthwise kernel channels %d-%d:\n", start_chan,
+                        start_chan + iter_cfg.height);
+            PRINT_DEBUG4D_V(&_kernels[start_chan][0][0], k_width,
+                            k_width + k_pad, iter_cfg.height);
+
+            // Create a new layer description for this iteration.
+            layer_t partial_layer = curr_layer;
+            partial_layer.inputs.height = iter_cfg.height;
+            partial_layer.outputs.height = iter_cfg.height;
+            partial_layer.weights.height = iter_cfg.height;
+            // Unlike the standard convolution, filters are applied
+            // channelwise, so we don't need to wait to do activation functions
+            // until after the reductions (which don't exist in depthwise
+            // convolution).
+            partial_layer.activation =
+                    !do_hw_activation ? NO_ACTIVATION : curr_layer.activation;
+            // Always send data back.
+            partial_layer.output_req = IO_DMA;
+            MAP_ARRAY_TO_ACCEL(kConvolutionHw,
+                               "host_results",
+                               current_result,
+                               current_iter_result_size);
+            // The standard "kern" dimension is always 0, since the kernel
+            // dimension is now the channel dimension.
+            const int kern = 0;
+            INVOKE_KERNEL_PROF(kConvolutionHw, convolution_layer_hw,
+                               host_activations, host_weights, current_result,
+                               g_umem, g_spad0, g_spad1, true, layers,
+                               partial_layer, lnum, img, kern, start_chan);
+
+            current_result += current_iter_result_size;
+            start_chan += iter_cfg.height;
+        }
+    }
+
+    // TODO: SMIV doesn't support activation functions on the CNN block, only
+    // on the reduction block...so change it in the model :)
+    // This is a hack to fake the idea that RELU is supported for
+    // depthwise convolutions. SMIV's CNN block doesn't do activation functions
+    // (this is handled by the reduction block) but depthwise convolutions
+    // don't require reductions.
+    if (layers[lnum].activation == RELU) {
+        activation_fun(host_result, NUM_TEST_CASES,
+                       get_dims_size(&layers[lnum].outputs), RELU, NULL);
+    }
+    free_work_cfg(&conv_cfgs);
 }
 
 #endif
