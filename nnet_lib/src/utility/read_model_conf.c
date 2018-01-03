@@ -365,11 +365,11 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
         layers[l].inputs.cols = layers[l - 1].outputs.cols;
         layers[l].inputs.height = layers[l - 1].outputs.height;
 
-        // 1x1 convolutions use transposed weights, so each row is a filter and
+        // 1x1 convolutions use FC-formatted weights, so each row is a filter and
         // each col maps to a channel in the input.
         cfg_t* conv_params = cfg_getsec(layer_opts, "convolution_param");
-        layers[l].weights.rows = 1;
-        layers[l].weights.cols = layers[l].inputs.height;
+        layers[l].weights.rows = layers[l].inputs.height + 1;
+        layers[l].weights.cols = cfg_getint(conv_params, "num_output");
         layers[l].weights.height = 1;
         layers[l].field_stride = cfg_getint(conv_params, "stride");
 
@@ -579,7 +579,7 @@ static void print_layer_config(layer_t* layers, int num_layers) {
                    layers[i].inputs.height);
             printf("    Output size: %d x %d x %d\n", layers[i].outputs.rows,
                    layers[i].outputs.cols, layers[i].outputs.height);
-            printf("    Kernel size: 1 x 1 x %d\n", layers[i].weights.cols);
+            printf("    Kernel size: 1 x 1 x %d\n", layers[i].inputs.height);
             printf("    Num kernels: %d\n", layers[i].outputs.height);
             printf("    Padding: 0\n");
             printf("    Stride: %d\n", layers[i].field_stride);

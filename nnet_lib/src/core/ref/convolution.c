@@ -244,19 +244,19 @@ void convolution3d_pointwise_direct(float* a,
     ARRAY_4D(float, _a, a, a_height, a_rows, a_cols);
     // For pointwise conv, each filter is 1x1xH, so collectively there are only
     // two dimensions that matter.
-    ARRAY_2D(float, _kernels, kernels, k_cols + k_pad);
+    ARRAY_2D(float, _kernels, kernels, num_kerns + k_pad);
     ARRAY_4D(float, _result, result, result_height, result_rows, result_cols);
-
 
     conv_pw_input_rows:
     for (int i = start_i; i < end_i; i+= k_stride) {
         conv_pw_input_cols:
         for (int j = start_j; j < end_j; j+= k_stride) {
-            partial_sum = 0;
+            // Preload the bias.
+            partial_sum = _kernels[k_cols][kern];
             conv_pw_kernel_rows:
             for (int k = 0; k < k_cols ; k++) {
                 a_val = conv_float2fixed(_a[img][k][i][j]);
-                kern_val = conv_float2fixed(_kernels[kern][k]);
+                kern_val = conv_float2fixed(_kernels[k][kern]);
                 partial_sum += conv_float2fixed(a_val * kern_val);
             }
             _result[img][kern][i][j] = partial_sum;

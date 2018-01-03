@@ -110,6 +110,29 @@ void init_conv_weights(float* weights,
     }
 }
 
+// Pointwise convolution weights are organized like this:
+//
+//   Filters -->
+//
+// Channels [ k00 k10 k20 k30 ... ]
+//    |     [ k01 k11 k21 k31 ... ]
+//    |     [ k02 k12 k22 k32 ... ]
+//    V       ...
+//            ...
+// biases:  [ b0  b1  b2  b3  ... ]
+void init_pointwise_conv_weights(float* weights,
+                                 int w_height,
+                                 int w_rows,
+                                 int w_cols,
+                                 int w_pad,
+                                 data_init_mode mode,
+                                 bool transpose) {
+    // 1x1 convolutions initialize weights just like we do for FC layers.
+    // The last row consists of biases. This is the ONLY convolutional layer
+    // type that supports biases currently!
+    init_fc_weights(weights, w_height, w_rows, w_cols, w_pad, mode, false);
+}
+
 void init_bn_weights(float* weights,
                      int w_height,
                      int w_rows,
@@ -169,13 +192,17 @@ void init_weights(float* weights,
                 layers, l, &w_rows, &w_cols, &w_height, &w_depth, &w_pad);
         int w_tot_cols = w_cols + w_pad;
         switch (layers[l].type) {
+            case CONV_POINTWISE:
+                init_pointwise_conv_weights(weights + w_offset, w_height,
+                                            w_rows, w_cols, w_pad, mode,
+                                            transpose);
+                break;
             case FC:
                 init_fc_weights(weights + w_offset, w_height, w_rows, w_cols,
                                 w_pad, mode, transpose);
                 break;
             case CONV_STANDARD:
             case CONV_DEPTHWISE:
-            case CONV_POINTWISE:
                 init_conv_weights(weights + w_offset, w_depth, w_height, w_rows,
                                   w_cols, w_pad, mode, transpose);
                 break;

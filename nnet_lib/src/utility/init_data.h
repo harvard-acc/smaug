@@ -25,6 +25,14 @@ void init_conv_weights(float* weights,
                        data_init_mode mode,
                        bool transpose);
 
+void init_pointwise_conv_weights(float* weights,
+                                 int w_height,
+                                 int w_rows,
+                                 int w_cols,
+                                 int w_pad,
+                                 data_init_mode mode,
+                                 bool transpose);
+
 void init_bn_weights(float* weights,
                      int w_height,
                      int w_rows,

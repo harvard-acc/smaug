@@ -215,6 +215,7 @@ void get_weights_dims_layer(layer_t* layers,
                             int* num_pad) {
     switch (layers[l].type) {
         case FC:
+        case CONV_POINTWISE:
             *num_rows = layers[l].weights.rows;
             *num_cols = layers[l].weights.cols;
             *num_height = layers[l].weights.height;
@@ -223,7 +224,6 @@ void get_weights_dims_layer(layer_t* layers,
             break;
         case CONV_STANDARD:
         case CONV_DEPTHWISE:
-        case CONV_POINTWISE:
             *num_rows = layers[l].weights.rows;
             *num_cols = layers[l].weights.cols;
             *num_height = layers[l].weights.height;
@@ -250,12 +250,12 @@ void get_weights_dims_layer(layer_t* layers,
 
 // Get the total number of weights for layer @l in the network.
 int get_num_weights_layer(layer_t* layers, int l) {
-    if (layers[l].type == FC) {
+    if (layers[l].type == FC || layers[l].type == CONV_POINTWISE) {
+        // Assumes height = 1.
         return layers[l].weights.rows *
                (layers[l].weights.cols + layers[l].weights.align_pad);
     } else if (layers[l].type == CONV_STANDARD ||
-               layers[l].type == CONV_DEPTHWISE ||
-               layers[l].type == CONV_POINTWISE) {
+               layers[l].type == CONV_DEPTHWISE) {
         return layers[l].weights.rows *
                (layers[l].weights.cols + layers[l].weights.align_pad) *
                layers[l].weights.height * layers[l].outputs.height;
