@@ -138,7 +138,6 @@ result_buf depthwise_convolution_layer(float* activations,
                        get_num_weights_layer(layers, lnum) * sizeof(float));
     layer_t curr_layer = layers[lnum];
     if (curr_layer.c_padding > 0) {
-        // TODO: Replace this with a memcpy implementation.
         copy_zeropad(activations, layers, lnum, result);
         PRINT_MSG("After zeropadding:\n");
         PRINT_DEBUG4D(result,
@@ -155,16 +154,72 @@ result_buf depthwise_convolution_layer(float* activations,
     }
     depthwise_convolution_layer_impl(
             activations, current_layer_weights, layers, lnum, result, device);
+
     return result;
 }
 
+// SMIV currently uses the FC block to implement a GEMM-based 1x1 convolution
+// because the current model of SMIV in Aladdin doesn't support 1x1 conv on the
+// CONV block.  Eventually we'll want to use the CNN block since the CNN block
+// outputs results in NCHW format (where as the FC block outputs data in NHWC
+// format).
 result_buf pointwise_convolution_layer(float* activations,
                                        float* weights,
                                        layer_t* layers,
                                        int lnum,
-                                       float* result,
+                                       float* results,
                                        device_t* device) {
-    assert(false && "Unsupported layer type!");
+    // Allocate memory to store the transformed input.
+    float* nhwc_inputs = NULL;
+    dims_t nhwc = convert_nchw_to_nhwc(activations, NUM_TEST_CASES,
+                                       layers[lnum].inputs, DATA_ALIGNMENT,
+                                       &nhwc_inputs);
+
+    // HACK: We need to modify the layer[lnum] descriptor to reflect the fact
+    // that we're doing a matrix multiply, but these changes can't be seen
+    // outside of this function. So, back up the current inputs layer.
+    layer_t old_layer = layers[lnum];
+    // These are the dimensions needed by the FC block routine.
+    dims_t fc_dims = { nhwc.height * nhwc.rows, nhwc.cols, 1, nhwc.align_pad };
+    layers[lnum].inputs = fc_dims;
+
+    // These are the outputs dimensions expected by the FC block.
+    int weights_cols = layers[lnum].weights.cols;
+    layers[lnum].outputs =
+            (dims_t){ fc_dims.rows, weights_cols, 1,
+                      calc_padding(weights_cols, DATA_ALIGNMENT) };
+
+    // Allocate new memory to store the result of the FC. The
+    // activations/results buffers are not necessarily big enough to store this
+    // (due to data alignment).
+    float* nhwc_outputs =
+            (float*)malloc_aligned(get_dims_size(&fc_dims) * sizeof(float));
+
+    // Finally, invoke the FC hardware.
+    inner_product_layer_impl(
+            nhwc_inputs, weights, layers, lnum, nhwc_outputs, device);
+
+    PRINT_MSG_V("1x1 GEMM results:\n");
+    PRINT_DEBUG_V(nhwc_outputs, fc_dims.rows,
+                  layers[lnum].weights.cols + layers[lnum].weights.align_pad,
+                  layers[lnum].weights.cols + layers[lnum].weights.align_pad);
+
+    // Reshape the FC results and convert back from NHWC to NCHW.
+    dims_t output_dims = {
+        old_layer.outputs.cols,
+        old_layer.outputs.height,
+        old_layer.outputs.rows,
+        calc_padding(old_layer.outputs.height, DATA_ALIGNMENT)
+    };
+    convert_nhwc_to_nchw(nhwc_outputs, NUM_TEST_CASES, output_dims,
+                         DATA_ALIGNMENT, &results);
+
+    // Restore the original layer descriptor.
+    layers[lnum] = old_layer;
+
+    free(nhwc_inputs);
+    free(nhwc_outputs);
+    return results;
 }
 
 // Software implementation. SMIV doesn't accelerate pooling.
@@ -325,11 +380,13 @@ void set_dma_requirements(network_t* network, device_t* device) {
             curr_layer->type == POOLING ||
             // For now, conv layers also do not support local caching.
             curr_layer->type == CONV_STANDARD ||
+            curr_layer->type == CONV_DEPTHWISE ||
+            curr_layer->type == CONV_POINTWISE ||
             curr_layer->type == BATCH_NORM ||
             next_layer->type == BATCH_NORM ||
             next_layer->type == POOLING ||
-            // If the FC layer needs work division, we can't locally cache.
-            (curr_layer->type == FC &&
+            // If the FC block needs work division, we can't locally cache.
+            (curr_layer->type == FC && next_layer->type == FC &&
              inner_product_needs_work_division(network->layers, layer_num))) {
             curr_layer->output_req = IO_DMA;
         } else {

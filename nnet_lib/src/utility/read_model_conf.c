@@ -724,6 +724,13 @@ int configure_network_from_file(const char* cfg_file,
                     layers[i].type == CONV_POINTWISE) &&
                    layers[i - 1].type == FC) {
             layers[i].input_preprocessing = UNFLATTEN;
+#if ARCHITECTURE == SMIV
+        } else if (layers[i].type == CONV_POINTWISE &&
+                   (layers[i - 1].type == CONV_STANDARD ||
+                    layers[i - 1].type == CONV_DEPTHWISE ||
+                    layers[i - 1].type == CONV_POINTWISE)) {
+            layers[i].input_preprocessing = NCHW_TO_NHWC;
+#endif
         } else {
             layers[i].input_preprocessing = NO_PREPROCESSING;
         }

@@ -32,7 +32,7 @@ void inner_product_layer_hw_impl(float* host_activations,
     matrix_multiply_with_bias_smiv(
             local_inputs,
             local_weights,
-            NUM_TEST_CASES,
+            all_layers[lnum].inputs.rows * NUM_TEST_CASES,
             all_layers[lnum].weights.rows,
             all_layers[lnum].weights.cols + all_layers[lnum].weights.align_pad,
             all_layers[lnum].inputs.align_pad,
