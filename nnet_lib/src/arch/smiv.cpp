@@ -15,7 +15,6 @@
 #include "utility/data_layout_conversion.h"
 #include "utility/profiling.h"
 #include "utility/utility.h"
-#include "utility/mkl/utility.h"
 #include "arch/common.h"
 #include "arch/interface.h"
 #include "arch/smiv_common.h"
@@ -25,6 +24,7 @@
 #include "arch/nnet_mkl.h"
 #include "core/mkl/activation_functions.h"
 #include "core/mkl/batch_norm.h"
+#include "utility/mkl/utility.h"
 #endif
 
 #ifdef DMA_MODE
@@ -329,7 +329,8 @@ result_buf run_layer(float* activations,
         session->clear();
 #else
         begin_profiling(ACTIVATION_TYPE_STR(act_func), layer_num);
-        activation_fun(result_loc, output_size, act_func, sigmoid_table);
+        activation_fun(result_loc, NUM_TEST_CASES, output_size, act_func,
+                       sigmoid_table);
         end_profiling();
 #endif
         PRINT_MSG("\nactivation function\n");
