@@ -278,6 +278,13 @@ int get_total_num_weights(layer_t* layers, int num_layers) {
     return w_size;
 }
 
+// Compute the total size represented by this dims_t object.
+//
+// This should not be called from within an accelerated region!
+size_t get_dims_size(dims_t* dims) {
+    return dims->rows * (dims->cols + dims->align_pad) * dims->height;
+}
+
 size_t next_multiple(size_t request, size_t align) {
   size_t n = request/align;
   if (n == 0)

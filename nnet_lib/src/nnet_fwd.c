@@ -139,13 +139,16 @@ size_t calc_layer_intermediate_memory(layer_t* layers, int lnum) {
     size_t usage = 0, flattened_usage = 0;
     layer_t layer = layers[lnum];
 
+    size_t inputs_size = layer.inputs.rows *
+                         (layer.inputs.cols + layer.inputs.align_pad) *
+                         layer.inputs.height;
+    size_t outputs_size = layer.outputs.rows *
+                          (layer.outputs.cols + layer.outputs.align_pad) *
+                          layer.outputs.height;
+
     if (layer.type == INPUT) {
-        usage = layer.inputs.rows *
-                (layer.inputs.cols + layer.inputs.align_pad) *
-                layer.inputs.height;
+        usage = inputs_size;
     } else if (layer.type == FC) {
-        usage = layer.outputs.rows *
-                (layer.outputs.cols + layer.outputs.align_pad);
         if (layer.input_preprocessing == FLATTEN) {
             // Flattening the input will require the second buffer.
             layer_t prev_layer = layers[lnum];
@@ -153,19 +156,13 @@ size_t calc_layer_intermediate_memory(layer_t* layers, int lnum) {
                     prev_layer.outputs.rows *
                     (prev_layer.outputs.cols + prev_layer.outputs.align_pad) *
                     prev_layer.outputs.height;
-            usage = max2(usage, flattened_usage);
+            usage = max2(outputs_size, flattened_usage);
         } else {
-            usage = layer.outputs.rows *
-                    (layer.outputs.cols + layer.outputs.align_pad);
+            usage = outputs_size;
         }
     } else if (layer.type == CONV_STANDARD || layer.type == CONV_DEPTHWISE ||
                layer.type == CONV_POINTWISE || layer.type == POOLING) {
-        usage = max2(layer.inputs.rows *
-                            (layer.inputs.cols + layer.inputs.align_pad) *
-                            layer.inputs.height,
-                    layer.outputs.rows *
-                            (layer.outputs.cols + layer.outputs.align_pad) *
-                            layer.outputs.height);
+        usage = max2(inputs_size, outputs_size);
     } else {
         usage = 0;
     }

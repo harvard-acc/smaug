@@ -72,6 +72,7 @@ int get_num_weights_layer(layer_t* layers, int l);
 int get_total_num_weights(layer_t* layers, int num_layers);
 bool is_dummy_layer(layer_t* layers, int l);
 size_t next_multiple(size_t request, size_t align);
+size_t get_dims_size(dims_t* dims);
 
 float compute_errors(float* network_pred,
                      int* correct_labels,

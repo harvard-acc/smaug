@@ -32,10 +32,9 @@
 // Define this to use a table approximation of the sigmoid activation function.
 // #define SIGMOID_TABLE
 
-// If 1, then this transposes the data in the weights matrix such that the
-// access pattern is strided in the same way as the activations, which is
-// beneficial for increasing memory level parallelism (by reducing the number
-// of consecutive references to the same partition of a scratchpad).
+// If 1, then weights for fully-connected layers are stored columnmajor, rather
+// than rowmajor, which tends to improve performance when the input data are
+// stored as row vectors.
 //
 // This can also be defined from the build command.
 #ifndef TRANSPOSE_WEIGHTS
