@@ -131,6 +131,11 @@ class GenericTests(BaseTest):
     correct_output = "generic-cnn-1c2k.out"
     self.runAndValidate(model_file, correct_output)
 
+  def test_depthwise_separable(self):
+    model_file = "generic/depthwise-separable.conf"
+    correct_output = "generic-depthwise-separable.out"
+    self.runAndValidate(model_file, correct_output)
+
 class ImageNetTests(BaseTest):
   @unittest.skip("SMIV doesn't support tiling the input image yet.")
   def test_simple(self):
