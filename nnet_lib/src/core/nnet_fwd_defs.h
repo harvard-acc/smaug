@@ -41,6 +41,7 @@ typedef enum _activation_type {
 typedef enum _input_pp {
     FLATTEN,
     UNFLATTEN,
+    NCHW_TO_NHWC,
     NO_PREPROCESSING,
 } input_pp;
 

@@ -3,12 +3,12 @@
 #include "arch/common.h"
 #include "arch/interface.h"
 #include "arch/nnet_mkl.h"
-#include "core/ref/flatten.h"
 #include "core/mkl/activation_functions.h"
 #include "core/mkl/batch_norm.h"
 #include "core/mkl/convolution.h"
 #include "core/mkl/matrix_multiply.h"
 #include "core/mkl/pooling.h"
+#include "utility/data_layout_conversion.h"
 #include "utility/utility.h"
 #include "utility/mkl/utility.h"
 
@@ -22,7 +22,7 @@ result_buf flatten_input(float* activations,
                          layer_t* layers,
                          int lnum,
                          float* result) {
-    return flatten_input_rowmajor(activations, layers, lnum, result);
+    return im2row(activations, layers, lnum, result);
 }
 
 result_buf inner_product_layer(float* activations,

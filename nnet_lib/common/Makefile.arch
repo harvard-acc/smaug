@@ -11,7 +11,6 @@ CORE_SRCS = core/ref/activation_functions.c \
 						core/ref/zeropad.c \
 						core/ref/pooling.c \
 						core/ref/batch_norm.c \
-						core/ref/flatten.c \
 						core/smiv/smiv.c \
 						core/smiv/convolution.c \
 						core/smiv/convolution_simd.c \
@@ -26,7 +25,8 @@ UTILITY_SRCS = utility/init_data.c \
 							 utility/data_archive.c \
 							 utility/data_archive_txt.c \
 							 utility/data_archive_common.c \
-							 utility/data_archive_bin.c
+							 utility/data_archive_bin.c \
+							 utility/data_layout_conversion.c
 
 ARCH_SRCS = arch/common.c
 

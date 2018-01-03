@@ -4,10 +4,10 @@
 #include "core/ref/activation_functions.h"
 #include "core/ref/batch_norm.h"
 #include "core/ref/convolution.h"
-#include "core/ref/flatten.h"
 #include "core/ref/matrix_multiply.h"
 #include "core/ref/pooling.h"
 #include "core/ref/zeropad.h"
+#include "utility/data_layout_conversion.h"
 #include "utility/utility.h"
 #include "arch/common.h"
 #include "arch/interface.h"
@@ -33,7 +33,7 @@ result_buf flatten_input(float* activations,
                          layer_t* layers,
                          int lnum,
                          float* result) {
-    return flatten_input_rowmajor(activations, layers, lnum, result);
+    return im2row(activations, layers, lnum, result);
 }
 
 void inner_product_layer_hw(float* activations,
