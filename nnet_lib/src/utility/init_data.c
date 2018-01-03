@@ -61,7 +61,7 @@ void init_fc_weights(float* weights,
         for (int i = 0; i < w_rows_minus_1; i++) {
             for (int j = 0; j < w_tot_cols; j++) {
                 if (j < w_cols) {
-                    val = get_rand_weight(mode, 0);
+                    val = get_rand_weight(mode, i);
                 } else {  // extra zero padding.
                     val = 0;
                 }
@@ -74,7 +74,7 @@ void init_fc_weights(float* weights,
         // Store the biases.
         for (int j = 0; j < w_tot_cols; j++) {
             if (j < w_cols) {
-                val = get_rand_weight(mode, 0);
+                val = get_rand_weight(mode, w_rows_minus_1);
             } else {
                 val = 0;
             }
