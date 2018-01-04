@@ -40,17 +40,41 @@ result_buf inner_product_layer(float* activations,
     return result;
 }
 
-result_buf convolution_layer(float* activations,
-                             float* weights,
-                             layer_t* layers,
-                             int lnum,
-                             float* result,
-                             device_t* device) {
+result_buf standard_convolution_layer(float* activations,
+                                      float* weights,
+                                      layer_t* layers,
+                                      int lnum,
+                                      float* result,
+                                      device_t* device) {
     float* curr_layer_weights =
             weights + get_weights_loc_for_layer(layers, lnum);
     nnet_mkl::convolution3d(
             activations, curr_layer_weights, &layers[lnum], result, device);
     return result;
+}
+
+result_buf depthwise_convolution_layer(float* activations,
+                                       float* weights,
+                                       layer_t* layers,
+                                       int lnum,
+                                       float* result,
+                                       device_t* device) {
+    float* curr_layer_weights =
+            weights + get_weights_loc_for_layer(layers, lnum);
+    nnet_mkl::depthwise_convolution3d(
+            activations, curr_layer_weights, &layers[lnum], result, device);
+    return result;
+}
+
+result_buf pointwise_convolution_layer(float* activations,
+                                       float* weights,
+                                       layer_t* layers,
+                                       int lnum,
+                                       float* results,
+                                       device_t* device) {
+
+    assert(false && "Unsupported!");
+    return results;
 }
 
 result_buf pooling_layer(float* activations,

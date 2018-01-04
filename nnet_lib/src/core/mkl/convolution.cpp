@@ -33,4 +33,27 @@ void convolution3d(float* inputs,
     }
 }
 
+void depthwise_convolution3d(float* inputs,
+                             float* weights,
+                             layer_t* curr_layer,
+                             float* results,
+                             device_t* device) {
+    auto session = get_session(device);
+    if (session->empty()) {
+        session->add_op(new DepthwiseConvolution3dOp<dtype>(inputs,
+                                                            weights,
+                                                            results,
+                                                            curr_layer,
+                                                            NUM_TEST_CASES,
+                                                            session->cpu()));
+    } else {
+        session->add_op(new DepthwiseConvolution3dOp<dtype>(session->last_op(),
+                                                            weights,
+                                                            results,
+                                                            curr_layer,
+                                                            NUM_TEST_CASES,
+                                                            session->cpu()));
+    }
+}
+
 }  // namespace nnet_mkl
