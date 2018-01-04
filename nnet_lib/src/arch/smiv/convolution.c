@@ -226,7 +226,9 @@ void standard_convolution_layer_impl(float* host_activations,
 #endif
 
     conv_cfg_t conv_cfgs = convolution_divide_work(layers, lnum);
-    PRINT_MSG_V("Number of iterations: %d\n", conv_cfgs.num_iterations);
+    printf("Standard convolution layer %d work configuration:\n", lnum);
+    print_work_cfg(&conv_cfgs);
+
     // temp_result stores the partially reduced results of each iteration.
     size_t temp_result_size =
             result_2d_size * conv_cfgs.num_iterations * sizeof(float);
@@ -362,7 +364,9 @@ void depthwise_convolution_layer_impl(float* host_activations,
 #endif
 
     conv_cfg_t conv_cfgs = convolution_divide_work(layers, lnum);
-    PRINT_MSG_V("Number of iterations: %d\n", conv_cfgs.num_iterations);
+    printf("Depthwise convolution layer %d work configuration:\n", lnum);
+    print_work_cfg(&conv_cfgs);
+
     bool do_hw_activation = device->use_hw_activation_func &&
                             is_supported_activation_func(curr_layer.activation);
     MAP_ARRAY_TO_ACCEL(kConvolutionHw, "host_activations", host_activations,

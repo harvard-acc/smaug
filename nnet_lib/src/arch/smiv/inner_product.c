@@ -222,8 +222,10 @@ void inner_product_layer_impl(float* host_activations,
                 layers[lnum].weights.cols + layers[lnum].weights.align_pad);
 
     fc_cfg_t fc_cfgs = inner_product_divide_work(layers, lnum);
-    bool needs_multiple_iter = (fc_cfgs.num_iterations > 1);
+    printf("Inner product layer %d work configuration:\n", lnum);
+    print_work_cfg(&fc_cfgs);
 
+    bool needs_multiple_iter = (fc_cfgs.num_iterations > 1);
     MAP_ARRAY(kInnerProductHw, host_activations, INPUT_BYTES(layers, lnum));
 
     // Holds a contiguous column of weights and the partial results. If work

@@ -50,6 +50,17 @@ void free_work_cfg(work_cfg_t* cfg) {
     free(cfg->iteration);
 }
 
+void print_work_cfg(work_cfg_t* cfg) {
+    for (int i = 0; i < cfg->num_iterations; i++) {
+        printf("Iteration %d: height=%d, rows=%d, cols=%d, pad=%d\n",
+               i,
+               cfg->iteration[i].height,
+               cfg->iteration[i].rows,
+               cfg->iteration[i].cols,
+               cfg->iteration[i].align_pad);
+    }
+}
+
 // Use the same accelerator id for both the convolutional and FC blocks. This
 // means we will simulate only ONE datapath instead of two, which means that
 // the two blocks can share the scratchpads (without any more infrastructure

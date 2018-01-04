@@ -37,8 +37,9 @@ typedef struct _work_cfg_t {
 typedef work_cfg_t fc_cfg_t;
 typedef work_cfg_t conv_cfg_t;
 
-void init_work_cfg(work_cfg_t* ptr, unsigned num_iterations);
-void free_work_cfg(work_cfg_t* ptr);
+void init_work_cfg(work_cfg_t* cfg, unsigned num_iterations);
+void free_work_cfg(work_cfg_t* cfg);
+void print_work_cfg(work_cfg_t* cfg);
 
 // Accelerator id codes.
 extern unsigned kConvolutionHw;
