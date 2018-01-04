@@ -13,7 +13,8 @@ MKL_TESTS = test_mkl_convolution \
 						test_mkl_maxpooling \
 						test_mkl_sigmoid \
 						test_mkl_batch_norm \
-						test_mkl_depthwise_conv
+						test_mkl_depthwise_conv \
+						test_mkl_pointwise_conv
 
 MKL_TEST_TARGETS = $(patsubst %, $(BUILD_DIR)/%, $(MKL_TESTS))
 MKL_LIB_SRCS = arch/mkl.cpp $(MKL_SRCS)
@@ -64,6 +65,12 @@ run_test_mkl_depthwise_conv: $(BUILD_DIR)/test_mkl_depthwise_conv
 	./$< mkl
 $(BUILD_DIR)/test_mkl_depthwise_conv: ARCH=MKLDNN
 $(BUILD_DIR)/test_mkl_depthwise_conv: $(PERFTEST_DIR)/test_mkl_depthwise_conv.cpp $(ALL_SRCS)
+	$(CXX) $(CFLAGS) $(CPPFLAGS) -DTRANSPOSE_WEIGHTS=1 $^ -o $@ $(LFLAGS)
+
+run_test_mkl_pointwise_conv: $(BUILD_DIR)/test_mkl_pointwise_conv
+	./$< mkl
+$(BUILD_DIR)/test_mkl_pointwise_conv: ARCH=MKLDNN
+$(BUILD_DIR)/test_mkl_pointwise_conv: $(PERFTEST_DIR)/test_mkl_pointwise_conv.cpp $(ALL_SRCS)
 	$(CXX) $(CFLAGS) $(CPPFLAGS) -DTRANSPOSE_WEIGHTS=1 $^ -o $@ $(LFLAGS)
 
 clean:

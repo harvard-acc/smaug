@@ -70,11 +70,13 @@ result_buf pointwise_convolution_layer(float* activations,
                                        float* weights,
                                        layer_t* layers,
                                        int lnum,
-                                       float* results,
+                                       float* result,
                                        device_t* device) {
-
-    assert(false && "Unsupported!");
-    return results;
+    float* curr_layer_weights =
+            weights + get_weights_loc_for_layer(layers, lnum);
+    nnet_mkl::pointwise_convolution3d(
+            activations, curr_layer_weights, &layers[lnum], result, device);
+    return result;
 }
 
 result_buf pooling_layer(float* activations,
