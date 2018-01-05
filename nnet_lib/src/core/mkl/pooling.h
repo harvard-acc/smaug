@@ -6,14 +6,15 @@
 
 namespace nnet_mkl {
 
-template <typename DType>
-class MaxPoolingOp : public BaseMklOp<DType> {
+// PoolingType is of type enum pool_type.
+template <typename DType, int PoolingType>
+class PoolingOp : public BaseMklOp<DType> {
    public:
-    MaxPoolingOp(DType* input_buffer,
-                 DType* output_buffer,
-                 layer_t* _layer,
-                 int _batch_size,
-                 const mkldnn::engine& engine)
+    PoolingOp(DType* input_buffer,
+              DType* output_buffer,
+              layer_t* _layer,
+              int _batch_size,
+              const mkldnn::engine& engine)
             : BaseMklOp<DType>(_layer, _batch_size, engine) {
         auto input_mem = create_input_memory(input_buffer);
         auto output_mem = create_output_memory(output_buffer);
@@ -22,11 +23,11 @@ class MaxPoolingOp : public BaseMklOp<DType> {
         create_primitive(input_mem, output_mem);
     }
 
-    MaxPoolingOp(const BaseMklOpPtr& prev_op,
-                 DType* output_buffer,
-                 layer_t* _layer,
-                 int _batch_size,
-                 const mkldnn::engine& engine)
+    PoolingOp(const BaseMklOpPtr& prev_op,
+              DType* output_buffer,
+              layer_t* _layer,
+              int _batch_size,
+              const mkldnn::engine& engine)
             : BaseMklOp<DType>(_layer, _batch_size, engine) {
         INFO_MSG("Pooling, chaining\n");
         create_primitive(prev_op->get_final_primitive(),
@@ -34,19 +35,23 @@ class MaxPoolingOp : public BaseMklOp<DType> {
                          output_buffer);
     }
 
-    virtual std::string name() const { return "Max pooling"; }
+    virtual std::string name() const {
+        return PoolingType == MAX ? "Max pooling" : "Average pooling";
+    }
 
    protected:
     // Return a mem_dims object for the input, assuming nchw format.
     mem_dims get_input_dims() {
         return { this->batch_size, this->layer->inputs.height,
-                 this->layer->inputs.rows, this->layer->inputs.cols };
+                 this->layer->inputs.rows,
+                 this->layer->inputs.cols + this->layer->inputs.align_pad };
     }
 
     // Return a mem_dims object for the output, assuming nchw format.
     mem_dims get_output_dims() {
         return { this->batch_size, this->layer->outputs.height,
-                 this->layer->outputs.rows, this->layer->outputs.cols };
+                 this->layer->outputs.rows,
+                 this->layer->outputs.cols + this->layer->outputs.align_pad };
     }
 
     // Return a mem_dims object for the pooling dims.
@@ -79,9 +84,12 @@ class MaxPoolingOp : public BaseMklOp<DType> {
     mkldnn::pooling_forward::desc create_pooling_desc(mem_d input_md) {
         auto pool_output_md = mem_d(
                 { get_output_dims() }, mkl_traits<DType>::dtype, mem_fmt::any);
+        mkldnn::algorithm alg = PoolingType == MAX
+                                        ? mkldnn::algorithm::pooling_max
+                                        : mkldnn::algorithm::pooling_avg;
         return mkldnn::pooling_forward::desc(
-                mkldnn::prop_kind::forward_inference, mkldnn::algorithm::pooling_max,
-                input_md, pool_output_md, get_pool_strides(), get_pool_dims(),
+                mkldnn::prop_kind::forward_inference, alg, input_md,
+                pool_output_md, get_pool_strides(), get_pool_dims(),
                 get_pool_padding(), get_pool_padding(),
                 mkldnn::padding_kind::zero);
     }
@@ -119,7 +127,18 @@ class MaxPoolingOp : public BaseMklOp<DType> {
     }
 };
 
+template <typename DType>
+using MaxPoolingOp = PoolingOp<DType, MAX>;
+
+template <typename DType>
+using AvgPoolingOp = PoolingOp<DType, AVG>;
+
 void max_pooling_3d(float* inputs,
+                    layer_t* curr_layer,
+                    float* result,
+                    device_t* device);
+
+void avg_pooling_3d(float* inputs,
                     layer_t* curr_layer,
                     float* result,
                     device_t* device);

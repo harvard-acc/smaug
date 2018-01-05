@@ -42,9 +42,9 @@
 #endif
 
 // If 1, then this uses a tree-based max implementation for the pooling layers,
-// which is more efficient than a loop.
+// which is more efficient than a loop in HW.
 #ifndef TREE_MAX
-#define TREE_MAX 1
+#define TREE_MAX 0
 #endif
 
 // Disable batching for FC layers in SMIV.

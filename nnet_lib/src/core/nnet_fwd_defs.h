@@ -24,6 +24,7 @@ typedef float* result_buf;
 typedef enum _pool_type {
     MAX,
     AVG,
+    NUM_POOLING_TYPES,
 } pool_type;
 
 typedef enum _activation_type {

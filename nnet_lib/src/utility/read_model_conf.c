@@ -590,7 +590,12 @@ static void print_layer_config(layer_t* layers, int num_layers) {
             printf("    Weights: %d x %d\n", layers[i].weights.rows,
                    layers[i].weights.cols);
         } else if (type == POOLING) {
-            printf("  Max pooling\n");
+            if (layers[i].pool == MAX)
+                printf("  Max pooling\n");
+            else if (layers[i].pool == AVG)
+                printf("  Average pooling\n");
+            else
+                assert(false && "Unknown pooling layer type!");
             printf("    Input size: %d x %d x %d\n", layers[i].inputs.rows,
                    layers[i].inputs.cols, layers[i].inputs.height);
             printf("    Output size: %d x %d x %d\n", layers[i].outputs.rows,
