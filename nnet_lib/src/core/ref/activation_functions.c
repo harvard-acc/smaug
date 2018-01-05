@@ -17,7 +17,7 @@ void activation_fun(float* activations,
     } else if (function == LRELU) {
         lrelu(activations, total_size);
     } else if (function == ELU) {
-        elu(activations, total_size);
+        elu(activations, total_size, 0.1);
     } else if (function == SELU) {
         selu(activations, total_size);
     } else if (function == TANH) {
@@ -58,9 +58,8 @@ lrelu_loop:
 // The exponential linear activation function
 // ** this function is in-place (modifies a) **
 ALWAYS_INLINE
-void elu(float* a, int num_units) {
+void elu(float* a, int num_units, float alpha) {
     int i;
-    static const float alpha = 1.0;
 elu_loop:
     for (i = 0; i < num_units; i++) {
         if (a[i] < 0.0) {
@@ -74,9 +73,10 @@ elu_loop:
 ALWAYS_INLINE
 void selu(float* a, int num_units) {
     int i;
-    static const float lamda = 1.0;
+    static const float alpha = 1.6733;
+    static const float lamda = 1.0507;
 
-    elu(a, num_units);
+    elu(a, num_units, alpha);
 selu_loop:
     for (i = 0; i < num_units; i++) {
         a[i] = lamda * a[i];

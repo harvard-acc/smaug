@@ -10,7 +10,7 @@ void activation_fun(float* hid,
                     float* sigmoid_table);
 void relu(float* a, int num_units);
 void lrelu(float* a, int num_units);
-void elu(float* a, int num_units);
+void elu(float* a, int num_units, float alpha);
 void selu(float* a, int num_units);
 void tanh_act(float* a, int num_units, float* sigmoid_table);
 void sigmoid_inplace(float* a, int num_units, float* sigmoid_table);
