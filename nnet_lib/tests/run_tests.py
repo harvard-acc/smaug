@@ -136,6 +136,11 @@ class GenericTests(BaseTest):
     correct_output = "generic-depthwise-separable.out"
     self.runAndValidate(model_file, correct_output)
 
+  def test_strides_2(self):
+    model_file = "generic/strides-2.conf"
+    correct_output = "generic-strides-2.out"
+    self.runAndValidate(model_file, correct_output)
+
 class ImageNetTests(BaseTest):
   @unittest.skip("SMIV doesn't support tiling the input image yet.")
   def test_simple(self):
