@@ -60,6 +60,7 @@ Layer types supported:
 * Convolutional
   - Arbitrary kernel size *
 * Pooling
+  - Average pooling
   - Max pooling
 
 Activation functions:
@@ -84,7 +85,6 @@ Backends:
 ### Unsupported features ###
 Plan to support:
 * Recurrent layers
-* Average pooling
 
 No plans to support:
 * Skip connections

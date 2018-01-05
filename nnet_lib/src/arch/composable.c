@@ -178,6 +178,16 @@ void max_pooling_layer_hw(float* activations,
     store_output_activations_dma(result, result, &layers[lnum]);
 }
 
+void avg_pooling_layer_hw(float* activations,
+                          float* result,
+                          layer_t* layers,
+                          int lnum) {
+    layer_t curr_layer = layers[lnum];
+    grab_input_activations_dma(activations, activations, &layers[lnum]);
+    avg_pooling(activations, result, curr_layer);
+    store_output_activations_dma(result, result, &layers[lnum]);
+}
+
 result_buf pooling_layer(float* activations,
                          layer_t* layers,
                          int lnum,
@@ -188,6 +198,9 @@ result_buf pooling_layer(float* activations,
     MAP_ARRAY(kPoolingHw, result, OUTPUT_BYTES(layers, lnum));
     if (curr_layer.pool == MAX) {
         INVOKE_KERNEL(kPoolingHw, max_pooling_layer_hw, activations, result,
+                      layers, lnum);
+    } else if (curr_layer.pool == AVG) {
+        INVOKE_KERNEL(kPoolingHw, avg_pooling_layer_hw, activations, result,
                       layers, lnum);
     } else {
         assert(false && "Unsupported pooling layer type!");

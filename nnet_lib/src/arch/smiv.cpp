@@ -24,6 +24,7 @@
 #include "arch/nnet_mkl.h"
 #include "core/mkl/activation_functions.h"
 #include "core/mkl/batch_norm.h"
+#include "core/mkl/pooling.h"
 #include "utility/mkl/utility.h"
 #endif
 
@@ -240,11 +241,25 @@ result_buf pooling_layer(float* activations,
                          float* result,
                          device_t* device) {
     layer_t curr_layer = layers[lnum];
+#ifdef __cplusplus
     if (curr_layer.pool == MAX) {
-        max_pooling(activations, result, layers[lnum]);
+        nnet_mkl::max_pooling_3d(activations, &layers[lnum], result, device);
+    } else if (curr_layer.pool == AVG) {
+        nnet_mkl::avg_pooling_3d(activations, &layers[lnum], result, device);
     } else {
         assert(false && "Unsupported pooling layer type!");
     }
+    nnet_mkl::MklSession* session = nnet_mkl::get_session(device);
+    session->run_and_clear();
+#else
+    if (curr_layer.pool == MAX) {
+        max_pooling(activations, result, layers[lnum]);
+    } else if (curr_layer.pool == AVG) {
+        avg_pooling(activations, result, layers[lnum]);
+    } else {
+        assert(false && "Unsupported pooling layer type!");
+    }
+#endif
     return result;
 }
 

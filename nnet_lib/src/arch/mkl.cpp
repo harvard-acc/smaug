@@ -96,7 +96,10 @@ result_buf pooling_layer(float* activations,
                          int lnum,
                          float* result,
                          device_t* device) {
-    nnet_mkl::max_pooling_3d(activations, &layers[lnum], result, device);
+    if (layers[lnum].pool == MAX)
+        nnet_mkl::max_pooling_3d(activations, &layers[lnum], result, device);
+    else if (layers[lnum].pool == AVG)
+        nnet_mkl::avg_pooling_3d(activations, &layers[lnum], result, device);
 #if DEBUG_LEVEL > 0
     nnet_mkl::get_session(device)->run_and_clear();
 #endif

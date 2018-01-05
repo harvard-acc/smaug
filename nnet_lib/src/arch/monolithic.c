@@ -100,6 +100,8 @@ result_buf pooling_layer(float* activations,
     layer_t curr_layer = layers[lnum];
     if (curr_layer.pool == MAX)
         max_pooling(activations, result, curr_layer);
+    else if (curr_layer.pool == AVG)
+        avg_pooling(activations, result, curr_layer);
     else
         assert(false && "Unsupported pooling layer type!");
     return result;

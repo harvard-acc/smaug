@@ -63,7 +63,7 @@ export WORKLOAD=inner_product_layer_hw,inner_product_layer_acp_hw,convolution_la
 SRCS += $(NNET_FWD_MAIN)
 else ifeq	($(ARCH), COMPOSABLE)
 EXEC = nnet-composable
-export WORKLOAD=inner_product_layer_hw,convolution_layer_hw,activation_hw,batch_norm_layer_hw
+export WORKLOAD=inner_product_layer_hw,convolution_layer_hw,activation_hw,batch_norm_layer_hw,max_pooling_hw,avg_pooling_hw
 SRCS += $(NNET_FWD_MAIN)
 else ifeq ($(ARCH), MONOLITHIC)
 EXEC = nnet-monolithic

@@ -29,6 +29,7 @@ NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smiv.cpp \
 												 $(SRC_DIR)/arch/smiv/convolution.c \
 												 $(SRC_DIR)/arch/smiv/inner_product.c \
 												 $(SRC_DIR)/core/mkl/activation_functions.cpp \
+												 $(SRC_DIR)/core/mkl/pooling.cpp \
 												 $(SRC_DIR)/utility/mkl/utility.cpp
 endif
 
