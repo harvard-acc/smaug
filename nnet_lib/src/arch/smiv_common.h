@@ -52,7 +52,9 @@ extern float* g_umem;
 extern float* g_spad0;
 extern float* g_spad1;
 
-bool is_supported_activation_func(activation_type func);
+// Returns whether the hardware can execute this activation function on this
+// layer type or not.
+bool is_supported_activation_func(layer_type ltype, activation_type func);
 
 // These functions handle the task of breaking up a layer's input and weights
 // into blocks, individually running them on the accelerator, and aggregating

@@ -235,7 +235,8 @@ void standard_convolution_layer_impl(float* host_activations,
     float* temp_result = (float*)malloc_aligned(temp_result_size);
 
     bool do_hw_activation = device->use_hw_activation_func &&
-                            is_supported_activation_func(curr_layer.activation);
+                            is_supported_activation_func(
+                                    curr_layer.type, curr_layer.activation);
     bool use_acp_offload = (device->cpu_activation_func_offload == IO_ACP);
 
     MAP_ARRAY_TO_ACCEL(kConvolutionHw, "host_activations", host_activations,
@@ -368,7 +369,8 @@ void depthwise_convolution_layer_impl(float* host_activations,
     print_work_cfg(&conv_cfgs);
 
     bool do_hw_activation = device->use_hw_activation_func &&
-                            is_supported_activation_func(curr_layer.activation);
+                            is_supported_activation_func(
+                                    curr_layer.type, curr_layer.activation);
     MAP_ARRAY_TO_ACCEL(kConvolutionHw, "host_activations", host_activations,
                        get_dims_size(&curr_layer.inputs));
     for (int img = 0; img < NUM_TEST_CASES; img++) {

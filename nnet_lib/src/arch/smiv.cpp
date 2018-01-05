@@ -82,16 +82,19 @@ result_buf flatten_input(float* activations,
     return im2row(activations, layers, lnum, result);
 }
 
-
-bool is_supported_activation_func(activation_type func) {
-  switch (func) {
-    case NO_ACTIVATION:
-    case RELU:
-    case RELU_THRESHOLD:
-      return true;
-    default:
-      return false;
-  }
+bool is_supported_activation_func(layer_type ltype, activation_type func) {
+    if (ltype == FC || ltype == CONV_STANDARD || ltype == CONV_POINTWISE) {
+        switch (func) {
+            case NO_ACTIVATION:
+            case RELU:
+            case RELU_THRESHOLD:
+                return true;
+            default:
+                return false;
+        }
+    } else {
+        return false;
+    }
 }
 
 result_buf inner_product_layer(float* host_activations,
@@ -204,8 +207,8 @@ result_buf pointwise_convolution_layer(float* activations,
     // Allocate new memory to store the result of the FC. The
     // activations/results buffers are not necessarily big enough to store this
     // (due to data alignment).
-    float* nhwc_outputs =
-            (float*)malloc_aligned(get_dims_size(&fc_dims) * sizeof(float));
+    float* nhwc_outputs = (float*)malloc_aligned(
+            get_dims_size(&layers[lnum].outputs) * sizeof(float));
 
     // Finally, invoke the FC hardware.
     inner_product_layer_impl(
@@ -335,8 +338,9 @@ result_buf run_layer(float* activations,
 
     activation_type act_func = layers[layer_num].activation;
     bool do_activation = act_func != NO_ACTIVATION;
-    bool do_hw_activation = device->use_hw_activation_func &&
-                            is_supported_activation_func(act_func);
+    bool do_hw_activation =
+            device->use_hw_activation_func &&
+            is_supported_activation_func(layers[layer_num].type, act_func);
     if (do_activation && !do_hw_activation) {
 #ifdef __cplusplus
         if (result_loc == activations) {
