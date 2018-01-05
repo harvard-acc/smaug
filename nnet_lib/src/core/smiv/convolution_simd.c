@@ -190,6 +190,7 @@ void convolution3d_smiv_1kernel_noreduce_simd_fxp(float* a,
     VEC_ARRAY_3D(v8fp_t, _result, result, result_height, result_padded_width);
 
     int end_col_marker = (input_fetches_per_row - 1);
+    int line_start = 0;  // Which vector element to commit to, per 8 packed activations.
 
     conv2d_chan:
     for (in_chan = 0; in_chan < end_chan; in_chan += chan_stride) {
@@ -198,6 +199,7 @@ void convolution3d_smiv_1kernel_noreduce_simd_fxp(float* a,
         conv2d_row:
         for (in_row = 0; in_row < end_row; in_row += row_stride) {
             out_col = 0;
+            line_start = 0;
             conv2d_col:
             for (in_col = 0; in_col < end_col; in_col += col_stride) {
                 // Compute schedule.
@@ -284,15 +286,16 @@ void convolution3d_smiv_1kernel_noreduce_simd_fxp(float* a,
                 v8fp_t final_psums =
                         merge_psums_simd_fxp(psums_0[0], psums_1[0], double_tp);
 
-                // This is the unreduced data!
-                // _result[in_chan][out_row][out_col] = final_psums;
                 conv2d_commit:
-                for (j = 0; j < total_outpx; j++)
+                for (j = line_start; j < line_start + total_outpx; j++)
                     _result[in_chan][out_row][out_col / VECTOR_SIZE][j] =
-                            final_psums[j];
+                            final_psums[j - line_start];
                 out_col += total_outpx;
+                line_start += total_outpx;
                 if (out_col >= result_width)
                     out_col = 0;
+                if (line_start >= VECTOR_SIZE)
+                    line_start = 0;
             }
             PRINT_MSG_V("\nResult of row %d\n", out_row);
             PRINT_DEBUG_V(&_result[in_chan][out_row][0][0], 1, result_width, result_width);

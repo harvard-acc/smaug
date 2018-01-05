@@ -125,8 +125,8 @@ void convolution3d_kernel_no_padding(float* a,
     // Convolution borders.
     const int start_i = 0;
     const int start_j = 0;
-    const int end_i = curr_layer.outputs.rows;
-    const int end_j = result_width;
+    const int end_i = curr_layer.inputs.rows - k_width + 1;
+    const int end_j = curr_layer.inputs.cols - k_width + 1;
 
     float partial_sum, a_val, kern_val;
 
@@ -134,9 +134,11 @@ void convolution3d_kernel_no_padding(float* a,
     ARRAY_4D(float, _kernels, kernels, k_height, k_width, k_width + k_pad);
     ARRAY_4D(float, _result, result, num_kerns, result_height, result_width);
 
+    int out_i = 0;
     conv2d_input_rows:
     // Convolution loop over the output pixels in this depth slice (kern).
     for (i = start_i; i < end_i; i+= k_stride) {
+        int out_j = 0;
         conv2d_input_cols:
         for (j = start_j; j < end_j; j+= k_stride) {
             partial_sum = 0;
@@ -153,8 +155,11 @@ void convolution3d_kernel_no_padding(float* a,
                     }
                 }
             }
-            _result[img][kern][i][j] = partial_sum;
+            _result[img][kern][out_i][out_j] = partial_sum;
+            out_j++;
         }
+        out_i++;
+        out_j = 0;
     }
 }
 
@@ -181,8 +186,8 @@ void convolution2d_depthwise_single_kernel(float* a,
     // Convolution borders.
     const int start_i = 0;
     const int start_j = 0;
-    const int end_i = curr_layer.outputs.rows;
-    const int end_j = result_cols;
+    const int end_i = curr_layer.inputs.rows - k_cols + 1;
+    const int end_j = curr_layer.inputs.cols - k_cols + 1;
 
     float partial_sum, a_val, kern_val;
 
@@ -193,8 +198,10 @@ void convolution2d_depthwise_single_kernel(float* a,
     // Each result has the same height as the input.
     ARRAY_4D(float, _result, result, a_height, result_rows, result_cols);
 
+    int out_i = 0;
     conv2d_input_rows:
     for (int i = start_i; i < end_i; i+= k_stride) {
+        int out_j = 0;
         conv2d_input_cols:
         for (int j = start_j; j < end_j; j+= k_stride) {
             partial_sum = 0;
@@ -207,8 +214,11 @@ void convolution2d_depthwise_single_kernel(float* a,
                     partial_sum += conv_float2fixed(a_val * kern_val);
                 }
             }
-            _result[img][chan][i][j] = partial_sum;
+            _result[img][chan][out_i][out_j] = partial_sum;
+            out_j++;
         }
+        out_i++;
+        out_j = 0;
     }
 }
 
@@ -236,8 +246,8 @@ void convolution3d_pointwise_direct(float* a,
     // Convolution borders.
     const int start_i = 0;
     const int start_j = 0;
-    const int end_i = curr_layer.outputs.rows;
-    const int end_j = result_cols;
+    const int end_i = curr_layer.inputs.rows;
+    const int end_j = curr_layer.inputs.cols;
 
     float partial_sum, a_val, kern_val;
 
@@ -247,8 +257,10 @@ void convolution3d_pointwise_direct(float* a,
     ARRAY_2D(float, _kernels, kernels, num_kerns + k_pad);
     ARRAY_4D(float, _result, result, result_height, result_rows, result_cols);
 
+    int out_i = 0;
     conv_pw_input_rows:
     for (int i = start_i; i < end_i; i+= k_stride) {
+        int out_j = 0;
         conv_pw_input_cols:
         for (int j = start_j; j < end_j; j+= k_stride) {
             // Preload the bias.
@@ -259,7 +271,10 @@ void convolution3d_pointwise_direct(float* a,
                 kern_val = conv_float2fixed(_kernels[k][kern]);
                 partial_sum += conv_float2fixed(a_val * kern_val);
             }
-            _result[img][kern][i][j] = partial_sum;
+            _result[img][kern][out_i][out_j] = partial_sum;
+            out_j++;
         }
+        out_i++;
+        out_j = 0;
     }
 }
