@@ -106,9 +106,8 @@ result_buf activation_sublayer(float* activations,
                                int lnum,
                                float* result,
                                device_t* device) {
-    int size = get_output_activations_size(&layers[lnum]) / NUM_TEST_CASES;
-    nnet_mkl::activation_fun(activations, NUM_TEST_CASES, size,
-                             layers[lnum].activation, result, device);
+    nnet_mkl::activation_fun(
+            activations, NUM_TEST_CASES, &layers[lnum], result, device);
     return result;
 }
 

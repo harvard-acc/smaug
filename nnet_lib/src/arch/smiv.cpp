@@ -323,22 +323,21 @@ result_buf run_layer(float* activations,
     bool do_hw_activation = device->use_hw_activation_func &&
                             is_supported_activation_func(act_func);
     if (do_activation && !do_hw_activation) {
-        int output_size = get_output_activations_size(&layers[layer_num]) /
-                          NUM_TEST_CASES;
 #ifdef __cplusplus
         if (result_loc == activations) {
-            nnet_mkl::activation_fun(activations, NUM_TEST_CASES, output_size,
-                                     act_func, result, device);
+            nnet_mkl::activation_fun(activations, NUM_TEST_CASES,
+                                     &layers[layer_num], result, device);
             result_loc = result;
         } else {
-            nnet_mkl::activation_fun(result, NUM_TEST_CASES, output_size,
-                                     act_func, activations, device);
+            nnet_mkl::activation_fun(result, NUM_TEST_CASES, &layers[layer_num],
+                                     activations, device);
             result_loc = activations;
         }
         nnet_mkl::MklSession* session = nnet_mkl::get_session(device);
         session->run();
         session->clear();
 #else
+        int output_size = get_dims_size(&layers[layer_num].outputs);
         begin_profiling(ACTIVATION_TYPE_STR(act_func), layer_num);
         activation_fun(result_loc, NUM_TEST_CASES, output_size, act_func,
                        sigmoid_table);

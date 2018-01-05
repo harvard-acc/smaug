@@ -4,14 +4,18 @@
 #include "mkldnn.hpp"
 
 #include "arch/nnet_mkl.h"
+#include "utility/utility.h"
 
 namespace nnet_mkl {
 
 template <typename DType>
 class ActivationFunctionOp : public BaseMklOp<DType> {
    public:
-    ActivationFunctionOp(int batch_size, const mkldnn::engine& eng)
-            : BaseMklOp<DType>(batch_size, eng) {}
+    ActivationFunctionOp(layer_t* layer,
+                         int batch_size,
+                         const mkldnn::engine& eng)
+            : BaseMklOp<DType>(layer, batch_size, eng),
+              input_size(get_dims_size(&layer->outputs)) {}
     virtual ~ActivationFunctionOp() {}
 
    protected:
@@ -59,20 +63,23 @@ class ActivationFunctionOp : public BaseMklOp<DType> {
         this->worklist.emplace_back(mkldnn::eltwise_forward(pd, input_prim, output));
         return static_cast<mkldnn::eltwise_forward&>(this->worklist.back());
     }
+
+    int input_size;
 };
 
 class ReluActivationFunctionOp : public ActivationFunctionOp<dtype> {
    public:
     ReluActivationFunctionOp(dtype* input_buffer,
                              dtype* output_buffer,
-                             int size,
+                             int batch_size,
+                             layer_t* layer,
                              const mkldnn::engine& engine,
                              dtype _negative_slope = 0)
-            : ActivationFunctionOp(batch_size, engine),
+            : ActivationFunctionOp(layer, batch_size, engine),
               negative_slope(_negative_slope) {
         INFO_MSG("RELU\n");
-        auto input_mem = create_memory(input_buffer, size);
-        auto output_mem = create_memory(output_buffer, size, true);
+        auto input_mem = create_memory(input_buffer, this->input_size);
+        auto output_mem = create_memory(output_buffer, this->input_size, true);
         create_primitive(mkldnn::algorithm::eltwise_relu,
                          input_mem,
                          output_mem,
@@ -81,10 +88,11 @@ class ReluActivationFunctionOp : public ActivationFunctionOp<dtype> {
 
     ReluActivationFunctionOp(const BaseMklOpPtr& prev_op,
                              dtype* output_buffer,
-                             int size,
+                             int batch_size,
+                             layer_t* layer,
                              const mkldnn::engine& engine,
                              dtype _negative_slope = 0)
-            : ActivationFunctionOp(batch_size, engine),
+            : ActivationFunctionOp(layer, batch_size, engine),
               negative_slope(_negative_slope) {
         INFO_MSG("RELU, chaining\n");
         create_primitive(mkldnn::algorithm::eltwise_relu,
@@ -107,11 +115,12 @@ class SigmoidActivationFunctionOp : public ActivationFunctionOp<dtype> {
    public:
     SigmoidActivationFunctionOp(dtype* input_buffer,
                                 dtype* output_buffer,
-                                int size,
+                                int batch_size,
+                                layer_t* layer,
                                 const mkldnn::engine& engine)
-            : ActivationFunctionOp(batch_size, engine) {
-        auto input_mem = create_memory(input_buffer, size);
-        auto output_mem = create_memory(output_buffer, size, true);
+            : ActivationFunctionOp(layer, batch_size, engine) {
+        auto input_mem = create_memory(input_buffer, this->input_size);
+        auto output_mem = create_memory(output_buffer, this->input_size, true);
         INFO_MSG("Sigmoid\n");
         create_primitive(
                 mkldnn::algorithm::eltwise_logistic, input_mem, output_mem);
@@ -119,9 +128,10 @@ class SigmoidActivationFunctionOp : public ActivationFunctionOp<dtype> {
 
     SigmoidActivationFunctionOp(const BaseMklOpPtr& prev_op,
                                 dtype* output_buffer,
-                                int size,
+                                int batch_size,
+                                layer_t* layer,
                                 const mkldnn::engine& engine)
-            : ActivationFunctionOp(batch_size, engine) {
+            : ActivationFunctionOp(layer, batch_size, engine) {
         INFO_MSG("Sigmoid, chaining\n");
         create_primitive(mkldnn::algorithm::eltwise_logistic,
                          prev_op->get_final_primitive(),
@@ -137,12 +147,13 @@ class EluActivationFunctionOp : public ActivationFunctionOp<dtype> {
     EluActivationFunctionOp(
             dtype* input_buffer,
             dtype* output_buffer,
-            int size,
+            int batch_size,
+            layer_t* layer,
             const mkldnn::engine& engine,
             dtype negative_slope = mkl_traits<dtype>::to_type(0.1))
-            : ActivationFunctionOp(batch_size, engine) {
-        auto input_mem = create_memory(input_buffer, size);
-        auto output_mem = create_memory(output_buffer, size, true);
+            : ActivationFunctionOp(layer, batch_size, engine) {
+        auto input_mem = create_memory(input_buffer, this->input_size);
+        auto output_mem = create_memory(output_buffer, this->input_size, true);
         INFO_MSG("ELU\n");
         create_primitive(mkldnn::algorithm::eltwise_elu,
                          input_mem,
@@ -152,10 +163,11 @@ class EluActivationFunctionOp : public ActivationFunctionOp<dtype> {
     EluActivationFunctionOp(
             const BaseMklOpPtr& prev_op,
             dtype* output_buffer,
-            int size,
+            int batch_size,
+            layer_t* layer,
             const mkldnn::engine& engine,
             dtype negative_slope = mkl_traits<dtype>::to_type(0.1))
-            : ActivationFunctionOp(batch_size, engine) {
+            : ActivationFunctionOp(layer, batch_size, engine) {
         INFO_MSG("ELU, chaining\n");
         create_primitive(mkldnn::algorithm::eltwise_elu,
                          prev_op->get_final_primitive(),
@@ -171,11 +183,12 @@ class TanhActivationFunctionOp : public ActivationFunctionOp<dtype> {
    public:
     TanhActivationFunctionOp(dtype* input_buffer,
                              dtype* output_buffer,
-                             int size,
+                             int batch_size,
+                             layer_t* layer,
                              const mkldnn::engine& engine)
-            : ActivationFunctionOp(batch_size, engine) {
-        auto input_mem = create_memory(input_buffer, size);
-        auto output_mem = create_memory(output_buffer, size, true);
+            : ActivationFunctionOp(layer, batch_size, engine) {
+        auto input_mem = create_memory(input_buffer, this->input_size);
+        auto output_mem = create_memory(output_buffer, this->input_size, true);
         INFO_MSG("Tanh\n");
         create_primitive(
                 mkldnn::algorithm::eltwise_tanh, input_mem, output_mem);
@@ -183,9 +196,10 @@ class TanhActivationFunctionOp : public ActivationFunctionOp<dtype> {
 
     TanhActivationFunctionOp(const BaseMklOpPtr& prev_op,
                              dtype* output_buffer,
-                             int size,
+                             int batch_size,
+                             layer_t* layer,
                              const mkldnn::engine& engine)
-            : ActivationFunctionOp(batch_size, engine) {
+            : ActivationFunctionOp(layer, batch_size, engine) {
         INFO_MSG("Tanh, chaining\n");
         create_primitive(mkldnn::algorithm::eltwise_tanh,
                          prev_op->get_final_primitive(),
@@ -203,13 +217,14 @@ class SeluActivationFunctionOp : public ActivationFunctionOp<dtype> {
 
     SeluActivationFunctionOp(dtype* input_buffer,
                              dtype* output_buffer,
-                             int size,
+                             int batch_size,
+                             layer_t* layer,
                              const mkldnn::engine& engine)
-            : ActivationFunctionOp(batch_size, engine) {
+            : ActivationFunctionOp(layer, batch_size, engine) {
         INFO_MSG("SELU\n");
-        auto input_mem = create_memory(input_buffer, size);
-        auto intermediate_mem = create_memory(nullptr, size);
-        auto output_mem = create_memory(output_buffer, size);
+        auto input_mem = create_memory(input_buffer, this->input_size);
+        auto intermediate_mem = create_memory(nullptr, this->input_size);
+        auto output_mem = create_memory(output_buffer, this->input_size);
         // SELU can be implemented using an ELU, followed by a scaling.
         create_primitive(mkldnn::algorithm::eltwise_elu,
                          input_mem,
@@ -224,9 +239,10 @@ class SeluActivationFunctionOp : public ActivationFunctionOp<dtype> {
 
     SeluActivationFunctionOp(const BaseMklOpPtr& prev_op,
                              dtype* output_buffer,
-                             int size,
+                             int batch_size,
+                             layer_t* layer,
                              const mkldnn::engine& engine)
-            : ActivationFunctionOp(batch_size, engine) {
+            : ActivationFunctionOp(layer, batch_size, engine) {
         INFO_MSG("SELU, chaining\n");
         auto elu_pd = this->create_primitive_desc(
                 mkldnn::algorithm::eltwise_elu, prev_op->get_output_mem_desc(),
@@ -255,37 +271,37 @@ class SoftmaxActivationFunctionOp : public ActivationFunctionOp<dtype> {
     SoftmaxActivationFunctionOp(dtype* input_buffer,
                                 dtype* output_buffer,
                                 int batch_size,
-                                int softmax_size,
+                                layer_t* layer,
                                 const mkldnn::engine& engine)
-            : ActivationFunctionOp(batch_size, engine) {
+            : ActivationFunctionOp(layer, batch_size, engine) {
         INFO_MSG("Softmax\n");
         auto input_mem =
-                create_memory(input_buffer, softmax_size, this->batch_size);
+                create_memory(input_buffer, batch_size, this->input_size);
         auto output_mem = create_memory(
-                output_buffer, softmax_size, this->batch_size, true);
+                output_buffer, this->input_size, batch_size, true);
         create_primitive(input_mem, output_mem);
     }
 
     SoftmaxActivationFunctionOp(const BaseMklOpPtr& prev_op,
                                 dtype* output_buffer,
                                 int batch_size,
-                                int softmax_size,
+                                layer_t* layer,
                                 const mkldnn::engine& engine)
-            : ActivationFunctionOp(batch_size, engine) {
+            : ActivationFunctionOp(layer, batch_size, engine) {
         INFO_MSG("Softmax, chaining\n");
         auto output_mem = create_memory(
-                output_buffer, softmax_size, this->batch_size, true);
+                output_buffer, batch_size, this->input_size, true);
         create_primitive(prev_op->get_final_primitive(),
                          prev_op->get_output_mem_desc(), output_mem);
     }
 
     mem_ref_t create_memory(dtype* buffer,
-                            int softmax_size,
                             int batch_size,
+                            int softmax_size,
                             bool is_output = false) {
         return BaseMklOp<dtype>::create_memory(
                 buffer,
-                mem_dims({ this->batch_size, softmax_size }),
+                mem_dims({ batch_size, softmax_size }),
                 mem_fmt::nc,
                 is_output);
     }
@@ -317,36 +333,42 @@ class SoftmaxActivationFunctionOp : public ActivationFunctionOp<dtype> {
 };
 
 BaseMklOpPtr sigmoid(float* activations,
-                     int size,
-                     const mkldnn::engine& cpu,
+                     int batch_size,
+                     layer_t* layer,
+                     MklSession* session,
                      float* results);
 BaseMklOpPtr relu(float* activations,
-                  int size,
-                  const mkldnn::engine& cpu,
+                  int batch_size,
+                  layer_t* layer,
+                  MklSession* session,
                   float* results);
 BaseMklOpPtr elu(float* activations,
-                 int size,
-                 const mkldnn::engine& cpu,
+                 int batch_size,
+                 layer_t* layer,
+                 MklSession* session,
                  float* results);
 BaseMklOpPtr selu(float* activations,
-                  int size,
-                  const mkldnn::engine& cpu,
+                  int batch_size,
+                  layer_t* layer,
+                  MklSession* session,
                   float* results);
 BaseMklOpPtr tanh(float* activations,
-                  int size,
-                  const mkldnn::engine& cpu,
+                  int batch_size,
+                  layer_t* layer,
+                  MklSession* session,
                   float* results);
 BaseMklOpPtr softmax(float* a,
-                     int num_test_cases,
-                     int softmax_size,
+                     int batch_size,
+                     layer_t* layer,
+                     MklSession* session,
                      float* results);
 
 void activation_fun(float* activations,
                     int batch_size,
-                    int input_size,
-                    activation_type function,
+                    layer_t* layer,
                     float* results,
                     device_t* device);
+
 }  // namespace nnet_mkl
 
 #endif
