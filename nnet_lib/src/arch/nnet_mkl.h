@@ -226,7 +226,15 @@ class MklSession {
         }
     }
 
+    // Clear all the operations in this session.
     void clear() { oplist.clear(); }
+
+    // Run all ops and erase the session.
+    void run_and_clear() {
+        run();
+        clear();
+    }
+
     bool empty() const { return oplist.empty(); }
 
     // Add an operation to the session.

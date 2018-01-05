@@ -334,8 +334,7 @@ result_buf run_layer(float* activations,
             result_loc = activations;
         }
         nnet_mkl::MklSession* session = nnet_mkl::get_session(device);
-        session->run();
-        session->clear();
+        session->run_and_clear();
 #else
         int output_size = get_dims_size(&layers[layer_num].outputs);
         begin_profiling(ACTIVATION_TYPE_STR(act_func), layer_num);

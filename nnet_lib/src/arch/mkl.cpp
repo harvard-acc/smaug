@@ -37,6 +37,9 @@ result_buf inner_product_layer(float* activations,
                 layers[lnum].weights.cols);
     nnet_mkl::matrix_multiply_with_bias(
             activations, curr_layer_weights, &layers[lnum], result, device);
+#if DEBUG_LEVEL > 0
+    nnet_mkl::get_session(device)->run_and_clear();
+#endif
     return result;
 }
 
@@ -50,6 +53,9 @@ result_buf standard_convolution_layer(float* activations,
             weights + get_weights_loc_for_layer(layers, lnum);
     nnet_mkl::convolution3d(
             activations, curr_layer_weights, &layers[lnum], result, device);
+#if DEBUG_LEVEL > 0
+    nnet_mkl::get_session(device)->run_and_clear();
+#endif
     return result;
 }
 
@@ -63,6 +69,9 @@ result_buf depthwise_convolution_layer(float* activations,
             weights + get_weights_loc_for_layer(layers, lnum);
     nnet_mkl::depthwise_convolution3d(
             activations, curr_layer_weights, &layers[lnum], result, device);
+#if DEBUG_LEVEL > 0
+    nnet_mkl::get_session(device)->run_and_clear();
+#endif
     return result;
 }
 
@@ -76,6 +85,9 @@ result_buf pointwise_convolution_layer(float* activations,
             weights + get_weights_loc_for_layer(layers, lnum);
     nnet_mkl::pointwise_convolution3d(
             activations, curr_layer_weights, &layers[lnum], result, device);
+#if DEBUG_LEVEL > 0
+    nnet_mkl::get_session(device)->run_and_clear();
+#endif
     return result;
 }
 
@@ -85,6 +97,9 @@ result_buf pooling_layer(float* activations,
                          float* result,
                          device_t* device) {
     nnet_mkl::max_pooling_3d(activations, &layers[lnum], result, device);
+#if DEBUG_LEVEL > 0
+    nnet_mkl::get_session(device)->run_and_clear();
+#endif
     return result;
 }
 
@@ -98,6 +113,9 @@ result_buf batch_norm_layer(float* activations,
             weights + get_weights_loc_for_layer(layers, lnum);
     nnet_mkl::batch_norm(activations, curr_layer_weights, &layers[lnum],
                          NUM_TEST_CASES, result, device);
+#if DEBUG_LEVEL > 0
+    nnet_mkl::get_session(device)->run_and_clear();
+#endif
     return result;
 }
 
@@ -108,6 +126,9 @@ result_buf activation_sublayer(float* activations,
                                device_t* device) {
     nnet_mkl::activation_fun(
             activations, NUM_TEST_CASES, &layers[lnum], result, device);
+#if DEBUG_LEVEL > 0
+    nnet_mkl::get_session(device)->run_and_clear();
+#endif
     return result;
 }
 
@@ -180,7 +201,9 @@ nnet_fwd_outer:
         }
     }
 
+#if DEBUG_LEVEL == 0
     session->run();
+#endif
 
     layers[network.depth - 1].result_in_temp = result_loc == result.d;
 
