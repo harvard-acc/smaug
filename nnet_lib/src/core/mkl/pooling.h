@@ -65,7 +65,22 @@ class PoolingOp : public BaseMklOp<DType> {
     }
 
     // Return a mem_dims object for the pooling padding.
-    mem_dims get_pool_padding() { return { 0, 0 }; }
+    // Use the right padding to accomplish output alignment padding.
+    mem_dims get_pool_left_padding() {
+        if (this->layer->c_padding != 0) {
+            fprintf(stderr,
+                    "Warning: The MKL pooling operation ignores padding!\n");
+        }
+        return { 0, 0 };
+    }
+
+    mem_dims get_pool_right_padding() {
+        int padded_outcols =
+                (this->layer->outputs.cols + this->layer->outputs.align_pad);
+        int pad = (padded_outcols - 1) * this->layer->field_stride +
+                  this->layer->weights.cols - this->layer->inputs.cols;
+        return { 0, pad };
+    }
 
     // Create an input memory primitive from a raw pointer.
     //
@@ -90,7 +105,7 @@ class PoolingOp : public BaseMklOp<DType> {
         return mkldnn::pooling_forward::desc(
                 mkldnn::prop_kind::forward_inference, alg, input_md,
                 pool_output_md, get_pool_strides(), get_pool_dims(),
-                get_pool_padding(), get_pool_padding(),
+                get_pool_left_padding(), get_pool_right_padding(),
                 mkldnn::padding_kind::zero);
     }
 

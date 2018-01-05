@@ -423,6 +423,7 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
                                        layers[l].field_stride +
                                1;
       layers[l].outputs.height = layers[l].inputs.height;
+      layers[l].c_padding = 0;
       assert(layers[l].weights.rows != -1);
       assert(layers[l].field_stride != -1);
       return;
