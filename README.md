@@ -5,7 +5,7 @@ SMAUG: Simulating Machine Learning Accelerators Using gem5-Aladdin
 
 SMAUG is a library for building and simulating neural networks, written to
 work with gem5-Aladdin. It supports the basic layer types and basic activation
-functions for a linearly stack network architectures.
+functions for linearly stacked network architectures.
 
 In SMAUG, several reference implementations are provided, along with a
 model of an actual SoC containing multiple DNN accelerators.
@@ -18,8 +18,8 @@ To build and run a network that resembles LeNet5, clone the repository and make
 sure satisfy all dependencies (see the Dependencies section) are satisfied.
 
   ```bash
-  git clone https://github.com/xyzsam/composability
-  cd composability/nnet_lib
+  git clone https://github.com/xyzsam/smaug
+  cd smaug/nnet_lib
   make native
   ./build/nnet-monolithic-native ../models/mnist/lenet5-ish.conf
   ```
@@ -58,6 +58,9 @@ Layer types supported:
 * Fully connected
   - Arbitrary number of hidden nodes *
 * Convolutional
+  - Standard 2D convolution
+  - Depthwise separable convolution
+  - 1x1 convolution
   - Arbitrary kernel size *
 * Pooling
   - Average pooling
@@ -85,6 +88,7 @@ Backends:
 ### Unsupported features ###
 Plan to support:
 * Recurrent layers
+* Attention layers
 
 No plans to support:
 * Skip connections
@@ -194,7 +198,7 @@ Currently, we have five architectures and three execution targets.
 ## Build instructions ##
 
 **All commands given in this section assume that your current working
-directory is** `composability/nnet_lib`.
+directory is** `smaug/nnet_lib`.
 
 To build the binary, specify the execution target as the Make target and the
 Soa architecture through the ARCH variable. The available execution targets
