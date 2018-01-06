@@ -3,6 +3,7 @@
 
 #include "core/nnet_fwd_defs.h"
 #include "arch/nnet_mkl.h"
+#include "utility/utility.h"
 
 namespace nnet_mkl {
 
@@ -40,6 +41,10 @@ class PoolingOp : public BaseMklOp<DType> {
     }
 
    protected:
+    int compute_output_size(int size, int field_size, int stride) {
+        return (size - field_size) / stride + 1;
+    }
+
     // Return a mem_dims object for the input, assuming nchw format.
     mem_dims get_input_dims() {
         return { this->batch_size, this->layer->inputs.height,
@@ -48,10 +53,17 @@ class PoolingOp : public BaseMklOp<DType> {
     }
 
     // Return a mem_dims object for the output, assuming nchw format.
+    //
+    // If the input to the MKL pooling operation is padded to a data alignment,
+    // then we have to make sure the output column size is with respect to this
+    // PADDED amount, or the pooling primitive will raise an error.
     mem_dims get_output_dims() {
+        int output_cols = compute_output_size(
+                this->layer->inputs.cols + this->layer->inputs.align_pad,
+                this->layer->weights.cols,
+                this->layer->field_stride);
         return { this->batch_size, this->layer->outputs.height,
-                 this->layer->outputs.rows,
-                 this->layer->outputs.cols + this->layer->outputs.align_pad };
+                 this->layer->outputs.rows, output_cols };
     }
 
     // Return a mem_dims object for the pooling dims.
@@ -74,12 +86,26 @@ class PoolingOp : public BaseMklOp<DType> {
         return { 0, 0 };
     }
 
+    // Determine how much additional padding is required on the input columns
+    // to meet data alignment requirements on the output.
     mem_dims get_pool_right_padding() {
-        int padded_outcols =
-                (this->layer->outputs.cols + this->layer->outputs.align_pad);
-        int pad = (padded_outcols - 1) * this->layer->field_stride +
-                  this->layer->weights.cols - this->layer->inputs.cols;
-        return { 0, pad };
+        // If the output doesn't require any alignment, then we're done.
+        if (this->layer->outputs.align_pad == 0)
+            return { 0, 0 };
+
+        // If the output width, after accounting for the input padding, still
+        // doesn't need padding, then we're also done.
+        int output_cols = get_output_dims()[3];
+        int add_output_pad = calc_padding(output_cols, DATA_ALIGNMENT);
+        if (add_output_pad == 0)
+            return { 0, 0 };
+
+        // Calculate how many more input pixels would be needed to produce
+        // add_output_pad more output pixels. That is the additional input
+        // padding.
+        int add_input_pad = (add_output_pad - 1) * this->layer->field_stride +
+                            this->layer->weights.cols;
+        return {0, add_input_pad};
     }
 
     // Create an input memory primitive from a raw pointer.
