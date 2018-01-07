@@ -550,6 +550,19 @@ static void read_device_parameters(cfg_t* all_opts, device_t* device) {
     }
 }
 
+static void read_sampling_param(cfg_t* all_opts, sampling_param_t* sampling) {
+    if (cfg_size(all_opts, "sampling_param") != 0) {
+        cfg_t* sampling_opts = cfg_getsec(all_opts, "sampling_param");
+        sampling->standard_conv_num_filters =
+                cfg_getint(sampling_opts, "standard_conv_num_filters");
+        sampling->fc_num_neurons =
+                cfg_getint(sampling_opts, "fc_num_neurons");
+    } else {
+        sampling->standard_conv_num_filters = 0;
+        sampling->fc_num_neurons = 0;
+    }
+}
+
 static void print_layer_config(layer_t* layers, int num_layers) {
     printf("==================================\n");
     printf("Network configuration (per input):\n");
@@ -628,8 +641,8 @@ static void print_layer_config(layer_t* layers, int num_layers) {
     }
 }
 
-void print_device_config(device_t* device) {
-    printf("==================================\n");
+static void print_device_config(device_t* device) {
+    printf("========================================\n");
     printf("Device configuration\n");
     printf("----------------------------------\n");
 
@@ -642,7 +655,18 @@ void print_device_config(device_t* device) {
            io_req_to_str(device->cpu_pooling_offload),
            io_req_to_str(device->cpu_activation_func_offload),
            device->use_hw_activation_func ? "yes" : "no");
-    printf("==================================\n");
+}
+
+static void print_sampling_param(sampling_param_t* sampling_param) {
+    printf("========================================\n");
+    printf("Sampling configuration\n");
+    printf("----------------------------------------\n"
+           "   Standard convolution filters: %d\n"
+           "   FC num neurons: %d\n",
+           sampling_param->standard_conv_num_filters,
+           sampling_param->fc_num_neurons);
+    printf("========================================\n");
+
 }
 
 static void install_validation_callbacks(cfg_t* cfg) {
@@ -684,11 +708,18 @@ static void install_validation_callbacks(cfg_t* cfg) {
             cfg, "device|cpu_pooling_offload", validate_offload_mechanism);
     cfg_set_validate_func(cfg, "device|cpu_activation_func_offload",
                           validate_offload_mechanism);
+    cfg_set_validate_func(cfg,
+                          "sampling_param|standard_conv_num_filters",
+                          validate_unsigned_int);
+    cfg_set_validate_func(cfg,
+                          "sampling_param|fc_num_neurons",
+                          validate_unsigned_int);
 }
 
 int configure_network_from_file(const char* cfg_file,
                                 layer_t** layers_ptr,
-                                device_t** device_ptr) {
+                                device_t** device_ptr,
+                                sampling_param_t** sampling_ptr) {
     cfg_t* all_opts = cfg_init(top_level_cfg, CFGF_NONE);
     install_validation_callbacks(all_opts);
 
@@ -754,6 +785,10 @@ int configure_network_from_file(const char* cfg_file,
     *device_ptr = (device_t*) malloc_aligned(sizeof(device_t));
     read_device_parameters(all_opts, *device_ptr);
 
+    // Read the sampling configuration.
+    *sampling_ptr = (sampling_param_t*) malloc_aligned(sizeof(sampling_param_t));
+    read_sampling_param(all_opts, *sampling_ptr);
+
     // Set some global variables.
     NUM_CLASSES = layers[num_layers-1].outputs.cols;
     INPUT_DIM = input_rows * input_cols * input_height;
@@ -763,6 +798,7 @@ int configure_network_from_file(const char* cfg_file,
 
     print_layer_config(*layers_ptr, num_layers);
     print_device_config(*device_ptr);
+    print_sampling_param(*sampling_ptr);
     cfg_free(all_opts);
     return num_layers;
 }

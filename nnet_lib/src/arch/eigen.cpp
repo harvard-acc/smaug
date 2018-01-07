@@ -45,7 +45,8 @@ result_buf inner_product_layer(float* activations,
                                layer_t* layers,
                                int lnum,
                                float* result,
-                               device_t* device) {
+                               device_t* device,
+                               sampling_param_t* sampling_param) {
     nnet_eigen::matrix_multiply_with_bias(
             activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows,
             layers[lnum].weights.cols + layers[lnum].weights.align_pad, result);
@@ -57,7 +58,8 @@ result_buf convolution_layer(float* activations,
                              layer_t* layers,
                              int lnum,
                              float* result,
-                             device_t* device) {
+                             device_t* device,
+                             sampling_param_t* sampling_param) {
     layer_t curr_layer = layers[lnum];
     nnet_eigen::convolution3d(activations, kernels, layers + lnum, result);
     return result;
@@ -67,7 +69,8 @@ result_buf pooling_layer(float* activations,
                          layer_t* layers,
                          int lnum,
                          float* result,
-                         device_t* device) {
+                         device_t* device,
+                         sampling_param_t* sampling_param) {
     layer_t curr_layer = layers[lnum];
     if (curr_layer.pool == MAX) {
         nnet_eigen::max_pooling(activations, result, curr_layer);
@@ -82,7 +85,8 @@ result_buf batch_norm_layer(float* activations,
                             layer_t* layers,
                             int lnum,
                             float* result,
-                            device_t* device) {
+                            device_t* device,
+                            sampling_param_t* sampling_param) {
     int input_size =
             layers[lnum].inputs.rows *
             (layers[lnum].inputs.cols + layers[lnum].inputs.align_pad) *
@@ -106,13 +110,19 @@ result_buf run_layer(float* activations,
                      layer_t* layers,
                      int layer_num,
                      float* result,
-                     device_t* device) {
+                     device_t* device,
+                     sampling_param_t* sampling_param) {
     begin_profiling("run_layer", layer_num);
     layer_t curr_layer = layers[layer_num];
 
     begin_profiling("run_layer_skip_activation_func", layer_num);
-    result_buf result_loc = run_layer_skip_activation_func(
-            activations, weights, layers, layer_num, result, device);
+    result_buf result_loc = run_layer_skip_activation_func(activations,
+                                                           weights,
+                                                           layers,
+                                                           layer_num,
+                                                           result,
+                                                           device,
+                                                           sampling_param);
     end_profiling();
 
     if (curr_layer.activation != NO_ACTIVATION) {
@@ -142,8 +152,8 @@ void nnet_fwd(farray_t activations,
               farray_t weights,
               farray_t result,
               network_t network,
-              device_t* device) {
-
+              device_t* device,
+              sampling_param_t* sampling_param) {
     int l;
     layer_t curr_layer;
 
@@ -173,10 +183,10 @@ nnet_fwd_outer:
 
         if (result_loc == result.d) {
             result_loc = run_layer(result.d, weights.d, network.layers, l,
-                                   activations.d, device);
+                                   activations.d, device, sampling_param);
         } else {
             result_loc = run_layer(activations.d, weights.d, network.layers, l,
-                                   result.d, device);
+                                   result.d, device, sampling_param);
         }
     }
 

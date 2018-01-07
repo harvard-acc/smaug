@@ -64,7 +64,8 @@ void standard_convolution_layer_impl(float* host_activations,
                                      layer_t* layers,
                                      int lnum,
                                      float* host_result,
-                                     device_t* device);
+                                     device_t* device,
+                                     sampling_param_t* sampling_param);
 bool inner_product_needs_work_division(layer_t* layers, int lnum);
 void inner_product_layer_impl(float* host_activations,
                               float* host_weights,

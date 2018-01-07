@@ -30,7 +30,8 @@ result_buf inner_product_layer(float* activations,
                                layer_t* layers,
                                int lnum,
                                float* result,
-                               device_t* device) {
+                               device_t* device,
+                               sampling_param_t* sampling_param) {
     float* curr_layer_weights =
             weights + get_weights_loc_for_layer(layers, lnum);
     PRINT_DEBUG(weights, layers[lnum].weights.rows, layers[lnum].weights.cols,
@@ -48,7 +49,8 @@ result_buf standard_convolution_layer(float* activations,
                                       layer_t* layers,
                                       int lnum,
                                       float* result,
-                                      device_t* device) {
+                                      device_t* device,
+                                      sampling_param_t* sampling_param) {
     float* curr_layer_weights =
             weights + get_weights_loc_for_layer(layers, lnum);
     nnet_mkl::convolution3d(
@@ -64,7 +66,8 @@ result_buf depthwise_convolution_layer(float* activations,
                                        layer_t* layers,
                                        int lnum,
                                        float* result,
-                                       device_t* device) {
+                                       device_t* device,
+                                       sampling_param_t* sampling_param) {
     float* curr_layer_weights =
             weights + get_weights_loc_for_layer(layers, lnum);
     nnet_mkl::depthwise_convolution3d(
@@ -80,7 +83,8 @@ result_buf pointwise_convolution_layer(float* activations,
                                        layer_t* layers,
                                        int lnum,
                                        float* result,
-                                       device_t* device) {
+                                       device_t* device,
+                                       sampling_param_t* sampling_param) {
     float* curr_layer_weights =
             weights + get_weights_loc_for_layer(layers, lnum);
     nnet_mkl::pointwise_convolution3d(
@@ -95,7 +99,8 @@ result_buf pooling_layer(float* activations,
                          layer_t* layers,
                          int lnum,
                          float* result,
-                         device_t* device) {
+                         device_t* device,
+                         sampling_param_t* sampling_param) {
     if (layers[lnum].pool == MAX)
         nnet_mkl::max_pooling_3d(activations, &layers[lnum], result, device);
     else if (layers[lnum].pool == AVG)
@@ -111,7 +116,8 @@ result_buf batch_norm_layer(float* activations,
                             layer_t* layers,
                             int lnum,
                             float* result,
-                            device_t* device) {
+                            device_t* device,
+                            sampling_param_t* sampling_param) {
     float* curr_layer_weights =
             weights + get_weights_loc_for_layer(layers, lnum);
     nnet_mkl::batch_norm(activations, curr_layer_weights, &layers[lnum],
@@ -140,10 +146,16 @@ result_buf run_layer(float* activations,
                      layer_t* layers,
                      int layer_num,
                      float* result,
-                     device_t* device) {
+                     device_t* device,
+                     sampling_param_t* sampling_param) {
     layer_t curr_layer = layers[layer_num];
-    result_buf result_loc = run_layer_skip_activation_func(
-            activations, weights, layers, layer_num, result, device);
+    result_buf result_loc = run_layer_skip_activation_func(activations,
+                                                           weights,
+                                                           layers,
+                                                           layer_num,
+                                                           result,
+                                                           device,
+                                                           sampling_param);
 
     if (curr_layer.activation != NO_ACTIVATION) {
         PRINT_MSG("\nactivation function\n");
@@ -166,7 +178,8 @@ void nnet_fwd(farray_t activations,
               farray_t weights,
               farray_t result,
               network_t network,
-              device_t* device) {
+              device_t* device,
+              sampling_param_t* sampling_param) {
     int l;
     layer_t* layers = network.layers;
     nnet_mkl::MklSession* session = new nnet_mkl::MklSession();
@@ -196,11 +209,11 @@ nnet_fwd_outer:
         // grab_weights_dma(weights, weights, l, layers);
 
         if (result_loc == result.d) {
-            result_loc = run_layer(
-                    result.d, weights.d, layers, l, activations.d, device);
+            result_loc = run_layer(result.d, weights.d, layers, l,
+                                   activations.d, device, sampling_param);
         } else {
-            result_loc = run_layer(
-                    activations.d, weights.d, layers, l, result.d, device);
+            result_loc = run_layer(activations.d, weights.d, layers, l,
+                                   result.d, device, sampling_param);
         }
     }
 

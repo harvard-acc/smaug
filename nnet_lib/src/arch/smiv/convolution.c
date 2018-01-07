@@ -206,8 +206,8 @@ void standard_convolution_layer_impl(float* host_activations,
                                      layer_t* layers,
                                      int lnum,
                                      float* host_result,
-                                     device_t* device) {
-
+                                     device_t* device,
+                                     sampling_param_t* sampling_param) {
     layer_t curr_layer = layers[lnum];
     const int result_height = curr_layer.outputs.rows;
     const int result_width = curr_layer.outputs.cols;

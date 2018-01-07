@@ -33,14 +33,14 @@ $(EIGEN_BINARY): $(NATIVE_FULL_PATH_SRCS) \
 								 $(EIGEN_ARCH_SRCS)
 	@echo Building benchmark $(EXEC) with Eigen backend for native host.
 	@mkdir -p $(BUILD_DIR)
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LFLAGS)
+	@$(CXX) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LFLAGS)
 
 $(EIGEN_BINARY_FOR_GEM5): $(NATIVE_FULL_PATH_SRCS) \
 													$(GEM5_FULL_PATH_SRCS) \
 												 	$(EIGEN_ARCH_SRCS)
 	@echo Building benchmark $(EXEC) with Eigen backend for gem5.
 	@mkdir -p $(BUILD_DIR)
-	$(CXX) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LFLAGS)
+	@$(CXX) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LFLAGS)
 
 clean-eigen:
 	rm -f $(EIGEN_BINARY)

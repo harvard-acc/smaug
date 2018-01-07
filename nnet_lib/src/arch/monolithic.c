@@ -38,7 +38,8 @@ result_buf inner_product_layer(float* activations,
                                layer_t* layers,
                                int lnum,
                                float* result,
-                               device_t* device) {
+                               device_t* device,
+                               sampling_param_t* sampling_param) {
 #if TRANSPOSE_WEIGHTS == 0
     matrix_multiply_with_bias(
             activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows,
@@ -58,7 +59,8 @@ result_buf standard_convolution_layer(float* activations,
                                       layer_t* layers,
                                       int lnum,
                                       float* result,
-                                      device_t* device) {
+                                      device_t* device,
+                                      sampling_param_t* sampling_param) {
     if (layers[lnum].c_padding > 0) {
         convolution3d_zeropad(activations, kernels, layers, lnum, result);
         return activations;
@@ -72,7 +74,8 @@ result_buf depthwise_convolution_layer(float* activations,
                                        layer_t* layers,
                                        int lnum,
                                        float* result,
-                                       device_t* device) {
+                                       device_t* device,
+                                       sampling_param_t* sampling_param) {
     if (layers[lnum].c_padding > 0) {
         convolution2d_depthwise_zeropad(
                 activations, kernels, layers, lnum, result);
@@ -87,7 +90,8 @@ result_buf pointwise_convolution_layer(float* activations,
                                        layer_t* layers,
                                        int lnum,
                                        float* result,
-                                       device_t* device) {
+                                       device_t* device,
+                                       sampling_param_t* sampling_param) {
     convolution3d_pointwise_nopadding(activations, kernels, layers[lnum], result);
     return result;
 }
@@ -96,7 +100,8 @@ result_buf pooling_layer(float* activations,
                          layer_t* layers,
                          int lnum,
                          float* result,
-                         device_t* device) {
+                         device_t* device,
+                         sampling_param_t* sampling_param) {
     layer_t curr_layer = layers[lnum];
     if (curr_layer.pool == MAX)
         max_pooling(activations, result, curr_layer);
@@ -112,7 +117,8 @@ result_buf batch_norm_layer(float* activations,
                             layer_t* layers,
                             int lnum,
                             float* result,
-                            device_t* device) {
+                            device_t* device,
+                            sampling_param_t* sampling_param) {
     batch_norm_fxp(activations, weights, &layers[lnum], NUM_TEST_CASES, result);
     return result;
 }
@@ -132,10 +138,16 @@ result_buf run_layer(float* activations,
                      layer_t* layers,
                      int layer_num,
                      float* result,
-                     device_t* device) {
+                     device_t* device,
+                     sampling_param_t* sampling_param) {
     layer_t curr_layer = layers[layer_num];
-    result_buf result_loc = run_layer_skip_activation_func(
-            activations, weights, layers, layer_num, result, device);
+    result_buf result_loc = run_layer_skip_activation_func(activations,
+                                                           weights,
+                                                           layers,
+                                                           layer_num,
+                                                           result,
+                                                           device,
+                                                           sampling_param);
 
     if (curr_layer.activation != NO_ACTIVATION) {
         PRINT_MSG("\nactivation function\n");
@@ -158,7 +170,8 @@ void nnet_fwd_hw(float* activations,
                  layer_t* layers,
                  int num_layers,
                  float* result,
-                 device_t* device) {
+                 device_t* device,
+                 sampling_param_t* sampling_param) {
     int l;
     layer_t curr_layer;
 
@@ -186,11 +199,21 @@ nnet_fwd_outer:
         grab_weights_dma(weights, weights, l, layers);
 
         if (result_loc == result) {
-            result_loc =
-                    run_layer(result, weights, layers, l, activations, device);
+            result_loc = run_layer(result,
+                                   weights,
+                                   layers,
+                                   l,
+                                   activations,
+                                   device,
+                                   sampling_param);
         } else {
-            result_loc =
-                    run_layer(activations, weights, layers, l, result, device);
+            result_loc = run_layer(activations,
+                                   weights,
+                                   layers,
+                                   l,
+                                   result,
+                                   device,
+                                   sampling_param);
         }
     }
 
@@ -213,7 +236,8 @@ void nnet_fwd(farray_t activations,
               farray_t weights,
               farray_t result,
               network_t network,
-              device_t* device) {
+              device_t* device,
+              sampling_param_t* sampling_param) {
     if (PRINT_DATA_AND_WEIGHTS) {
         print_data_and_weights(activations.d, weights.d, network.layers[0]);
     }
@@ -228,7 +252,7 @@ void nnet_fwd(farray_t activations,
                        network.depth * sizeof(layer_t));
 
     INVOKE_KERNEL(kNnetFwdHw, nnet_fwd_hw, activations.d, weights.d, network.layers,
-                  network.depth, result.d, device);
+                  network.depth, result.d, device, sampling_param);
 }
 
 #endif

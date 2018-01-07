@@ -102,7 +102,8 @@ result_buf inner_product_layer(float* host_activations,
                                layer_t* layers,
                                int lnum,
                                float* host_result,
-                               device_t* device) {
+                               device_t* device,
+                               sampling_param_t* sampling_param) {
     inner_product_layer_impl(
             host_activations, host_weights, layers, lnum, host_result, device);
     return host_result;
@@ -113,7 +114,8 @@ result_buf standard_convolution_layer(float* activations,
                                       layer_t* layers,
                                       int lnum,
                                       float* result,
-                                      device_t* device) {
+                                      device_t* device,
+                                      sampling_param_t* sampling_param) {
 
     float* current_layer_weights =
             weights + get_weights_loc_for_layer(layers, lnum);
@@ -131,13 +133,23 @@ result_buf standard_convolution_layer(float* activations,
         PRINT_DEBUG4D_V(weights, curr_layer.weights.rows,
                         curr_layer.weights.cols + curr_layer.weights.align_pad,
                         curr_layer.weights.height);
-        standard_convolution_layer_impl(result, current_layer_weights, layers,
-                                        lnum, activations, device);
+        standard_convolution_layer_impl(result,
+                                        current_layer_weights,
+                                        layers,
+                                        lnum,
+                                        activations,
+                                        device,
+                                        sampling_param);
 
         return activations;
     }
-    standard_convolution_layer_impl(
-            activations, current_layer_weights, layers, lnum, result, device);
+    standard_convolution_layer_impl(activations,
+                                    current_layer_weights,
+                                    layers,
+                                    lnum,
+                                    result,
+                                    device,
+                                    sampling_param);
     return result;
 }
 
@@ -146,7 +158,8 @@ result_buf depthwise_convolution_layer(float* activations,
                                        layer_t* layers,
                                        int lnum,
                                        float* result,
-                                       device_t* device) {
+                                       device_t* device,
+                                       sampling_param_t* sampling_param) {
     float* current_layer_weights =
             weights + get_weights_loc_for_layer(layers, lnum);
     MAP_ARRAY_TO_ACCEL(kConvolutionHw, "host_weights", current_layer_weights,
@@ -183,7 +196,8 @@ result_buf pointwise_convolution_layer(float* activations,
                                        layer_t* layers,
                                        int lnum,
                                        float* results,
-                                       device_t* device) {
+                                       device_t* device,
+                                       sampling_param_t* sampling_param) {
     // Allocate memory to store the transformed input.
     float* nhwc_inputs = NULL;
     dims_t nhwc = convert_nchw_to_nhwc(activations, NUM_TEST_CASES,
@@ -242,7 +256,8 @@ result_buf pooling_layer(float* activations,
                          layer_t* layers,
                          int lnum,
                          float* result,
-                         device_t* device) {
+                         device_t* device,
+                         sampling_param_t* sampling_param) {
     layer_t curr_layer = layers[lnum];
 #ifdef __cplusplus
     if (curr_layer.pool == MAX) {
@@ -295,7 +310,8 @@ result_buf batch_norm_layer(float* activations,
                             layer_t* layers,
                             int lnum,
                             float* result,
-                            device_t* device) {
+                            device_t* device,
+                            sampling_param_t* sampling_param) {
     float* curr_layer_weights =
             weights + get_weights_loc_for_layer(layers, lnum);
 
@@ -328,12 +344,18 @@ result_buf run_layer(float* activations,
                      layer_t* layers,
                      int layer_num,
                      float* result,
-                     device_t* device) {
+                     device_t* device,
+                     sampling_param_t* sampling_param) {
     begin_profiling("run_layer", layer_num);
 
     begin_profiling("run_layer_skip_activation_func", layer_num);
-    result_buf result_loc = run_layer_skip_activation_func(
-            activations, weights, layers, layer_num, result, device);
+    result_buf result_loc = run_layer_skip_activation_func(activations,
+                                                           weights,
+                                                           layers,
+                                                           layer_num,
+                                                           result,
+                                                           device,
+                                                           sampling_param);
     end_profiling();
 
     activation_type act_func = layers[layer_num].activation;
@@ -445,8 +467,8 @@ void nnet_fwd(farray_t activations,
               farray_t weights,
               farray_t result,
               network_t network,
-              device_t* device) {
-
+              device_t* device,
+              sampling_param_t* sampling_param) {
     int l;
     layer_t curr_layer;
 
@@ -488,10 +510,10 @@ nnet_fwd_outer:
 
         if (result_loc == result.d) {
             result_loc = run_layer(result.d, weights.d, network.layers, l,
-                                   activations.d, device);
+                                   activations.d, device, sampling_param);
         } else {
             result_loc = run_layer(activations.d, weights.d, network.layers, l,
-                                   result.d, device);
+                                   result.d, device, sampling_param);
         }
     }
 

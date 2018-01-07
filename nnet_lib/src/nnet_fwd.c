@@ -193,8 +193,9 @@ int main(int argc, char* argv[]) {
 
     network_t network;
     device_t* device;
-    network.depth =
-            configure_network_from_file(args.args[0], &network.layers, &device);
+    sampling_param_t* sampling_param;
+    network.depth = configure_network_from_file(
+            args.args[0], &network.layers, &device, &sampling_param);
     printf("Size of layer configuration: %lu bytes\n",
            network.depth * sizeof(layer_t));
 
@@ -292,7 +293,7 @@ int main(int argc, char* argv[]) {
     // Run a forward pass through the neural net
     printf("Running forward pass\n");
     init_profiling_log();
-    nnet_fwd(hid, weights, hid_temp, network, device);
+    nnet_fwd(hid, weights, hid_temp, network, device, sampling_param);
     dump_profiling_log();
     close_profiling_log();
 
@@ -325,4 +326,5 @@ int main(int argc, char* argv[]) {
     free(labels.d);
     free(network.layers);
     free(device);
+    free(sampling_param);
 }

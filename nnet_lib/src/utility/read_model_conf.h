@@ -4,4 +4,5 @@
 
 int configure_network_from_file(const char* cfg_file,
                                 layer_t** layers_ptr,
-                                device_t** device_ptr);
+                                device_t** device_ptr,
+                                sampling_param_t** sampling_ptr);

@@ -54,11 +54,14 @@ void init_profiling_log() {
     profiling_enabled = true;
 }
 
-void begin_profiling(const char* label, int layer_num) {
-    if (!profiling_enabled)
-        return;
-
+// Allocate a new log entry.
+log_entry_t* new_log_entry(const char* label, int layer_num, log_type type) {
     log_entry_t* entry = (log_entry_t*)malloc(sizeof(log_entry_t));
+    entry->layer_num = layer_num;
+    entry->invocation = 0;
+    entry->type = type;
+    entry->sample_data.sampled_iters = 1;
+    entry->sample_data.total_iters = 1;
 
     // Copy the function name.
     entry->label.len = strlen(label) + 1;
@@ -66,59 +69,77 @@ void begin_profiling(const char* label, int layer_num) {
     strncpy(entry->label.str, label, entry->label.len - 1);
     entry->label.str[entry->label.len - 1] = 0;
 
-    // Assign the rest of the metadata fields.
-    entry->end_time = 0;
-    entry->layer_num = layer_num;
+    return entry;
+}
 
-    // Push this new entry onto the stack.
-    if (profile_log == NULL) {
-      entry->invocation = 0;
+// Push this new entry onto the stack.
+void push_to_log_entry_stack(log_entry_t* entry, log_entry_t** stack_top) {
+    if (stack_top == NULL) {
       entry->next = NULL;
-      profile_log = entry;
+      *stack_top = entry;
     } else {
-      entry->invocation = 0;
-      entry->next = profile_log;
-      profile_log = entry;
+      entry->next = *stack_top;
+      *stack_top = entry;
     }
+}
+
+// Find the newest incomplete entry in the profiling log.
+log_entry_t* find_newest_incomplete_entry() {
+    log_entry_t* entry = profile_log;
+    while (!(entry && entry->profile_data.end_time == 0))
+      entry = entry->next;
+    return entry;
+}
+
+void begin_profiling(const char* label, int layer_num) {
+    if (!profiling_enabled)
+        return;
+
+    log_entry_t* entry = new_log_entry(label, layer_num, UNSAMPLED);
+    push_to_log_entry_stack(entry, &profile_log);
+
+    // Assign the rest of the metadata fields.
+    entry->profile_data.end_time = 0;
 
     // Query the current time LAST, so it's as close as possible to the start
     // of the kernel being profiled.
-    profile_log->start_time = get_nsecs();
+    entry->profile_data.start_time = get_nsecs();
 }
 
 void end_profiling() {
     if (!profiling_enabled)
         return;
-    // To support nested profiling, search for the next zero-end-time entry.
-    log_entry_t* entry = profile_log;
-    while (entry && entry->end_time != 0)
-      entry = entry->next;
-		if (!entry || entry->end_time != 0) {
+    log_entry_t* entry = find_newest_incomplete_entry();
+		if (!entry || entry->profile_data.end_time != 0) {
         fprintf(stderr, "Could not find the corresponding entry for this "
                         "end_profiling call! Please ensure that all "
                         "begin_profiling() calls are paired with at most one "
                         "end_profiling call.\n");
         exit(1);
     }
-    entry->end_time = get_nsecs();
+    entry->profile_data.end_time = get_nsecs();
 }
 
 // Format is:
 //
 // num,label,function,invocation,start_time,end_time,elapsed_time
 void write_profiling_log(FILE* out) {
-    fprintf(out,
-            "layer_num,label,invocation,start_time,end_time,elapsed_time\n");
+    fprintf(out, "layer_num,label,invocation,type,start_time,end_time,elapsed_"
+                 "time,sampled_iters,total_iters\n");
     log_entry_t* curr_entry = profile_log;
     while (curr_entry) {
         fprintf(out,
-                "%d,%s,%d,%lu,%lu,%lu\n",
+                "%d,%s,%d,%s,%lu,%lu,%lu,%ld,%ld\n",
                 curr_entry->layer_num,
                 curr_entry->label.str,
                 curr_entry->invocation,
-                curr_entry->start_time,
-                curr_entry->end_time,
-                curr_entry->end_time - curr_entry->start_time);
+                curr_entry->type == UNSAMPLED ? "unsampled" : "sampled",
+                curr_entry->profile_data.start_time,
+                curr_entry->profile_data.end_time,
+                curr_entry->profile_data.end_time -
+                        curr_entry->profile_data.start_time,
+                curr_entry->sample_data.sampled_iters,
+                curr_entry->sample_data.total_iters);
         curr_entry = curr_entry->next;
     }
 }
@@ -149,4 +170,11 @@ void close_profiling_log() {
     }
     profile_log = NULL;
     profiling_enabled = false;
+}
+
+void set_profiling_type_sampled(int sampled_iters, int total_iters) {
+    log_entry_t* entry = find_newest_incomplete_entry();
+    entry->type = SAMPLED;
+    entry->sample_data.sampled_iters = sampled_iters;
+    entry->sample_data.total_iters = total_iters;
 }

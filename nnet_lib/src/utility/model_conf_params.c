@@ -43,8 +43,15 @@ cfg_opt_t device_cfg[] = {
   CFG_END()
 };
 
+cfg_opt_t sampling_cfg[] = {
+  CFG_INT("standard_conv_num_filters", 0, CFGF_NONE),
+  CFG_INT("fc_num_neurons", 0, CFGF_NONE),
+  CFG_END()
+};
+
 cfg_opt_t top_level_cfg[] = {
     CFG_SEC("network", network_cfg, CFGF_NODEFAULT),
     CFG_SEC("device", device_cfg, CFGF_NODEFAULT),
+    CFG_SEC("sampling_param", sampling_cfg, CFGF_NODEFAULT),
     CFG_END(),
 };

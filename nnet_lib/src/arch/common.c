@@ -14,7 +14,8 @@ result_buf run_layer_skip_activation_func(float* activations,
                                           layer_t* layers,
                                           int layer_num,
                                           float* result,
-                                          device_t* device) {
+                                          device_t* device,
+                                          sampling_param_t* sampling_param) {
     layer_t curr_layer = layers[layer_num];
     layer_type l_type = curr_layer.type;
     result_buf result_loc = result;
@@ -30,32 +31,62 @@ result_buf run_layer_skip_activation_func(float* activations,
             PRINT_DEBUG(result_loc, NUM_TEST_CASES,
                         layers[layer_num].inputs.cols,
                         layers[layer_num].inputs.cols);
-            result_loc = inner_product_layer(
-                    result, weights, layers, layer_num, activations, device);
+            result_loc = inner_product_layer(result,
+                                             weights,
+                                             layers,
+                                             layer_num,
+                                             activations,
+                                             device,
+                                             sampling_param);
         } else {
-            result_loc = inner_product_layer(
-                    activations, weights, layers, layer_num, result, device);
+            result_loc = inner_product_layer(activations,
+                                             weights,
+                                             layers,
+                                             layer_num,
+                                             result,
+                                             device,
+                                             sampling_param);
         }
     } else if (l_type == CONV_STANDARD) {
         PRINT_MSG("\nStandard convolution.\n");
-        result_loc = standard_convolution_layer(
-                activations, weights, layers, layer_num, result, device);
+        result_loc = standard_convolution_layer(activations,
+                                                weights,
+                                                layers,
+                                                layer_num,
+                                                result,
+                                                device,
+                                                sampling_param);
     } else if (l_type == CONV_DEPTHWISE) {
         PRINT_MSG("\nDepthwise convolution.\n");
-        result_loc = depthwise_convolution_layer(
-                activations, weights, layers, layer_num, result, device);
+        result_loc = depthwise_convolution_layer(activations,
+                                                 weights,
+                                                 layers,
+                                                 layer_num,
+                                                 result,
+                                                 device,
+                                                 sampling_param);
     } else if (l_type == CONV_POINTWISE) {
         PRINT_MSG("\nPointwise convolution.\n");
-        result_loc = pointwise_convolution_layer(
-                activations, weights, layers, layer_num, result, device);
+        result_loc = pointwise_convolution_layer(activations,
+                                                 weights,
+                                                 layers,
+                                                 layer_num,
+                                                 result,
+                                                 device,
+                                                 sampling_param);
     } else if (l_type == POOLING) {
         PRINT_MSG("\nPooling.\n");
-        result_loc =
-                pooling_layer(activations, layers, layer_num, result, device);
+        result_loc = pooling_layer(
+                activations, layers, layer_num, result, device, sampling_param);
     } else if (l_type == BATCH_NORM) {
         PRINT_MSG("\nBatch normalization.\n");
-        result_loc = batch_norm_layer(activations, weights, layers,
-        	 layer_num, result, device);
+        result_loc = batch_norm_layer(activations,
+                                      weights,
+                                      layers,
+                                      layer_num,
+                                      result,
+                                      device,
+                                      sampling_param);
     } else if (l_type == INPUT) {
         // No work needs to be done.
         result_loc = activations;

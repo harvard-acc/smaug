@@ -158,6 +158,11 @@ typedef struct _device_t {
     void* session;
 } device_t;
 
+typedef struct _sampling_param_t {
+    int standard_conv_num_filters;
+    int fc_num_neurons;
+} sampling_param_t;
+
 // Wraps a dynamically allocated array (d for data) and its size (number of
 // elements, not bytes).
 typedef struct _farray_t {

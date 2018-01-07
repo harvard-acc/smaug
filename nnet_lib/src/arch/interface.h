@@ -23,41 +23,47 @@ result_buf inner_product_layer(float* activations,
                                layer_t* layers,
                                int lnum,
                                float* result,
-                               device_t* device);
+                               device_t* device,
+                               sampling_param_t* sampling_param);
 
 result_buf standard_convolution_layer(float* activations,
                                       float* weights,
                                       layer_t* layers,
                                       int lnum,
                                       float* result,
-                                      device_t* device);
+                                      device_t* device,
+                                      sampling_param_t* sampling_param);
 
 result_buf depthwise_convolution_layer(float* activations,
                                        float* weights,
                                        layer_t* layers,
                                        int lnum,
                                        float* result,
-                                       device_t* device);
+                                       device_t* device,
+                                       sampling_param_t* sampling_param);
 
 result_buf pointwise_convolution_layer(float* activations,
                                        float* weights,
                                        layer_t* layers,
                                        int lnum,
                                        float* result,
-                                       device_t* device);
+                                       device_t* device,
+                                       sampling_param_t* sampling_param);
 
 result_buf pooling_layer(float* activations,
                          layer_t* layers,
                          int lnum,
                          float* result,
-                         device_t* device);
+                         device_t* device,
+                         sampling_param_t* sampling_param);
 
 result_buf batch_norm_layer(float* activations,
                             float* weights,
                             layer_t* layers,
                             int lnum,
                             float* result,
-                            device_t* device);
+                            device_t* device,
+                            sampling_param_t* sampling_param);
 
 result_buf flatten_input(float* activations,
                          layer_t* layers,
@@ -82,6 +88,7 @@ void nnet_fwd(farray_t activations,
               farray_t weights,
               farray_t result,
               network_t network,
-              device_t* device);
+              device_t* device,
+              sampling_param_t* sampling_param);
 
 #endif
