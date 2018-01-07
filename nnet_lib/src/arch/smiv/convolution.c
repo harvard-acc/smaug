@@ -241,8 +241,20 @@ void standard_convolution_layer_impl(float* host_activations,
 
     MAP_ARRAY_TO_ACCEL(kConvolutionHw, "host_activations", host_activations,
                        get_dims_size(&curr_layer.inputs));
+
+    // Sampling: if set, only run up to the specified number of output
+    // channels.  Set all remaining outputs to zero.
+    const int sample_num_kerns = sampling_param->standard_conv_num_filters;
+    const int num_kerns_to_simulate =
+            sample_num_kerns == 0 ? num_kerns
+                                  : min2(num_kerns, sample_num_kerns);
+    bool is_sampled = num_kerns_to_simulate < num_kerns;
     for (int img = 0; img < NUM_TEST_CASES; img++) {
-        for (int kern = 0; kern < num_kerns; kern++) {
+        begin_profiling(__func__, lnum);
+        if (is_sampled)
+            set_profiling_type_sampled(num_kerns_to_simulate, num_kerns);
+
+        for (int kern = 0; kern < num_kerns_to_simulate; kern++) {
             PRINT_MSG("Kernel %d\n", kern);
             PRINT_DEBUG4D(&_kernels[kern][0][0][0],
                           k_width,
@@ -338,6 +350,7 @@ void standard_convolution_layer_impl(float* host_activations,
             memcpy(&_result[img][kern][0][0], temp_result,
                    result_2d_size * sizeof(float));
         }
+        end_profiling();
     }
     free_work_cfg(&conv_cfgs);
     free(temp_result);

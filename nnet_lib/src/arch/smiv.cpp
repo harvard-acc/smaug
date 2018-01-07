@@ -140,7 +140,6 @@ result_buf standard_convolution_layer(float* activations,
                                         activations,
                                         device,
                                         sampling_param);
-
         return activations;
     }
     standard_convolution_layer_impl(activations,
