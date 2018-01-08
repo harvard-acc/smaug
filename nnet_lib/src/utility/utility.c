@@ -141,6 +141,31 @@ size_t store_output_activations_dma(float* host_activations,
     return activations_size;
 }
 
+void divide_dma_req(float* host_base,
+                    float* local_base,
+                    int size,
+                    int log2_dma_chunk_size,
+                    bool isLoad) {
+    int dma_chunk_size = 1 << log2_dma_chunk_size;
+    int num_dma_reqs = (size + dma_chunk_size - 1) >> log2_dma_chunk_size;
+    int dma_req_size;
+    int last_req_size = size - (num_dma_reqs - 1) * dma_chunk_size;
+
+dma_division:
+    for (int i = 0; i < num_dma_reqs; i++) {
+        dma_req_size = (i == num_dma_reqs - 1) ? last_req_size : dma_chunk_size;
+        if (isLoad) {
+            dmaLoad(local_base + i * dma_chunk_size / sizeof(float),
+                    host_base + i * dma_chunk_size / sizeof(float),
+                    dma_req_size);
+        } else {
+            dmaStore(host_base + i * dma_chunk_size / sizeof(float),
+                     local_base + i * dma_chunk_size / sizeof(float),
+                     dma_req_size);
+        }
+    }
+}
+
 #endif
 
 int get_input_activations_size(layer_t* layer) {
