@@ -147,6 +147,9 @@ Currently, we have five architectures and three execution targets.
    This implementation is considered a reference implementation, as it
    implements GEMM and convolution in the simplest way possible.
 
+   **UPDATE**: Monolithic will no longer run correctly on Aladdin.  It should
+   be used as a reference implementation only.
+
 2. Composable: This represents a hypothetical SoC with a collection of hardware
    blocks that each handle a particular kernel, like GEMM or convolution. The
    CPU is responsible for moving data around between accelerators and invoking
