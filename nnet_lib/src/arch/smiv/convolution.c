@@ -276,7 +276,7 @@ void standard_convolution_layer_impl(float* host_activations,
                                 ? NO_ACTIVATION
                                 : curr_layer.activation;
                 partial_layer.output_req = IO_NONE;
-                INVOKE_KERNEL_PROF(kConvolutionHw, convolution_layer_hw,
+                INVOKE_KERNEL_PROF(kConvolutionHw, lnum, convolution_layer_hw,
                                    host_activations, host_weights, NULL, g_umem,
                                    g_spad0, g_spad1, true, layers,
                                    partial_layer, lnum, img, kern, start_chan);
@@ -291,15 +291,15 @@ void standard_convolution_layer_impl(float* host_activations,
                 if (do_hw_activation || !use_acp_offload) {
                     MAP_ARRAY_TO_ACCEL(kReductionHw, "host_result", result_loc,
                                        temp_result_size);
-                    INVOKE_KERNEL_PROF(kReductionHw, reduction_hw, g_spad0,
-                                       g_spad1, g_umem, false, false,
+                    INVOKE_KERNEL_PROF(kReductionHw, lnum, reduction_hw,
+                                       g_spad0, g_spad1, g_umem, false, false,
                                        partial_layer, result_2d_size,
                                        result_loc);
                 } else {
                     MAP_ARRAY_TO_ACCEL(kReductionHw, "acp_result", result_loc,
                                        temp_result_size);
-                    INVOKE_KERNEL_PROF(kReductionHw, reduction_acp_hw, g_spad0,
-                                       g_spad1, result_loc, false, false,
+                    INVOKE_KERNEL_PROF(kReductionHw, lnum, reduction_acp_hw,
+                                       g_spad0, g_spad1, result_loc, false, false,
                                        partial_layer, result_2d_size);
                 }
 
@@ -328,14 +328,14 @@ void standard_convolution_layer_impl(float* host_activations,
                     if (do_hw_activation || !use_acp_offload) {
                         MAP_ARRAY_TO_ACCEL(kReductionHw, "host_result",
                                            result_loc, temp_result_size);
-                        INVOKE_KERNEL_PROF(kReductionHw, reduction_hw, g_spad0,
+                        INVOKE_KERNEL_PROF(kReductionHw, lnum, reduction_hw, g_spad0,
                                            g_spad1, g_umem, false, true,
                                            partial_layer, result_2d_size,
                                            result_loc);
                     } else {
                         MAP_ARRAY_TO_ACCEL(kReductionHw, "acp_result",
                                            result_loc, result_2d_size);
-                        INVOKE_KERNEL_PROF(kReductionHw, reduction_acp_hw,
+                        INVOKE_KERNEL_PROF(kReductionHw, lnum, reduction_acp_hw,
                                            g_spad0, g_spad1, result_loc, false,
                                            true, partial_layer, result_2d_size);
                     }
@@ -420,7 +420,7 @@ void depthwise_convolution_layer_impl(float* host_activations,
             // The standard "kern" dimension is always 0, since the kernel
             // dimension is now the channel dimension.
             const int kern = 0;
-            INVOKE_KERNEL_PROF(kConvolutionHw, convolution_layer_hw,
+            INVOKE_KERNEL_PROF(kConvolutionHw, lnum, convolution_layer_hw,
                                host_activations, host_weights, current_result,
                                g_umem, g_spad0, g_spad1, true, layers,
                                partial_layer, lnum, img, kern, start_chan);

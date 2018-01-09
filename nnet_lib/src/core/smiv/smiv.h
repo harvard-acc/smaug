@@ -8,6 +8,7 @@ void matrix_multiply_with_bias_smiv(float* a,
                                     int b_width,
                                     int a_pad,
                                     bool run_activation,
+                                    bool do_bias,
                                     float* result);
 
 void reduction_smiv(float* a, layer_t curr_layer, float* result);

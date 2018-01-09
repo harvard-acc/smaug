@@ -7,11 +7,7 @@
 #include "utility/profiling.h"
 
 // Convenience macro for profiling a kernel invocation.
-//
-// This macro assumes that the current scope contains:
-//   - layer_t* layers: A pointer to the base layers array.
-//   - int lnum: The current layer number.
-#define INVOKE_KERNEL_PROF(req_code, kernel_ptr, args...)                      \
+#define INVOKE_KERNEL_PROF(req_code, lnum, kernel_ptr, args...)                \
     do {                                                                       \
         begin_profiling(STRING(kernel_ptr), lnum);                             \
         INVOKE_KERNEL(req_code, kernel_ptr, args);                             \
@@ -56,6 +52,11 @@ extern float* g_spad1;
 // layer type or not.
 bool is_supported_activation_func(layer_type ltype, activation_type func);
 
+result_buf smiv_activation_function(float* activations,
+                                    layer_t* layer,
+                                    float* results,
+                                    device_t* device);
+
 // These functions handle the task of breaking up a layer's input and weights
 // into blocks, individually running them on the accelerator, and aggregating
 // the results.
@@ -66,7 +67,7 @@ void standard_convolution_layer_impl(float* host_activations,
                                      float* host_result,
                                      device_t* device,
                                      sampling_param_t* sampling_param);
-bool inner_product_needs_work_division(layer_t* layers, int lnum);
+bool inner_product_needs_work_division(layer_t* layer);
 void inner_product_layer_impl(float* host_activations,
                               float* host_weights,
                               layer_t* layers,

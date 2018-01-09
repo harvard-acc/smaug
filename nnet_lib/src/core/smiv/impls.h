@@ -24,6 +24,7 @@ void matrix_multiply_with_bias_smiv_batch_fxp(float* a,
                                               int b_width,
                                               int a_pad,
                                               bool run_activation,
+                                              bool do_bias,
                                               float* result);
 
 void matrix_multiply_with_bias_smiv_nobatch_fxp(float* a,
@@ -33,6 +34,7 @@ void matrix_multiply_with_bias_smiv_nobatch_fxp(float* a,
                                                 int b_width,
                                                 int a_pad,
                                                 bool run_activation,
+                                                bool do_bias,
                                                 float* result);
 
 void matrix_multiply_with_bias_smiv_nobatch_vec_fxp(float* a,
@@ -42,6 +44,7 @@ void matrix_multiply_with_bias_smiv_nobatch_vec_fxp(float* a,
                                                     int b_width,
                                                     int a_pad,
                                                     bool run_activation,
+                                                    bool do_bias,
                                                     float* result);
 
 // Compute a RELU with vector literals.

@@ -52,7 +52,7 @@ void free_work_cfg(work_cfg_t* cfg) {
 }
 
 void print_work_cfg(work_cfg_t* cfg) {
-    for (int i = 0; i < cfg->num_iterations; i++) {
+    for (unsigned i = 0; i < cfg->num_iterations; i++) {
         printf("Iteration %d: height=%d, rows=%d, cols=%d, pad=%d\n",
                i,
                cfg->iteration[i].height,
@@ -321,10 +321,11 @@ result_buf batch_norm_layer(float* activations,
                        WEIGHT_BYTES(layers, lnum));
     MAP_ARRAY_TO_ACCEL(kBatchNormHw, "host_result", result,
                        OUTPUT_BYTES(layers, lnum));
-    INVOKE_KERNEL_PROF(kBatchNormHw, batch_norm_layer_hw, activations,
+    INVOKE_KERNEL_PROF(kBatchNormHw, lnum, batch_norm_layer_hw, activations,
                        curr_layer_weights, result, g_umem, g_spad0, g_spad1,
                        layers, lnum);
 #else
+    begin_profiling(__func__, lnum);
     // By default, use the reference implementation.
     // TODO: Replace this with an MKL implementation after we've made one that
     // can take advantage of precomputed 1/sqrt(var).
@@ -333,9 +334,32 @@ result_buf batch_norm_layer(float* activations,
                    &layers[lnum],
                    NUM_TEST_CASES,
                    result);
+    end_profiling();
 #endif
 
     return result;
+}
+
+result_buf smiv_activation_function(float* activations,
+                                    layer_t* layer,
+                                    float* results,
+                                    device_t* device) {
+#ifdef __cplusplus
+    begin_profiling("__IGNORE__", layer->num);
+    nnet_mkl::activation_fun(
+            activations, NUM_TEST_CASES, layer, results, device);
+    end_profiling();
+    nnet_mkl::MklSession* session = nnet_mkl::get_session(device);
+    session->run_and_clear();
+    return results;
+#else
+    int output_size = get_dims_size(&layer->outputs);
+    begin_profiling(ACTIVATION_TYPE_STR(layer->activation), layer->num);
+    activation_fun(activations, NUM_TEST_CASES, output_size, layer->activation,
+                   sigmoid_table);
+    end_profiling();
+    return activations;
+#endif
 }
 
 result_buf run_layer(float* activations,
@@ -363,25 +387,13 @@ result_buf run_layer(float* activations,
             device->use_hw_activation_func &&
             is_supported_activation_func(layers[layer_num].type, act_func);
     if (do_activation && !do_hw_activation) {
-#ifdef __cplusplus
         if (result_loc == activations) {
-            nnet_mkl::activation_fun(activations, NUM_TEST_CASES,
-                                     &layers[layer_num], result, device);
-            result_loc = result;
+            result_loc = smiv_activation_function(
+                    activations, &layers[layer_num], result, device);
         } else {
-            nnet_mkl::activation_fun(result, NUM_TEST_CASES, &layers[layer_num],
-                                     activations, device);
-            result_loc = activations;
+            result_loc = smiv_activation_function(
+                    result, &layers[layer_num], activations, device);
         }
-        nnet_mkl::MklSession* session = nnet_mkl::get_session(device);
-        session->run_and_clear();
-#else
-        int output_size = get_dims_size(&layers[layer_num].outputs);
-        begin_profiling(ACTIVATION_TYPE_STR(act_func), layer_num);
-        activation_fun(result_loc, NUM_TEST_CASES, output_size, act_func,
-                       sigmoid_table);
-        end_profiling();
-#endif
         PRINT_MSG("\nactivation function\n");
         PRINT_DEBUG4D(result_loc, layers[layer_num].outputs.rows,
                       layers[layer_num].outputs.cols +
@@ -437,7 +449,7 @@ void set_dma_requirements(network_t* network, device_t* device) {
             next_layer->type == POOLING ||
             // If the FC block needs work division, we can't locally cache.
             (curr_layer->type == FC && next_layer->type == FC &&
-             inner_product_needs_work_division(network->layers, layer_num))) {
+             inner_product_needs_work_division(&network->layers[layer_num]))) {
             curr_layer->output_req = IO_DMA;
         } else {
             curr_layer->output_req = IO_NONE;

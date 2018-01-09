@@ -18,6 +18,7 @@ void matrix_multiply_with_bias_smiv_batch_fxp(float* a,
                                               int b_width,
                                               int a_pad,
                                               bool run_activation,
+                                              bool do_bias,
                                               float* result) {
     int wgt_row, wgt_col, wgt_b;
     int act_batch;
@@ -42,7 +43,8 @@ void matrix_multiply_with_bias_smiv_batch_fxp(float* a,
         for (act_batch = 0; act_batch < a_height; act_batch++) {
             load_bias:
             for (wgt_b = 0; wgt_b < VECTOR_SIZE; wgt_b++) {
-                bias = conv_float2fixed(_b[a_width][wgt_col + wgt_b]);
+                bias = do_bias ? conv_float2fixed(_b[a_width][wgt_col + wgt_b])
+                               : 0;
                 partial_sums[act_batch][wgt_b] = bias;
             }
         }
@@ -103,6 +105,7 @@ void matrix_multiply_with_bias_smiv_nobatch_fxp(float* a,
                                                 int b_width,
                                                 int a_pad,
                                                 bool run_activation,
+                                                bool do_bias,
                                                 float* result) {
     int wgt_row, wgt_col, wgt_b, input_act;
     float partial_sums[VECTOR_SIZE];
@@ -126,7 +129,8 @@ void matrix_multiply_with_bias_smiv_nobatch_fxp(float* a,
             // Load in the bias.
             load_bias:
             for (wgt_b = 0; wgt_b < VECTOR_SIZE; wgt_b++) {
-                bias = conv_float2fixed(_b[a_width][wgt_col + wgt_b]);
+                bias = do_bias ? conv_float2fixed(_b[a_width][wgt_col + wgt_b])
+                               : 0;
                 partial_sums[wgt_b] = bias;
             }
 
@@ -165,6 +169,7 @@ void matrix_multiply_with_bias_smiv_nobatch_vec_fxp(float* a,
                                                     int b_width,
                                                     int a_pad,
                                                     bool run_activation,
+                                                    bool do_bias,
                                                     float* result) {
     int wgt_row, wgt_col, wgt_b, input_act;
     // float input;
@@ -191,7 +196,8 @@ void matrix_multiply_with_bias_smiv_nobatch_vec_fxp(float* a,
         wgt_col:
         for (wgt_col = 0; wgt_col < b_width_vec; wgt_col++) {
             // Load in the bias.
-            partial_sums = _b[a_width][wgt_col];
+            partial_sums = do_bias ? _b[a_width][wgt_col]
+                                   : (v8fp_t){ 0, 0, 0, 0, 0, 0, 0, 0 };
 
             wgt_row:
             for (wgt_row = 0; wgt_row < a_width; wgt_row+=VECTOR_SIZE) {
