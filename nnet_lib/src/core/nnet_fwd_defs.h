@@ -91,6 +91,8 @@ typedef enum _io_req_t {
 typedef struct _layer_t {
   // Type of layer.
   layer_type type;
+  // Layer number.
+  int num;
 
   // Type of activation function.
   activation_type activation;

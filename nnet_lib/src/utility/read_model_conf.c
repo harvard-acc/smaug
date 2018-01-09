@@ -494,6 +494,7 @@ static void read_top_level_config(layer_t* layers, cfg_t* network_opts) {
     layers[0].weights.rows = 0;
     layers[0].weights.cols = 0;
     layers[0].weights.height = 0;
+    layers[0].num = 0;
 
     // Set the global variables.
     data_alignment = DATA_ALIGNMENT;
@@ -746,6 +747,7 @@ int configure_network_from_file(const char* cfg_file,
     read_top_level_config(layers, network_opts);
     for (int i = 1; i < num_layers; i++) {
         read_layer_config(layers, network_opts, i);
+        layers[i].num = i;
     }
 
     //=---------------------  STEP 2 -----------------------=//
