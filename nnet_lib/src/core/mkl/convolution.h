@@ -9,13 +9,11 @@ namespace nnet_mkl {
 template <typename DType>
 class Convolution3dOp : public BaseMklOp<DType> {
   public:
-   Convolution3dOp(DType* input_buffer,
-                   DType* weights_buffer,
-                   DType* output_buffer,
-                   layer_t* _layer,
-                   int _batch_size,
-                   const mkldnn::engine& engine)
-           : BaseMklOp<DType>(_layer, _batch_size, engine) {
+   using BaseMklOp<DType>::BaseMklOp;
+
+   virtual void init(DType* input_buffer,
+                     DType* weights_buffer,
+                     DType* output_buffer) {
        auto input_mem = create_input_memory(input_buffer);
        auto weight_mem = create_weight_memory(weights_buffer);
        auto bias_mem = create_bias_memory();
@@ -24,14 +22,10 @@ class Convolution3dOp : public BaseMklOp<DType> {
        create_primitive(input_mem, weight_mem, bias_mem, output_buffer);
     }
 
-    Convolution3dOp(const BaseMklOpPtr& prev_op,
-                    DType* weights_buffer,
-                    DType* output_buffer,
-                    layer_t* _layer,
-                    int _batch_size,
-                    const mkldnn::engine& engine)
-            : BaseMklOp<DType>(_layer, _batch_size, engine) {
-        auto input_mem = prev_op->get_output_mem();
+    virtual void init(const BaseMklOp<DType>& prev_op,
+                      DType* weights_buffer,
+                      DType* output_buffer) {
+        auto input_mem = prev_op.get_output_mem();
         auto weight_mem = create_weight_memory(weights_buffer);
         auto bias_mem = create_bias_memory();
 
@@ -148,13 +142,11 @@ class Convolution3dOp : public BaseMklOp<DType> {
 template <typename DType>
 class DepthwiseConvolution3dOp : public BaseMklOp<DType> {
    public:
-    DepthwiseConvolution3dOp(DType* input_buffer,
-                             DType* weights_buffer,
-                             DType* output_buffer,
-                             layer_t* _layer,
-                             int _batch_size,
-                             const mkldnn::engine& engine)
-            : BaseMklOp<DType>(_layer, _batch_size, engine) {
+    using BaseMklOp<DType>::BaseMklOp;
+
+    virtual void init(DType* input_buffer,
+                      DType* weights_buffer,
+                      DType* output_buffer) {
         auto input_mem = create_input_memory(input_buffer);
         auto weight_mem = create_weight_memory(weights_buffer);
         auto bias_mem = create_bias_memory();
@@ -163,14 +155,10 @@ class DepthwiseConvolution3dOp : public BaseMklOp<DType> {
         create_primitive(input_mem, weight_mem, bias_mem, output_buffer);
     }
 
-    DepthwiseConvolution3dOp(const BaseMklOpPtr& prev_op,
-                             DType* weights_buffer,
-                             DType* output_buffer,
-                             layer_t* _layer,
-                             int _batch_size,
-                             const mkldnn::engine& engine)
-            : BaseMklOp<DType>(_layer, _batch_size, engine) {
-        auto input_mem = prev_op->get_output_mem();
+    virtual void init(const BaseMklOp<DType>& prev_op,
+                      DType* weights_buffer,
+                      DType* output_buffer) {
+        auto input_mem = prev_op.get_output_mem();
         auto weight_mem = create_weight_memory(weights_buffer);
         auto bias_mem = create_bias_memory();
 
@@ -284,13 +272,11 @@ class DepthwiseConvolution3dOp : public BaseMklOp<DType> {
 template <typename DType>
 class PointwiseConvolution3dOp : public BaseMklOp<DType> {
   public:
-   PointwiseConvolution3dOp(DType* input_buffer,
-                            DType* weights_buffer,
-                            DType* output_buffer,
-                            layer_t* _layer,
-                            int _batch_size,
-                            const mkldnn::engine& engine)
-           : BaseMklOp<DType>(_layer, _batch_size, engine) {
+   using BaseMklOp<DType>::BaseMklOp;
+
+   virtual void init(DType* input_buffer,
+                     DType* weights_buffer,
+                     DType* output_buffer) {
        auto input_mem = create_input_memory(input_buffer);
        auto weight_mem = create_weight_memory(weights_buffer);
        auto bias_mem = create_bias_memory(weights_buffer);
@@ -299,14 +285,10 @@ class PointwiseConvolution3dOp : public BaseMklOp<DType> {
        create_primitive(input_mem, weight_mem, bias_mem, output_buffer);
     }
 
-    PointwiseConvolution3dOp(const BaseMklOpPtr& prev_op,
-                             DType* weights_buffer,
-                             DType* output_buffer,
-                             layer_t* _layer,
-                             int _batch_size,
-                             const mkldnn::engine& engine)
-            : BaseMklOp<DType>(_layer, _batch_size, engine) {
-        auto input_mem = prev_op->get_output_mem();
+    virtual void init(const BaseMklOp<DType>& prev_op,
+                      DType* weights_buffer,
+                      DType* output_buffer) {
+        auto input_mem = prev_op.get_output_mem();
         auto weight_mem = create_weight_memory(weights_buffer);
         auto bias_mem = create_bias_memory(weights_buffer);
 

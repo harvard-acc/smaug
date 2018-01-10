@@ -9,14 +9,12 @@ namespace nnet_mkl {
 template <typename DType>
 class InnerProductOp : public BaseMklOp<DType> {
    public:
-    InnerProductOp(DType* input_buffer,
-                   DType* weights_buffer,
-                   DType* output_buffer,
-                   layer_t* _layer,
-                   int _batch_size,
-                   const mkldnn::engine& engine)
-            : BaseMklOp<DType>(_layer, _batch_size, engine),
-              prev_layer(nullptr) {
+    using BaseMklOp<DType>::BaseMklOp;
+
+    virtual void init(DType* input_buffer,
+                      DType* weights_buffer,
+                      DType* output_buffer) {
+        prev_layer = nullptr;
         auto input_mem = create_input_memory(input_buffer);
         auto weight_mem = create_weight_memory(weights_buffer);
         auto bias_mem = create_bias_memory(weights_buffer);
@@ -25,15 +23,12 @@ class InnerProductOp : public BaseMklOp<DType> {
         create_primitive(input_mem, weight_mem, bias_mem, output_buffer);
     }
 
-    InnerProductOp(const BaseMklOpPtr& prev_op,
-                   DType* weights_buffer,
-                   DType* output_buffer,
-                   layer_t* _layer,
-                   int _batch_size,
-                   const mkldnn::engine& engine)
-            : BaseMklOp<DType>(_layer, _batch_size, engine),
-              prev_layer(prev_op->get_layer()) {
-        auto last_mem = prev_op->get_output_mem();
+
+    virtual void init(const BaseMklOp<DType>& prev_op,
+                      DType* weights_buffer,
+                      DType* output_buffer) {
+        prev_layer = prev_op.get_layer();
+        auto last_mem = prev_op.get_output_mem();
         // Batch norm layers have a requirement on the input dims which makes it
         // hard to chain with an upcoming FC layer, so we'll just skip chaining
         // for those.

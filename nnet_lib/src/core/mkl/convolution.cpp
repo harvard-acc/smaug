@@ -16,21 +16,14 @@ void convolution3d(float* inputs,
                    float* results,
                    device_t* device) {
     auto session = get_session(device);
+    auto op = std::make_unique<Convolution3dOp<dtype>>(
+            curr_layer, NUM_TEST_CASES, session->cpu());
     if (session->empty()) {
-        session->add_op(new Convolution3dOp<dtype>(inputs,
-                                                   weights,
-                                                   results,
-                                                   curr_layer,
-                                                   NUM_TEST_CASES,
-                                                   session->cpu()));
+        op->init(inputs, weights, results);
     } else {
-        session->add_op(new Convolution3dOp<dtype>(session->last_op(),
-                                                   weights,
-                                                   results,
-                                                   curr_layer,
-                                                   NUM_TEST_CASES,
-                                                   session->cpu()));
+        op->init(*session->last_op(), weights, results);
     }
+    session->push_back(std::move(op));
 }
 
 void depthwise_convolution3d(float* inputs,
@@ -39,21 +32,14 @@ void depthwise_convolution3d(float* inputs,
                              float* results,
                              device_t* device) {
     auto session = get_session(device);
+    auto op = std::make_unique<DepthwiseConvolution3dOp<dtype>>(
+            curr_layer, NUM_TEST_CASES, session->cpu());
     if (session->empty()) {
-        session->add_op(new DepthwiseConvolution3dOp<dtype>(inputs,
-                                                            weights,
-                                                            results,
-                                                            curr_layer,
-                                                            NUM_TEST_CASES,
-                                                            session->cpu()));
+        op->init(inputs, weights, results);
     } else {
-        session->add_op(new DepthwiseConvolution3dOp<dtype>(session->last_op(),
-                                                            weights,
-                                                            results,
-                                                            curr_layer,
-                                                            NUM_TEST_CASES,
-                                                            session->cpu()));
+        op->init(*session->last_op(), weights, results);
     }
+    session->push_back(std::move(op));
 }
 
 void pointwise_convolution3d(float* inputs,
@@ -62,21 +48,14 @@ void pointwise_convolution3d(float* inputs,
                              float* results,
                              device_t* device) {
     auto session = get_session(device);
+    auto op = std::make_unique<PointwiseConvolution3dOp<dtype>>(
+            curr_layer, NUM_TEST_CASES, session->cpu());
     if (session->empty()) {
-        session->add_op(new PointwiseConvolution3dOp<dtype>(inputs,
-                                                            weights,
-                                                            results,
-                                                            curr_layer,
-                                                            NUM_TEST_CASES,
-                                                            session->cpu()));
+        op->init(inputs, weights, results);
     } else {
-        session->add_op(new PointwiseConvolution3dOp<dtype>(session->last_op(),
-                                                            weights,
-                                                            results,
-                                                            curr_layer,
-                                                            NUM_TEST_CASES,
-                                                            session->cpu()));
+        op->init(*session->last_op(), weights, results);
     }
+    session->push_back(std::move(op));
 }
 
 }  // namespace nnet_mkl

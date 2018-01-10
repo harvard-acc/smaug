@@ -8,6 +8,16 @@
 
 #include "core/nnet_fwd_defs.h"
 #include "utility/profiling.h"
+#include "utility/utility.h"
+
+#if __cplusplus < 201402L
+namespace std {
+template <typename T, typename... Args>
+unique_ptr<T> make_unique(Args&&... args) {
+    return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
+}
+}
+#endif
 
 namespace nnet_mkl {
 
@@ -47,8 +57,21 @@ class BaseMklOp {
               output_idx(-1) {}
     virtual ~BaseMklOp() {}
 
-    virtual void run() {
+    // Run all operations in the worklist.
+    virtual void run_work() {
         mkldnn::stream(mkldnn::stream::kind::eager).submit(worklist).wait();
+    }
+
+    // Wrapper function for run_work() that prints out the result if
+    // DEBUG_LEVEL >= 2.
+    virtual void run() {
+        run_work();
+        PRINT_MSG("Result of layer %d:\n", layer->num);
+        PRINT_DEBUG4D(
+                reinterpret_cast<DType*>(get_output_mem().get_data_handle()),
+                layer->outputs.rows,
+                layer->outputs.cols + layer->outputs.align_pad,
+                layer->outputs.height);
     }
 
     // Return the list of primitives.
@@ -64,7 +87,7 @@ class BaseMklOp {
         return memories.at(output_idx)->get_primitive_desc().desc();
     }
 
-    const mkldnn::primitive& get_final_primitive() const {
+    virtual const mkldnn::primitive& get_final_primitive() const {
         return worklist.back();
     }
 
@@ -209,9 +232,10 @@ class BaseMklOp {
     int output_idx;
 };
 
-using BaseMklOpPtr = std::unique_ptr<BaseMklOp<dtype>>;
-
 class MklSession {
+   protected:
+    using BaseMklOpPtr = std::unique_ptr<BaseMklOp<dtype>>;
+
    public:
     MklSession() : _cpu(mkldnn::engine::cpu, 0) {}
 
@@ -242,7 +266,7 @@ class MklSession {
     // This merely forwards the constructor arguments to vector.emplace_back()
     // to construct the operation in-place.
     template <typename... Args>
-    void add_op(Args... args) {
+    void push_back(Args... args) {
         oplist.emplace_back(std::forward<Args...>(args...));
     }
 

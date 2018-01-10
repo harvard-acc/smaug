@@ -20,13 +20,11 @@ class BatchNormOp : public BaseMklOp<DType> {
     };
     static constexpr DType kEpsilon = mkl_traits<DType>::to_type(1e-5);
 
-    BatchNormOp(DType* input_buffer,
-                DType* weights_buffer,
-                DType* output_buffer,
-                layer_t* _layer,
-                int _batch_size,
-                const mkldnn::engine& engine)
-            : BaseMklOp<DType>(_layer, _batch_size, engine) {
+    using BaseMklOp<DType>::BaseMklOp;
+
+    virtual void init(DType* input_buffer,
+                      DType* weights_buffer,
+                      DType* output_buffer) {
         auto input_mem = create_input_memory(input_buffer);
         auto mean_mem = create_mean_memory(weights_buffer);
         auto variance_mem = create_variance_memory(weights_buffer);
@@ -38,18 +36,14 @@ class BatchNormOp : public BaseMklOp<DType> {
                 input_mem, mean_mem, variance_mem, scaleshift_mem, output_mem);
     }
 
-    BatchNormOp(const BaseMklOpPtr& prev_op,
-                DType* weights_buffer,
-                DType* output_buffer,
-                layer_t* _layer,
-                int _batch_size,
-                const mkldnn::engine& engine)
-            : BaseMklOp<DType>(_layer, _batch_size, engine) {
+    virtual void init(const BaseMklOp<DType>& prev_op,
+                      DType* weights_buffer,
+                      DType* output_buffer) {
         auto input_mem =
                 is_fc_output()
-                        ? create_input_memory((DType*)prev_op->get_output_mem()
+                        ? create_input_memory((DType*)prev_op.get_output_mem()
                                                       .get_data_handle())
-                        : prev_op->get_output_mem();
+                        : prev_op.get_output_mem();
         auto mean_mem = create_mean_memory(weights_buffer);
         auto variance_mem = create_variance_memory(weights_buffer);
         auto scaleshift_mem = create_scaleshift_memory(weights_buffer);

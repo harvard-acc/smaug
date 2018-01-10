@@ -16,21 +16,15 @@ void matrix_multiply_with_bias(float* inputs,
                                float* results,
                                device_t* device) {
     auto session = get_session(device);
+    auto op = std::make_unique<InnerProductOp<dtype>>(
+            curr_layer, NUM_TEST_CASES, session->cpu());
+
     if (session->empty()) {
-        session->add_op(new InnerProductOp<dtype>(inputs,
-                                                  weights,
-                                                  results,
-                                                  curr_layer,
-                                                  NUM_TEST_CASES,
-                                                  session->cpu()));
+        op->init(inputs, weights, results);
     } else {
-        session->add_op(new InnerProductOp<dtype>(session->last_op(),
-                                                  weights,
-                                                  results,
-                                                  curr_layer,
-                                                  NUM_TEST_CASES,
-                                                  session->cpu()));
+        op->init(*session->last_op(), weights, results);
     }
+    session->push_back(std::move(op));
 }
 
 }  // namespace nnet_mkl

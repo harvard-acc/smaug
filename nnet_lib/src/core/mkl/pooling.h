@@ -11,12 +11,9 @@ namespace nnet_mkl {
 template <typename DType, int PoolingType>
 class PoolingOp : public BaseMklOp<DType> {
    public:
-    PoolingOp(DType* input_buffer,
-              DType* output_buffer,
-              layer_t* _layer,
-              int _batch_size,
-              const mkldnn::engine& engine)
-            : BaseMklOp<DType>(_layer, _batch_size, engine) {
+    using BaseMklOp<DType>::BaseMklOp;
+
+    virtual void init(DType* input_buffer, DType* output_buffer) {
         auto input_mem = create_input_memory(input_buffer);
         auto output_mem = create_output_memory(output_buffer);
 
@@ -24,15 +21,11 @@ class PoolingOp : public BaseMklOp<DType> {
         create_primitive(input_mem, output_mem);
     }
 
-    PoolingOp(const BaseMklOpPtr& prev_op,
-              DType* output_buffer,
-              layer_t* _layer,
-              int _batch_size,
-              const mkldnn::engine& engine)
-            : BaseMklOp<DType>(_layer, _batch_size, engine) {
+    virtual void init(const BaseMklOp<DType>& prev_op,
+                      DType* output_buffer) {
         INFO_MSG("Pooling, chaining\n");
-        create_primitive(prev_op->get_final_primitive(),
-                         prev_op->get_output_mem_desc(),
+        create_primitive(prev_op.get_final_primitive(),
+                         prev_op.get_output_mem_desc(),
                          output_buffer);
     }
 
