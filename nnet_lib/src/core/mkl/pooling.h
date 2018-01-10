@@ -52,18 +52,31 @@ class PoolingOp : public BaseMklOp<DType> {
                  this->layer->inputs.cols + this->layer->inputs.align_pad };
     }
 
+    // Return the number of unpadded output columns.
+    //
+    // If the input to the MKL pooling operation is padded to a data alignment,
+    // then we have to make sure the output column size is with respect to this
+    // PADDED amount, or the pooling primitive will raise an error.
+    //
+    // This output column size may itself require additional data alignment
+    // padding, but we don't account for that here (see get_output_dims()).
+    int get_unpadded_output_cols() {
+        return compute_output_size(
+                this->layer->inputs.cols + this->layer->inputs.align_pad,
+                this->layer->weights.cols,
+                this->layer->field_stride);
+    }
+
     // Return a mem_dims object for the output, assuming nchw format.
     //
     // If the input to the MKL pooling operation is padded to a data alignment,
     // then we have to make sure the output column size is with respect to this
     // PADDED amount, or the pooling primitive will raise an error.
     mem_dims get_output_dims() {
-        int output_cols = compute_output_size(
-                this->layer->inputs.cols + this->layer->inputs.align_pad,
-                this->layer->weights.cols,
-                this->layer->field_stride);
+        int output_cols = get_unpadded_output_cols();
+        int output_pad = calc_padding(output_cols, DATA_ALIGNMENT);
         return { this->batch_size, this->layer->outputs.height,
-                 this->layer->outputs.rows, output_cols };
+                 this->layer->outputs.rows, output_cols + output_pad};
     }
 
     // Return a mem_dims object for the pooling dims.
@@ -95,7 +108,7 @@ class PoolingOp : public BaseMklOp<DType> {
 
         // If the output width, after accounting for the input padding, still
         // doesn't need padding, then we're also done.
-        int output_cols = get_output_dims()[3];
+        int output_cols = get_unpadded_output_cols();
         int add_output_pad = calc_padding(output_cols, DATA_ALIGNMENT);
         if (add_output_pad == 0)
             return { 0, 0 };
