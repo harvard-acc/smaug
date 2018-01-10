@@ -345,7 +345,7 @@ result_buf smiv_activation_function(float* activations,
                                     float* results,
                                     device_t* device) {
 #ifdef __cplusplus
-    begin_profiling("__IGNORE__", layer->num);
+    begin_ignored_profiling(layer->num);
     nnet_mkl::activation_fun(
             activations, NUM_TEST_CASES, layer, results, device);
     end_profiling();

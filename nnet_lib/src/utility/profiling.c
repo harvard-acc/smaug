@@ -106,6 +106,10 @@ void begin_profiling(const char* label, int layer_num) {
     entry->profile_data.start_time = get_nsecs();
 }
 
+void begin_ignored_profiling(int layer_num) {
+    begin_profiling("__IGNORE__", layer_num);
+}
+
 void end_profiling() {
     if (!profiling_enabled)
         return;

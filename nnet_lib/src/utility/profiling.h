@@ -72,6 +72,18 @@ uint64_t get_nsecs();
 // arguments.
 void begin_profiling(const char* label, int layer_num);
 
+// Start an ignored profiling section.
+//
+// An ignored section is one that is intended whose elapsed time should be
+// subtracted from its parent(s). We implement this by using a special label
+// for this section (since it's going to be ignored, using a more descriptive
+// name doesn't matter).
+//
+// Note that the elapsed time of an ignored section is not automatically
+// subtracted from its parents' elapsed times. This must be done by consumers
+// of the profiling log.
+void begin_ignored_profiling(int layer_num);
+
 // End profiling.
 //
 // This records the current time closes the last log entry's end_time field.
