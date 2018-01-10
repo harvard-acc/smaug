@@ -219,7 +219,7 @@ class MklSession {
     void run() {
         int i = 0;
         for (auto& op : oplist) {
-            begin_profiling(op->name().c_str(), i);
+            begin_profiling(op->name().c_str(), op->get_layer()->num);
             op->run();
             end_profiling();
             i++;
