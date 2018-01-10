@@ -27,7 +27,7 @@ float batch_norm_op(float input,
 // per activation.
 void batch_norm_post_fc_fxp(float* inputs,
                             float* weights,
-                            layer_t* curr_layer,
+                            const layer_t* curr_layer,
                             int batch_size,
                             float* result) {
     int i, j;
@@ -55,7 +55,7 @@ void batch_norm_post_fc_fxp(float* inputs,
 // gamma/beta per output feature map, not per activation.
 void batch_norm_post_conv_fxp(float* inputs,
                               float* weights,
-                              layer_t* curr_layer,
+                              const layer_t* curr_layer,
                               int batch_size,
                               float* result) {
     const int num_chans = curr_layer->inputs.height;
@@ -108,7 +108,7 @@ void batch_norm_post_conv_fxp(float* inputs,
 // Perform batch normalization on the data in @input.
 void batch_norm_fxp(float* inputs,
                     float* weights,
-                    layer_t* curr_layer,
+                    const layer_t* curr_layer,
                     int batch_size,
                     float* result) {
 

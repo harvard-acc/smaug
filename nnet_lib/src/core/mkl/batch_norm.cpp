@@ -14,7 +14,7 @@ void batch_norm(float* inputs,
                 float* results,
                 device_t* device) {
     auto session = get_session(device);
-    auto op = std::make_unique<BatchNormOp<dtype>>(
+    auto op = std::make_unique<PrecomputedBatchNormOp<dtype>>(
             curr_layer, NUM_TEST_CASES, session->cpu());
     if (session->empty()) {
         op->init(inputs, weights, results);

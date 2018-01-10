@@ -5,7 +5,7 @@
 
 void batch_norm_fxp(float* inputs,
                     float* weights,
-                    layer_t* curr_layer,
+                    const layer_t* curr_layer,
                     int batch_size,
                     float* result);
 

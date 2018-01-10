@@ -116,7 +116,10 @@ result_buf standard_convolution_layer(float* activations,
                                       float* result,
                                       device_t* device,
                                       sampling_param_t* sampling_param) {
-
+    // TODO: Consider pipelining activation function or pooling layer with
+    // convolution while the accelerator is running! This may require the use
+    // of pthreads (and the memory management could get messy too...), but it
+    // would get us more performance.
     float* current_layer_weights =
             weights + get_weights_loc_for_layer(layers, lnum);
     MAP_ARRAY_TO_ACCEL(kConvolutionHw, "host_weights", current_layer_weights,
@@ -340,9 +343,9 @@ result_buf batch_norm_layer(float* activations,
                            &layers[lnum]);
     } else {
         begin_profiling(__func__, lnum);
-        // By default, use the reference implementation.
-        // TODO: Replace this with an MKL implementation after we've made one
-        // that can take advantage of precomputed 1/sqrt(var).
+        // The reference implementation is faster than MKL since we can
+        // precompute some of the weights, and there's no way to implement this
+        // in MKL at the present moment.
         batch_norm_fxp(activations,
                        curr_layer_weights,
                        &layers[lnum],

@@ -6,7 +6,7 @@
 
 #include "mkldnn.hpp"
 
-#include "core/batch_norm.h"
+#include "core/ref/batch_norm.h"
 #include "core/mkl/batch_norm.h"
 #include "utility/init_data.h"
 #include "utility/utility.h"
@@ -47,11 +47,12 @@ int main(int argc, const char* argv[]) {
 
     int iterations = 1024;
     int batches = NUM_TEST_CASES;
+    int size = 128;
     layer_t layer;
     layer.type = BATCH_NORM;  // Assume previous layer was FC.
-    layer.inputs = { 64, 64, 1, 0 };
-    layer.outputs = { 64, 64, 1, 0 };
-    layer.weights = { 64 * 4, 64, 1, 0 };
+    layer.inputs = { size, size, 8, 0 };
+    layer.outputs = { size, size, 8, 0 };
+    layer.weights = { size * 4, size, 8, 0 };
     device_t device;
     nnet_mkl::MklSession* session = new nnet_mkl::MklSession();
     device.session = session;
@@ -72,7 +73,7 @@ int main(int argc, const char* argv[]) {
                     layer.weights.cols,
                     layer.weights.align_pad,
                     RANDOM,
-                    !use_mkl);
+                    true);
 
     auto start = std::chrono::high_resolution_clock::now();
 

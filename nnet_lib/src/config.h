@@ -76,7 +76,7 @@
 
 #elif ARCHITECTURE == MKLDNN
 #define DATA_ALIGNMENT 0
-#define PRECOMPUTE_BN_VARIANCE 0
+#define PRECOMPUTE_BN_VARIANCE 1
 #if TRANSPOSE_WEIGHTS == 0
 #error "MKL-DNN does not support nontransposed weights!"
 #endif
