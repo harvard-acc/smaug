@@ -543,11 +543,14 @@ static void read_device_parameters(cfg_t* all_opts, device_t* device) {
                 cfg_getstr(device_opts, "cpu_activation_func_offload"));
         device->use_hw_activation_func =
                 cfg_getbool(device_opts, "use_hw_activation_func");
+        device->use_hw_batch_norm =
+                cfg_getbool(device_opts, "use_hw_batch_norm");
     } else {
         device->cpu_default_offload = IO_DMA;
         device->cpu_pooling_offload = IO_DMA;
         device->cpu_activation_func_offload = IO_DMA;
         device->use_hw_activation_func = true;
+        device->use_hw_batch_norm = true;
     }
 }
 

@@ -286,22 +286,23 @@ void batch_norm_layer_hw(float* host_activations,
                          float* umem,
                          float* spad0,
                          float* spad1,
-                         layer_t* all_layers,
-                         int lnum) {
+                         layer_t* curr_layer) {
     // DMA in the weights (to UMEM)
     setReadyBits(umem, UMEM_SIZE, 0);
-    dmaLoad(umem, host_weights, WEIGHT_BYTES(all_layers, lnum));
+    dmaLoad(umem, host_weights, WEIGHT_BYTES(curr_layer, 0));
 
     // DMA in the inputs (to SPAD0)
-    if (all_layers[lnum].input_req == IO_DMA) {
-        grab_input_activations_dma(host_activations, spad0, &all_layers[lnum]);
+    if (curr_layer->input_req == IO_DMA) {
+        grab_input_activations_dma(host_activations, spad0, curr_layer);
     }
 
     // The main kernel
-    batch_norm_fxp(spad0, umem, &all_layers[lnum], NUM_TEST_CASES, spad1);
+    batch_norm_fxp(spad0, umem, curr_layer, NUM_TEST_CASES, spad1);
 
     // DMA out the result (from SPAD1)
-    store_output_activations_dma(host_result, spad1, &all_layers[lnum]);
+    if (curr_layer->output_req == IO_DMA) {
+        store_output_activations_dma(host_result, spad1, curr_layer);
+    }
 }
 
 result_buf batch_norm_layer(float* activations,
@@ -314,29 +315,41 @@ result_buf batch_norm_layer(float* activations,
     float* curr_layer_weights =
             weights + get_weights_loc_for_layer(layers, lnum);
 
-#ifdef SMIV_ENABLE_BN_HW
-    MAP_ARRAY_TO_ACCEL(kBatchNormHw, "host_activations", activations,
-                       INPUT_BYTES(layers, lnum));
-    MAP_ARRAY_TO_ACCEL(kBatchNormHw, "host_weights", curr_layer_weights,
-                       WEIGHT_BYTES(layers, lnum));
-    MAP_ARRAY_TO_ACCEL(kBatchNormHw, "host_result", result,
-                       OUTPUT_BYTES(layers, lnum));
-    INVOKE_KERNEL_PROF(kBatchNormHw, lnum, batch_norm_layer_hw, activations,
-                       curr_layer_weights, result, g_umem, g_spad0, g_spad1,
-                       layers, lnum);
-#else
-    begin_profiling(__func__, lnum);
-    // By default, use the reference implementation.
-    // TODO: Replace this with an MKL implementation after we've made one that
-    // can take advantage of precomputed 1/sqrt(var).
-    batch_norm_fxp(activations,
-                   curr_layer_weights,
-                   &layers[lnum],
-                   NUM_TEST_CASES,
-                   result);
-    end_profiling();
-#endif
-
+    if (device->use_hw_batch_norm) {
+        int weights_size = WEIGHT_BYTES(layers, lnum);
+        if (weights_size > UMEM_SIZE) {
+            fprintf(stderr, "[ERROR]: Batch norm weights are larger than the "
+                            "UMEM - not currently supported!\n");
+        }
+        assert(weights_size <= UMEM_SIZE);
+        int inputs_size = INPUT_BYTES(layers, lnum);
+        int outputs_size = OUTPUT_BYTES(layers, lnum);
+        assert(inputs_size == outputs_size);
+        if (inputs_size > SPAD_SIZE) {
+            fprintf(stderr, "[ERROR]: Batch norm inputs don't fit on the "
+                            "scratchpad!\n");
+        }
+        assert(inputs_size <= SPAD_SIZE);
+        MAP_ARRAY_TO_ACCEL(
+                kBatchNormHw, "host_activations", activations, inputs_size);
+        MAP_ARRAY_TO_ACCEL(
+                kBatchNormHw, "host_weights", curr_layer_weights, weights_size);
+        MAP_ARRAY_TO_ACCEL(kBatchNormHw, "host_result", result, outputs_size);
+        INVOKE_KERNEL_PROF(kBatchNormHw, lnum, batch_norm_layer_hw, activations,
+                           curr_layer_weights, result, g_umem, g_spad0, g_spad1,
+                           &layers[lnum]);
+    } else {
+        begin_profiling(__func__, lnum);
+        // By default, use the reference implementation.
+        // TODO: Replace this with an MKL implementation after we've made one
+        // that can take advantage of precomputed 1/sqrt(var).
+        batch_norm_fxp(activations,
+                       curr_layer_weights,
+                       &layers[lnum],
+                       NUM_TEST_CASES,
+                       result);
+        end_profiling();
+    }
     return result;
 }
 

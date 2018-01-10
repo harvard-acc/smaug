@@ -12,12 +12,15 @@ enum {
 
 // 1/sqrt(var + eps) is precomputed to avoid having to run a sqrt and division
 // in the ASIC.
+ALWAYS_INLINE
 float batch_norm_op(float input,
                     float mean,
                     float recip_sqrt_var,
                     float gamma,
                     float beta) {
-    return ((input - mean) * recip_sqrt_var) * gamma + beta;
+    float scale = recip_sqrt_var * gamma;
+    float shift = input - mean;
+    return shift * scale + beta;
 }
 
 // For batch norm following a FC layer, we have one pair of gamma/beta weights
@@ -90,7 +93,7 @@ void batch_norm_post_conv_fxp(float* inputs,
             bn_row:
             for (int r = 0; r < input_rows; r++) {
                 bn_col:
-                for (int c = 0; c < input_cols + input_align_pad; c++) {
+                for (int c = 0; c < input_cols; c++) {
                     _result[i][h][r][c] = batch_norm_op(_inputs[i][h][r][c],
                                                         mean,
                                                         recip_sqrt_var,

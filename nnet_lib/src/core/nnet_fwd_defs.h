@@ -155,6 +155,7 @@ typedef struct _device_t {
     io_req_t cpu_pooling_offload;
     io_req_t cpu_activation_func_offload;
     bool use_hw_activation_func;
+    bool use_hw_batch_norm;
     // An implementation can pass any pointer containing architecture specific
     // state that must be shared.
     void* session;
