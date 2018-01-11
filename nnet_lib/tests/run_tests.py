@@ -171,6 +171,11 @@ class Cifar10Tests(BaseTest):
     correct_output = "cifar10-keras-example.out"
     self.runAndValidate(model_file, correct_output)
 
+  def test_mobilenet(self):
+    model_file = "cifar10/mobilenet.conf"
+    correct_output = "cifar10-mobilenet.out"
+    self.runAndValidate(model_file, correct_output)
+
 class BatchNormTests(BaseTest):
   def test_minerva_bn(self):
     model_file = "mnist/minerva_bn.conf"
