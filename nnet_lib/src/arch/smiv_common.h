@@ -32,6 +32,7 @@ typedef struct _work_cfg_t {
 } work_cfg_t;
 typedef work_cfg_t fc_cfg_t;
 typedef work_cfg_t conv_cfg_t;
+typedef work_cfg_t pool_cfg_t;
 
 void init_work_cfg(work_cfg_t* cfg, unsigned num_iterations);
 void free_work_cfg(work_cfg_t* cfg);
@@ -42,6 +43,7 @@ extern unsigned kConvolutionHw;
 extern unsigned kInnerProductHw;
 extern unsigned kReductionHw;
 extern unsigned kBatchNormHw;
+extern unsigned kPoolingHw;
 
 // SMIV SRAM structures.
 extern float* g_umem;
@@ -80,6 +82,8 @@ void depthwise_convolution_layer_impl(float* host_activations,
                                       int lnum,
                                       float* host_result,
                                       device_t* device);
+
+void max_pooling_layer_impl(float* inputs, layer_t* curr_layer, float* results);
 
 #endif  // ARCHITECTURE == SMIV
 #endif

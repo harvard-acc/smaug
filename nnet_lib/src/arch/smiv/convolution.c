@@ -202,7 +202,7 @@ static conv_cfg_t convolution_divide_work(layer_t* layers, int lnum) {
         PRINT_MSG_V("We can fit at least 2 unreduced input channels at once.\n");
         init_work_cfg(&conv_cfgs,
                       ceil((float)input_channels / max_channels_per_iter));
-        unsigned total_channels = input_channels;
+        int total_channels = input_channels;
         for (unsigned i = 0; i < conv_cfgs.num_iterations; i++) {
             conv_cfgs.iteration[i].rows = layers[lnum].inputs.rows;
             conv_cfgs.iteration[i].cols = layers[lnum].inputs.cols;

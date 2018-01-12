@@ -62,9 +62,9 @@ void print_work_cfg(work_cfg_t* cfg) {
     }
 }
 
-// Use the same accelerator id for both the convolutional and FC blocks. This
-// means we will simulate only ONE datapath instead of two, which means that
-// the two blocks can share the scratchpads (without any more infrastructure
+// Use the same accelerator id for all hardware blocks. This means we will
+// simulate only ONE datapath instead of multiple, which means that the two
+// blocks can share the scratchpads (without any infrastructure
 // changes). The key is that we still trace the functions at the _hw level, so
 // that Aladdin will exit after simulating each block, and we can return
 // control to the CPU at the right places.  In contrast, if we used two
@@ -74,6 +74,7 @@ unsigned kConvolutionHw = 0x0003;
 unsigned kInnerProductHw = 0x0003;
 unsigned kReductionHw = 0x0003;
 unsigned kBatchNormHw = 0x0003;
+unsigned kPoolingHw = 0x0003;
 
 result_buf flatten_input(float* activations,
                          layer_t* layers,
@@ -261,25 +262,37 @@ result_buf pooling_layer(float* activations,
                          device_t* device,
                          sampling_param_t* sampling_param) {
     layer_t curr_layer = layers[lnum];
+    if (device->use_hw_pooling) {
+        if (curr_layer.pool == MAX) {
+            max_pooling_layer_impl(activations, &layers[lnum], result);
+        } else {
+            // Reference implementation.
+            avg_pooling(activations, result, layers[lnum]);
+        }
+    } else {
 #ifdef __cplusplus
-    if (curr_layer.pool == MAX) {
-        nnet_mkl::max_pooling_3d(activations, &layers[lnum], result, device);
-    } else if (curr_layer.pool == AVG) {
-        nnet_mkl::avg_pooling_3d(activations, &layers[lnum], result, device);
-    } else {
-        assert(false && "Unsupported pooling layer type!");
-    }
-    nnet_mkl::MklSession* session = nnet_mkl::get_session(device);
-    session->run_and_clear();
+        if (curr_layer.pool == MAX) {
+            nnet_mkl::max_pooling_3d(
+                    activations, &layers[lnum], result, device);
+        } else if (curr_layer.pool == AVG) {
+            nnet_mkl::avg_pooling_3d(
+                    activations, &layers[lnum], result, device);
+        } else {
+            assert(false && "Unsupported pooling layer type!");
+        }
+        nnet_mkl::MklSession* session = nnet_mkl::get_session(device);
+        session->run_and_clear();
 #else
-    if (curr_layer.pool == MAX) {
-        max_pooling(activations, result, layers[lnum]);
-    } else if (curr_layer.pool == AVG) {
-        avg_pooling(activations, result, layers[lnum]);
-    } else {
-        assert(false && "Unsupported pooling layer type!");
-    }
+        // This code should only get run by the tracer.
+        if (curr_layer.pool == MAX) {
+            max_pooling(activations, result, layers[lnum]);
+        } else if (curr_layer.pool == AVG) {
+            avg_pooling(activations, result, layers[lnum]);
+        } else {
+            assert(false && "Unsupported pooling layer type!");
+        }
 #endif
+    }
     return result;
 }
 

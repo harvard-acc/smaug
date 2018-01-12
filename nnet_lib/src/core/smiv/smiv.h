@@ -24,4 +24,7 @@ void batch_norm_simd_fxp(float* inputs,
                          const layer_t* curr_layer,
                          int batch_size,
                          float* result);
+
+void maxpooling_nhwc_smiv_fxp(float* inputs, layer_t curr_layer, float* results);
+
 #endif
