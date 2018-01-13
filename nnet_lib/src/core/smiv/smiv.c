@@ -19,12 +19,14 @@ void reduction_smiv(float* a, layer_t curr_layer, float* result) {
 void convolution3d_smiv(float* a,
                         float* kernels,
                         layer_t curr_layer,
+                        int start_chan,
                         float* result) {
 #ifdef ENABLE_SIMD_IMPL
     convolution3d_smiv_1kernel_noreduce_simd_fxp(
-            a, kernels, curr_layer, result);
+            a, kernels, curr_layer, start_chan, result);
 #else
-    convolution3d_smiv_1kernel_noreduce_fxp(a, kernels, curr_layer, result);
+    convolution3d_smiv_1kernel_noreduce_fxp(
+        a, kernels, curr_layer, start_chan, result);
 #endif
 }
 

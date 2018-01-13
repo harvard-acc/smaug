@@ -6,11 +6,13 @@
 void convolution3d_smiv_1kernel_noreduce_fxp(float* a,
                                              float* kernels,
                                              layer_t curr_layer,
+                                             int start_chan,
                                              float* result);
 
 void convolution3d_smiv_1kernel_noreduce_simd_fxp(float* a,
                                                   float* kernels,
                                                   layer_t curr_layer,
+                                                  int start_chan,
                                                   float* result);
 
 void reduction_smiv_fxp(float* a, layer_t curr_layer, float* result);

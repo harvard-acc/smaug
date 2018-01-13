@@ -13,30 +13,21 @@
 
 #if ARCHITECTURE == SMIV
 
-void reduction_hw_impl(float* spad0,
-                       float* spad1,
-                       float* local_result,
-                       bool input_in_spad0,
+void reduction_hw_impl(float* inputs,
+                       float* results,
                        bool needs_input_load,
                        layer_t partial_layer,
                        size_t result_size,
                        float* host_result) {
+    // This is only required if we want to initiate a final round of reduction.
     if (needs_input_load) {
         size_t input_bytes =
                 result_size * partial_layer.inputs.height * sizeof(float);
-        if (input_in_spad0) {
-            setReadyBits(spad0, input_bytes, 0);
-            dmaLoad(spad0, host_result, input_bytes);
-        } else {
-            setReadyBits(spad1, input_bytes, 0);
-            dmaLoad(spad1, host_result, input_bytes);
-        }
+        setReadyBits(inputs, input_bytes, 0);
+        dmaLoad(inputs, host_result, input_bytes);
     }
 
-    if (input_in_spad0)
-        reduction_smiv(spad0, partial_layer, local_result);
-    else
-        reduction_smiv(spad1, partial_layer, local_result);
+    reduction_smiv(inputs, partial_layer, results);
 }
 
 // Default Reduction module.
@@ -50,12 +41,28 @@ void reduction_hw(float* spad0,
                   layer_t partial_layer,
                   size_t result_size,
                   float* host_result) {
-    reduction_hw_impl(spad0, spad1, umem, input_in_spad0, needs_input_load,
-                      partial_layer, result_size, host_result);
-
-    if (partial_layer.output_req == IO_DMA) {
-        dmaStore(host_result, umem, result_size * sizeof(float));
+    if (input_in_spad0) {
+        reduction_hw_impl(spad0,
+                          spad1,
+                          needs_input_load,
+                          partial_layer,
+                          result_size,
+                          host_result);
+        if (partial_layer.output_req == IO_DMA) {
+            dmaStore(host_result, spad1, result_size * sizeof(float));
+        }
+    } else {
+        reduction_hw_impl(spad1,
+                          spad0,
+                          needs_input_load,
+                          partial_layer,
+                          result_size,
+                          host_result);
+        if (partial_layer.output_req == IO_DMA) {
+            dmaStore(host_result, spad0, result_size * sizeof(float));
+        }
     }
+
 }
 
 // ACP reduction module.
@@ -73,8 +80,21 @@ void reduction_acp_hw(float* spad0,
                       bool needs_input_load,
                       layer_t partial_layer,
                       size_t result_size) {
-    reduction_hw_impl(spad0, spad1, acp_result, input_in_spad0,
-                      needs_input_load, partial_layer, result_size, acp_result);
+    if (input_in_spad0) {
+        reduction_hw_impl(spad0,
+                          acp_result,
+                          needs_input_load,
+                          partial_layer,
+                          result_size,
+                          acp_result);
+    } else {
+        reduction_hw_impl(spad1,
+                          acp_result,
+                          needs_input_load,
+                          partial_layer,
+                          result_size,
+                          acp_result);
+    }
 }
 
 static void convolution_layer_hw(float* host_activations,
@@ -117,18 +137,20 @@ static void convolution_layer_hw(float* host_activations,
                 num_weights * sizeof(float));
     }
     if (partial_layer.input_req == IO_DMA) {
+        // Read in ALL channels of the input into the UMEM at once, so that we
+        // can reuse them on subsequent output channels.
         size_t num_input_pixels =
-                partial_layer.inputs.rows * partial_layer.inputs.height *
+                partial_layer.inputs.rows * curr_layer.inputs.height *
                 (partial_layer.inputs.cols + partial_layer.inputs.align_pad);
         setReadyBits(umem, num_input_pixels * sizeof(float), 0);
-        dmaLoad(umem, &_a[img][start_chan][0][0],
+        dmaLoad(umem, &_a[img][0][0][0],
                 num_input_pixels * sizeof(float));
     }
 
     if (input_in_spad0)
-        convolution3d_smiv(umem, spad0, partial_layer, spad1);
+        convolution3d_smiv(umem, spad0, partial_layer, start_chan, spad1);
     else
-        convolution3d_smiv(umem, spad1, partial_layer, spad0);
+        convolution3d_smiv(umem, spad1, partial_layer, start_chan, spad0);
 
     if (partial_layer.output_req == IO_DMA) {
         size_t num_output_pixels =
@@ -276,6 +298,9 @@ void standard_convolution_layer_impl(float* host_activations,
                                 ? NO_ACTIVATION
                                 : curr_layer.activation;
                 partial_layer.output_req = IO_NONE;
+                // We only need to send the inputs to the UMEM on the first
+                // kernel.
+                partial_layer.input_req = (kern == 0) ? IO_DMA : IO_NONE;
                 INVOKE_KERNEL_PROF(kConvolutionHw, lnum, convolution_layer_hw,
                                    host_activations, host_weights, NULL, g_umem,
                                    g_spad0, g_spad1, true, layers,

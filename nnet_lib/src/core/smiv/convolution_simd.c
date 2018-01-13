@@ -129,6 +129,7 @@ static v8fp_t merge_psums_simd_fxp(v8fp_t psums_0,
 //   a: 3D array, indexed as [channel][row][col].
 //   kernels: A 3D kernel, indexed as [channel][row][col].
 //   curr_layer: Layer (or partial layer) configuration.
+//   start_chan: Start reading the input from this channel.
 //   result: a 3D array indexed as [channel][row][col].
 //
 // Returns:
@@ -136,6 +137,7 @@ static v8fp_t merge_psums_simd_fxp(v8fp_t psums_0,
 void convolution3d_smiv_1kernel_noreduce_simd_fxp(float* a,
                                                   float* kernels,
                                                   layer_t curr_layer,
+                                                  int start_chan,
                                                   float* result) {
     int in_row, in_col, in_chan, out_row, out_col, kern_row;
     unsigned j;
@@ -235,11 +237,13 @@ void convolution3d_smiv_1kernel_noreduce_simd_fxp(float* a,
                     };
 
                     // Load activations into shift registers.
-                    v8fp_t act_temp = _a[in_chan][in_row + kern_row][in_col];
+                    v8fp_t act_temp =
+                            _a[in_chan + start_chan][in_row + kern_row][in_col];
                     pipe0_shift_reg[0] = act_temp;
                     pipe1_shift_reg[0] = act_temp;
                     if (!(has_boundary_case && in_col == end_col_marker)) {
-                        act_temp = _a[in_chan][in_row + kern_row][in_col + 1];
+                        act_temp = _a[in_chan + start_chan][in_row + kern_row]
+                                     [in_col + 1];
                         pipe0_shift_reg[1] = act_temp;
                         pipe1_shift_reg[1] = act_temp;
                     }

@@ -16,6 +16,7 @@ void reduction_smiv(float* a, layer_t curr_layer, float* result);
 void convolution3d_smiv(float* a,
                         float* kernels,
                         layer_t curr_layer,
+                        int start_chan,
                         float* result);
 
 #endif

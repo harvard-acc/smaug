@@ -104,6 +104,7 @@ static void merge_psums_fxp(float psums_0[VECTOR_SIZE],
 //   a: 3D array, indexed as [channel][row][col].
 //   kernels: A 3D kernel, indexed as [channel][row][col].
 //   curr_layer: Layer (or partial layer) configuration.
+//   start_chan: Start reading the input from this channel.
 //   result: a 3D array indexed as [channel][row][col].
 //
 // Returns:
@@ -111,6 +112,7 @@ static void merge_psums_fxp(float psums_0[VECTOR_SIZE],
 void convolution3d_smiv_1kernel_noreduce_fxp(float* a,
                                              float* kernels,
                                              layer_t curr_layer,
+                                             int start_chan,
                                              float* result) {
     int in_row, in_col, in_chan, out_row, out_col, sr, kern_row;
     unsigned j;
@@ -210,18 +212,22 @@ void convolution3d_smiv_1kernel_noreduce_fxp(float* a,
                     conv2d_load_sr_pipe0:
                     for (sr = 0; sr < min2(VECTOR_SIZE, a_width - in_col); sr++) {
                         pipe0_shift_reg[sr] =
-                                _a[in_chan][in_row + kern_row][in_col + sr];
+                                _a[in_chan + start_chan][in_row + kern_row]
+                                  [in_col + sr];
                         pipe1_shift_reg[sr] =
-                                _a[in_chan][in_row + kern_row][in_col + sr];
+                                _a[in_chan + start_chan][in_row + kern_row]
+                                  [in_col + sr];
                     }
                     if (!(has_boundary_case && in_col == end_col_marker)) {
                         conv2d_load_sr_pipe1:
                         for (sr = 8; sr < min2(SHIFT_REG_SIZE, a_width - in_col);
                              sr++) {
                             pipe0_shift_reg[sr] =
-                                    _a[in_chan][in_row + kern_row][in_col + sr];
+                                    _a[in_chan + start_chan][in_row + kern_row]
+                                      [in_col + sr];
                             pipe1_shift_reg[sr] =
-                                    _a[in_chan][in_row + kern_row][in_col + sr];
+                                    _a[in_chan + start_chan][in_row + kern_row]
+                                      [in_col + sr];
                         }
                     }
 
