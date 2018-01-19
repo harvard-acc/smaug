@@ -12,13 +12,6 @@ namespace nnet_mkl {
 template <typename DType>
 class BatchNormOp : public BaseMklOp<DType> {
    public:
-    // Weights are organized in blocks in this order.
-    enum WeightsIndex {
-        MeanIndex,
-        VarianceIndex,
-        ScaleshiftIndex,  // Gamma, then beta.
-        NumWeightTypes
-    };
     static constexpr DType kEpsilon = mkl_traits<DType>::to_type(1e-5);
 
     using BaseMklOp<DType>::BaseMklOp;

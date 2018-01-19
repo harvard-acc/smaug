@@ -15,7 +15,8 @@ CORE_SRCS = core/ref/activation_functions.c \
 						core/smiv/convolution.c \
 						core/smiv/convolution_simd.c \
 						core/smiv/matrix_multiply.c \
-						core/smiv/reduction.c
+						core/smiv/reduction.c \
+						core/smiv/batch_norm.c
 
 UTILITY_SRCS = utility/init_data.c \
 							 utility/utility.c \

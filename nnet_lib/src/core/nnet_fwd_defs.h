@@ -82,6 +82,15 @@ typedef enum _io_req_t {
   IO_CACHE = 3,
 } io_req_t;
 
+typedef enum _bn_weights_idx {
+    MeanIndex,
+    VarianceIndex,
+    GammaIndex,
+    ScaleshiftIndex = GammaIndex,  // for MKL.
+    BetaIndex,
+    NumWeightTypes
+} bn_weights_idx;
+
 // Description of a layer in a neural network.
 //
 // TODO: Due to Aladdin's requirement to specify a word size for arrays, all

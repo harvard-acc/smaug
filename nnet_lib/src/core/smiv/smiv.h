@@ -19,4 +19,9 @@ void convolution3d_smiv(float* a,
                         int start_chan,
                         float* result);
 
+void batch_norm_simd_fxp(float* inputs,
+                         float* weights,
+                         const layer_t* curr_layer,
+                         int batch_size,
+                         float* result);
 #endif

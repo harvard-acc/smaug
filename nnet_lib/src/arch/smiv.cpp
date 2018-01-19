@@ -300,7 +300,11 @@ void batch_norm_layer_hw(float* host_activations,
     }
 
     // The main kernel
+#ifdef ENABLE_SIMD_IMPL
+    batch_norm_simd_fxp(spad0, umem, curr_layer, NUM_TEST_CASES, spad1);
+#else
     batch_norm_fxp(spad0, umem, curr_layer, NUM_TEST_CASES, spad1);
+#endif
 
     // DMA out the result (from SPAD1)
     if (curr_layer->output_req == IO_DMA) {

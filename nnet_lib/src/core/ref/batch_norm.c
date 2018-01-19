@@ -1,14 +1,6 @@
 #include "core/ref/batch_norm.h"
+#include "core/nnet_fwd_defs.h"
 #include "utility/utility.h"
-#include "nnet_fwd.h"
-
-// The weights are divided into four blocks.
-enum {
-  MEAN,
-  VARIANCE,
-  GAMMA,
-  BETA
-};
 
 // 1/sqrt(var + eps) is precomputed to avoid having to run a sqrt and division
 // in the ASIC.
@@ -41,10 +33,10 @@ void batch_norm_post_fc_fxp(float* inputs,
     for (i = 0; i < batch_size; i++) {
         bn_input:
         for (j = 0; j < input_size; j++) {
-            float mean = _weights[MEAN][j];
-            float recip_sqrt_var = _weights[VARIANCE][j];
-            float gamma = _weights[GAMMA][j];
-            float beta = _weights[BETA][j];
+            float mean = _weights[MeanIndex][j];
+            float recip_sqrt_var = _weights[VarianceIndex][j];
+            float gamma = _weights[GammaIndex][j];
+            float beta = _weights[BetaIndex][j];
             _result[i][j] = batch_norm_op(
                     _inputs[i][j], mean, recip_sqrt_var, gamma, beta);
         }
@@ -85,10 +77,10 @@ void batch_norm_post_conv_fxp(float* inputs,
     for (int i = 0; i < batch_size; i++) {
         bn_chan:
         for (int h = 0; h < num_chans; h++) {
-            float mean = _weights[MEAN][h];
-            float recip_sqrt_var = _weights[VARIANCE][h];
-            float gamma = _weights[GAMMA][h];
-            float beta = _weights[BETA][h];
+            float mean = _weights[MeanIndex][h];
+            float recip_sqrt_var = _weights[VarianceIndex][h];
+            float gamma = _weights[GammaIndex][h];
+            float beta = _weights[BetaIndex][h];
 
             bn_row:
             for (int r = 0; r < input_rows; r++) {
