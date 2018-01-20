@@ -532,6 +532,10 @@ const char* io_req_to_str(io_req_t value) {
     return NONE_TYPE;
 }
 
+const char* bool_to_yesno(bool value) {
+    return value ? "yes" : "no";
+}
+
 static void read_device_parameters(cfg_t* all_opts, device_t* device) {
     if (cfg_size(all_opts, "device") != 0) {
         cfg_t* device_opts = cfg_getsec(all_opts, "device");
@@ -545,12 +549,14 @@ static void read_device_parameters(cfg_t* all_opts, device_t* device) {
                 cfg_getbool(device_opts, "use_hw_activation_func");
         device->use_hw_batch_norm =
                 cfg_getbool(device_opts, "use_hw_batch_norm");
+        device->use_hw_pooling = cfg_getbool(device_opts, "use_hw_pooling");
     } else {
         device->cpu_default_offload = IO_DMA;
         device->cpu_pooling_offload = IO_DMA;
         device->cpu_activation_func_offload = IO_DMA;
         device->use_hw_activation_func = true;
-        device->use_hw_batch_norm = true;
+        device->use_hw_batch_norm = false;
+        device->use_hw_pooling = false;
     }
 }
 
@@ -654,11 +660,15 @@ static void print_device_config(device_t* device) {
            "   Default: %s\n"
            "   Pooling: %s\n"
            "   Activation function: %s\n"
-           "   Use HW activation function: %s\n",
+           "   Use HW activation function: %s\n"
+           "   Use HW batch norm: %s\n"
+           "   Use HW pooling: %s\n",
            io_req_to_str(device->cpu_default_offload),
            io_req_to_str(device->cpu_pooling_offload),
            io_req_to_str(device->cpu_activation_func_offload),
-           device->use_hw_activation_func ? "yes" : "no");
+           bool_to_yesno(device->use_hw_activation_func),
+           bool_to_yesno(device->use_hw_batch_norm),
+           bool_to_yesno(device->use_hw_pooling));
 }
 
 static void print_sampling_param(sampling_param_t* sampling_param) {
