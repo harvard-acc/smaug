@@ -135,3 +135,110 @@ dims_t convert_nhwc_to_nchw(float* input,
 
     return nchw;
 }
+
+// Compute the size in elements required store a block of NCHW data in blocked
+// NHWC format.
+size_t compute_blocked_nhwc_size(dims_t* input_dims,
+                                int block_size,
+                                int data_alignment) {
+    // Determine how large the final converted result will be.
+    const int num_blocks = ceil(((float)input_dims->height) / block_size);
+    const int per_channel_size = input_dims->rows * input_dims->cols;
+    const int last_block_size = input_dims->height % block_size;
+    const int padded_block_size =
+            block_size + calc_padding(block_size, data_alignment);
+    return (num_blocks * padded_block_size + last_block_size) *
+            per_channel_size;
+}
+
+// Convert NCHW to blocked-channel NHWC format.
+//
+// The result has five logical dimensions:
+//   0: N
+//   1: Block number
+//   2: H
+//   3: W
+//   4: C within the block.
+//
+// Args:
+//   input: The input data.
+//   num_inputs: Value of N.
+//   block_size: Desired block size.
+//   input_dims: Input dimensions in NCHW format.
+//   data_alignment: The desired alignment for the innermost dim.
+//   result: Pointer to output data buffer. If NULL, this routine will malloc
+//      aligned memory and update this pointer.
+int convert_nchw_to_blocked_nhwc(float* input,
+                                 int num_inputs,
+                                 int block_size,
+                                 dims_t input_dims,
+                                 unsigned data_alignment,
+                                 float** result) {
+    const int num_blocks = ceil(((float)input_dims.height) / block_size);
+    if (*result == NULL) {
+        const size_t size = compute_blocked_nhwc_size(
+                &input_dims, block_size, data_alignment);
+        *result = (float*)malloc_aligned(size * sizeof(float));
+    }
+
+    dims_t block_dims = input_dims;
+    float* curr_src = input;
+    float* curr_dst = *result;
+    int channels_remaining = input_dims.height;
+    while (channels_remaining > 0) {
+        block_dims.height = min2(block_size, channels_remaining);
+        dims_t nhwc = convert_nchw_to_nhwc(curr_src,
+                                           num_inputs,
+                                           block_dims,
+                                           data_alignment,
+                                           &curr_dst);
+        curr_src += get_dims_size(&block_dims);
+        curr_dst += get_dims_size(&nhwc);
+        channels_remaining -= block_size;
+    }
+    return num_blocks;
+}
+
+// Convert blocked-channel NHWC format to NCHW.
+//
+// Args:
+//   input: The input data.
+//   num_inputs: Value of N.
+//   block_size: Current block size.
+//   output_dims: Input dimensions in NHWC format, where C is the total number
+//     of channels.
+//   data_alignment: The desired alignment for the innermost dim.
+//   result: Pointer to output data buffer. If NULL, this routine will malloc
+//      aligned memory and update this pointer.
+int convert_blocked_nhwc_to_nchw(float* input,
+                                 int num_inputs,
+                                 int block_size,
+                                 dims_t input_dims,
+                                 unsigned data_alignment,
+                                 float** result) {
+    if (*result == NULL) {
+        // Determine how large the final converted result will be.
+        dims_t nchw = nhwc_to_nchw_dims(&input_dims, data_alignment);
+        const int total_converted_size = get_dims_size(&nchw);
+        *result = (float*)malloc_aligned(total_converted_size * sizeof(float));
+    }
+
+    const int num_blocks = ceil(((float)input_dims.cols) / block_size);
+    dims_t block_dims = input_dims;
+    float* curr_src = input;
+    float* curr_dst = *result;
+    int channels_remaining = input_dims.cols;
+    while (channels_remaining > 0) {
+        block_dims.cols = min2(block_size, channels_remaining);
+        block_dims.align_pad = calc_padding(block_dims.cols, data_alignment);
+        dims_t nchw = convert_nhwc_to_nchw(curr_src,
+                                           num_inputs,
+                                           block_dims,
+                                           data_alignment,
+                                           &curr_dst);
+        curr_src += get_dims_size(&block_dims);
+        curr_dst += get_dims_size(&nchw);
+        channels_remaining -= block_size;
+    }
+    return num_blocks;
+}
