@@ -61,7 +61,7 @@ ARCH ?= MONOLITHIC
 
 ifeq ($(ARCH), SMIV)
 EXEC = nnet-smiv
-export WORKLOAD=inner_product_layer_hw,inner_product_layer_acp_hw,convolution_layer_hw,activation_hw,reduction_hw,reduction_acp_hw,batch_norm_layer_hw
+export WORKLOAD=inner_product_layer_hw,inner_product_layer_acp_hw,convolution_layer_hw,activation_hw,reduction_hw,reduction_acp_hw,batch_norm_layer_hw,max_pooling_layer_hw
 SRCS += $(NNET_FWD_MAIN)
 else ifeq	($(ARCH), COMPOSABLE)
 EXEC = nnet-composable

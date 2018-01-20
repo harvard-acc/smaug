@@ -43,7 +43,10 @@ SRCS += arch/monolithic.c
 else ifeq ($(ARCH), COMPOSABLE)
 SRCS += arch/composable.c
 else ifeq ($(ARCH), SMIV)
-SRCS += arch/smiv.c arch/smiv/inner_product.c arch/smiv/convolution.c
+SRCS += arch/smiv.c \
+				arch/smiv/inner_product.c \
+				arch/smiv/convolution.c \
+				arch/smiv/pooling.c
 endif
 SUBBUILDDIRS = $(patsubst %, $(BUILD_DIR)/%, $(MODULES))
 
