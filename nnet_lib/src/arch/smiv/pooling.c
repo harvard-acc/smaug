@@ -26,7 +26,7 @@ void max_pooling_layer_hw(float* host_activations,
         dmaLoad(spad0, host_activations, partial_input_size * sizeof(float));
     }
 
-    maxpooling_nhwc_smiv_fxp(spad0, partial_layer, spad1);
+    maxpooling_nhwc_smiv(spad0, partial_layer, spad1);
 
     if (partial_layer.output_req == IO_DMA) {
         size_t partial_output_size = partial_layer.outputs.rows *
