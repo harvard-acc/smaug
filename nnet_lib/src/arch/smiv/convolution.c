@@ -197,7 +197,7 @@ static conv_cfg_t convolution_divide_work(layer_t* layers, int lnum) {
             sizeof(float);
     unsigned input_channels = layers[lnum].inputs.height;
 
-    unsigned max_channels_per_iter = SPAD_SIZE / output_channel_size;
+    int max_channels_per_iter = SPAD_SIZE / output_channel_size;
     if (max_channels_per_iter >= 2) {
         PRINT_MSG_V("We can fit at least 2 unreduced input channels at once.\n");
         init_work_cfg(&conv_cfgs,
@@ -341,8 +341,8 @@ void standard_convolution_layer_impl(float* host_activations,
                              (float)SPAD_SIZE);
                 assert(result_iter <= 1 &&
                        "Only support 1 last iteration of reduction!");
-                int num_result_chans = min2(
-                        conv_cfgs.num_iterations, SPAD_SIZE / result_2d_size);
+                int num_result_chans = min2((int)conv_cfgs.num_iterations,
+                                            SPAD_SIZE / result_2d_size);
 
                 // Create a new layer description for this iteration.
                 layer_t partial_layer = curr_layer;

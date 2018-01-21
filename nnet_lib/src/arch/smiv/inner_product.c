@@ -348,7 +348,6 @@ void inner_product_layer_impl_rowwise(float* host_activations,
     bool needs_multiple_iter = (fc_cfgs.num_iterations > 1);
     bool do_bias_in_software =
             fc_cfgs.iteration[fc_cfgs.num_iterations - 1].rows == 1;
-    bool run_activation_in_software = needs_multiple_iter;
 
     // Holds a contiguous column of inputs and the partial results. If work
     // division is required, then each iteration's chunk of inputs is copied
