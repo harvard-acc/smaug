@@ -263,12 +263,7 @@ result_buf pooling_layer(float* activations,
                          sampling_param_t* sampling_param) {
     layer_t curr_layer = layers[lnum];
     if (device->use_hw_pooling) {
-        if (curr_layer.pool == MAX) {
-            max_pooling_layer_impl(activations, &layers[lnum], result);
-        } else {
-            // Reference implementation.
-            avg_pooling(activations, result, layers[lnum]);
-        }
+        pooling_layer_impl(activations, &layers[lnum], result);
     } else {
 #ifdef __cplusplus
         if (curr_layer.pool == MAX) {

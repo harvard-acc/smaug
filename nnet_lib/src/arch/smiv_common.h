@@ -83,7 +83,7 @@ void depthwise_convolution_layer_impl(float* host_activations,
                                       float* host_result,
                                       device_t* device);
 
-void max_pooling_layer_impl(float* inputs, layer_t* curr_layer, float* results);
+void pooling_layer_impl(float* inputs, layer_t* curr_layer, float* results);
 
 #endif  // ARCHITECTURE == SMIV
 #endif

@@ -12,13 +12,13 @@
 #include "gem5_harness.h"
 #endif
 
-void max_pooling_layer_hw(float* host_activations,
-                          float* host_results,
-                          float* umem,
-                          float* spad0,
-                          float* spad1,
-                          layer_t partial_layer,
-                          int iteration_offset) {
+void pooling_layer_hw(float* host_activations,
+                      float* host_results,
+                      float* umem,
+                      float* spad0,
+                      float* spad1,
+                      layer_t partial_layer,
+                      int iteration_offset) {
     if (partial_layer.input_req == IO_DMA) {
         size_t partial_input_size =
                 partial_layer.inputs.rows * partial_layer.inputs.cols *
@@ -26,7 +26,10 @@ void max_pooling_layer_hw(float* host_activations,
         dmaLoad(spad0, host_activations, partial_input_size * sizeof(float));
     }
 
-    maxpooling_nhwc_smiv(spad0, partial_layer, spad1);
+    if (partial_layer.pool == MAX)
+        maxpooling_nhwc_smiv(spad0, partial_layer, spad1);
+    else
+        avgpooling_nhwc_smiv(spad0, partial_layer, spad1);
 
     if (partial_layer.output_req == IO_DMA) {
         size_t partial_output_size = partial_layer.outputs.rows *
@@ -92,9 +95,7 @@ pool_cfg_t pooling_divide_work(layer_t* curr_layer) {
     return pool_cfgs;
 }
 
-void max_pooling_layer_impl(float* inputs,
-                            layer_t* curr_layer,
-                            float* results) {
+void pooling_layer_impl(float* inputs, layer_t* curr_layer, float* results) {
     pool_cfg_t pool_cfgs = pooling_divide_work(curr_layer);
 
     float* nhwc_inputs = NULL;
@@ -141,7 +142,7 @@ void max_pooling_layer_impl(float* inputs,
 
             INVOKE_KERNEL_PROF(kPoolingHw,
                                curr_layer->num,
-                               max_pooling_layer_hw,
+                               pooling_layer_hw,
                                current_inputs,
                                current_results,
                                g_umem,

@@ -26,5 +26,6 @@ void batch_norm_simd_fxp(float* inputs,
                          float* result);
 
 void maxpooling_nhwc_smiv(float* inputs, layer_t curr_layer, float* results);
+void avgpooling_nhwc_smiv(float* inputs, layer_t curr_layer, float* results);
 
 #endif
