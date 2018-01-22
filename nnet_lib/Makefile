@@ -74,4 +74,4 @@ clean-perftests:
 
 gem5: gem5-cpu gem5-accel
 
-clean: clean-trace clean-gem5 clean-native
+clean: clean-trace clean-gem5 clean-native clean-perftests

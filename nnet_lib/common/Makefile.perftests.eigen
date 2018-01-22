@@ -61,4 +61,4 @@ $(BUILD_DIR)/test_eigen_convolution: $(PERFTEST_DIR)/test_eigen_convolution.cpp 
 	$(CXX) $(CFLAGS) $(CPPFLAGS) $^ -o $@ $(LFLAGS)
 
 clean:
-	rm -rf $(EIGEN_TEST_TARGETS)
+	@rm -rf $(EIGEN_TEST_TARGETS)

@@ -107,7 +107,7 @@ $(BUILD_DIR)/$(EXEC)-instrumented: $(BUILD_DIR)/full.s
 clean-trace:
 	@echo "Cleaning trace build products..."
 	@rm -rf $(SUBBUILDDIRS)
-	@cd $(BUILD_DIR) && rm -rf *.llvm *.h *.c *.s labelmap $(EXEC)-instrumented
+	@cd $(BUILD_DIR) && rm -rf *.llvm *.h *.c *.s labelmap *-instrumented
 	@rm -f dynamic_trace.gz
 	@rm -f labelmap
 	@rm -f output_labels.out

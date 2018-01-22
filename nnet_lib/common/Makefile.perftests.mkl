@@ -74,4 +74,4 @@ $(BUILD_DIR)/test_mkl_pointwise_conv: $(PERFTEST_DIR)/test_mkl_pointwise_conv.cp
 	$(CXX) $(CFLAGS) $(CPPFLAGS) -DTRANSPOSE_WEIGHTS=1 $^ -o $@ $(LFLAGS)
 
 clean:
-	rm -rf $(MKL_TEST_TARGETS)
+	@rm -rf $(MKL_TEST_TARGETS)
