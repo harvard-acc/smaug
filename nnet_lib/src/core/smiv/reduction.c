@@ -47,7 +47,7 @@ void reduction_smiv_fxp(float* a, layer_t curr_layer, float* result) {
             PRINT_DEBUG_V(&partial_sums[0], 1, VECTOR_SIZE, VECTOR_SIZE);
 
             if (run_activation) {
-                activation_fun(&partial_sums[0], 1, VECTOR_SIZE, RELU, NULL);
+                activation_fun(&partial_sums[0], 1, VECTOR_SIZE, RELU);
             }
 
             reduction_commit:

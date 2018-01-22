@@ -48,8 +48,7 @@ ALWAYS_INLINE
 void activation_fun(float* activations,
                     int batch_size,
                     int input_size,
-                    activation_type function,
-                    float* sigmoid_table) {
+                    activation_type function) {
     int total_size = input_size * batch_size;
     if (function == RELU) {
         relu(activations, total_size);
@@ -60,11 +59,11 @@ void activation_fun(float* activations,
     } else if (function == SELU) {
         selu(activations, total_size);
     } else if (function == TANH) {
-        tanh_act(activations, total_size, sigmoid_table);
+        tanh_act(activations, total_size);
     } else if (function == SIGMOID) {
-        sigmoid_inplace(activations, total_size, sigmoid_table);
+        sigmoid_inplace(activations, total_size);
     } else if (function == SOFTMAX) {
-        softmax(activations, batch_size, input_size, sigmoid_table);
+        softmax(activations, batch_size, input_size);
     }
 }
 
@@ -126,13 +125,13 @@ void selu(float* a, int num_units) {
 // The hyberbolic sine activation function
 // ** this function is in-place (modifies a) **
 ALWAYS_INLINE
-void tanh_act(float* a, int num_units, float* sigmoid_table) {
+void tanh_act(float* a, int num_units) {
     int i;
     tanh_act_loop1:
     for (i = 0; i < num_units; i++) {
         a[i] = 2 * a[i];
     }
-    sigmoid_inplace(a, num_units, sigmoid_table);
+    sigmoid_inplace(a, num_units);
 
     tanh_act_loop2:
     for (i = 0; i < num_units; i++) {
@@ -142,13 +141,13 @@ void tanh_act(float* a, int num_units, float* sigmoid_table) {
 
 
 ALWAYS_INLINE
-void sigmoid_inplace(float* a, int num_units, float* sigmoid_table) {
+void sigmoid_inplace(float* a, int num_units) {
     if (SIGMOID_IMPL == EXP_UNIT) {
         sigmoidn(a, num_units);
     } else if (SIGMOID_IMPL == CenteredLUT) {
-        sigmoid_lookup_centered(a, num_units, sigmoid_table);
+        sigmoid_lookup_centered(a, num_units);
     } else if (SIGMOID_IMPL == NoncenteredLUT) {
-        sigmoid_lookup_noncentered(a, num_units, sigmoid_table);
+        sigmoid_lookup_noncentered(a, num_units);
     }
 }
 
@@ -168,7 +167,7 @@ void sigmoidn(float* a, int num_units) {
 // and linear interpolation
 // ** this function is in-place (modifies a) **
 ALWAYS_INLINE
-float sigmoid_lookup_centered_op(float a, float* sigmoid_table) {
+float sigmoid_lookup_centered_op(float a) {
     float result;
     if (a < SIG_MIN) {
         result = 0.0;  // do I need to convert these?? I guess not?
@@ -191,7 +190,7 @@ float sigmoid_lookup_centered_op(float a, float* sigmoid_table) {
 // (since the function is symmetric about x=0, y=1).
 // ** this function is in-place (modifies a) **
 ALWAYS_INLINE
-float sigmoid_lookup_noncentered_op(float a, float* sigmoid_table) {
+float sigmoid_lookup_noncentered_op(float a) {
     float abs_val = a >= 0 ? a : -a;
     float result;
     if (abs_val > SIG_MAX) {
@@ -207,17 +206,17 @@ float sigmoid_lookup_noncentered_op(float a, float* sigmoid_table) {
     return result;
 }
 
-void sigmoid_lookup_centered(float* a, int num_units, float* sigmoid_table) {
+void sigmoid_lookup_centered(float* a, int num_units) {
     sigmoid_loop:
     for (int i = 0; i < num_units; i++) {
-        a[i] = sigmoid_lookup_centered_op(a[i], sigmoid_table);
+        a[i] = sigmoid_lookup_centered_op(a[i]);
     }
 }
 
-void sigmoid_lookup_noncentered(float* a, int num_units, float* sigmoid_table) {
+void sigmoid_lookup_noncentered(float* a, int num_units) {
     sigmoid_loop:
     for (int i = 0; i < num_units; i++) {
-        a[i] = sigmoid_lookup_noncentered_op(a[i], sigmoid_table);
+        a[i] = sigmoid_lookup_noncentered_op(a[i]);
     }
 }
 
@@ -239,8 +238,7 @@ void sigmoid_lookup_noncentered(float* a, int num_units, float* sigmoid_table) {
 // This function is in-place (modifies a).
 void softmax(float* a,
              int num_test_cases,
-             int softmax_size,
-             float* sigmoid_table) {
+             int softmax_size) {
     ARRAY_2D(float, _a, a, softmax_size);
 
     // Compute the maximum of the elements in groups of 8 and the remainder one

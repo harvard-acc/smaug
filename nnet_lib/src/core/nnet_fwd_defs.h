@@ -449,7 +449,7 @@ extern int NUM_TEST_CASES;
 extern int NUM_CLASSES;
 extern int INPUT_DIM;
 extern float* sigmoid_table;
-sigmoid_impl_t SIGMOID_IMPL;
+extern sigmoid_impl_t SIGMOID_IMPL;
 
 //=------------ --------------------------------=//
 

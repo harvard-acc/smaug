@@ -462,8 +462,10 @@ void depthwise_convolution_layer_impl(float* host_activations,
     // (this is handled by the reduction block) but depthwise convolutions
     // don't require reductions.
     if (layers[lnum].activation == RELU) {
-        activation_fun(host_result, NUM_TEST_CASES,
-                       get_dims_size(&layers[lnum].outputs), RELU, NULL);
+        activation_fun(host_result,
+                       NUM_TEST_CASES,
+                       get_dims_size(&layers[lnum].outputs),
+                       RELU);
     }
     free_work_cfg(&conv_cfgs);
 }

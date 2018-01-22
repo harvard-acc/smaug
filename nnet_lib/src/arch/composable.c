@@ -249,8 +249,8 @@ void activation_hw(float* activations,
     int input_size = grab_output_activations_dma(
                              activations, activations, &layers[lnum]) /
                      NUM_TEST_CASES;
-    activation_fun(activations, NUM_TEST_CASES, input_size,
-                   curr_layer.activation, sigmoid_table);
+    activation_fun(
+            activations, NUM_TEST_CASES, input_size, curr_layer.activation);
     store_output_activations_dma(activations, activations, &layers[lnum]);
 }
 

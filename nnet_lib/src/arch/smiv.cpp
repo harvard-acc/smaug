@@ -383,8 +383,7 @@ result_buf smiv_activation_function(float* activations,
 #else
     int output_size = get_dims_size(&layer->outputs);
     begin_profiling(ACTIVATION_TYPE_STR(layer->activation), layer->num);
-    activation_fun(activations, NUM_TEST_CASES, output_size, layer->activation,
-                   sigmoid_table);
+    activation_fun(activations, NUM_TEST_CASES, output_size, layer->activation);
     end_profiling();
     return activations;
 #endif

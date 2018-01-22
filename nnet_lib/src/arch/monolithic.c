@@ -128,8 +128,8 @@ result_buf activation_sublayer(float* activations,
                                int lnum) {
     int input_size =
             get_output_activations_size(&layers[lnum]) / NUM_TEST_CASES;
-    activation_fun(activations, NUM_TEST_CASES, input_size,
-                   layers[lnum].activation, sigmoid_table);
+    activation_fun(
+            activations, NUM_TEST_CASES, input_size, layers[lnum].activation);
     return activations;
 }
 
