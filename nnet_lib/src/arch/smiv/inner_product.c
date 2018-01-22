@@ -19,8 +19,6 @@ void inner_product_layer_hw_impl(float* host_activations,
                                  layer_t* all_layers,
                                  int lnum,
                                  bool do_bias) {
-    activation_type act_func = all_layers[lnum].activation;
-    bool run_activation = act_func == RELU || act_func == RELU_THRESHOLD;
     int weights_size = get_num_weights_layer(all_layers, lnum);
     if (!do_bias)
         weights_size -= all_layers[lnum].weights.cols;
@@ -40,7 +38,7 @@ void inner_product_layer_hw_impl(float* host_activations,
             all_layers[lnum].weights.rows,
             all_layers[lnum].weights.cols + all_layers[lnum].weights.align_pad,
             all_layers[lnum].inputs.align_pad,
-            run_activation,
+            all_layers[lnum].activation,
             do_bias,
             results);
 }
@@ -392,6 +390,13 @@ void inner_product_layer_impl_rowwise(float* host_activations,
         partial_layer.inputs.cols = curr_iter->rows - 1;
         partial_layer.weights = *curr_iter;
         partial_layer.outputs.cols = curr_iter->cols;
+        activation_type act_func = curr_layer->activation;
+        bool do_hw_activation =
+                device->use_hw_activation_func &&
+                is_supported_activation_func(curr_layer->type, act_func);
+        if (!do_hw_activation)
+            partial_layer.activation = NO_ACTIVATION;
+
         int iter_weights_size = (curr_iter->rows - 1) *
                                 (curr_iter->cols + curr_iter->align_pad);
         PRINT_MSG("FC iteration %d: weights %dx%d\n",
@@ -558,6 +563,14 @@ void inner_product_layer_impl_colwise(float* host_activations,
         dims_t* curr_iter = &fc_cfgs.iteration[it];
         partial_layer.weights = *curr_iter;
         partial_layer.outputs.cols = curr_iter->cols;
+
+        activation_type act_func = curr_layer->activation;
+        bool do_hw_activation =
+                device->use_hw_activation_func &&
+                is_supported_activation_func(curr_layer->type, act_func);
+        if (!do_hw_activation)
+            partial_layer.activation = NO_ACTIVATION;
+
         PRINT_MSG("FC iteration %d: weights %dx%d\n",
                     it,
                     partial_layer.weights.rows,

@@ -16,7 +16,7 @@ void reduction_smiv_fxp(float* a, layer_t curr_layer, float* result) {
     const int padded_width = result_width + result_pad;
 
     const int k_height =  curr_layer.inputs.height;
-    const bool run_activation = curr_layer.activation == RELU;
+    const bool run_activation = curr_layer.activation != NO_ACTIVATION;
 
 #ifdef TRACE_MODE
     assert(padded_width % VECTOR_SIZE == 0 &&
@@ -47,7 +47,10 @@ void reduction_smiv_fxp(float* a, layer_t curr_layer, float* result) {
             PRINT_DEBUG_V(&partial_sums[0], 1, VECTOR_SIZE, VECTOR_SIZE);
 
             if (run_activation) {
-                activation_fun(&partial_sums[0], 1, VECTOR_SIZE, RELU);
+                activation_fun(&partial_sums[0],
+                               1,
+                               VECTOR_SIZE,
+                               curr_layer.activation);
             }
 
             reduction_commit:
@@ -68,7 +71,7 @@ void reduction_smiv_vec_fxp(float* a, layer_t curr_layer, float* result) {
     const int vec_padded_width = padded_width / VECTOR_SIZE;
 
     const int k_height =  curr_layer.inputs.height;
-    const bool run_activation = curr_layer.activation == RELU;
+    const bool run_activation = curr_layer.activation != NO_ACTIVATION;
 
 #ifdef TRACE_MODE
     assert(padded_width % VECTOR_SIZE == 0 &&
@@ -88,8 +91,13 @@ void reduction_smiv_vec_fxp(float* a, layer_t curr_layer, float* result) {
                 partial_sums += _a[chan][row][col];
             }
 
-            if (run_activation) {
+            if (curr_layer.activation == RELU) {
                 RELU_VEC_SMIV(partial_sums);
+            } else {
+                activation_fun(&partial_sums[0],
+                               1,
+                               VECTOR_SIZE,
+                               curr_layer.activation);
             }
 
             _result[row][col] = partial_sums;

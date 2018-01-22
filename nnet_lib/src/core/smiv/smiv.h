@@ -7,7 +7,7 @@ void matrix_multiply_with_bias_smiv(float* a,
                                     int b_height,
                                     int b_width,
                                     int a_pad,
-                                    bool run_activation,
+                                    activation_type act_func,
                                     bool do_bias,
                                     float* result);
 

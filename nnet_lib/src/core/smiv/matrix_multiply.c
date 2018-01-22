@@ -17,7 +17,7 @@ void matrix_multiply_with_bias_smiv_batch_fxp(float* a,
                                               int b_height,
                                               int b_width,
                                               int a_pad,
-                                              bool run_activation,
+                                              activation_type act_func,
                                               bool do_bias,
                                               float* result) {
     int wgt_row, wgt_col, wgt_b;
@@ -67,13 +67,13 @@ void matrix_multiply_with_bias_smiv_batch_fxp(float* a,
         }
 
         // Run through activation function.
-        if (run_activation) {
+        if (act_func != NO_ACTIVATION) {
             run_activation_func:
             for (act_batch = 0; act_batch < a_height; act_batch++)
                 activation_fun(&partial_sums[act_batch][0],
                                1,
                                VECTOR_SIZE,
-                               RELU);
+                               act_func);
         }
 
         // Store to scratchpad.
@@ -103,7 +103,7 @@ void matrix_multiply_with_bias_smiv_nobatch_fxp(float* a,
                                                 int b_height,
                                                 int b_width,
                                                 int a_pad,
-                                                bool run_activation,
+                                                activation_type act_func,
                                                 bool do_bias,
                                                 float* result) {
     int wgt_row, wgt_col, wgt_b, input_act;
@@ -148,8 +148,8 @@ void matrix_multiply_with_bias_smiv_nobatch_fxp(float* a,
             }
 
             // Run through activation function.
-            if (run_activation) {
-                activation_fun(&partial_sums[0], 1, VECTOR_SIZE, RELU);
+            if (act_func != NO_ACTIVATION) {
+                activation_fun(&partial_sums[0], 1, VECTOR_SIZE, act_func);
             }
 
             // Store to scratchpad.
@@ -167,7 +167,7 @@ void matrix_multiply_with_bias_smiv_nobatch_vec_fxp(float* a,
                                                     int b_height,
                                                     int b_width,
                                                     int a_pad,
-                                                    bool run_activation,
+                                                    activation_type act_func,
                                                     bool do_bias,
                                                     float* result) {
     int wgt_row, wgt_col, wgt_b, input_act;
@@ -220,8 +220,13 @@ void matrix_multiply_with_bias_smiv_nobatch_vec_fxp(float* a,
             }
 
             // Run through activation function.
-            if (run_activation) {
+            if (act_func == RELU) {
                 RELU_VEC_SMIV(partial_sums);
+            } else {
+                activation_fun(&partial_sums[0],
+                               1,
+                               VECTOR_SIZE,
+                               act_func);
             }
 
             // Store to scratchpad.
