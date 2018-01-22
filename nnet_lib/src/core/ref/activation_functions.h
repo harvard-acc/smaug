@@ -3,6 +3,8 @@
 
 #include "nnet_fwd.h"
 
+void init_sigmoid_table(float** table_ptr);
+
 void activation_fun(float* hid,
                     int batch_size,
                     int input_size,
@@ -21,5 +23,8 @@ void softmax(float* a,
              int num_test_cases,
              int softmax_size,
              float* sigmoid_table);
+
+void sigmoid_lookup_centered(float* a, int num_units, float* sigmoid_table);
+void sigmoid_lookup_noncentered(float* a, int num_units, float* sigmoid_table);
 
 #endif

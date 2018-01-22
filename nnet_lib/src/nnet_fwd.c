@@ -6,6 +6,7 @@
 
 #include "arch/common.h"
 #include "arch/interface.h"
+#include "core/ref/activation_functions.h"
 #include "utility/data_archive.h"
 #include "utility/init_data.h"
 #include "utility/profiling.h"
@@ -32,6 +33,7 @@ int NUM_TEST_CASES;
 int NUM_CLASSES;
 int INPUT_DIM;
 float* sigmoid_table;
+sigmoid_impl_t SIGMOID_IMPL;
 
 static char prog_doc[] =
         "\nNeural network library for gem5-aladdin.\n"
@@ -50,13 +52,18 @@ static struct argp_option options[] = {
       "files are decoded as binary files." },
     { "save-params", 's', 0, 0,
       "Save network weights, data, and labels to a file." },
+    { "sigmoid-impl", 'm', "IMPL", 0,
+      "Sigmoid implementation: exp-unit (default), centered-lut, or "
+      "noncentered-lut." },
     { 0 },
 };
 
 typedef enum _argnum {
     NETWORK_CONFIG,
     NUM_REQUIRED_ARGS,
+    // Optional arguments.
     DATA_FILE = NUM_REQUIRED_ARGS,
+    SIGMOID_IMPL_ARG,
     NUM_ARGS,
 } argnum;
 
@@ -65,17 +72,40 @@ typedef struct _arguments {
     int num_inputs;
     bool save_params;
     data_init_mode data_mode;
+    sigmoid_impl_t sigmoid_impl;
 } arguments;
 
+// Convert a string to a data initialization mode.
+//
+// If the string was a valid choice, this updates @mode and returns 0;
+// otherwise, returns 1.
 int str2mode(char* str, data_init_mode* mode) {
-    if (strncmp(str, "RANDOM", 6) == 0) {
+    if (strncmp(str, "RANDOM", 7) == 0) {
         *mode = RANDOM;
         return 0;
-    } else if (strncmp(str, "FIXED", 5) == 0) {
+    } else if (strncmp(str, "FIXED", 6) == 0) {
         *mode = FIXED;
         return 0;
-    } else if (strncmp(str, "READ_FILE", 9) == 0) {
+    } else if (strncmp(str, "READ_FILE", 10) == 0) {
         *mode = READ_FILE;
+        return 0;
+    }
+    return 1;
+}
+
+// Convert a string to a sigmoid implementation mode.
+//
+// If the string was a valid choice, this updates @impl and returns 0;
+// otherwise, returns 1.
+int str2sigmoidimpl(char* str, sigmoid_impl_t* impl) {
+    if (strncmp(str, "exp-unit", 9) == 0) {
+        *impl = ExpUnit;
+        return 0;
+    } else if (strncmp(str, "centered-lut", 13) == 0) {
+        *impl = CenteredLUT;
+        return 0;
+    } else if (strncmp(str, "noncentered-lut", 16) == 0) {
+        *impl = NoncenteredLUT;
         return 0;
     }
     return 1;
@@ -90,6 +120,11 @@ static error_t parse_opt(int key, char* arg, struct argp_state* state) {
     }
     case 'd': {
       if (str2mode(arg, &args->data_mode))
+        argp_usage(state);
+      break;
+    }
+    case 'm': {
+      if (str2sigmoidimpl(arg, &args->sigmoid_impl))
         argp_usage(state);
       break;
     }
@@ -173,6 +208,7 @@ void set_default_args(arguments* args) {
     args->num_inputs = 1;
     args->data_mode = RANDOM;
     args->save_params = false;
+    args->sigmoid_impl = ExpUnit;
     for (int i = 0; i < NUM_ARGS; i++) {
         args->args[i] = NULL;
     }
@@ -186,7 +222,7 @@ int main(int argc, char* argv[]) {
     argp_parse(&parser, argc, argv, 0, 0, &args);
 
     NUM_TEST_CASES = args.num_inputs;
-    printf("Batch size: %d\n", NUM_TEST_CASES);
+    SIGMOID_IMPL = args.sigmoid_impl;
 
     // set random seed (need to #include <time.h>)
     srand(1);
@@ -273,20 +309,7 @@ int main(int argc, char* argv[]) {
                 args.args[DATA_FILE], &network, &weights, &hid, &labels);
     }
 
-    // Build the sigmoid lookup table
-    // May want to change this to be "non-centered"
-    // to avoid (sigmoid_coarseness - 1.0)
-    // so we can use bit shift in lookup function with fixed point precisions
-    printf("Setting up sigmoid lookup table\n");
-    int sigmoid_coarseness = 1 << LG_SIGMOID_COARSENESS;
-    sigmoid_table = (float*)malloc(sigmoid_coarseness * sizeof(float));
-    float sig_step = (float)(SIG_MAX - SIG_MIN) / (sigmoid_coarseness - 1.0);
-    float x_sig = (float)SIG_MIN;
-    for (i = 0; i < sigmoid_coarseness; i++) {
-        sigmoid_table[i] = conv_float2fixed(1.0 / (1.0 + exp(-x_sig)));
-        // printf("%f, %f\n", x_sig, sigmoid_table[i]);
-        x_sig += sig_step;
-    }
+    init_sigmoid_table(&sigmoid_table);
 
     fflush(stdout);
 
@@ -319,7 +342,8 @@ int main(int argc, char* argv[]) {
     printf("Fraction incorrect (over %d cases) = %f\n", NUM_TEST_CASES,
            error_fraction);
 
-    free(sigmoid_table);
+    if (sigmoid_table)
+        free(sigmoid_table);
     free(hid.d);
     free(hid_temp.d);
     free(weights.d);

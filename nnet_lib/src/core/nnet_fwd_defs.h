@@ -6,11 +6,6 @@
 
 // This is the core header of nnet_lib.
 
-extern int NUM_TEST_CASES;
-extern int NUM_CLASSES;
-extern int INPUT_DIM;
-extern float* sigmoid_table;
-
 typedef enum _data_init_mode {
     RANDOM,    // Generate pseudo-random input.
     FIXED,     // Use (mostly) constant values (helpful for debugging).
@@ -90,6 +85,13 @@ typedef enum _bn_weights_idx {
     BetaIndex,
     NumWeightTypes
 } bn_weights_idx;
+
+typedef enum _sigmoid_impl_t {
+    ExpUnit,
+    CenteredLUT,
+    NoncenteredLUT,
+    NumSigmoidImpls
+} sigmoid_impl_t;
 
 // Description of a layer in a neural network.
 //
@@ -199,6 +201,11 @@ typedef struct _iarray_t {
 #define SMIV 2
 #define EIGEN 3
 #define MKLDNN 4
+
+// Possible values of SIGMOID_TABLE_IMPL
+#define EXP_UNIT 0
+#define LUT_CENTERED 1
+#define LUT_NONCENTERED 2
 
 // Convert a layer_type enum to a string
 #define LAYER_TYPE_STR(arg) \
@@ -434,5 +441,16 @@ typedef struct _iarray_t {
 #else
 #define ALWAYS_INLINE
 #endif
+
+
+//=------------ GLOBAL VARIABLES ---------------=//
+
+extern int NUM_TEST_CASES;
+extern int NUM_CLASSES;
+extern int INPUT_DIM;
+extern float* sigmoid_table;
+sigmoid_impl_t SIGMOID_IMPL;
+
+//=------------ --------------------------------=//
 
 #endif

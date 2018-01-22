@@ -9,9 +9,11 @@
 
 
 // number of stored points in sigmoid lookup table
-#define LG_SIGMOID_COARSENESS 4
-#define SIG_MIN -5            // lower input bound for sigmoid lookup table
-#define SIG_MAX +5            // upper input bound for sigmoid lookup table
+#define LG_SIGMOID_COARSENESS (8)
+#define SIG_MIN (-5)           // lower input bound for sigmoid lookup table
+#define SIG_MAX (+5)           // upper input bound for sigmoid lookup table
+#define SIG_RANGE ((SIG_MAX) - (SIG_MIN))
+#define SIG_TABLE_SIZE (1 << LG_SIGMOID_COARSENESS)
 
 // Parameters for optimization
 #define NUM_OF_INT_BITS                                                        \
@@ -28,9 +30,6 @@
 #ifndef DLEVEL
 #define DLEVEL 0
 #endif
-
-// Define this to use a table approximation of the sigmoid activation function.
-// #define SIGMOID_TABLE
 
 // If 1, then weights for fully-connected layers are stored columnmajor, rather
 // than rowmajor, which tends to improve performance when the input data are
