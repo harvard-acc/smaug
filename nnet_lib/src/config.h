@@ -15,6 +15,15 @@
 #define SIG_RANGE ((SIG_MAX) - (SIG_MIN))
 #define SIG_TABLE_SIZE (1 << LG_SIGMOID_COARSENESS)
 
+// number of stored points in exp lookup table.
+// Since exp is usually only used for x < 0, this table biases the initialized
+// values on the negative side.
+#define LG_EXP_COARSENESS (8)
+#define EXP_MIN (-5)
+#define EXP_MAX (0)
+#define EXP_RANGE ((EXP_MAX) - (EXP_MIN))
+#define EXP_TABLE_SIZE (1 << LG_EXP_COARSENESS)
+
 // Parameters for optimization
 #define NUM_OF_INT_BITS                                                        \
     6  // number of bits before the decimal pt in our representation

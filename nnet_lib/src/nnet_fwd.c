@@ -33,6 +33,7 @@ int NUM_TEST_CASES;
 int NUM_CLASSES;
 int INPUT_DIM;
 float* sigmoid_table;
+float* exp_table;
 sigmoid_impl_t SIGMOID_IMPL;
 
 static char prog_doc[] =
@@ -310,6 +311,7 @@ int main(int argc, char* argv[]) {
     }
 
     init_sigmoid_table(&sigmoid_table);
+    init_exp_table(&exp_table);
 
     fflush(stdout);
 
@@ -344,6 +346,8 @@ int main(int argc, char* argv[]) {
 
     if (sigmoid_table)
         free(sigmoid_table);
+    if (exp_table)
+        free(exp_table);
     free(hid.d);
     free(hid_temp.d);
     free(weights.d);

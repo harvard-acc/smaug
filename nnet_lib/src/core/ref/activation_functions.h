@@ -4,6 +4,7 @@
 #include "nnet_fwd.h"
 
 void init_sigmoid_table(float** table_ptr);
+void init_exp_table(float** table_ptr);
 
 void activation_fun(float* hid,
                     int batch_size,

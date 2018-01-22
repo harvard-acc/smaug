@@ -43,6 +43,26 @@ void init_sigmoid_table(float** table_ptr) {
     }
 }
 
+// Build an exponential table.
+//
+// This stores precomputed values for exp(x) from EXP_MIN to EXP_MAX.
+void init_exp_table(float** table_ptr) {
+    if (SIGMOID_IMPL == ExpUnit) {
+        *table_ptr = NULL;
+        return;
+    }
+
+    PRINT_MSG("Initializing exponential lookup table.\n");
+    *table_ptr = (float*)malloc_aligned(EXP_TABLE_SIZE  * sizeof(float));
+    float exp_step = (float)(EXP_RANGE) / (EXP_TABLE_SIZE  - 1.0);
+    float x_exp = (float)EXP_MIN;
+    for (int i = 0; i < EXP_TABLE_SIZE ; i++) {
+        (*table_ptr)[i] = conv_float2fixed(exp(x_exp));
+        // printf("%f, %f\n", x_exp, (*table_ptr)[i]);
+        x_exp += exp_step;
+    }
+}
+
 // Dispatch to the appropriate activation function.
 ALWAYS_INLINE
 void activation_fun(float* activations,
@@ -94,16 +114,52 @@ void lrelu(float* a, int num_units) {
     }
 }
 
+ALWAYS_INLINE
+float exp_lut(float a) {
+    float result;
+    if (a > EXP_MAX) {
+        result = exp_table[EXP_TABLE_SIZE - 1];
+    } else if (a < EXP_MIN) {
+        result = 0;
+    } else {
+        float temp = conv_float2fixed(((a - EXP_MIN) * (1.0 / EXP_RANGE)) *
+                                      (EXP_TABLE_SIZE - 1.0));
+        int ind = (int)temp;  // Ideally a proper rounding.
+        result = conv_float2fixed(exp_table[ind]);
+    }
+    return result;
+}
+
+ALWAYS_INLINE
+void elu_expunit(float* a, int num_units, float alpha) {
+    elu_loop:
+    for (int i = 0; i < num_units; i++) {
+        float value = a[i];
+        if (value < 0.0) {
+            a[i] = alpha * (exp(value) - 1);
+        }
+    }
+}
+
+ALWAYS_INLINE
+void elu_lut(float* a, int num_units, float alpha) {
+    elu_loop:
+    for (int i = 0; i < num_units; i++) {
+        float value = a[i];
+        if (value < 0.0) {
+            a[i] = alpha * (exp_lut(value) - 1);
+        }
+    }
+}
+
 // The exponential linear activation function
 // ** this function is in-place (modifies a) **
 ALWAYS_INLINE
 void elu(float* a, int num_units, float alpha) {
-    int i;
-    elu_loop:
-    for (i = 0; i < num_units; i++) {
-        if (a[i] < 0.0) {
-            a[i] = alpha * (exp(a[i]) - 1);
-        }
+    if (SIGMOID_IMPL == ExpUnit) {
+        elu_expunit(a, num_units, alpha);
+    } else {
+        elu_lut(a, num_units, alpha);
     }
 }
 
