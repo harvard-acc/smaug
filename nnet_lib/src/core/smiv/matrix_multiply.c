@@ -1,6 +1,7 @@
 #include <assert.h>
 
 #include "core/ref/activation_functions.h"
+#include "core/smiv/activation_functions_simd.h"
 #include "utility/utility.h"
 #include "nnet_fwd.h"
 
@@ -70,10 +71,8 @@ void matrix_multiply_with_bias_smiv_batch_fxp(float* a,
         if (act_func != NO_ACTIVATION) {
             run_activation_func:
             for (act_batch = 0; act_batch < a_height; act_batch++)
-                activation_fun(&partial_sums[act_batch][0],
-                               1,
-                               VECTOR_SIZE,
-                               act_func);
+                activation_fun_fxp(
+                        &partial_sums[act_batch][0], 1, VECTOR_SIZE, act_func);
         }
 
         // Store to scratchpad.
@@ -149,7 +148,7 @@ void matrix_multiply_with_bias_smiv_nobatch_fxp(float* a,
 
             // Run through activation function.
             if (act_func != NO_ACTIVATION) {
-                activation_fun(&partial_sums[0], 1, VECTOR_SIZE, act_func);
+                activation_fun_fxp(&partial_sums[0], 1, VECTOR_SIZE, act_func);
             }
 
             // Store to scratchpad.
@@ -220,13 +219,8 @@ void matrix_multiply_with_bias_smiv_nobatch_vec_fxp(float* a,
             }
 
             // Run through activation function.
-            if (act_func == RELU) {
-                RELU_VEC_SMIV(partial_sums);
-            } else {
-                activation_fun(&partial_sums[0],
-                               1,
-                               VECTOR_SIZE,
-                               act_func);
+            if (act_func != NO_ACTIVATION) {
+                partial_sums = activation_fun_simd_fxp(partial_sums, act_func);
             }
 
             // Store to scratchpad.

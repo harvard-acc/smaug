@@ -89,6 +89,11 @@ bool is_supported_activation_func(layer_type ltype, activation_type func) {
             case NO_ACTIVATION:
             case RELU:
             case RELU_THRESHOLD:
+            case LRELU:
+            case ELU:
+            case SELU:
+            case TANH:
+            case SIGMOID:
                 return true;
             default:
                 return false;
@@ -456,11 +461,6 @@ void set_dma_requirements(network_t* network, device_t* device) {
         // First, determine if we need to dma store the output.
         if (layer_num == network->depth - 1 ||
             // All these activation functions are unsupported.
-            curr_layer->activation == LRELU ||
-            curr_layer->activation == ELU ||
-            curr_layer->activation == SELU ||
-            curr_layer->activation == TANH ||
-            curr_layer->activation == SIGMOID ||
             curr_layer->activation == SOFTMAX ||
             // If we disabled HW activation functions but an activation
             // function is necessary, we need to DMA.
@@ -471,8 +471,7 @@ void set_dma_requirements(network_t* network, device_t* device) {
             curr_layer->type == CONV_STANDARD ||
             curr_layer->type == CONV_DEPTHWISE ||
             curr_layer->type == CONV_POINTWISE ||
-            curr_layer->type == BATCH_NORM ||
-            next_layer->type == BATCH_NORM ||
+            curr_layer->type == BATCH_NORM || next_layer->type == BATCH_NORM ||
             next_layer->type == POOLING ||
             // If the FC block needs work division, we can't locally cache.
             (curr_layer->type == FC && next_layer->type == FC &&

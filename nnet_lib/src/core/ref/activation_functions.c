@@ -13,12 +13,11 @@ float sigmoid(float a) {
     return 1.0 / (1.0 + exp(-a));
 }
 
-// Dispatch to the appropriate activation function.
 ALWAYS_INLINE
-void activation_fun(float* activations,
-                    int batch_size,
-                    int input_size,
-                    activation_type function) {
+void activation_fun_fxp(float* activations,
+                        int batch_size,
+                        int input_size,
+                        activation_type function) {
     int total_size = input_size * batch_size;
     if (function == RELU) {
         relu(activations, total_size);
@@ -35,6 +34,15 @@ void activation_fun(float* activations,
     } else if (function == SOFTMAX) {
         softmax(activations, batch_size, input_size);
     }
+}
+
+// Dispatch to the appropriate activation function.
+ALWAYS_INLINE
+void activation_fun(float* activations,
+                    int batch_size,
+                    int input_size,
+                    activation_type function) {
+    activation_fun_fxp(activations, batch_size, input_size, function);
 }
 
 // The rectified linear activation function
@@ -142,6 +150,7 @@ void sigmoid_inplace(float* a, int num_units) {
 
 // The logistic activation function
 // ** this function is in-place (modifies a) **
+ALWAYS_INLINE
 void sigmoidn(float* a, int num_units) {
     int i;
     float value;
@@ -152,17 +161,19 @@ void sigmoidn(float* a, int num_units) {
     }
 }
 
+ALWAYS_INLINE
 void sigmoid_lookup_centered(float* a, int num_units) {
     sigmoid_loop:
     for (int i = 0; i < num_units; i++) {
-        a[i] = sigmoid_lookup_centered_op(a[i]);
+        a[i] = sigmoid_lookup_centered_op_fxp(a[i]);
     }
 }
 
+ALWAYS_INLINE
 void sigmoid_lookup_noncentered(float* a, int num_units) {
     sigmoid_loop:
     for (int i = 0; i < num_units; i++) {
-        a[i] = sigmoid_lookup_noncentered_op(a[i]);
+        a[i] = sigmoid_lookup_noncentered_op_fxp(a[i]);
     }
 }
 

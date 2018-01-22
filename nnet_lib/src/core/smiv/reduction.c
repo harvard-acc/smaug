@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include "core/ref/activation_functions.h"
+#include "core/smiv/activation_functions_simd.h"
 #include "utility/utility.h"
 #include "nnet_fwd.h"
 
@@ -85,19 +86,16 @@ void reduction_smiv_vec_fxp(float* a, layer_t curr_layer, float* result) {
     for (row = 0; row < result_height; row++) {
         reduction_col:
         for (col = 0; col < vec_padded_width; col++) {
-            v8fp_t partial_sums = (v8fp_t){ 0, 0, 0, 0, 0, 0, 0, 0 };
+            v8fp_t partial_sums;
+            partial_sums = (v8fp_t){ 0, 0, 0, 0, 0, 0, 0, 0 };
             reduction_chan:
             for (chan = 0; chan < k_height; chan++) {
                 partial_sums += _a[chan][row][col];
             }
 
-            if (curr_layer.activation == RELU) {
-                RELU_VEC_SMIV(partial_sums);
-            } else {
-                activation_fun(&partial_sums[0],
-                               1,
-                               VECTOR_SIZE,
-                               curr_layer.activation);
+            if (run_activation) {
+                partial_sums = activation_fun_simd_fxp(
+                        partial_sums, curr_layer.activation);
             }
 
             _result[row][col] = partial_sums;

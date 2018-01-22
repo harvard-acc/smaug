@@ -7,6 +7,10 @@ void activation_fun(float* hid,
                     int batch_size,
                     int input_size,
                     activation_type function);
+void activation_fun_fxp(float* hid,
+                        int batch_size,
+                        int input_size,
+                        activation_type function);
 void relu(float* a, int num_units);
 void lrelu(float* a, int num_units);
 void elu(float* a, int num_units, float alpha);
