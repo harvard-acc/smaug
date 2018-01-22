@@ -199,7 +199,8 @@ class SeluActivationFunctionOp : public ActivationFunctionOp<DType> {
         INFO_MSG("SELU\n");
         auto input_mem = this->create_memory(input_buffer, this->input_size);
         auto intermediate_mem = this->create_memory(nullptr, this->input_size);
-        auto output_mem = this->create_memory(output_buffer, this->input_size);
+        auto output_mem =
+                this->create_memory(output_buffer, this->input_size, true);
         // SELU can be implemented using an ELU, followed by a scaling.
         this->create_primitive(mkldnn::algorithm::eltwise_elu,
                                input_mem,
