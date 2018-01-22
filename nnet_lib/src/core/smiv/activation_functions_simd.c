@@ -2,6 +2,7 @@
 #include <float.h>
 
 #include "core/ref/activation_functions.h"
+#include "core/ref/lookup_tables_ops.h"
 #include "core/smiv/activation_functions_simd.h"
 #include "core/smiv/params.h"
 #include "utility/utility.h"

@@ -6,7 +6,7 @@
 
 #include "arch/common.h"
 #include "arch/interface.h"
-#include "core/ref/activation_functions.h"
+#include "core/ref/lookup_tables.h"
 #include "utility/data_archive.h"
 #include "utility/init_data.h"
 #include "utility/profiling.h"

@@ -11,6 +11,7 @@ CORE_SRCS = core/ref/activation_functions.c \
 						core/ref/zeropad.c \
 						core/ref/pooling.c \
 						core/ref/batch_norm.c \
+						core/ref/lookup_tables.c \
 						core/smiv/smiv.c \
 						core/smiv/convolution.c \
 						core/smiv/convolution_simd.c \

@@ -1,6 +1,7 @@
 #include <float.h>
 
 #include "core/ref/activation_functions.h"
+#include "core/ref/lookup_tables_ops.h"
 #include "utility/utility.h"
 #include "nnet_fwd.h"
 
@@ -10,57 +11,6 @@
 ALWAYS_INLINE
 float sigmoid(float a) {
     return 1.0 / (1.0 + exp(-a));
-}
-
-// Build the sigmoid lookup table.
-//
-// We can either build a centered table, storing values from -5 to 5, or a
-// non-centered table, storing values from 0 to 5 (with -5 to 0 calculated by
-// subtracting 1). The non-centered table can store the sigmoid with twice the
-// precision and does not require the linear interpolation used by the centered
-// table.
-void init_sigmoid_table(float** table_ptr) {
-    if (SIGMOID_IMPL == ExpUnit) {
-        *table_ptr = NULL;
-        return;
-    }
-
-    PRINT_MSG("Initializing sigmoid lookup table.\n");
-    *table_ptr = (float*)malloc_aligned(SIG_TABLE_SIZE * sizeof(float));
-    float sig_step = 0, x_sig = 0;
-    if (SIGMOID_IMPL == CenteredLUT) {
-        sig_step = (float)(SIG_RANGE) / (SIG_TABLE_SIZE - 1.0);
-        x_sig = (float)SIG_MIN;
-    } else if (SIGMOID_IMPL == NoncenteredLUT) {
-        sig_step = (float)(SIG_MAX) / (SIG_TABLE_SIZE - 1.0);
-        x_sig = 0;
-    }
-
-    for (int i = 0; i < SIG_TABLE_SIZE; i++) {
-        (*table_ptr)[i] = conv_float2fixed(sigmoid(x_sig));
-        // printf("%f, %f\n", x_sig, (*table_ptr)[i]);
-        x_sig += sig_step;
-    }
-}
-
-// Build an exponential table.
-//
-// This stores precomputed values for exp(x) from EXP_MIN to EXP_MAX.
-void init_exp_table(float** table_ptr) {
-    if (SIGMOID_IMPL == ExpUnit) {
-        *table_ptr = NULL;
-        return;
-    }
-
-    PRINT_MSG("Initializing exponential lookup table.\n");
-    *table_ptr = (float*)malloc_aligned(EXP_TABLE_SIZE  * sizeof(float));
-    float exp_step = (float)(EXP_RANGE) / (EXP_TABLE_SIZE  - 1.0);
-    float x_exp = (float)EXP_MIN;
-    for (int i = 0; i < EXP_TABLE_SIZE ; i++) {
-        (*table_ptr)[i] = conv_float2fixed(exp(x_exp));
-        // printf("%f, %f\n", x_exp, (*table_ptr)[i]);
-        x_exp += exp_step;
-    }
 }
 
 // Dispatch to the appropriate activation function.
@@ -114,23 +64,6 @@ void lrelu(float* a, int num_units) {
     }
 }
 
-ALWAYS_INLINE
-float exp_lut(float a) {
-    float result;
-    if (a > EXP_MAX) {
-        result = exp_table[EXP_TABLE_SIZE - 1];
-    } else if (a < EXP_MIN) {
-        result = 0;
-    } else {
-        float temp = conv_float2fixed(((a - EXP_MIN) * (1.0 / EXP_RANGE)) *
-                                      (EXP_TABLE_SIZE - 1.0));
-        int ind = (int)temp;  // Ideally a proper rounding.
-        result = conv_float2fixed(exp_table[ind]);
-    }
-    return result;
-}
-
-ALWAYS_INLINE
 void elu_expunit(float* a, int num_units, float alpha) {
     elu_loop:
     for (int i = 0; i < num_units; i++) {
@@ -217,49 +150,6 @@ void sigmoidn(float* a, int num_units) {
         value = sigmoid(a[i]);
         a[i] = conv_float2fixed(value);
     }
-}
-
-// The logistic activation function, implemented with a lookup table
-// and linear interpolation
-// ** this function is in-place (modifies a) **
-ALWAYS_INLINE
-float sigmoid_lookup_centered_op(float a) {
-    float result;
-    if (a < SIG_MIN) {
-        result = 0.0;  // do I need to convert these?? I guess not?
-    } else if (a >= SIG_MAX) {
-        result = 1.0;
-    } else {
-        float temp = conv_float2fixed(((a - SIG_MIN) / SIG_RANGE) *
-                                      (SIG_TABLE_SIZE - 1.0));
-        int ind = (int)temp;
-        float delta_x = conv_float2fixed(temp - ind);  // in [0,1]
-        result = conv_float2fixed(sigmoid_table[ind] * (1.0 - delta_x) +
-                                  sigmoid_table[ind + 1] * delta_x);
-    }
-    return result;
-}
-
-// The logistic activation function, implemented with a lookup table.
-//
-// This assumes the sigmoid table is built with positive values of x only
-// (since the function is symmetric about x=0, y=1).
-// ** this function is in-place (modifies a) **
-ALWAYS_INLINE
-float sigmoid_lookup_noncentered_op(float a) {
-    float abs_val = a >= 0 ? a : -a;
-    float result;
-    if (abs_val > SIG_MAX) {
-        result = 1.0;
-    } else {
-        float temp = conv_float2fixed((abs_val * (1.0 / SIG_MAX)) *
-                                      (SIG_TABLE_SIZE - 1.0));
-        int ind = (int)temp;  // Ideally would be a proper rounding.
-        result = conv_float2fixed(sigmoid_table[ind]);
-    }
-    if (a < 0)
-        result = 1.0 - result;
-    return result;
 }
 
 void sigmoid_lookup_centered(float* a, int num_units) {
