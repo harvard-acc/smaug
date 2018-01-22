@@ -5,6 +5,9 @@
 
 void init_sigmoid_table(float** table_ptr);
 void init_exp_table(float** table_ptr);
+float exp_lut(float a);
+float sigmoid_lookup_centered_op(float a);
+float sigmoid_lookup_noncentered_op(float a);
 
 void activation_fun(float* hid,
                     int batch_size,

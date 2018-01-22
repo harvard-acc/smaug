@@ -32,4 +32,17 @@ typedef sfx_t v8sfx_t
     type(*output_name)[(height)][(rows)][(cols) / (VECTOR_SIZE)] =             \
             (type(*)[(height)][(rows)][(cols) / (VECTOR_SIZE)])input_name
 
+// Apply a mask to a vector literal.
+//
+// The mask is a vector of either 0s or -1s (all 1s). Entries that are have a
+// mask of 0 are zeroed out.
+//
+// LLVM is smart enough to turn this into a SELECT instruction, rather than a
+// bitwise mask!
+//
+// Args:
+//    input: a v8fp_t vector
+//    mask: a v8sfx_t vector of either 0s or -1s.
+#define VEC_MASK(input, mask) ((v8fp_t)((v8sfx_t)input & mask))
+
 #endif

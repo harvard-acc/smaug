@@ -65,7 +65,7 @@ void matrix_multiply_with_bias_smiv_nobatch_vec_fxp(float* a,
     do {                                                                       \
         v8fp_t zero = (v8fp_t){ 0 };                                           \
         v8sfx_t mask = (activations > zero);                                   \
-        activations = ((v8fp_t)((v8sfx_t)activations & mask));                 \
+        activations = VEC_MASK(activations, mask);                             \
     } while (0)
 
 #endif
