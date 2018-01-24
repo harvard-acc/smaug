@@ -12,8 +12,13 @@ void sigmoid(float* activations,
              layer_t* layer,
              MklSession* session,
              float* results) {
-    auto op = std::make_unique<SigmoidActivationFunctionOp<dtype>>(
-            layer, batch_size, session->cpu());
+    auto op =
+            SIGMOID_IMPL == ExpUnit
+                    ? std::make_unique<
+                              mkl_impl::SigmoidActivationFunctionOp<dtype>>(
+                              layer, batch_size, session->cpu())
+                    : std::make_unique<lut::SigmoidActivationFunctionOp<dtype>>(
+                              layer, batch_size, session->cpu());
     if (session->empty()) {
         op->init(activations, results);
     } else {
@@ -28,7 +33,7 @@ void relu(float* activations,
           MklSession* session,
           float* results,
           float negative_slope) {
-    auto op = std::make_unique<ReluActivationFunctionOp<dtype>>(
+    auto op = std::make_unique<mkl_impl::ReluActivationFunctionOp<dtype>>(
             layer, batch_size, session->cpu());
     if (session->empty()) {
         op->init(activations, results, negative_slope);
@@ -44,8 +49,12 @@ void elu(float* activations,
          MklSession* session,
          float* results) {
     static const float alpha = 0.1;
-    auto op = std::make_unique<EluActivationFunctionOp<dtype>>(
-            layer, batch_size, session->cpu());
+    auto op = SIGMOID_IMPL == ExpUnit
+                      ? std::make_unique<
+                                mkl_impl::EluActivationFunctionOp<dtype>>(
+                                layer, batch_size, session->cpu())
+                      : std::make_unique<lut::EluActivationFunctionOp<dtype>>(
+                                layer, batch_size, session->cpu());
     if (session->empty()) {
         op->init(activations, results, alpha);
     } else {
@@ -59,8 +68,12 @@ void selu(float* activations,
           layer_t* layer,
           MklSession* session,
           float* results) {
-    auto op = std::make_unique<SeluActivationFunctionOp<dtype>>(
-            layer, batch_size, session->cpu());
+    auto op = SIGMOID_IMPL == ExpUnit
+                      ? std::make_unique<
+                                mkl_impl::SeluActivationFunctionOp<dtype>>(
+                                layer, batch_size, session->cpu())
+                      : std::make_unique<lut::SeluActivationFunctionOp<dtype>>(
+                                layer, batch_size, session->cpu());
     if (session->empty()) {
         op->init(activations, results);
     } else {
@@ -74,8 +87,12 @@ void tanh(float* activations,
           layer_t* layer,
           MklSession* session,
           float* results) {
-    auto op = std::make_unique<TanhActivationFunctionOp<dtype>>(
-            layer, batch_size, session->cpu());
+    auto op = SIGMOID_IMPL == ExpUnit
+                      ? std::make_unique<
+                                mkl_impl::TanhActivationFunctionOp<dtype>>(
+                                layer, batch_size, session->cpu())
+                      : std::make_unique<lut::TanhActivationFunctionOp<dtype>>(
+                                layer, batch_size, session->cpu());
     if (session->empty()) {
         op->init(activations, results);
     } else {
@@ -89,7 +106,7 @@ void softmax(float* activations,
              layer_t* layer,
              MklSession* session,
              float* results) {
-    auto op = std::make_unique<SoftmaxActivationFunctionOp<dtype>>(
+    auto op = std::make_unique<mkl_impl::SoftmaxActivationFunctionOp<dtype>>(
             layer, batch_size, session->cpu());
     if (session->empty()) {
         op->init(activations, results);

@@ -88,7 +88,9 @@ class BaseMklOp {
     }
 
     virtual const mkldnn::primitive& get_final_primitive() const {
-        return worklist.back();
+        if (!worklist.empty())
+          return worklist.back();
+        return get_output_mem();
     }
 
     const layer_t* get_layer() const {

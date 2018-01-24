@@ -1,9 +1,12 @@
 #ifndef _MKL_ACTIVATION_FUNCTIONS_H_
 #define _MKL_ACTIVATION_FUNCTIONS_H_
 
+#include <functional>
+
 #include "mkldnn.hpp"
 
 #include "arch/nnet_mkl.h"
+#include "core/ref/activation_functions.h"
 #include "utility/utility.h"
 
 namespace nnet_mkl {
@@ -65,6 +68,11 @@ class ActivationFunctionOp : public BaseMklOp<DType> {
     int input_size;
 };
 
+namespace mkl_impl {
+
+// Operations defined within this namespace use the MKL-DNN eltwise primitives
+// to perform the activation functions.
+
 template <typename DType>
 class ReluActivationFunctionOp : public ActivationFunctionOp<DType> {
    public:
@@ -105,6 +113,7 @@ class ReluActivationFunctionOp : public ActivationFunctionOp<DType> {
     DType negative_slope;
 };
 
+
 template <typename DType>
 class SigmoidActivationFunctionOp : public ActivationFunctionOp<DType> {
    public:
@@ -123,9 +132,9 @@ class SigmoidActivationFunctionOp : public ActivationFunctionOp<DType> {
     virtual void init(const BaseMklOp<DType>& prev_op, DType* output_buffer) {
         INFO_MSG("Sigmoid, chaining\n");
         this->create_primitive(mkldnn::algorithm::eltwise_logistic,
-                         prev_op.get_final_primitive(),
-                         prev_op.get_output_mem_desc(),
-                         output_buffer);
+                               prev_op.get_final_primitive(),
+                               prev_op.get_output_mem_desc(),
+                               output_buffer);
     }
     virtual ~SigmoidActivationFunctionOp() {}
     virtual std::string name() const { return "Sigmoid"; }
@@ -294,6 +303,191 @@ class SoftmaxActivationFunctionOp : public ActivationFunctionOp<DType> {
     virtual ~SoftmaxActivationFunctionOp() {}
     virtual std::string name() const { return "Softmax"; }
 };
+
+}  // namespace mkl_impl
+
+namespace lut {
+
+// Operations defined within this namespace use our reference lookup-table
+// implementations to perform the activation functions involving exponential
+// functions.
+
+// We bind all arguments to the functor at initialization time so no additional
+// arguments are needed. THis is done to ensure that the behavior cannot
+// unexpectedly change based on the value of SIGMOID_IMPL in the middle of
+// execution (if it should change for any reason).
+using RefFunctor = std::function<void()>;
+
+template <typename DType>
+class SigmoidActivationFunctionOp
+        : public mkl_impl::SigmoidActivationFunctionOp<DType> {
+   public:
+    using mkl_impl::SigmoidActivationFunctionOp<
+            DType>::SigmoidActivationFunctionOp;
+
+    virtual void create_functor(DType* input_buffer, DType* output_buffer) {
+        op = std::bind(SIGMOID_IMPL == CenteredLUT
+                               ? &sigmoid_lookup_centered
+                               : &sigmoid_lookup_noncentered,
+                       input_buffer,
+                       this->input_size,
+                       output_buffer);
+    }
+
+    virtual void init(DType* input_buffer, DType* output_buffer) {
+        INFO_MSG("Sigmoid LUT\n");
+        this->create_memory(input_buffer, this->input_size);
+        this->create_memory(output_buffer, this->input_size, true);
+        create_functor(input_buffer, output_buffer);
+    }
+
+    virtual void init(const BaseMklOp<DType>& prev_op, DType* output_buffer) {
+        INFO_MSG("Sigmoid LUT, chaining\n");
+        BaseMklOp<DType>::create_memory(
+                prev_op.get_output_mem().get_primitive_desc(),
+                output_buffer,
+                true);
+        create_functor((DType*)prev_op.get_output_mem().get_data_handle(),
+                       output_buffer);
+    }
+
+    virtual void run_work() { op(); }
+
+  protected:
+    RefFunctor op;
+};
+
+template <typename DType>
+class EluActivationFunctionOp
+        : public mkl_impl::EluActivationFunctionOp<DType> {
+   public:
+    using mkl_impl::EluActivationFunctionOp<DType>::EluActivationFunctionOp;
+
+    virtual void create_functor(DType* input_buffer,
+                                DType* output_buffer,
+                                DType alpha) {
+        op = std::bind(
+                &elu_lut, input_buffer, this->input_size, alpha, output_buffer);
+    }
+
+    virtual void init(DType* input_buffer,
+                      DType* output_buffer,
+                      DType alpha = mkl_traits<DType>::to_type(0.1)) {
+        INFO_MSG("ELU (LUT)\n");
+        this->create_memory(input_buffer, this->input_size);
+        this->create_memory(output_buffer, this->input_size, true);
+        create_functor(input_buffer, output_buffer, alpha);
+    }
+
+    virtual void init(const BaseMklOp<DType>& prev_op,
+                      DType* output_buffer,
+                      DType alpha = mkl_traits<DType>::to_type(0.1)) {
+        INFO_MSG("ELU (LUT), chaining\n");
+        BaseMklOp<DType>::create_memory(
+                prev_op.get_output_mem().get_primitive_desc(),
+                output_buffer,
+                true);
+        create_functor((DType*)prev_op.get_output_mem().get_data_handle(),
+                       output_buffer,
+                       alpha);
+    }
+    virtual void run_work() { op(); }
+
+   protected:
+    RefFunctor op;
+};
+
+template <typename DType>
+class TanhActivationFunctionOp : public mkl_impl::TanhActivationFunctionOp<DType> {
+   public:
+    using mkl_impl::TanhActivationFunctionOp<DType>::TanhActivationFunctionOp;
+
+    virtual void create_functor(DType* input_buffer, DType* output_buffer) {
+        op = std::bind(
+                &tanh_act, input_buffer, this->input_size, output_buffer);
+    }
+
+    virtual void init(DType* input_buffer, DType* output_buffer) {
+        INFO_MSG("Tanh LUT\n");
+        this->create_memory(input_buffer, this->input_size);
+        this->create_memory(output_buffer, this->input_size, true);
+        create_functor(input_buffer, output_buffer);
+    }
+
+    virtual void init(const BaseMklOp<DType>& prev_op, DType* output_buffer) {
+        INFO_MSG("Tanh, chaining\n");
+        BaseMklOp<DType>::create_memory(
+                prev_op.get_output_mem().get_primitive_desc(),
+                output_buffer,
+                true);
+        create_functor((DType*)prev_op.get_output_mem().get_data_handle(),
+                       output_buffer);
+    }
+    virtual void run_work() { op(); }
+
+   protected:
+    RefFunctor op;
+};
+
+// We only use the LUT implementation for the ELU part of SELU; the linear
+// scaling and shift can still be done via MKL-DNN.
+template <typename DType>
+class SeluActivationFunctionOp
+        : public mkl_impl::SeluActivationFunctionOp<DType> {
+   public:
+    SeluActivationFunctionOp(layer_t* layer,
+                             int batch_size,
+                             const mkldnn::engine& eng)
+            : mkl_impl::SeluActivationFunctionOp<DType>(layer, batch_size, eng),
+              elu_op(layer, batch_size, eng) {}
+
+    static constexpr DType alpha = mkl_traits<DType>::to_type(1.6733);
+    static constexpr DType lambda = mkl_traits<DType>::to_type(1.0507);
+
+    virtual void init(DType* input_buffer, DType* output_buffer) {
+        INFO_MSG("SELU (LUT)\n");
+        this->create_memory(input_buffer, this->input_size);
+        auto intermediate_mem = this->create_memory(nullptr, this->input_size);
+        auto output_mem =
+                this->create_memory(output_buffer, this->input_size, true);
+        elu_op.init(input_buffer,
+                    (DType*)intermediate_mem.get_data_handle(),
+                    alpha);
+        // The linear algorithm performs y = Ax + B.
+        this->create_primitive(mkldnn::algorithm::eltwise_linear,
+                               intermediate_mem,
+                               output_mem,
+                               lambda);
+    }
+
+    virtual void init(const BaseMklOp<DType>& prev_op, DType* output_buffer) {
+        INFO_MSG("SELU, chaining\n");
+        auto intermediate_mem = BaseMklOp<DType>::create_memory(
+                prev_op.get_output_mem().get_primitive_desc());
+        auto output_mem = BaseMklOp<DType>::create_memory(
+                prev_op.get_output_mem().get_primitive_desc(),
+                output_buffer,
+                true);
+        elu_op.init((DType*)prev_op.get_output_mem().get_data_handle(),
+                    (DType*)intermediate_mem.get_data_handle(),
+                    alpha);
+        // The linear algorithm performs y = Ax + B.
+        this->create_primitive(mkldnn::algorithm::eltwise_linear,
+                               intermediate_mem,
+                               output_mem,
+                               lambda);
+    }
+
+    virtual void run_work() {
+        elu_op.run_work();
+        BaseMklOp<DType>::run_work();
+    }
+
+   protected:
+    EluActivationFunctionOp<DType> elu_op;
+};
+
+}  // namespace lut
 
 void sigmoid(float* activations,
              int batch_size,
