@@ -22,13 +22,15 @@ void activation_fun_fxp(float* activations,
     if (function == RELU) {
         relu(activations, total_size);
     } else if (function == LRELU) {
-        lrelu(activations, total_size);
+        static const float alpha = 0.1;
+        lrelu(activations, total_size, alpha);
     } else if (function == ELU) {
-        elu(activations, total_size, 0.1);
+        static const float alpha = 0.1;
+        elu(activations, total_size, alpha, activations);
     } else if (function == SELU) {
         selu(activations, total_size);
     } else if (function == TANH) {
-        tanh_act(activations, total_size);
+        tanh_act(activations, total_size, activations);
     } else if (function == SIGMOID) {
         sigmoid_inplace(activations, total_size);
     } else if (function == SOFTMAX) {
@@ -61,9 +63,8 @@ void relu(float* a, int num_units) {
 // The leaky rectified linear activation function
 // ** this function is in-place (modifies a) **
 ALWAYS_INLINE
-void lrelu(float* a, int num_units) {
+void lrelu(float* a, int num_units, float alpha) {
     int i;
-    static const float alpha = 0.1;
     lrelu_loop:
     for (i = 0; i < num_units; i++) {
         if (a[i] < 0.0) {
@@ -72,23 +73,27 @@ void lrelu(float* a, int num_units) {
     }
 }
 
-void elu_expunit(float* a, int num_units, float alpha) {
+void elu_expunit(float* a, int num_units, float alpha, float* results) {
     elu_loop:
     for (int i = 0; i < num_units; i++) {
         float value = a[i];
         if (value < 0.0) {
-            a[i] = alpha * (exp(value) - 1);
+            results[i] = alpha * (exp(value) - 1);
+        } else {
+            results[i] = value;
         }
     }
 }
 
 ALWAYS_INLINE
-void elu_lut(float* a, int num_units, float alpha) {
+void elu_lut(float* a, int num_units, float alpha, float* results) {
     elu_loop:
     for (int i = 0; i < num_units; i++) {
         float value = a[i];
         if (value < 0.0) {
-            a[i] = alpha * (exp_lut(value) - 1);
+            results[i] = alpha * (exp_lut(value) - 1);
+        } else {
+            results[i] = value;
         }
     }
 }
@@ -96,11 +101,11 @@ void elu_lut(float* a, int num_units, float alpha) {
 // The exponential linear activation function
 // ** this function is in-place (modifies a) **
 ALWAYS_INLINE
-void elu(float* a, int num_units, float alpha) {
+void elu(float* a, int num_units, float alpha, float* results) {
     if (SIGMOID_IMPL == ExpUnit) {
-        elu_expunit(a, num_units, alpha);
+        elu_expunit(a, num_units, alpha, results);
     } else {
-        elu_lut(a, num_units, alpha);
+        elu_lut(a, num_units, alpha, results);
     }
 }
 
@@ -112,7 +117,7 @@ void selu(float* a, int num_units) {
     static const float alpha = 1.6733;
     static const float lamda = 1.0507;
 
-    elu(a, num_units, alpha);
+    elu(a, num_units, alpha, a);
     selu_loop:
     for (i = 0; i < num_units; i++) {
         a[i] = lamda * a[i];
@@ -120,19 +125,18 @@ void selu(float* a, int num_units) {
 }
 
 // The hyberbolic sine activation function
-// ** this function is in-place (modifies a) **
 ALWAYS_INLINE
-void tanh_act(float* a, int num_units) {
+void tanh_act(float* a, int num_units, float* results) {
     int i;
     tanh_act_loop1:
     for (i = 0; i < num_units; i++) {
-        a[i] = 2 * a[i];
+        results[i] = 2 * a[i];
     }
-    sigmoid_inplace(a, num_units);
+    sigmoid_inplace(results, num_units);
 
     tanh_act_loop2:
     for (i = 0; i < num_units; i++) {
-        a[i] = 2 * a[i] - 1;
+        results[i] = 2 * results[i] - 1;
     }
 }
 
@@ -142,9 +146,9 @@ void sigmoid_inplace(float* a, int num_units) {
     if (SIGMOID_IMPL == EXP_UNIT) {
         sigmoidn(a, num_units);
     } else if (SIGMOID_IMPL == CenteredLUT) {
-        sigmoid_lookup_centered(a, num_units);
+        sigmoid_lookup_centered(a, num_units, a);
     } else if (SIGMOID_IMPL == NoncenteredLUT) {
-        sigmoid_lookup_noncentered(a, num_units);
+        sigmoid_lookup_noncentered(a, num_units, a);
     }
 }
 
@@ -162,18 +166,18 @@ void sigmoidn(float* a, int num_units) {
 }
 
 ALWAYS_INLINE
-void sigmoid_lookup_centered(float* a, int num_units) {
+void sigmoid_lookup_centered(float* a, int num_units, float* results) {
     sigmoid_loop:
     for (int i = 0; i < num_units; i++) {
-        a[i] = sigmoid_lookup_centered_op_fxp(a[i]);
+        results[i] = sigmoid_lookup_centered_op_fxp(a[i]);
     }
 }
 
 ALWAYS_INLINE
-void sigmoid_lookup_noncentered(float* a, int num_units) {
+void sigmoid_lookup_noncentered(float* a, int num_units, float* results) {
     sigmoid_loop:
     for (int i = 0; i < num_units; i++) {
-        a[i] = sigmoid_lookup_noncentered_op_fxp(a[i]);
+        results[i] = sigmoid_lookup_noncentered_op_fxp(a[i]);
     }
 }
 
