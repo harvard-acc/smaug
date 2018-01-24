@@ -425,6 +425,7 @@ typedef struct _iarray_t {
 #endif
 
 #define CACHELINE_SIZE 64
+#define LOG_PAGE_SIZE 12
 
 #define ASSERT_MEMALIGN(ptr, err) \
     assert(err == 0 && "Failed to allocate memory for " #ptr ".\n");

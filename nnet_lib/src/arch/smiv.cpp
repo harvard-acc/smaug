@@ -132,8 +132,14 @@ result_buf standard_convolution_layer(float* activations,
     // would get us more performance.
     float* current_layer_weights =
             weights + get_weights_loc_for_layer(layers, lnum);
-    MAP_ARRAY_TO_ACCEL(kConvolutionHw, "host_weights", current_layer_weights,
-                       get_num_weights_layer(layers, lnum) * sizeof(float));
+    io_req_t input_req = layers[lnum].input_req;
+    const char* weights_var_name =
+            input_req == IO_DMA ? "host_weights" : input_req == IO_ACP
+                                                           ? "acp_weights"
+                                                           : "cache_weights";
+    int weights_size = WEIGHT_BYTES(layers, lnum);
+    MAP_ARRAY_TO_ACCEL(
+            kConvolutionHw, weights_var_name, current_layer_weights, weights_size);
     layer_t curr_layer = layers[lnum];
     if (curr_layer.c_padding > 0) {
         // TODO: Replace this with a memcpy implementation.
@@ -174,8 +180,14 @@ result_buf depthwise_convolution_layer(float* activations,
                                        sampling_param_t* sampling_param) {
     float* current_layer_weights =
             weights + get_weights_loc_for_layer(layers, lnum);
-    MAP_ARRAY_TO_ACCEL(kConvolutionHw, "host_weights", current_layer_weights,
-                       get_num_weights_layer(layers, lnum) * sizeof(float));
+    io_req_t input_req = layers[lnum].input_req;
+    const char* weights_var_name =
+            input_req == IO_DMA ? "host_weights" : input_req == IO_ACP
+                                                           ? "acp_weights"
+                                                           : "cache_weights";
+    int weights_size = WEIGHT_BYTES(layers, lnum);
+    MAP_ARRAY_TO_ACCEL(
+            kConvolutionHw, weights_var_name, current_layer_weights, weights_size);
     layer_t curr_layer = layers[lnum];
     if (curr_layer.c_padding > 0) {
         copy_zeropad(activations, layers, lnum, result);
@@ -478,18 +490,18 @@ result_buf run_layer(float* activations,
     return result_loc;
 }
 
-// Set the dmaLoad/dmaStore required flags for each layer.
+// Set the IO required flags for each layer.
 //
 // Since SMIV can share scratchpads between the conv/fc blocks, we only need
-// DMA if we need to send data back to the CPU.
-void set_dma_requirements(network_t* network, device_t* device) {
+// IO if we need to send data back to the CPU.
+void set_io_requirements(network_t* network, device_t* device) {
     for (int layer_num = 0; layer_num < network->depth; layer_num++) {
         layer_t* curr_layer = &network->layers[layer_num];
 
         // The input layer is easy.
         if (layer_num == 0) {
             curr_layer->input_req = IO_NONE;
-            curr_layer->output_req = IO_DMA;
+            curr_layer->output_req = device->cpu_default_offload;
             continue;
         }
 
@@ -498,36 +510,68 @@ void set_dma_requirements(network_t* network, device_t* device) {
 #if DEBUG_LEVEL > 0
         // When debugging, if we don't DMA the results back, we won't be able
         // to see what's happening.
+        curr_layer->input_req = IO_DMA;
         curr_layer->output_req = IO_DMA;
-#else
+#endif
+
+        // We only support DMA for hardware batch norm and pooling layers.
+        if (curr_layer->type == BATCH_NORM || curr_layer->type == POOLING) {
+            curr_layer->input_req = IO_DMA;
+            curr_layer->output_req = IO_DMA;
+            continue;
+        }
+
         // First, determine if we need to dma store the output.
         if (layer_num == network->depth - 1 ||
             // All these activation functions are unsupported.
             curr_layer->activation == SOFTMAX ||
             // If we disabled HW activation functions but an activation
-            // function is necessary, we need to DMA.
+            // function is necessary, we need to send back results.
             (!device->use_hw_activation_func &&
              curr_layer->activation != NO_ACTIVATION) ||
-            curr_layer->type == POOLING ||
             // For now, conv layers also do not support local caching.
             curr_layer->type == CONV_STANDARD ||
             curr_layer->type == CONV_DEPTHWISE ||
             curr_layer->type == CONV_POINTWISE ||
-            curr_layer->type == BATCH_NORM || next_layer->type == BATCH_NORM ||
+            // We need to do data layout on the CPU before invoking pooling
+            // block and we don't support local caching for batch norm right
+            // now.
+            next_layer->type == BATCH_NORM ||
             next_layer->type == POOLING ||
             // If the FC block needs work division, we can't locally cache.
             (curr_layer->type == FC && next_layer->type == FC &&
              inner_product_needs_work_division(&network->layers[layer_num]))) {
-            curr_layer->output_req = IO_DMA;
+            curr_layer->output_req = device->cpu_default_offload;
         } else {
             curr_layer->output_req = IO_NONE;
         }
-        if (curr_layer->input_preprocessing == FLATTEN)
-            prev_layer->output_req = IO_DMA;
-#endif
-        // Whether we need to load the input on this layer is just whether we
-        // had to store the outputs in the previous layer.
-        curr_layer->input_req = prev_layer->output_req;
+        // We also support one particular case where we only use ACP for
+        // results, and weights/activations will still be transfered by DMA.
+        if (device->cpu_activation_func_offload != device->cpu_default_offload) {
+            printf("For now we only support using DMA, ACP and cache for "
+                   "transfering everything, and particularly, we support using "
+                   "DMA for inputs/weights with ACP for results.\n");
+            assert(device->cpu_activation_func_offload == IO_ACP &&
+                   device->cpu_default_offload == IO_DMA);
+            curr_layer->output_req = device->cpu_activation_func_offload;
+        }
+        // We only do flattening on the CPU, so if the current layer needs
+        // flattening, it means the previous layer needs to send resutls
+        // back to the CPU.
+        if (curr_layer->input_preprocessing == FLATTEN) {
+            // Since batch norm and pooling blocks only support DMA, so except
+            // them here.
+            if (!(prev_layer->type == BATCH_NORM) &&
+                !(prev_layer->type == POOLING))
+                prev_layer->output_req = device->cpu_default_offload;
+        }
+        // If the previous layer doesn't need to send back results (e.g.,
+        // FC->FC caching), the current layer needs no IO for inputs.
+        if (prev_layer->output_req == IO_NONE) {
+            curr_layer->input_req = IO_NONE;
+        } else {
+            curr_layer->input_req = device->cpu_default_offload;
+        }
     }
 
     for (int layer_num = 0; layer_num < network->depth; layer_num++) {
@@ -574,7 +618,7 @@ void nnet_fwd(farray_t activations,
 
     l = 0;
 
-    set_dma_requirements(&network, device);
+    set_io_requirements(&network, device);
 
     MAP_ARRAY_TO_ACCEL(kConvolutionHw, "host_activations", activations.d,
                        activations.size);
