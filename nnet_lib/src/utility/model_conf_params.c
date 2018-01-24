@@ -42,6 +42,7 @@ cfg_opt_t device_cfg[] = {
   CFG_BOOL("use_hw_activation_func", cfg_true, CFGF_NONE),
   CFG_BOOL("use_hw_batch_norm", cfg_false, CFGF_NONE),
   CFG_BOOL("use_hw_pooling", cfg_false, CFGF_NONE),
+  CFG_BOOL("use_pipelined_dma", cfg_false, CFGF_NONE),
   CFG_END()
 };
 
