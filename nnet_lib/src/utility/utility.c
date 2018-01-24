@@ -141,11 +141,11 @@ size_t store_output_activations_dma(float* host_activations,
     return activations_size;
 }
 
-void divide_dma_req(float* host_base,
-                    float* local_base,
-                    int size,
-                    int log2_dma_chunk_size,
-                    bool isLoad) {
+void divide_and_send_dma_req(float* host_base,
+                             float* local_base,
+                             int size,
+                             int log2_dma_chunk_size,
+                             bool isLoad) {
     int dma_chunk_size = 1 << log2_dma_chunk_size;
     int num_dma_reqs = (size + dma_chunk_size - 1) >> log2_dma_chunk_size;
     int dma_req_size;

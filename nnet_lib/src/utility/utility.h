@@ -46,11 +46,11 @@ size_t grab_input_activations_dma(float* host_activations,
 size_t store_output_activations_dma(float* host_activations,
                                     float* accel_activations,
                                     layer_t* layer);
-void divide_dma_req(float* host_base,
-                    float* local_base,
-                    int size,
-                    int log2_dma_chunk_size,
-                    bool isLoad);
+void divide_and_send_dma_req(float* host_base,
+                             float* local_base,
+                             int size,
+                             int log2_dma_chunk_size,
+                             bool isLoad);
 
 static inline void clflush(float* addr) {
     __asm__ volatile("clflush %0" : : "r"(addr));
