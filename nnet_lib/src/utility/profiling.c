@@ -26,10 +26,10 @@ uint64_t get_cycle() {
 
 void barrier() {
     unsigned long long eax = 0, ebx = 0, ecx = 0, edx = 0;
-    __asm__("cpuid"
-            : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
-            : "a"(eax), "c"(ecx)
-            :);
+    __asm__ volatile("cpuid"
+                     : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
+                     : "a"(eax), "c"(ecx)
+                     :);
 }
 
 #else
