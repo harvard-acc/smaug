@@ -141,6 +141,11 @@ class GenericTests(BaseTest):
     correct_output = "generic-strides-2.out"
     self.runAndValidate(model_file, correct_output)
 
+  def test_batch_norm_act_func(self):
+    model_file = "generic/batch_norm_act_func.conf"
+    correct_output = "generic-batch-norm-act-func.out"
+    self.runAndValidate(model_file, correct_output)
+
 class ImageNetTests(BaseTest):
   @unittest.skip("SMIV doesn't support tiling the input image yet.")
   def test_simple(self):

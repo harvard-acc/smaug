@@ -84,7 +84,8 @@ result_buf flatten_input(float* activations,
 }
 
 bool is_supported_activation_func(layer_type ltype, activation_type func) {
-    if (ltype == FC || ltype == CONV_STANDARD || ltype == CONV_POINTWISE) {
+    if (ltype == FC || ltype == CONV_STANDARD || ltype == CONV_POINTWISE ||
+        ltype == BATCH_NORM) {
         switch (func) {
             case NO_ACTIVATION:
             case RELU:
@@ -316,7 +317,10 @@ void batch_norm_layer_hw(float* host_activations,
 #ifdef ENABLE_SIMD_IMPL
     batch_norm_simd_fxp(spad0, umem, curr_layer, NUM_TEST_CASES, spad1);
 #else
+    int input_size = curr_layer->inputs.rows * curr_layer->inputs.height *
+                     (curr_layer->inputs.cols + curr_layer->inputs.align_pad);
     batch_norm_fxp(spad0, umem, curr_layer, NUM_TEST_CASES, spad1);
+    activation_fun(spad1, NUM_TEST_CASES, input_size, curr_layer->activation);
 #endif
 
     // DMA out the result (from SPAD1)
@@ -332,6 +336,7 @@ result_buf batch_norm_layer(float* activations,
                             float* result,
                             device_t* device,
                             sampling_param_t* sampling_param) {
+    layer_t curr_layer = layers[lnum];
     float* curr_layer_weights =
             weights + get_weights_loc_for_layer(layers, lnum);
 
@@ -350,6 +355,8 @@ result_buf batch_norm_layer(float* activations,
                             "scratchpad!\n");
         }
         assert(inputs_size <= SPAD_SIZE);
+        if (!device->use_hw_activation_func)
+            curr_layer.activation = NO_ACTIVATION;
         MAP_ARRAY_TO_ACCEL(
                 kBatchNormHw, "host_activations", activations, inputs_size);
         MAP_ARRAY_TO_ACCEL(
@@ -357,7 +364,7 @@ result_buf batch_norm_layer(float* activations,
         MAP_ARRAY_TO_ACCEL(kBatchNormHw, "host_result", result, outputs_size);
         INVOKE_KERNEL_PROF(kBatchNormHw, lnum, batch_norm_layer_hw, activations,
                            curr_layer_weights, result, g_umem, g_spad0, g_spad1,
-                           &layers[lnum]);
+                           &curr_layer);
     } else {
         begin_profiling(__func__, lnum);
         // The reference implementation is faster than MKL since we can
@@ -365,9 +372,14 @@ result_buf batch_norm_layer(float* activations,
         // in MKL at the present moment.
         batch_norm_fxp(activations,
                        curr_layer_weights,
-                       &layers[lnum],
+                       &curr_layer,
                        NUM_TEST_CASES,
                        result);
+        if (device->use_hw_activation_func) {
+            int input_size = get_dims_size(&curr_layer.inputs);
+            activation_fun(
+                    result, NUM_TEST_CASES, input_size, curr_layer.activation);
+        }
         end_profiling();
     }
     return result;

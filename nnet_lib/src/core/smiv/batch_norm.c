@@ -1,3 +1,4 @@
+#include "core/smiv/activation_functions_simd.h"
 #include "core/smiv/params.h"
 #include "core/nnet_fwd_defs.h"
 #include "utility/utility.h"
@@ -9,10 +10,12 @@ v8fp_t batch_norm_simd_op(v8fp_t input,
                           v8fp_t mean,
                           v8fp_t recip_sqrt_var,
                           v8fp_t gamma,
-                          v8fp_t beta) {
+                          v8fp_t beta,
+                          activation_type activation_func) {
     v8fp_t scale = recip_sqrt_var * gamma;
     v8fp_t shift = input - mean;
-    return shift * scale + beta;
+    v8fp_t result = shift * scale + beta;
+    return activation_fun_simd_fxp(result, activation_func);
 }
 
 void batch_norm_post_fc_simd_fxp(float* inputs,
@@ -23,6 +26,7 @@ void batch_norm_post_fc_simd_fxp(float* inputs,
     int i, j;
     int input_size = curr_layer->inputs.rows * curr_layer->inputs.height *
                      (curr_layer->inputs.cols + curr_layer->inputs.align_pad);
+    activation_type act = curr_layer->activation;
     VEC_ARRAY_2D(v8fp_t, _inputs, inputs, input_size);
     VEC_ARRAY_2D(v8fp_t, _weights, weights, input_size);
     VEC_ARRAY_2D(v8fp_t, _results, results, input_size);
@@ -36,7 +40,7 @@ void batch_norm_post_fc_simd_fxp(float* inputs,
             v8fp_t gamma = _weights[GammaIndex][j];
             v8fp_t beta = _weights[BetaIndex][j];
             _results[i][j] = batch_norm_simd_op(
-                    _inputs[i][j], mean, recip_sqrt_var, gamma, beta);
+                    _inputs[i][j], mean, recip_sqrt_var, gamma, beta, act);
         }
     }
 }
@@ -57,6 +61,7 @@ void batch_norm_post_conv_simd_fxp(float* inputs,
     const int output_cols = curr_layer->outputs.cols;
     const int output_align_pad = curr_layer->outputs.align_pad;
     const int input_cols_vec = FRAC_CEIL(input_cols, VECTOR_SIZE);
+    activation_type act = curr_layer->activation;
 
     ARRAY_2D(float, _weights, weights, num_chans + weight_align_pad);
     VEC_ARRAY_4D(v8fp_t,
@@ -102,7 +107,8 @@ void batch_norm_post_conv_simd_fxp(float* inputs,
                                                mean_vec,
                                                recip_sqrt_var_vec,
                                                gamma_vec,
-                                               beta_vec);
+                                               beta_vec,
+                                               act);
                 }
             }
         }
@@ -115,7 +121,10 @@ void batch_norm_simd_fxp(float* inputs,
                          const layer_t* curr_layer,
                          int batch_size,
                          float* results) {
-
+    // TODO: This will break if the output of a conv/pool/input layer has
+    // height 1, since it will be interpreted as the output of an FC layer.
+    // We really need to fix this problem of using layer_t to glob the
+    // configurations of EVERY layer time.
     if (curr_layer->inputs.height == 1) {
         batch_norm_post_fc_simd_fxp(
                 inputs, weights, curr_layer, batch_size, results);

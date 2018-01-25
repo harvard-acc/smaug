@@ -433,8 +433,15 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
       layers[l].inputs.rows = layers[l - 1].outputs.rows;
       layers[l].inputs.cols = layers[l - 1].outputs.cols;
       layers[l].inputs.height = layers[l - 1].outputs.height;
+      // We have to keep going backwards until we find the first non-batch
+      // layer.
+      int i = l - 1;
+      while (i > 0 && layers[i].type == BATCH_NORM) {
+          i--;
+      }
+      layer_type prev_layer_type = layers[i].type;
+
       // Rows are organized as {mean, var, gamma, beta}.
-      layer_type prev_layer_type = layers[l - 1].type;
       switch (prev_layer_type) {
           case CONV_STANDARD:
           case CONV_DEPTHWISE:
@@ -449,6 +456,10 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
               layers[l].weights.rows = layers[l].inputs.rows * 4;
               layers[l].weights.cols = layers[l].inputs.cols;
               layers[l].weights.height = layers[l].inputs.height;
+              break;
+          case BATCH_NORM:
+              cfg_error(layer_opts, "This batch norm layer has no preceding "
+                                    "non-batch norm layer!");
               break;
           default:
               cfg_error(layer_opts, "Invalid location for batch norm layer.");
