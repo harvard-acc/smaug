@@ -21,7 +21,7 @@ COMP = $(CC)
 CFLAGS += -std=gnu99
 else ifeq ($(ARCH), SMIV)
 COMP = $(CXX)
-GEM5_SIMD_CFLAGS = -msse4.2
+GEM5_SIMD_CFLAGS = -msse3 -msse2 -mno-ssse3 -mno-sse4.1 -mno-sse4.2
 CFLAGS += -std=gnu++11 $(GEM5_SIMD_FLAGS)
 CPPFLAGS += -I$(MKLDNNROOT)/include
 LFLAGS += -L$(MKLDNNROOT)/lib -lmkldnn
