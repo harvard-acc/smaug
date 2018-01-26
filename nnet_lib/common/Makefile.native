@@ -17,7 +17,7 @@ else ifeq ($(ARCH), SMIV)
 COMP = $(CXX)
 CPPFLAGS += -I$(MKLDNNROOT)/include
 CFLAGS += -std=gnu++11 $(NATIVE_SIMD_FLAGS)
-NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smiv.c \
+NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smiv.cpp \
 												 $(SRC_DIR)/arch/smiv/inner_product.c \
 												 $(SRC_DIR)/arch/smiv/convolution.c \
 												 $(SRC_DIR)/arch/smiv/pooling.c \
