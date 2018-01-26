@@ -62,7 +62,7 @@ static void conv_macc_datapath_fxp(float weights_buffer[VECTOR_SIZE],
         psums_0[psum_reg] = accum_result_0;
         // We have to shift the shift regs together in a single function call.
         if (psum_reg < dp1_iters)
-          psums_1[psum_reg] = accum_result_1;
+            psums_1[psum_reg] = accum_result_1;
         PRINT_MSG_V("psums\n");
         PRINT_DEBUG_V(&psums_0[0], 1, VECTOR_SIZE, VECTOR_SIZE);
         PRINT_DEBUG_V(&psums_1[0], 1, VECTOR_SIZE, VECTOR_SIZE);
@@ -273,6 +273,14 @@ void convolution3d_smiv_1kernel_noreduce_fxp(float* a,
 
                 float final_psums[VECTOR_SIZE] = { 0, 0, 0, 0, 0, 0, 0, 0 };
                 merge_psums_fxp(psums_0, psums_1, double_tp, final_psums);
+
+                // Aladdin does not allow us to directly pass an address to be
+                // dereferenced as a temporary because all loads/stores must
+                // originate from a named variable. A simple workaround is to just
+                // explicitly cast here and use the casted variable's name.
+                float* actfunc_temp = (float*)final_psums;
+                activation_fun_fxp(
+                        actfunc_temp, 1, VECTOR_SIZE, curr_layer.activation);
 
                 // This is the unreduced data!
                 conv2d_commit:

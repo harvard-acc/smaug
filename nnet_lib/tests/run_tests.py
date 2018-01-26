@@ -136,6 +136,11 @@ class GenericTests(BaseTest):
     correct_output = "generic-depthwise-separable.out"
     self.runAndValidate(model_file, correct_output)
 
+  def test_depthwise_act_func(self):
+    model_file = "generic/depthwise-act-func.conf"
+    correct_output = "generic-depthwise-act-func.out"
+    self.runAndValidate(model_file, correct_output)
+
   def test_strides_2(self):
     model_file = "generic/strides-2.conf"
     correct_output = "generic-strides-2.out"

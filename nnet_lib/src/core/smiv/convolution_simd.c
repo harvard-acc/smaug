@@ -1,10 +1,9 @@
 #include <assert.h>
 
-#include "core/ref/activation_functions.h"
+#include "core/smiv/activation_functions_simd.h"
+#include "core/smiv/impls.h"
 #include "utility/utility.h"
 #include "nnet_fwd.h"
-
-#include "impls.h"
 
 #define SR_SIZE ((SHIFT_REG_SIZE)/(VECTOR_SIZE))
 
@@ -289,6 +288,8 @@ void convolution3d_smiv_1kernel_noreduce_simd_fxp(float* a,
 
                 v8fp_t final_psums =
                         merge_psums_simd_fxp(psums_0[0], psums_1[0], double_tp);
+                final_psums = activation_fun_simd_fxp(
+                        final_psums, curr_layer.activation);
 
                 conv2d_commit:
                 for (j = line_start; j < line_start + total_outpx; j++)

@@ -293,14 +293,14 @@ void standard_convolution_layer_impl(float* host_activations,
                 partial_layer.inputs.height = iter_cfg.height;
                 partial_layer.outputs.height = iter_cfg.height;
                 partial_layer.weights.height = iter_cfg.height;
-                partial_layer.activation =
-                        conv_cfgs.num_iterations > 1 || !do_hw_activation
-                                ? NO_ACTIVATION
-                                : curr_layer.activation;
-                partial_layer.output_req = IO_NONE;
                 // We only need to send the inputs to the UMEM on the first
                 // kernel.
                 partial_layer.input_req = (kern == 0) ? IO_DMA : IO_NONE;
+
+                // For the 2D convolution, we don't want to do activation
+                // functions or send data back.
+                partial_layer.activation = NO_ACTIVATION;
+                partial_layer.output_req = IO_NONE;
                 INVOKE_KERNEL_PROF(kConvolutionHw, lnum, convolution_layer_hw,
                                    host_activations, host_weights, NULL, g_umem,
                                    g_spad0, g_spad1, true, layers,
@@ -313,6 +313,12 @@ void standard_convolution_layer_impl(float* host_activations,
                 // not supported, then use the ACP reduction impl, except if
                 // the user specified to use DMA anyways.
                 partial_layer.output_req = curr_layer.output_req;
+                // For standard convolution, only do the activation in the
+                // reduction block.
+                partial_layer.activation =
+                        conv_cfgs.num_iterations > 1 || !do_hw_activation
+                                ? NO_ACTIVATION
+                                : curr_layer.activation;
                 if (do_hw_activation || !use_acp_offload) {
                     MAP_ARRAY_TO_ACCEL(kReductionHw, "host_result", result_loc,
                                        temp_result_size);
@@ -454,20 +460,6 @@ void depthwise_convolution_layer_impl(float* host_activations,
             start_chan += iter_cfg.height;
         }
     }
-
-    // TODO: SMIV doesn't support activation functions on the CNN block, only
-    // on the reduction block...so change it in the model :)
-    // This is a hack to fake the idea that RELU is supported for
-    // depthwise convolutions. SMIV's CNN block doesn't do activation functions
-    // (this is handled by the reduction block) but depthwise convolutions
-    // don't require reductions.
-    if (layers[lnum].activation == RELU) {
-        activation_fun(host_result,
-                       NUM_TEST_CASES,
-                       get_dims_size(&layers[lnum].outputs),
-                       RELU);
-    }
-    free_work_cfg(&conv_cfgs);
 }
 
 #endif

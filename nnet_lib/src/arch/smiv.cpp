@@ -85,7 +85,7 @@ result_buf flatten_input(float* activations,
 
 bool is_supported_activation_func(layer_type ltype, activation_type func) {
     if (ltype == FC || ltype == CONV_STANDARD || ltype == CONV_POINTWISE ||
-        ltype == BATCH_NORM) {
+        ltype == BATCH_NORM || ltype == CONV_DEPTHWISE) {
         switch (func) {
             case NO_ACTIVATION:
             case RELU:
