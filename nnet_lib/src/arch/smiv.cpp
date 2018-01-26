@@ -303,6 +303,7 @@ void batch_norm_layer_hw(float* host_activations,
                          float* umem,
                          float* spad0,
                          float* spad1,
+                         bool input_in_spad0,
                          layer_t* curr_layer) {
     // DMA in the weights (to UMEM)
     setReadyBits(umem, UMEM_SIZE, 0);
@@ -310,22 +311,37 @@ void batch_norm_layer_hw(float* host_activations,
 
     // DMA in the inputs (to SPAD0)
     if (curr_layer->input_req == IO_DMA) {
-        grab_input_activations_dma(host_activations, spad0, curr_layer);
+        if (input_in_spad0)
+            grab_input_activations_dma(host_activations, spad0, curr_layer);
+        else
+            grab_input_activations_dma(host_activations, spad1, curr_layer);
     }
 
     // The main kernel
 #ifdef ENABLE_SIMD_IMPL
-    batch_norm_simd_fxp(spad0, umem, curr_layer, NUM_TEST_CASES, spad1);
+    if (input_in_spad0)
+        batch_norm_simd_fxp(spad0, umem, curr_layer, NUM_TEST_CASES, spad1);
+    else
+        batch_norm_simd_fxp(spad1, umem, curr_layer, NUM_TEST_CASES, spad0);
 #else
     int input_size = curr_layer->inputs.rows * curr_layer->inputs.height *
                      (curr_layer->inputs.cols + curr_layer->inputs.align_pad);
-    batch_norm_fxp(spad0, umem, curr_layer, NUM_TEST_CASES, spad1);
-    activation_fun(spad1, NUM_TEST_CASES, input_size, curr_layer->activation);
+    activation_type activation = curr_layer->activation;
+    if (input_in_spad0) {
+        batch_norm_fxp(spad0, umem, curr_layer, NUM_TEST_CASES, spad1);
+        activation_fun(spad1, NUM_TEST_CASES, input_size, activation);
+    } else {
+        batch_norm_fxp(spad1, umem, curr_layer, NUM_TEST_CASES, spad0);
+        activation_fun(spad0, NUM_TEST_CASES, input_size, activation);
+    }
 #endif
 
     // DMA out the result (from SPAD1)
     if (curr_layer->output_req == IO_DMA) {
-        store_output_activations_dma(host_result, spad1, curr_layer);
+        if (input_in_spad0)
+            store_output_activations_dma(host_result, spad1, curr_layer);
+        else
+            store_output_activations_dma(host_result, spad0, curr_layer);
     }
 }
 
@@ -362,9 +378,10 @@ result_buf batch_norm_layer(float* activations,
         MAP_ARRAY_TO_ACCEL(
                 kBatchNormHw, "host_weights", curr_layer_weights, weights_size);
         MAP_ARRAY_TO_ACCEL(kBatchNormHw, "host_result", result, outputs_size);
+        // TODO: For now, always put the input into spad0.
         INVOKE_KERNEL_PROF(kBatchNormHw, lnum, batch_norm_layer_hw, activations,
                            curr_layer_weights, result, g_umem, g_spad0, g_spad1,
-                           &curr_layer);
+                           true, &layers[lnum]);
     } else {
         begin_profiling(__func__, lnum);
         // The reference implementation is faster than MKL since we can
