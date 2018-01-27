@@ -131,12 +131,13 @@ target". These terms are described below:
 **SoC architecture**: this describes the collection of hardware accelerators
 that the SoC contains. Based on what functionality can be offloaded, an
 architecture implementation will offload specific computations to the
-dedicated hardware blocks.
+dedicated hardware blocks, and optimized CPU implementations will be used when
+they are not available. These are also referred to as 'backends'.
 
 **Execution target**: This determines where the actual binary executable will
 be run: on a native host or in simulation under gem5.
 
-Currently, we have five architectures and three execution targets.
+Currently, we have five architectures/backends and three execution targets.
 
 **Architectures**
 
@@ -174,6 +175,10 @@ Currently, we have five architectures and three execution targets.
    optimized backend for all computation. No accelerators are involved here.
    Unlike MKL-DNN, Eigen is cross-platform.
 
+   **UPDATE**: The Eigen backend is currently broken due to some changes in
+   data layout management. The convolutional operators do not produce the
+   correct data as a result. It may not be fixed in the near future.
+
 **Execution targets**
 
 1. Native: this builds the executable to run everything on the host CPU.
@@ -191,8 +196,8 @@ Currently, we have five architectures and three execution targets.
      be offloaded, based on the architecture. As a result, this can only be run
      in simulation, not on the host machine.
 
-   Note that gem5 only supports the SSE vector extensions on x86, so the Eigen
-   architecture cannot take advantage of AVX instructions in simulation.
+   Note that gem5 only supports the SSE vector extensions on x86, so the Eigen/MKL
+   backends cannot take advantage of AVX instructions in simulation.
    However, AVX instructions are available to the native target, if the host
    machine's CPU supports them.
 3. Trace: this instruments the binary using LLVM-Tracer, so that a dynamic
@@ -220,13 +225,16 @@ To build the instrumented tracing executable, for the monolithic architecture:
    make dma-trace-binary ARCH=MONOLITHIC
    ```
 
-Eigen is an exception to this build instruction: instead of specifying
-ARCH=EIGEN, specify `eigen` as the Make target for the native target, and
-`eigen-gem5` for the gem5 execution target. Leave the ARCH field blank.
+Eigen and MKL are exceptions to this build instruction: instead of specifying
+ARCH=EIGEN, specify `eigen` or `mkl` as the Make target for the native target,
+and `eigen-gem5` or `mkl-gem5` for the gem5 execution target. Leave the ARCH
+field blank.
 
    ```bash
    make eigen  # Builds Eigen for native execution.
+   make mkl # Builds MKL for native execution.
    make eigen-gem5  # Builds Eigen for gem5 simulation.
+   make mkl-gem5  # Builds Eigen for gem5 simulation.
    ```
 
 All build products will be produced in the `build/`subdirectory.
@@ -274,6 +282,11 @@ When execution is completed, the final layer's output soft targets and final
 predicted label are written to `output_labels.out`.
 
 ## Running a network in simulation ##
+
+**UPDATE**: These simulation setups are no longer working because they have not
+been updated for many months. Instead, please refer to
+[https://github.com/xyzsam/composability](this repo) for working simulation
+setups instead.
 
 The quickest way to get started with simulation is to run an already-existing
 setup. These are located under the `sim` directory. For this example, let's use
