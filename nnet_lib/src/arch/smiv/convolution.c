@@ -236,6 +236,8 @@ void standard_convolution_layer_impl(float* host_activations,
     const int result_pad = curr_layer.outputs.align_pad;
     const int num_kerns = curr_layer.outputs.height;
     const int result_2d_size = result_height * (result_width + result_pad);
+    const int activations_size = get_input_activations_size(&curr_layer);
+    const int weights_size = get_num_weights_layer(layers, lnum);
     ARRAY_4D(float, _result, host_result, num_kerns, result_height,
              result_width + result_pad);
 
@@ -261,8 +263,10 @@ void standard_convolution_layer_impl(float* host_activations,
                                     curr_layer.type, curr_layer.activation);
     bool use_acp_offload = (device->cpu_activation_func_offload == IO_ACP);
 
-    MAP_ARRAY_TO_ACCEL(kConvolutionHw, "host_activations", host_activations,
-                       get_dims_size(&curr_layer.inputs));
+    MAP_ARRAY_TO_ACCEL(kConvolutionHw,
+                       "host_activations",
+                       host_activations,
+                       activations_size * sizeof(float));
 
     // Sampling: if set, only run up to the specified number of output
     // channels.  Set all remaining outputs to zero.
@@ -271,6 +275,13 @@ void standard_convolution_layer_impl(float* host_activations,
             sample_num_kerns == 0 ? num_kerns
                                   : min2(num_kerns, sample_num_kerns);
     bool is_sampled = num_kerns_to_simulate < num_kerns;
+
+    // Flush cache lines for activations and weights.
+    begin_ignored_profiling(lnum);
+    flush_cache_range(host_activations, activations_size);
+    flush_cache_range(host_weights, weights_size);
+    end_profiling();
+
     for (int img = 0; img < NUM_TEST_CASES; img++) {
         begin_profiling(__func__, lnum);
         if (is_sampled)
@@ -321,14 +332,14 @@ void standard_convolution_layer_impl(float* host_activations,
                                 : curr_layer.activation;
                 if (do_hw_activation || !use_acp_offload) {
                     MAP_ARRAY_TO_ACCEL(kReductionHw, "host_result", result_loc,
-                                       temp_result_size);
+                                       result_2d_size);
                     INVOKE_KERNEL_PROF(kReductionHw, lnum, reduction_hw,
                                        g_spad0, g_spad1, g_umem, false, false,
                                        partial_layer, result_2d_size,
                                        result_loc);
                 } else {
                     MAP_ARRAY_TO_ACCEL(kReductionHw, "acp_result", result_loc,
-                                       temp_result_size);
+                                       result_2d_size);
                     INVOKE_KERNEL_PROF(kReductionHw, lnum, reduction_acp_hw,
                                        g_spad0, g_spad1, result_loc, false, false,
                                        partial_layer, result_2d_size);
@@ -354,18 +365,28 @@ void standard_convolution_layer_impl(float* host_activations,
                 layer_t partial_layer = curr_layer;
                 partial_layer.inputs.height = num_result_chans;
                 partial_layer.outputs.height = 1;
+
+                // Flush cache lines for temporary results.
+                begin_ignored_profiling(lnum);
+                flush_cache_range(temp_result, temp_result_size / sizeof(float));
+                end_profiling();
+
                 for (int iter = 0; iter < result_iter; iter++) {
                     PRINT_MSG("Final reduction round %d\n", iter);
                     if (do_hw_activation || !use_acp_offload) {
-                        MAP_ARRAY_TO_ACCEL(kReductionHw, "host_result",
-                                           result_loc, temp_result_size);
+                        MAP_ARRAY_TO_ACCEL(kReductionHw,
+                                           "host_result",
+                                           result_loc,
+                                           temp_result_size);
                         INVOKE_KERNEL_PROF(kReductionHw, lnum, reduction_hw, g_spad0,
                                            g_spad1, g_umem, false, true,
                                            partial_layer, result_2d_size,
                                            result_loc);
                     } else {
-                        MAP_ARRAY_TO_ACCEL(kReductionHw, "acp_result",
-                                           result_loc, result_2d_size);
+                        MAP_ARRAY_TO_ACCEL(kReductionHw,
+                                           "acp_result",
+                                           result_loc,
+                                           temp_result_size);
                         INVOKE_KERNEL_PROF(kReductionHw, lnum, reduction_acp_hw,
                                            g_spad0, g_spad1, result_loc, false,
                                            true, partial_layer, result_2d_size);
@@ -398,6 +419,8 @@ void depthwise_convolution_layer_impl(float* host_activations,
     const int result_height = curr_layer.outputs.rows;
     const int result_width = curr_layer.outputs.cols;
     const int result_pad = curr_layer.outputs.align_pad;
+    const int activations_size = get_input_activations_size(&curr_layer);
+    const int weights_size = get_num_weights_layer(layers, lnum);
     ARRAY_3D(float, _result, host_result, result_height,
              result_width + result_pad);
 
@@ -415,8 +438,17 @@ void depthwise_convolution_layer_impl(float* host_activations,
     bool do_hw_activation = device->use_hw_activation_func &&
                             is_supported_activation_func(
                                     curr_layer.type, curr_layer.activation);
-    MAP_ARRAY_TO_ACCEL(kConvolutionHw, "host_activations", host_activations,
-                       get_dims_size(&curr_layer.inputs));
+    MAP_ARRAY_TO_ACCEL(kConvolutionHw,
+                       "host_activations",
+                       host_activations,
+                       activations_size * sizeof(float));
+
+    // Flush cache lines for activations and weights.
+    begin_ignored_profiling(lnum);
+    flush_cache_range(host_activations, activations_size);
+    flush_cache_range(host_weights, weights_size);
+    end_profiling();
+
     for (int img = 0; img < NUM_TEST_CASES; img++) {
         float* current_result = &_result[img][0][0];
         unsigned start_chan = 0;
@@ -447,7 +479,7 @@ void depthwise_convolution_layer_impl(float* host_activations,
             MAP_ARRAY_TO_ACCEL(kConvolutionHw,
                                "host_results",
                                current_result,
-                               current_iter_result_size);
+                               current_iter_result_size * sizeof(float));
             // The standard "kern" dimension is always 0, since the kernel
             // dimension is now the channel dimension.
             const int kern = 0;

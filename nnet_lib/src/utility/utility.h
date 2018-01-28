@@ -52,6 +52,36 @@ void divide_dma_req(float* host_base,
                     int log2_dma_chunk_size,
                     bool isLoad);
 
+static inline void clflush(float* addr) {
+    __asm__ volatile("clflush %0" : : "r"(addr));
+}
+
+// Some of older our processors (e.g., Xeon E5-2670) do not implement clflushopt
+// and clwb instructions (introduced in 2014), so if we want to build on the
+// older machines, gcc won't allow us to generate those intructions. That's why
+// we end up using raw bytes to make the flush intructions and forcing the input
+// to rax instead of letting the compiler pick any available register.
+
+static inline void clflushopt(float* addr) {
+    __asm__ volatile("mov %0, %%rax\n\t"
+                     ".byte 0x66, 0x0F, 0xAE, 0x38"
+                     :
+                     : "r"(addr) /* input */
+                     : "%rax"    /* clobbered register */
+                     );
+}
+
+static inline void clwb(float* addr) {
+    __asm__ volatile("mov %0, %%rax\n\t"
+                     ".byte 0x66, 0x0F, 0xAE, 0x30"
+                     :
+                     : "r"(addr) /* input */
+                     : "%rax"    /* clobbered register */
+                     );
+}
+
+void flush_cache_range(float* src, size_t n);
+
 #endif
 
 float randfloat();

@@ -131,6 +131,11 @@ void pooling_layer_impl(float* inputs, layer_t* curr_layer, float* results) {
             size_t partial_input_size = get_dims_size(&partial_layer.inputs);
             size_t partial_output_size = get_dims_size(&partial_layer.outputs);
 
+            // Flush cache lines for inputs.
+            begin_ignored_profiling(curr_layer->num);
+            flush_cache_range(current_inputs, partial_input_size);
+            end_profiling();
+
             MAP_ARRAY_TO_ACCEL(kPoolingHw,
                                "host_activations",
                                current_inputs,

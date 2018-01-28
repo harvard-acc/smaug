@@ -166,6 +166,15 @@ dma_division:
     }
 }
 
+void flush_cache_range(float* src, size_t n) {
+#ifdef GEM5_HARNESS
+    for (int i = 0; i < n; i += CACHELINE_SIZE / sizeof(float)) {
+        clflushopt(&src[i]);
+    }
+#else
+#endif
+}
+
 #endif
 
 int get_input_activations_size(layer_t* layer) {

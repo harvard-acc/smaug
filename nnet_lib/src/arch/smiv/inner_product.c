@@ -295,6 +295,15 @@ void inner_product_layer_hw_dispatch(float* activations,
                                      int result_size,
                                      device_t* device) {
     bool use_acp_offload = (device->cpu_activation_func_offload == IO_ACP);
+
+    // Flush cache lines for activations and weights.
+    begin_ignored_profiling(layer->num);
+    int activations_size = get_input_activations_size(layer);
+    int weights_size = get_num_weights_layer(layer, 0);
+    flush_cache_range(activations, activations_size);
+    flush_cache_range(weights, weights_size);
+    end_profiling();
+
     if (use_acp_offload) {
         MAP_ARRAY_TO_ACCEL(kInnerProductHw,
                            "acp_result",
