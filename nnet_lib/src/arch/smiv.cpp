@@ -80,7 +80,10 @@ result_buf flatten_input(float* activations,
                          layer_t* layers,
                          int lnum,
                          float* result) {
-    return im2row(activations, layers, lnum, result);
+    begin_profiling(__func__, lnum);
+    result_buf result_loc = im2row(activations, layers, lnum, result);
+    end_profiling();
+    return result_loc;
 }
 
 bool is_supported_activation_func(layer_type ltype, activation_type func) {
