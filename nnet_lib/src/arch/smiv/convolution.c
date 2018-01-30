@@ -332,14 +332,14 @@ void standard_convolution_layer_impl(float* host_activations,
                                 : curr_layer.activation;
                 if (do_hw_activation || !use_acp_offload) {
                     MAP_ARRAY_TO_ACCEL(kReductionHw, "host_result", result_loc,
-                                       result_2d_size);
+                                       result_2d_size * sizeof(float));
                     INVOKE_KERNEL_PROF(kReductionHw, lnum, reduction_hw,
                                        g_spad0, g_spad1, g_umem, false, false,
                                        partial_layer, result_2d_size,
                                        result_loc);
                 } else {
                     MAP_ARRAY_TO_ACCEL(kReductionHw, "acp_result", result_loc,
-                                       result_2d_size);
+                                       result_2d_size * sizeof(float));
                     INVOKE_KERNEL_PROF(kReductionHw, lnum, reduction_acp_hw,
                                        g_spad0, g_spad1, result_loc, false, false,
                                        partial_layer, result_2d_size);
