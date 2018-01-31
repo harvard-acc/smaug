@@ -1,6 +1,7 @@
 #ifndef _NNET_FWD_DEFS_H_
 #define _NNET_FWD_DEFS_H_
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
 
@@ -451,6 +452,13 @@ typedef struct _iarray_t {
 #define ALWAYS_INLINE __attribute__((__always_inline__))
 #else
 #define ALWAYS_INLINE
+#endif
+
+// Disable asserts within instrumented when tracing.
+#ifdef TRACE_MODE
+#define ASSERT(x)
+#else
+#define ASSERT(x) assert(x)
 #endif
 
 

@@ -14,7 +14,7 @@ DLEVEL = 0
 GEM5_SIMD_FLAGS = -msse
 NATIVE_SIMD_FLAGS = -march=native
 
-CFLAGS += -std=gnu++11 $(BMARK_SPECIFIC_CFLAGS) -O3
+CFLAGS += -std=gnu++11 $(BMARK_SPECIFIC_CFLAGS) -O3 -flax-vector-conversions
 CPPFLAGS += -DDMA_MODE -DEIGEN_ARCH_IMPL
 
 EIGEN_ARCH_SRCS = $(SRC_DIR)/arch/eigen.cpp

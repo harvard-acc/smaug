@@ -30,7 +30,8 @@ UTILITY_SRCS = utility/init_data.c \
 							 utility/data_archive_txt.c \
 							 utility/data_archive_common.c \
 							 utility/data_archive_bin.c \
-							 utility/data_layout_conversion.c
+							 utility/data_layout_conversion.c \
+							 utility/compression.c
 
 ARCH_SRCS = arch/common.c
 
@@ -93,7 +94,7 @@ CFLAGS += -g \
 					-Wall \
 					-Wno-unused-label \
 					-Wno-unused-but-set-variable \
-					-DDEBUG_LEVEL=$(DLEVEL) \
+					-DDEBUG_LEVEL=$(DLEVEL)
 
 BMARK_SPECIFIC_CFLAGS = -DDMA_INTERFACE_V3
 

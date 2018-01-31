@@ -77,7 +77,7 @@ $(SUBBUILDDIRS):
 %-labelmap: %.c
 	@$(GET_LABELED_STMTS) $^ -- \
 			-I$(LLVM_HOME)/lib/clang/$(LLVM_VERSION)/include \
-			$(CPPFLAGS) $(BMARK_SPECIFIC_CFLAGS)
+			$(CPPFLAGS) -mf16c $(BMARK_SPECIFIC_CFLAGS)
 	@cat labelmap >> $(BUILD_DIR)/labelmap
 
 $(BUILD_DIR)/full.llvm: $(LLVM_OBJS)
@@ -96,6 +96,7 @@ $(BUILD_DIR)/$(EXEC)-instrumented: $(BUILD_DIR)/full.s
 	@clang -g -O1 -S -fno-slp-vectorize -fno-vectorize -fno-unroll-loops \
         -fno-inline -fno-builtin \
 				-mavx \
+				-mf16c \
 				-emit-llvm \
 				$(CPPFLAGS) \
         $(BMARK_SPECIFIC_CFLAGS) \

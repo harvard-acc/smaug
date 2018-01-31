@@ -16,7 +16,7 @@ CFLAGS += -std=gnu99
 else ifeq ($(ARCH), SMIV)
 COMP = $(CXX)
 CPPFLAGS += -I$(MKLDNNROOT)/include
-CFLAGS += -std=gnu++11 $(NATIVE_SIMD_FLAGS)
+CFLAGS += -std=gnu++11 $(NATIVE_SIMD_FLAGS) -mf16c -flax-vector-conversions
 NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smiv.cpp \
 												 $(SRC_DIR)/arch/smiv/inner_product.c \
 												 $(SRC_DIR)/arch/smiv/convolution.c \
@@ -46,7 +46,7 @@ debug-verbose: $(DEBUG)
 # Disable some warnings.
 native: CFLAGS+=-Wno-attributes
 
-CFLAGS += $(BMARK_SPECIFIC_CFLAGS) -DDMA_MODE $(INCLUDES)
+CFLAGS += $(BMARK_SPECIFIC_CFLAGS) -DDMA_MODE $(INCLUDES) -flax-vector-conversions
 
 $(NATIVE): $(NATIVE_FULL_PATH_SRCS) $(GEM5_FULL_PATH_SRCS)
 	@echo Building benchmark $(EXEC) for native platform.

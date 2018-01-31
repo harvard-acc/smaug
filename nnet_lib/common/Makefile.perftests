@@ -11,6 +11,9 @@ test_eigen_%:
 test_mkl_%:
 	@make -f common/Makefile.perftests.mkl --no-print-directory $@
 
+test_smiv_%:
+	@make -f common/Makefile.perftests.smiv --no-print-directory $@
+
 clean-perftests:
 	@echo "Cleaning perftests..."
 	@make -f common/Makefile.perftests.eigen --no-print-directory clean
