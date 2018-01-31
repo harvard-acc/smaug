@@ -314,10 +314,13 @@ void batch_norm_layer_hw(float* host_activations,
 
     // DMA in the inputs (to SPAD0)
     if (curr_layer->input_req == IO_DMA) {
-        if (input_in_spad0)
+        if (input_in_spad0) {
+            setReadyBits(spad0, SPAD_SIZE, 0);
             grab_input_activations_dma(host_activations, spad0, curr_layer);
-        else
+        } else {
+            setReadyBits(spad1, SPAD_SIZE, 0);
             grab_input_activations_dma(host_activations, spad1, curr_layer);
+        }
     }
 
     // The main kernel

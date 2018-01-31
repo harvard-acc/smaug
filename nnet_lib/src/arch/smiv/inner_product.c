@@ -27,6 +27,7 @@ void inner_product_layer_hw_impl(float* host_activations,
     dmaLoad(local_weights, host_weights, weights_size);
 
     if (all_layers[lnum].input_req == IO_DMA) {
+        setReadyBits(local_inputs, SPAD_SIZE, 0);
         grab_input_activations_dma(
                 host_activations, local_inputs, &all_layers[lnum]);
     }

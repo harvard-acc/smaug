@@ -23,6 +23,7 @@ void pooling_layer_hw(float* host_activations,
         size_t partial_input_size =
                 partial_layer.inputs.rows * partial_layer.inputs.cols *
                 (partial_layer.inputs.height + partial_layer.inputs.align_pad);
+        setReadyBits(spad0, partial_input_size * sizeof(float), 0);
         dmaLoad(spad0, host_activations, partial_input_size * sizeof(float));
     }
 
