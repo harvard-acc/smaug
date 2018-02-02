@@ -5,6 +5,8 @@
 
 void verify_global_parameters(global_sec_header* header, network_t* network);
 
+bool is_txt_file(const char* filename);
+
 void save_all_to_file(const char* filename,
                       network_t* network,
                       farray_t* weights,

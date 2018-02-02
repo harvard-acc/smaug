@@ -50,8 +50,13 @@ static struct argp_option options[] = {
       "Data and weights generation mode (FIXED, RANDOM, READ_FILE)." },
     { "data-file", 'f', "F", 0,
       "File to read data and weights from (if data-init-mode == READ_FILE or "
-      "save-params is true). *.txt files are decoded as text files, while *.bin "
-      "files are decoded as binary files." },
+      "save-params is true). *.txt files are decoded as text files, while "
+      "*.bin files are decoded as binary files." },
+    { "convert", 'c', 0, 0,
+      "If this argument and a data file argument are provided, then SMAUG will "
+      "convert and save the loaded data from the data archive into the other "
+      "format (txt -> bin or bin -> txt). The filename of the output will be "
+      "the same as the input, except for a different extension."},
     { "save-params", 's', 0, 0,
       "Save network weights, data, and labels to a file." },
     { "sigmoid-impl", 'm', "IMPL", 0,
@@ -73,6 +78,7 @@ typedef struct _arguments {
     char* args[NUM_ARGS];
     int num_inputs;
     bool save_params;
+    bool convert;
     data_init_mode data_mode;
     sigmoid_impl_t sigmoid_impl;
 } arguments;
@@ -136,6 +142,10 @@ static error_t parse_opt(int key, char* arg, struct argp_state* state) {
     }
     case 's': {
       args->save_params = true;
+      break;
+    }
+    case 'c': {
+      args->convert = true;
       break;
     }
     case ARGP_KEY_ARG: {
@@ -210,6 +220,7 @@ void set_default_args(arguments* args) {
     args->num_inputs = 1;
     args->data_mode = RANDOM;
     args->save_params = false;
+    args->convert = false;
     args->sigmoid_impl = ExpUnit;
     for (int i = 0; i < NUM_ARGS; i++) {
         args->args[i] = NULL;
@@ -263,6 +274,7 @@ int main(int argc, char* argv[]) {
 
     NUM_TEST_CASES = args.num_inputs;
     SIGMOID_IMPL = args.sigmoid_impl;
+    args.convert = args.convert && args.data_mode == READ_FILE;
 
     // set random seed (need to #include <time.h>)
     srand(1);
@@ -326,13 +338,13 @@ int main(int argc, char* argv[]) {
 
     // This stores a binary mask for each layer, specifying whether its weights
     // can be compressed or not.
-    iarray_t compress_mask = { NULL, (size_t)network.depth };
-    compress_mask.d = (int*)malloc_aligned(compress_mask.size * sizeof(int));
-    memset(compress_mask.d, 0, compress_mask.size * sizeof(int));
+    iarray_t compress_type = { NULL, (size_t)network.depth };
+    compress_type.d = (int*)malloc_aligned(compress_type.size * sizeof(int));
+    memset(compress_type.d, 0, compress_type.size * sizeof(int));
 
     if (args.data_mode == READ_FILE) {
         read_all_from_file(args.args[DATA_FILE], &network, &weights, &hid,
-                           &labels, &compress_mask);
+                           &labels, &compress_type);
     } else {
 #if ARCHITECTURE == EIGEN
         nnet_eigen::init_weights(
@@ -349,12 +361,27 @@ int main(int argc, char* argv[]) {
 
     if (args.save_params) {
         save_all_to_file(args.args[DATA_FILE], &network, &weights, &hid,
-                         &labels, &compress_mask);
+                         &labels, &compress_type);
+    } else if (args.convert) {
+        char* output_file = NULL;
+        size_t fname_len = strlen(args.args[DATA_FILE]);
+        output_file = (char*)malloc(fname_len + 1);
+        bool produce_bin_file = is_txt_file(args.args[DATA_FILE]);
+        strncpy(output_file, args.args[DATA_FILE], fname_len);
+        if (produce_bin_file)
+            strncpy(output_file + fname_len - 3, "bin", 3);
+        else
+            strncpy(output_file + fname_len - 3, "txt", 3);
+        output_file[fname_len] = '\0';
+        save_all_to_file(
+                output_file, &network, &weights, &hid, &labels, &compress_type);
+        free(output_file);
+        return 0;
     }
 
     init_sigmoid_table(&sigmoid_table);
     init_exp_table(&exp_table);
-    process_compressed_weights(&network, &weights, &compress_mask);
+    process_compressed_weights(&network, &weights, &compress_type);
     fflush(stdout);
 
     // Run a forward pass through the neural net
@@ -398,4 +425,6 @@ int main(int argc, char* argv[]) {
     free(network.layers);
     free(device);
     free(sampling_param);
+
+    return 0;
 }
