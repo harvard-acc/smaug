@@ -94,6 +94,13 @@ typedef enum _sigmoid_impl_t {
     NumSigmoidImpls
 } sigmoid_impl_t;
 
+typedef enum _data_storage_t {
+    Uncompressed = 0,
+    CSR = 1,
+    PackedCSR = 2,
+    NumDataStorageTypes,
+} data_storage_t;
+
 // Description of a layer in a neural network.
 //
 // TODO: Due to Aladdin's requirement to specify a word size for arrays, all
@@ -112,6 +119,9 @@ typedef struct _layer_t {
   dims_t inputs;
   dims_t weights;
   dims_t outputs;
+
+  void* host_weights_buffer;
+  data_storage_t storage_type;
 
   // Data input/output dimensions on a per iteration basis.
   //
@@ -154,7 +164,6 @@ typedef struct _layer_t {
   io_req_t input_req;
   io_req_t output_req;
 } layer_t;
-
 
 // A network is a stack of layers and a layer count.
 typedef struct _network_t {

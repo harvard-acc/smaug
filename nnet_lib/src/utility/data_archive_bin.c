@@ -201,6 +201,18 @@ void save_labels_to_bin_file(FILE* fp, iarray_t* labels, size_t num_labels) {
                           "LABELS");
 }
 
+void save_compress_type_to_bin_file(FILE* fp,
+                                    iarray_t* compress_types,
+                                    size_t num_layers) {
+    data_sec_header header = { num_layers, SAVE_DATA_INT };
+    save_data_to_bin_file(fp,
+                          &header,
+                          (void*)compress_types->d,
+                          sizeof(data_sec_header),
+                          num_layers,
+                          "COMPRESSTYPE");
+}
+
 global_sec_header read_global_header_from_bin_file(mmapped_file* file) {
     global_sec_header global_header;
     seek_to_section(file, "GLOBAL");

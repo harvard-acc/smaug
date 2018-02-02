@@ -61,7 +61,8 @@ void save_all_to_file(const char* filename,
                       network_t* network,
                       farray_t* weights,
                       farray_t* inputs,
-                      iarray_t* labels) {
+                      iarray_t* labels,
+                      iarray_t* compress_type) {
     int input_rows = network->layers[0].inputs.rows;
     int input_cols = network->layers[0].inputs.cols;
     int input_height = network->layers[0].inputs.height;
@@ -75,6 +76,8 @@ void save_all_to_file(const char* filename,
         save_weights_to_txt_file(network_dump, weights, weights->size);
         save_data_to_txt_file(network_dump, inputs, input_dim * NUM_TEST_CASES);
         save_labels_to_txt_file(network_dump, labels, labels->size);
+        save_compress_type_to_txt_file(
+                network_dump, compress_type, compress_type->size);
         fclose(network_dump);
     } else {
         printf("Saving data to binary file %s...\n", filename);
@@ -84,6 +87,8 @@ void save_all_to_file(const char* filename,
         save_inputs_to_bin_file(
                 network_dump, inputs, input_dim * NUM_TEST_CASES);
         save_labels_to_bin_file(network_dump, labels, labels->size);
+        save_compress_type_to_bin_file(
+                network_dump, compress_type, compress_type->size);
         fclose(network_dump);
     }
 }
@@ -92,7 +97,8 @@ void read_all_from_file(const char* filename,
                         network_t* network,
                         farray_t* weights,
                         farray_t* inputs,
-                        iarray_t* labels) {
+                        iarray_t* labels,
+                        iarray_t* compress_type) {
     if (is_txt_file(filename)) {
         printf("Reading data from text file %s...\n", filename);
         global_sec_header header = read_global_header_from_txt_file(filename);
@@ -100,6 +106,7 @@ void read_all_from_file(const char* filename,
         read_weights_from_txt_file(filename, weights);
         read_data_from_txt_file(filename, inputs);
         read_labels_from_txt_file(filename, labels);
+        read_compress_type_from_txt_file(filename, compress_type);
         free_global_sec_header(&header);
     } else {
         printf("Reading data from binary file %s...\n", filename);
@@ -111,6 +118,7 @@ void read_all_from_file(const char* filename,
         read_weights_from_bin_file(&file, weights);
         read_inputs_from_bin_file(&file, inputs);
         read_labels_from_bin_file(&file, labels);
+        read_compress_type_from_bin_file(&file, compress_type);
         free_global_sec_header(&global_header);
 
         close_bin_data_file(&file);

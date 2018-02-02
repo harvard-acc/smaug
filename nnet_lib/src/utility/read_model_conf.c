@@ -518,6 +518,8 @@ static void read_layer_config(layer_t* layers, cfg_t* network_opts, int l) {
     cfg_t* current_layer_opts = cfg_getnsec(network_opts, "layer", l - 1);
     set_layer_type(layers, current_layer_opts, l);
     set_layer_dims(layers, current_layer_opts, l);
+    layers[l].host_weights_buffer = NULL;
+    layers[l].storage_type = Uncompressed;
 }
 
 io_req_t str_to_io_req(char* value) {

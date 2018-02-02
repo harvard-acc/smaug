@@ -7,6 +7,7 @@
 #include "arch/common.h"
 #include "arch/interface.h"
 #include "core/ref/lookup_tables.h"
+#include "utility/compression.h"
 #include "utility/data_archive.h"
 #include "utility/init_data.h"
 #include "utility/profiling.h"
@@ -215,6 +216,44 @@ void set_default_args(arguments* args) {
     }
 }
 
+// If any of the layers in the network can use compressed weights storage, then
+// compress their (currently) dense weights and update the layer's weight
+// storage type accordingly.
+void process_compressed_weights(network_t* network,
+                                farray_t* weights,
+                                iarray_t* compress_mask) {
+    for (int i = 1; i < network->depth; i++) {
+        layer_t* layer = &network->layers[i];
+        assert(compress_mask->d[i] < NumDataStorageTypes &&
+               "Invalid value of compress type found!");
+        layer->storage_type = (data_storage_t)compress_mask->d[i];
+        float* weights_loc =
+                (weights->d + get_weights_loc_for_layer(network->layers, i));
+        if (layer->storage_type == Uncompressed) {
+            layer->host_weights_buffer = (void*)weights_loc;
+        } else if (layer->storage_type == CSR) {
+            csr_array_t* csr = (csr_array_t*) malloc_aligned(sizeof(csr_array_t));
+            *csr = compress_dense_data_csr(weights_loc, &layer->weights);
+            layer->host_weights_buffer = (void*)csr;
+        }
+    }
+}
+
+// Free weights used in the network.
+//
+// For now, this only frees the CSR allocated data structures, since the rest
+// of the dense weights are stored as one giant buffer.
+void free_network_weights(network_t* network) {
+    for (int i = 0; i < network->depth; i++) {
+        if (network->layers[i].storage_type == CSR) {
+            csr_array_t* csr =
+                    (csr_array_t*)network->layers[i].host_weights_buffer;
+            free_csr_array_t(csr);
+            free(csr);
+        }
+    }
+}
+
 int main(int argc, char* argv[]) {
     int i;
 
@@ -245,10 +284,7 @@ int main(int argc, char* argv[]) {
     farray_t hid = { NULL, 0 };
     farray_t hid_temp = { NULL, 0 };
     layer_t input_layer = network.layers[0];
-    size_t data_size =
-            NUM_TEST_CASES * input_layer.inputs.rows *
-            (input_layer.inputs.cols + input_layer.inputs.align_pad) *
-            input_layer.inputs.height;
+    size_t data_size = NUM_TEST_CASES * get_dims_size(&input_layer.inputs);
 
     printf("Setting up arrays\n");
     // Get the dimensions of the biggest matrix that will ever come out of
@@ -288,9 +324,15 @@ int main(int argc, char* argv[]) {
     labels.d = (int*)malloc_aligned(labels.size * sizeof(float));
     memset(labels.d, 0, labels.size * sizeof(float));
 
+    // This stores a binary mask for each layer, specifying whether its weights
+    // can be compressed or not.
+    iarray_t compress_mask = { NULL, (size_t)network.depth };
+    compress_mask.d = (int*)malloc_aligned(compress_mask.size * sizeof(int));
+    memset(compress_mask.d, 0, compress_mask.size * sizeof(int));
+
     if (args.data_mode == READ_FILE) {
-        read_all_from_file(
-                args.args[DATA_FILE], &network, &weights, &hid, &labels);
+        read_all_from_file(args.args[DATA_FILE], &network, &weights, &hid,
+                           &labels, &compress_mask);
     } else {
 #if ARCHITECTURE == EIGEN
         nnet_eigen::init_weights(
@@ -306,13 +348,13 @@ int main(int argc, char* argv[]) {
     }
 
     if (args.save_params) {
-        save_all_to_file(
-                args.args[DATA_FILE], &network, &weights, &hid, &labels);
+        save_all_to_file(args.args[DATA_FILE], &network, &weights, &hid,
+                         &labels, &compress_mask);
     }
 
     init_sigmoid_table(&sigmoid_table);
     init_exp_table(&exp_table);
-
+    process_compressed_weights(&network, &weights, &compress_mask);
     fflush(stdout);
 
     // Run a forward pass through the neural net
@@ -348,6 +390,7 @@ int main(int argc, char* argv[]) {
         free(sigmoid_table);
     if (exp_table)
         free(exp_table);
+    free_network_weights(&network);
     free(hid.d);
     free(hid_temp.d);
     free(weights.d);
