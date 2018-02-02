@@ -519,7 +519,7 @@ static void read_layer_config(layer_t* layers, cfg_t* network_opts, int l) {
     set_layer_type(layers, current_layer_opts, l);
     set_layer_dims(layers, current_layer_opts, l);
     layers[l].host_weights_buffer = NULL;
-    layers[l].storage_type = Uncompressed;
+    layers[l].wgt_storage_type = Uncompressed;
 }
 
 io_req_t str_to_io_req(char* value) {

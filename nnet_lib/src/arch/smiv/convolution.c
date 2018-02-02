@@ -88,7 +88,7 @@ void reduction_hw(float* spad0,
         }
     }
     printf("reduction results:\n");
-    for (int i = 0; i < result_bytes / sizeof(float); i++) {
+    for (int i = 0; i < result_bytes / (int)sizeof(float); i++) {
         printf("%f, ", host_result[i]);
     }
     printf("\n");

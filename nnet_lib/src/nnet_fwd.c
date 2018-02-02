@@ -237,15 +237,25 @@ void process_compressed_weights(network_t* network,
         layer_t* layer = &network->layers[i];
         assert(compress_mask->d[i] < NumDataStorageTypes &&
                "Invalid value of compress type found!");
-        layer->storage_type = (data_storage_t)compress_mask->d[i];
+        layer->wgt_storage_type = (data_storage_t)compress_mask->d[i];
         float* weights_loc =
                 (weights->d + get_weights_loc_for_layer(network->layers, i));
-        if (layer->storage_type == Uncompressed) {
+        if (layer->wgt_storage_type == Uncompressed) {
             layer->host_weights_buffer = (void*)weights_loc;
-        } else if (layer->storage_type == CSR) {
-            csr_array_t* csr = (csr_array_t*) malloc_aligned(sizeof(csr_array_t));
+        } else if (layer->wgt_storage_type == CSR) {
+            csr_array_t* csr =
+                    (csr_array_t*)malloc_aligned(sizeof(csr_array_t));
             *csr = compress_dense_data_csr(weights_loc, &layer->weights);
             layer->host_weights_buffer = (void*)csr;
+        } else if (layer->wgt_storage_type == PackedCSR) {
+            csr_array_t csr =
+                    compress_dense_data_csr(weights_loc, &layer->weights);
+            packed_csr_array_t* packed_csr =
+                    (packed_csr_array_t*)malloc_aligned(
+                            sizeof(packed_csr_array_t));
+            *packed_csr = pack_data_vec8_f16(csr, &layer->weights);
+            layer->host_weights_buffer = (void*)packed_csr;
+            free_csr_array_t(&csr);
         }
     }
 }
@@ -256,10 +266,15 @@ void process_compressed_weights(network_t* network,
 // of the dense weights are stored as one giant buffer.
 void free_network_weights(network_t* network) {
     for (int i = 0; i < network->depth; i++) {
-        if (network->layers[i].storage_type == CSR) {
+        if (network->layers[i].wgt_storage_type == CSR) {
             csr_array_t* csr =
                     (csr_array_t*)network->layers[i].host_weights_buffer;
             free_csr_array_t(csr);
+            free(csr);
+        } else if (network->layers[i].wgt_storage_type == PackedCSR) {
+            packed_csr_array_t* csr =
+                    (packed_csr_array_t*)network->layers[i].host_weights_buffer;
+            free_packed_csr_array_t(csr);
             free(csr);
         }
     }

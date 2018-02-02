@@ -121,7 +121,7 @@ typedef struct _layer_t {
   dims_t outputs;
 
   void* host_weights_buffer;
-  data_storage_t storage_type;
+  data_storage_t wgt_storage_type;
 
   // Data input/output dimensions on a per iteration basis.
   //
@@ -162,6 +162,7 @@ typedef struct _layer_t {
   input_pp input_preprocessing;
 
   io_req_t input_req;
+  io_req_t weights_req;
   io_req_t output_req;
 } layer_t;
 
