@@ -8,7 +8,7 @@ endif
 EIGEN_BINARY = $(BUILD_DIR)/nnet-eigen-native
 EIGEN_BINARY_FOR_GEM5 = $(BUILD_DIR)/nnet-eigen-gem5
 
-INCLUDES += -I$(SRC_DIR)/eigen
+INCLUDES += -I$(SRC_DIR)/third_party/eigen
 DLEVEL = 0
 
 GEM5_SIMD_FLAGS = -msse
