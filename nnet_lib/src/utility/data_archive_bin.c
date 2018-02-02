@@ -221,3 +221,8 @@ void read_inputs_from_bin_file(mmapped_file* file, farray_t* inputs) {
 void read_labels_from_bin_file(mmapped_file* file, iarray_t* labels) {
     read_iarray_from_bin_file(file, labels, "LABELS");
 }
+
+void read_compress_type_from_bin_file(mmapped_file* file,
+                                      iarray_t* compress_type) {
+    read_iarray_from_bin_file(file, compress_type, "COMPRESSTYPE");
+}

@@ -10,9 +10,14 @@ void save_global_parameters_to_bin_file(FILE* fp, network_t* network);
 void save_labels_to_bin_file(FILE* fp, iarray_t* labels, size_t num_labels);
 void save_inputs_to_bin_file(FILE* fp, farray_t* inputs, size_t num_values);
 void save_weights_to_bin_file(FILE* fp, farray_t* weights, size_t num_weights);
+void save_compress_type_to_bin_file(FILE* fp,
+                                    iarray_t* compress_type,
+                                    size_t num_layers);
 global_sec_header read_global_header_from_bin_file(mmapped_file* file);
 void read_weights_from_bin_file(mmapped_file* file, farray_t* weights);
 void read_inputs_from_bin_file(mmapped_file* file, farray_t* data);
 void read_labels_from_bin_file(mmapped_file* file, iarray_t* labels);
+void read_compress_type_from_bin_file(mmapped_file* file,
+                                      iarray_t* compress_type);
 
 #endif

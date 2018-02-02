@@ -28,6 +28,8 @@ const char* kTxtDataHeader = "===DATA BEGIN===";
 const char* kTxtDataFooter = "===DATA END===";
 const char* kTxtLabelsHeader = "===LABELS BEGIN===";
 const char* kTxtLabelsFooter = "===LABELS END===";
+const char* kTxtCompressTypeHeader = "===COMPRESS TYPE BEGIN===";
+const char* kTxtCompressTypeFooter = "===COMPRESS TYPE END===";
 
 static void save_farray_to_txt_file(FILE* fp, farray_t* data, unsigned size) {
     fprintf(fp, "# NUM_ELEMS %d\n# TYPE float\n", size);
@@ -62,17 +64,16 @@ static bool find_section_start(FILE* fp, const char* section_header) {
     return found_section;
 }
 
-static data_sec_header read_data_sec_header(FILE* fp,
-                                            const char* section_header) {
+static bool read_data_sec_header(FILE* fp,
+                                 const char* section_header,
+                                 data_sec_header* header) {
     if (fp == NULL)
         FATAL_MSG("Can't open data file!\n");
 
     if (!find_section_start(fp, section_header)) {
-        fclose(fp);
-        FATAL_MSG("Section header was not found in the file!\n");
+        return false;
     }
 
-    data_sec_header header;
     int num_elems;
     char data_type[6];
     int ret = fscanf(fp, "# NUM_ELEMS %d\n", &num_elems);
@@ -80,43 +81,51 @@ static data_sec_header read_data_sec_header(FILE* fp,
         FATAL_MSG("Corrupted header! NUM_ELEMS not found.\n");
     if (num_elems < 0)
         FATAL_MSG("NUM_ELEMS cannot be negative!\n");
-    header.num_elems = num_elems;
+    header->num_elems = num_elems;
 
     ret = fscanf(fp, "# TYPE %6s\n", &data_type[0]);
     if (ret != 1)
         FATAL_MSG("Corrupted header! Datatype not found.\n");
 
     if (strncmp(data_type, "float", 6) == 0) {
-      header.type = SAVE_DATA_FLOAT;
+      header->type = SAVE_DATA_FLOAT;
     } else if (strncmp(data_type, "int", 4) == 0) {
-      header.type = SAVE_DATA_INT;
+      header->type = SAVE_DATA_INT;
     } else {
         FATAL_MSG("Invalid datatype %s found.\n", data_type);
     }
-    return header;
+    return true;
 }
 
 static void read_fp_data_from_txt_file(const char* filename,
                                        farray_t* data,
-                                       const char* section_header) {
+                                       const char* section_header,
+                                       bool is_required_section) {
     FILE* fp = fopen(filename, "r");
-    data_sec_header header = read_data_sec_header(fp, section_header);
-    if (header.num_elems > data->size) {
-        FATAL_MSG("This file section contains more data than can be "
-                  "stored in the provided array!\n");
-    } else if (header.type != SAVE_DATA_FLOAT) {
-        FATAL_MSG("Expected datatype float, got datatype int!");
-    }
-
-    float read_float;
-    for (unsigned i = 0; i < header.num_elems; i++) {
-        int ret_f_scanf = fscanf(fp, "%f,", &read_float);
-        if (ret_f_scanf != 1) {
-            fclose(fp);
-            FATAL_MSG("The number of values expected to be read "
-                      "exceeded the number of values found!\n");
+    data_sec_header header;
+    bool found_header = read_data_sec_header(fp, section_header, &header);
+    if (!found_header) {
+        if (is_required_section)
+            FATAL_MSG("Could not find required section %s\n", section_header);
+    } else {
+        if (header.num_elems > data->size) {
+            FATAL_MSG("Section %s contains more data than can be "
+                      "stored in the provided array!\n",
+                      section_header);
+        } else if (header.type != SAVE_DATA_FLOAT) {
+            FATAL_MSG("Expected datatype float, got datatype int!");
         }
-        data->d[i] = conv_float2fixed(read_float);
+
+        float read_float;
+        for (unsigned i = 0; i < header.num_elems; i++) {
+            int ret_f_scanf = fscanf(fp, "%f,", &read_float);
+            if (ret_f_scanf != 1) {
+                fclose(fp);
+                FATAL_MSG("The number of values expected to be read "
+                          "exceeded the number of values found!\n");
+            }
+            data->d[i] = conv_float2fixed(read_float);
+        }
     }
 
     fclose(fp);
@@ -124,25 +133,33 @@ static void read_fp_data_from_txt_file(const char* filename,
 
 static void read_int_data_from_txt_file(const char* filename,
                                         iarray_t* data,
-                                        const char* section_header) {
+                                        const char* section_header,
+                                        bool is_required_section) {
     FILE* fp = fopen(filename, "r");
-    data_sec_header header = read_data_sec_header(fp, section_header);
-    if (header.num_elems > data->size) {
-        FATAL_MSG("This file section contains more data than can be "
-                  "stored in the provided array!\n");
-    } else if (header.type != SAVE_DATA_INT) {
-        FATAL_MSG("Expected datatype int, got datatype float!");
-    }
-
-    int read_int;
-    for (unsigned i = 0; i < header.num_elems; i++) {
-        int ret_f_scanf = fscanf(fp, "%d,", &read_int);
-        if (ret_f_scanf != 1) {
-            fclose(fp);
-            FATAL_MSG("The number of data expected to be read "
-                      "exceeded the number of data found!\n");
+    data_sec_header header;
+    bool found_header = read_data_sec_header(fp, section_header, &header);
+    if (!found_header) {
+        if (is_required_section)
+            FATAL_MSG("Could not find required section %s\n", section_header);
+    } else {
+        if (header.num_elems > data->size) {
+            FATAL_MSG("Section %s contains more data than can be "
+                      "stored in the provided array!\n",
+                      section_header);
+        } else if (header.type != SAVE_DATA_INT) {
+            FATAL_MSG("Expected datatype int, got datatype float!");
         }
-        data->d[i] = read_int;
+
+        int read_int;
+        for (unsigned i = 0; i < header.num_elems; i++) {
+            int ret_f_scanf = fscanf(fp, "%d,", &read_int);
+            if (ret_f_scanf != 1) {
+                fclose(fp);
+                FATAL_MSG("The number of data expected to be read "
+                          "exceeded the number of data found!\n");
+            }
+            data->d[i] = read_int;
+        }
     }
 
     fclose(fp);
@@ -216,14 +233,28 @@ void save_labels_to_txt_file(FILE* fp, iarray_t* labels, size_t num_labels) {
     fprintf(fp, "%s\n", kTxtLabelsFooter);
 }
 
+void save_compress_type_to_txt_file(FILE* fp,
+                                    iarray_t* compress_type,
+                                    size_t num_layers) {
+    fprintf(fp, "%s\n", kTxtCompressTypeHeader);
+    save_iarray_to_txt_file(fp, compress_type, num_layers);
+    fprintf(fp, "%s\n", kTxtCompressTypeFooter);
+}
+
 void read_weights_from_txt_file(const char* filename, farray_t* weights) {
-    read_fp_data_from_txt_file(filename, weights, kTxtWeightsHeader);
+    read_fp_data_from_txt_file(filename, weights, kTxtWeightsHeader, true);
 }
 
 void read_data_from_txt_file(const char* filename, farray_t* data) {
-    read_fp_data_from_txt_file(filename, data, kTxtDataHeader);
+    read_fp_data_from_txt_file(filename, data, kTxtDataHeader, true);
 }
 
 void read_labels_from_txt_file(const char* filename, iarray_t* labels) {
-    read_int_data_from_txt_file(filename, labels, kTxtLabelsHeader);
+    read_int_data_from_txt_file(filename, labels, kTxtLabelsHeader, true);
+}
+
+void read_compress_type_from_txt_file(const char* filename,
+                                      iarray_t* compress_type) {
+    read_int_data_from_txt_file(
+            filename, compress_type, kTxtCompressTypeHeader, false);
 }
