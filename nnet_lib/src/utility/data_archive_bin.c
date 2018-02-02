@@ -36,7 +36,7 @@
 #include "utility/data_archive_bin.h"
 #include "utility/data_archive_common.h"
 
-static void seek_to_section(mmapped_file* file, const char* section_name) {
+static void* find_section_header(mmapped_file* file, const char* section_name) {
     unsigned section_name_len = strlen(section_name);
     unsigned match_index = 0;
     unsigned pos = 0;
@@ -54,7 +54,7 @@ static void seek_to_section(mmapped_file* file, const char* section_name) {
 
     // Otherwise, return the file position pointer pointed to the address right
     // after the section name.
-    file->addr = (char*)file->addr + pos;
+    return (void*)(data + pos);
 }
 
 static void read_section_header(void* header,
@@ -109,16 +109,15 @@ static void read_array_from_bin_file(mmapped_file* file,
                                      unsigned max_size,
                                      unsigned elem_size,
                                      const char* section_name) {
-    seek_to_section(file, section_name);
+    void* section_start = find_section_header(file, section_name);
     data_sec_header header;
     unsigned header_size = sizeof(data_sec_header);
-    read_section_header((void*)&header, &file->addr, header_size);
+    read_section_header((void*)&header, &section_start, header_size);
     if (header.num_elems > max_size) {
         FATAL_MSG("The amount of data found in section %s exceeds the size of "
                   "the array allocated to store it!\n", section_name);
     } else if (header.num_elems > 0) {
-        memcpy(data_buf, file->addr, header.num_elems * elem_size);
-        file->addr = (float*)file->addr + header.num_elems;
+        memcpy(data_buf, section_start, header.num_elems * elem_size);
     }
 }
 
@@ -215,9 +214,9 @@ void save_compress_type_to_bin_file(FILE* fp,
 
 global_sec_header read_global_header_from_bin_file(mmapped_file* file) {
     global_sec_header global_header;
-    seek_to_section(file, "GLOBAL");
+    void* section = find_section_header(file, "GLOBAL");
     read_section_header(
-            (void*)&global_header, &file->addr, sizeof(global_sec_header));
+            (void*)&global_header, &section, sizeof(global_sec_header));
     global_header.arch_str = arch2str(global_header.arch);
     return global_header;
 }
