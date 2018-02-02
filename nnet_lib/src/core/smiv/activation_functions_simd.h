@@ -84,6 +84,7 @@ static inline v8fp_t selu_simd(v8fp_t a) {
 
 // The logistic activation function
 // ** this function is in-place (modifies a) **
+ALWAYS_INLINE
 static inline v8fp_t sigmoidn_simd(v8fp_t a) {
     int i;
     float value;
