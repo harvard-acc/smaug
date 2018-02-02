@@ -1,0 +1,3 @@
+[submodule "FP16"]
+	path = nnet_lib/src/third_party/FP16
+	url = https://github.com/xyzsam/FP16

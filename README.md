@@ -98,6 +98,7 @@ No plans to support:
 
 ## Dependencies ##
 
+The following dependencies must be installed prior to building SMAUG:
 * [gem5-Aladdin](https://github.com/harvard-acc/gem5-aladdin)
 
   The `ALADDIN_HOME` environment variable must be set to where the Aladdin
@@ -112,7 +113,6 @@ No plans to support:
   (/usr/local), then set the `CONFUSE_ROOT` environment variable to the
   installation location.
 * gcc 5.4.0 or later
-* Eigen 3.3.4 (this is bundled so you don't need to install it separately).
 * [MKL-DNN v0.11](https://github.com/01org/mkl-dnn).
 
   If you want to simulate the MKL-DNN backend on gem5, you will also need to
@@ -122,6 +122,16 @@ No plans to support:
   (gem5in SE mode has incomplete support for pthreads) and restrict MKL to
   only using SSE4.2 instructions, instead of AVX (which is unsupported in
   gem5).
+
+These dependencies are bundled with SMAUG:
+* Eigen 3.3.4.
+* [FP16](https://github.com/xyzsam/FP16), a library to convert between single
+  precision and half precision floating point values.
+
+  Newer Intel CPUs that support the F16C extension can do this conversion in
+  hardware. This library is provided as a backup for those CPUs that do not
+  have this ISA support. FP16 is provided as a submodule, since it is under
+  active development.
 
 ## Architectures and Execution Targets ##
 
@@ -203,7 +213,18 @@ Currently, we have five architectures/backends and three execution targets.
 3. Trace: this instruments the binary using LLVM-Tracer, so that a dynamic
    trace can be generated and used by Aladdin.
 
-## Build instructions ##
+## Installation and build instructions ##
+
+Installation of SMAUG is very simple, assuming that you have satisfied all of
+the dependencies.
+
+  ```bash
+  git clone https://github.com/xyzsam/smaug
+  cd smaug
+  git submodule update --init --recursive
+  ```
+
+### Building SMAUG ###
 
 **All commands given in this section assume that your current working
 directory is** `smaug/nnet_lib`.

@@ -82,7 +82,12 @@ EXEC = nnet-mkl
 SRCS += $(CPP_NNET_FWD_MAIN)
 endif
 
-INCLUDES += -I$(ALADDIN_HOME)/../../include -I$(ALADDIN_HOME) -I$(ALADDIN_HOME)/gem5 -I$(SRC_DIR)
+INCLUDES += -I$(ALADDIN_HOME)/../../include \
+						-I$(ALADDIN_HOME) \
+						-I$(ALADDIN_HOME)/gem5 \
+						-I$(SRC_DIR) \
+						-I$(SRC_DIR)/third_party/FP16
+
 CPPFLAGS += -DARCHITECTURE=$(ARCH) $(INCLUDES)
 ifneq ($(CONFUSE_ROOT),)
 INCLUDES += -I$(CONFUSE_ROOT)/include
