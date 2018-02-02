@@ -86,7 +86,7 @@ INCLUDES += -I$(ALADDIN_HOME)/../../include \
 						-I$(ALADDIN_HOME) \
 						-I$(ALADDIN_HOME)/gem5 \
 						-I$(SRC_DIR) \
-						-I$(SRC_DIR)/third_party/FP16
+						-I$(SRC_DIR)/third_party/FP16/include
 
 CPPFLAGS += -DARCHITECTURE=$(ARCH) $(INCLUDES)
 ifneq ($(CONFUSE_ROOT),)

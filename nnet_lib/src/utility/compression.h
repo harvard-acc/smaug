@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "core/nnet_fwd_defs.h"
+#include "utility/fp16_utils.h"
 
 // The number of unpacked elements in the vector.
 #ifndef VECTOR_SIZE

@@ -190,7 +190,7 @@ packed_csr_array_t pack_data_vec8_f16(csr_array_t csr_data, dims_t* data_dims) {
                      col++) {
                     data_f32[col] = csr_data.vals[curr_wgt_src_idx++];
                 }
-                v8short_t packed_f16 = _mm256_cvtps_ph(data_f32, 0);
+                v8short_t packed_f16 = _CVT_PS_PH_256(data_f32, 0);
                 for (int i = 0; i < VECTOR_SIZE; i++) {
                     PRINT_MSG_V("  packed data: %#4x\n", packed_f16[i]);
                     data_f16[iter * VECTOR_SIZE + i] = packed_f16[i];
@@ -322,8 +322,8 @@ void unpack_values_at_row(uint32_t* cmp_values,
                          curr_values[11], curr_values[12], curr_values[13],
                          curr_values[14], curr_values[15] };
 #endif
-    v8fp_t values0_f32 = _mm256_cvtph_ps(values0_f16);
-    v8fp_t values1_f32 = _mm256_cvtph_ps(values1_f16);
+    v8fp_t values0_f32 = _CVT_PH_PS_256(values0_f16);
+    v8fp_t values1_f32 = _CVT_PH_PS_256(values1_f16);
 
     // Extract the 4-bit compressed indices.
     unsigned idx0 = cmp_col_idx[fetch_index_vec * DATA_TO_INDEX_RATIO];
