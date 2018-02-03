@@ -105,7 +105,8 @@ def print_txt_global_section(outfile, arch, num_layers, data_alignment):
   outfile.write("# DATA_ALIGNMENT = %d\n" % data_alignment)
   outfile.write("===GLOBAL END===\n")
 
-def print_txt_weights_section(outfile, layers, data_alignment):
+def print_txt_weights_section(outfile, layers, data_alignment,
+                              transpose_weights):
   outfile.write("===WEIGHTS BEGIN===\n")
   outfile.write("# NUM_ELEMS %d\n" % get_num_parameters(layers, data_alignment))
   outfile.write("# TYPE float\n")
@@ -114,6 +115,8 @@ def print_txt_weights_section(outfile, layers, data_alignment):
     for w in layer.get_weights():
       if isinstance(layer, Conv2D) and len(w.shape) == 1:
         continue
+      if transpose_weights and isinstance(layer, Dense):
+        w = w.T
       print_padded_array(outfile, w, data_alignment)
 
   outfile.write("\n===WEIGHTS END===\n")
@@ -133,18 +136,21 @@ def print_txt_labels_section(outfile, y_train):
   print_padded_array(outfile, np.argmax(y_train[0, :]), 0, fmt="%d")
   outfile.write("\n===LABELS END===\n")
 
-def print_txt_model(model, x_train, y_train, model_name, arch, data_alignment):
+def print_txt_model(model, x_train, y_train, model_name,
+                    arch, data_alignment, transpose_weights):
   filename = "%s.txt" % model_name
   with open(filename, "w") as f:
     print_txt_global_section(
         f, arch, get_num_layers(model.layers), data_alignment)
-    print_txt_weights_section(f, model.layers, data_alignment)
+    print_txt_weights_section(
+        f, model.layers, data_alignment, transpose_weights)
     print_txt_inputs_section(f, x_train, data_alignment)
     print_txt_labels_section(f, y_train)
 
   print "Model parameters saved to %s." % filename
 
-def save_model(model, x_train, y_train, model_name, arch, data_alignment):
+def save_model(model, x_train, y_train, model_name, arch,
+               data_alignment=0, transpose_weights=False):
   """ Save the Keras model in SMAUG txt format.
 
   Arguments:
@@ -157,9 +163,13 @@ def save_model(model, x_train, y_train, model_name, arch, data_alignment):
     arch: The name of the architecture (backend) that will use this model (e.g.
       SMIV).
     data_alignment: Required data alignment at the innermost dimension.
+    transpose_weights: If true, save the weights in colmajor order; otherwise,
+      save in rowmajor.
   """
   assert(isinstance(model, Sequential))
   assert(isinstance(model_name, str))
   assert(isinstance(arch, str))
   assert(isinstance(data_alignment, int))
-  print_txt_model(model, x_train, y_train, model_name, arch, data_alignment)
+  assert(isinstance(transpose_weights, bool))
+  print_txt_model(model, x_train, y_train, model_name + arch.lower(),
+                  arch, data_alignment, transpose_weights)
