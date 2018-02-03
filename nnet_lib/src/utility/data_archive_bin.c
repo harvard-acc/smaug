@@ -105,19 +105,23 @@ static void save_data_to_bin_file(FILE* fp,
 }
 
 static void read_array_from_bin_file(mmapped_file* file,
-                                     void* data_buf,
-                                     unsigned max_size,
+                                     void** data_buf,
+                                     size_t* max_size,
                                      unsigned elem_size,
                                      const char* section_name) {
     void* section_start = find_section_header(file, section_name);
     data_sec_header header;
     unsigned header_size = sizeof(data_sec_header);
     read_section_header((void*)&header, &section_start, header_size);
-    if (header.num_elems > max_size) {
+    if (*max_size == 0 && *data_buf == NULL) {
+        *data_buf = malloc_aligned(header.num_elems * elem_size);
+        *max_size = header.num_elems;
+    }
+    if (header.num_elems > *max_size) {
         FATAL_MSG("The amount of data found in section %s exceeds the size of "
                   "the array allocated to store it!\n", section_name);
     } else if (header.num_elems > 0) {
-        memcpy(data_buf, section_start, header.num_elems * elem_size);
+        memcpy(*data_buf, section_start, header.num_elems * elem_size);
     }
 }
 
@@ -125,14 +129,14 @@ static void read_farray_from_bin_file(mmapped_file* file,
                                       farray_t* data,
                                       const char* section_name) {
     read_array_from_bin_file(
-            file, (void*)data->d, data->size, sizeof(float), section_name);
+            file, (void**)&data->d, &data->size, sizeof(float), section_name);
 }
 
 static void read_iarray_from_bin_file(mmapped_file* file,
                                       iarray_t* data,
                                       const char* section_name) {
     read_array_from_bin_file(
-            file, (void*)data->d, data->size, sizeof(int), section_name);
+            file, (void**)&data->d, &data->size, sizeof(int), section_name);
 }
 
 mmapped_file open_bin_data_file(const char* filename) {

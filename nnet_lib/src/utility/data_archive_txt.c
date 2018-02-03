@@ -108,7 +108,10 @@ static void read_fp_data_from_txt_file(const char* filename,
         if (is_required_section)
             FATAL_MSG("Could not find required section %s\n", section_header);
     } else {
-        if (header.num_elems > data->size) {
+        if (data->size == 0 && data->d == NULL) {
+            data->size = header.num_elems;
+            data->d = (float*) malloc_aligned(data->size * sizeof(float));
+        } else if (header.num_elems > data->size) {
             FATAL_MSG("Section %s contains more data than can be "
                       "stored in the provided array!\n",
                       section_header);
@@ -142,7 +145,10 @@ static void read_int_data_from_txt_file(const char* filename,
         if (is_required_section)
             FATAL_MSG("Could not find required section %s\n", section_header);
     } else {
-        if (header.num_elems > data->size) {
+        if (data->size == 0 && data->d == NULL) {
+            data->size = header.num_elems;
+            data->d = (int*) malloc_aligned(data->size * sizeof(int));
+        } else if (header.num_elems > data->size) {
             FATAL_MSG("Section %s contains more data than can be "
                       "stored in the provided array!\n",
                       section_header);
