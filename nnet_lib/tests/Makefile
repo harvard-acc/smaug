@@ -28,20 +28,20 @@ build:
 	@$(MAKE) -C .. --no-print-directory native ARCH=$(ARCH)
 
 smiv: build
-	@python run_tests.py ../build/nnet-smiv-native
+	@python run_tests.py smiv ../build/nnet-smiv-native
 
 monolithic: build
-	@python run_tests.py ../build/nnet-monolithic-native
+	@python run_tests.py monolithic ../build/nnet-monolithic-native
 
 composable: build
-	@python run_tests.py ../build/nnet-composable-native
+	@python run_tests.py composable ../build/nnet-composable-native
 
 eigen:
 	@$(MAKE) -C .. --no-print-directory clean-eigen
 	@$(MAKE) -C .. --no-print-directory eigen ARCH=$(ARCH)
-	@python run_tests.py ../build/nnet-eigen-native
+	@python run_tests.py eigen ../build/nnet-eigen-native
 
 mkl:
 	@$(MAKE) -C .. --no-print-directory clean-mkl
 	@$(MAKE) -C .. --no-print-directory mkl ARCH=$(ARCH)
-	@python run_tests.py ../build/nnet-mkl-native
+	@python run_tests.py mkl ../build/nnet-mkl-native

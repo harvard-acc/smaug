@@ -18,11 +18,13 @@ import re
 # Floating point equality comparison tolerance in percent.
 FP_ERR = 0.05
 
-# This gets set by the command line argument.
+# These get set by the command line argument.
 BINARY = ""
+ARCH = ""
 
 MODEL_DIR = "../../models/"
 CORRECT_OUTPUT_DIR = "correct"
+OUTPUT_LABELS = "output_labels.out"
 
 class BaseTest(unittest.TestCase):
   def setUp(self):
@@ -31,7 +33,8 @@ class BaseTest(unittest.TestCase):
 
   def tearDown(self):
     shutil.rmtree(self.run_dir)
-    os.remove("output_labels.out")
+    if os.path.exists(OUTPUT_LABELS):
+      os.remove(OUTPUT_LABELS)
 
   def parseOutput(self, output_file):
     test_pred = []
@@ -82,9 +85,18 @@ class BaseTest(unittest.TestCase):
       assert("Unsupported types %s, %s for almostEqual comparison" %
              (type(val).__name__, type(ref).__name__))
 
-  def runAndValidate(self, model_file, correct_output):
+  def createCommand(self, model_file, correct_output,
+                    data_init_mode=None, param_file=None):
+    cmd = "%s %s " % (BINARY, os.path.join(MODEL_DIR, model_file))
+    if data_init_mode in ["RANDOM", "FIXED", "READ_FILE"]:
+      cmd += "-d %s " % data_init_mode
+    if param_file and data_init_mode == "READ_FILE":
+      cmd += "-f %s " % param_file
+    return cmd
+
+  def runAndValidate(self, model_file, correct_output, **kwargs):
     returncode = self.launchSubprocess(
-          "%s %s" % (BINARY, os.path.join(MODEL_DIR, model_file)))
+        self.createCommand(model_file, correct_output, **kwargs));
 
     self.assertEqual(returncode, 0, msg="Test returned nonzero exit code!")
 
@@ -119,6 +131,27 @@ class MnistTests(BaseTest):
     model_file = "mnist/lenet5-ish.conf"
     correct_output = "mnist-lenet5-ish.out"
     self.runAndValidate(model_file, correct_output)
+
+  def test_pruned_csr_minerva(self):
+    # The model file was generated with SMIV as the backend (the only one that
+    # supports handling sparse data), so it can't be run on the other backends.
+    # But the result should be the same as the uncompressed version.
+    if ARCH != "smiv":
+      return
+    model_file = "mnist/minerva.conf"
+    correct_output = "mnist-minerva-pruned-csr.out"
+    param_file = os.path.join(
+        MODEL_DIR, "mnist/trained/smiv/minerva_pruned_csr.txt")
+    self.runAndValidate(model_file, correct_output, data_init_mode="READ_FILE",
+                        param_file=param_file)
+
+  def test_pruned_no_csr_minerva(self):
+    model_file = "mnist/minerva.conf"
+    correct_output = "mnist-minerva-pruned.out"
+    param_file = os.path.join(
+        MODEL_DIR, "mnist/trained/%s/minerva_pruned.txt" % ARCH)
+    self.runAndValidate(model_file, correct_output, data_init_mode="READ_FILE",
+                        param_file=param_file)
 
 class GenericTests(BaseTest):
   def test_1_kernel(self):
@@ -214,11 +247,14 @@ def run_tests():
 
 def main():
   parser = argparse.ArgumentParser()
+  parser.add_argument("arch", help="Architecture");
   parser.add_argument("binary", help="Path to the executable.")
   args = parser.parse_args()
 
   global BINARY
+  global ARCH
   BINARY = args.binary
+  ARCH = args.arch.lower()
 
   result = run_tests()
   sys.exit(result)
