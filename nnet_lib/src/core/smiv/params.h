@@ -14,6 +14,10 @@ typedef unsigned ufx_t;
 // Vector of 8 scalar values.
 typedef fp_t v8fp_t
         __attribute__((__vector_size__(VECTOR_SIZE * sizeof(fp_t))));
+typedef short v16ph_t
+        __attribute__((__vector_size__(VECTOR_SIZE * 2 * sizeof(short))));
+typedef short v8ph_t
+        __attribute__((__vector_size__(VECTOR_SIZE * sizeof(short))));
 typedef sfx_t v8sfx_t
         __attribute__((__vector_size__(VECTOR_SIZE * sizeof(sfx_t))));
 

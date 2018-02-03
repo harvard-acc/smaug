@@ -47,6 +47,38 @@ void free_csr_array_t(csr_array_t* ptr) {
     free(ptr->row_idx);
 }
 
+// Allocate memory to store a packed CSR array.
+//
+// This struct needs to be accessed as a contiguous block of memory by an
+// accelerator, so we need to allocate the memory as such. The pointers in the
+// struct are simply referring to locations in the middle of the block.
+packed_csr_array_t alloc_packed_csr_array_t(size_t num_total_vectors,
+                                            size_t num_nonzeros,
+                                            size_t num_rows) {
+    packed_csr_array_t csr;
+    size_t values_size = next_multiple(
+            num_total_vectors * TOTAL_VECTOR_BYTES, CACHELINE_SIZE);
+    size_t col_idx_size = next_multiple(
+            num_total_vectors * DATA_TO_INDEX_RATIO * sizeof(uint32_t),
+            CACHELINE_SIZE);
+    size_t row_idx_size =
+            next_multiple(num_rows * sizeof(uint32_t), CACHELINE_SIZE);
+    size_t total_buf_size = values_size + col_idx_size + row_idx_size;
+    uint32_t* buffer = (uint32_t*)malloc_aligned(total_buf_size);
+    csr.vals = buffer;
+    csr.col_idx = csr.vals + values_size / sizeof(uint32_t);
+    csr.row_idx = csr.col_idx + col_idx_size / sizeof(uint32_t);
+    csr.num_nonzeros = num_nonzeros;
+    csr.num_rows = num_rows;
+    csr.total_buf_size = total_buf_size;  // Used for setting TLB mappings.
+    return csr;
+}
+
+void free_packed_csr_array_t(packed_csr_array_t* ptr) {
+    // There was only one memory allocation required for the entire struct.
+    free(ptr->vals);
+}
+
 /* Compress an uncompressed matrix into the modified CSR format.
  *
  * The modified CSR format is based on the CSC format used in Deep
@@ -142,14 +174,8 @@ packed_csr_array_t pack_data_vec8_f16(csr_array_t csr_data, dims_t* data_dims) {
     }
     PRINT_MSG_V("total num vectors: %lu\n", total_num_vectors);
 
-    packed_csr_array_t csr;
-    csr.vals =
-            (uint32_t*)malloc_aligned(total_num_vectors * TOTAL_VECTOR_BYTES);
-    csr.col_idx = (uint32_t*)malloc_aligned(
-            total_num_vectors * DATA_TO_INDEX_RATIO * sizeof(uint32_t));
-    csr.row_idx = (uint32_t*)malloc_aligned(data_dims->rows * sizeof(uint32_t));
-    csr.num_nonzeros = csr_data.num_nonzeros;
-    csr.num_rows = data_dims->rows;
+    packed_csr_array_t csr = alloc_packed_csr_array_t(
+            total_num_vectors, csr_data.num_nonzeros, data_dims->rows);
 
     v16short_t* _data = (v16short_t*)csr.vals;
     // Independently track the current linear index into the compressed data

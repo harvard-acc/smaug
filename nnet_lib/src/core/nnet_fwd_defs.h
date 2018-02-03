@@ -387,6 +387,9 @@ typedef struct _iarray_t {
 //      ARRAY_4D(TYPE, output_name, array, 4, 3, 2);
 //
 //   And so on...
+#define ARRAY_1D(TYPE, output_array_name, input_array_name)                    \
+    TYPE* output_array_name = (TYPE*)input_array_name
+
 #define ARRAY_2D(TYPE, output_array_name, input_array_name, DIM_1)             \
     TYPE(*output_array_name)[DIM_1] = (TYPE(*)[DIM_1])input_array_name
 

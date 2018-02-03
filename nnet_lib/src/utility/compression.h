@@ -31,6 +31,7 @@ typedef struct _packed_csr_array_t {
     uint32_t* row_idx;
     size_t num_nonzeros;
     size_t num_rows;
+    size_t total_buf_size;  // in bytes.
 } packed_csr_array_t;
 
 typedef struct _csr_array_t {
@@ -59,5 +60,6 @@ packed_csr_array_t pack_data_vec8_f16(csr_array_t csr_data,
 csr_array_t alloc_csr_array_t(size_t num_nonzeros, size_t num_rows);
 csr_array_t copy_csr_array_t(csr_array_t* existing_array);
 void free_csr_array_t(csr_array_t* ptr);
+void free_packed_csr_array_t(packed_csr_array_t* ptr);
 
 #endif

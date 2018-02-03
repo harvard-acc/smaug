@@ -1,6 +1,10 @@
 #ifndef _SMIV_CORE_H_
 #define _SMIV_CORE_H_
 
+#include <stdint.h>
+
+#include "core/nnet_fwd_defs.h"
+
 void matrix_multiply_with_bias_smiv(float* a,
                                     float* b,
                                     int a_height,
@@ -27,5 +31,11 @@ void batch_norm_simd_fxp(float* inputs,
 
 void maxpooling_nhwc_smiv(float* inputs, layer_t curr_layer, float* results);
 void avgpooling_nhwc_smiv(float* inputs, layer_t curr_layer, float* results);
+
+void decompress_packed_csr_data_smiv_fxp(uint32_t* cmp_data,
+                                         int cmp_col_offset,
+                                         int cmp_row_offset,
+                                         dims_t* data_dims,
+                                         float* dcmp_data);
 
 #endif
