@@ -70,7 +70,7 @@ def get_num_parameters(model_layers, data_alignment):
       num += get_padded_size(w.shape, data_alignment)
   return num
 
-def print_padded_array(outfile, data, data_alignment, fmt="%5.5f"):
+def print_padded_array(outfile, data, data_alignment, fmt="%2.8f"):
   """ Print the data to a file, adding zero padding if necessary.
 
   The data is dumped linearly -- the shape of the data is not preserved.  A
@@ -90,7 +90,13 @@ def print_padded_array(outfile, data, data_alignment, fmt="%5.5f"):
   for i in range(data_shape[0]):
     for j in range(data_shape[1]):
       for k in range(data_shape[2]):
-        arr2str = ",".join([fmt % e for e in data[i, j, k, :]])
+        formatted_list = []
+        for e in data[i, j, k, :]:
+          if e == 0:
+            formatted_list.append("0")
+          else:
+            formatted_list.append(fmt % e)
+        arr2str = ",".join(formatted_list)
         # Add padding.
         pad = calc_padding(data_shape[3], data_alignment)
         arr2str += ",0" * pad

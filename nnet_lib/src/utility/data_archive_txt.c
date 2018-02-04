@@ -34,7 +34,10 @@ const char* kTxtCompressTypeFooter = "===COMPRESS TYPE END===";
 static void save_farray_to_txt_file(FILE* fp, farray_t* data, unsigned size) {
     fprintf(fp, "# NUM_ELEMS %d\n# TYPE float\n", size);
     for (unsigned i = 0; i < size; i++) {
-        fprintf(fp, "%2.8f,", data->d[i]);
+        if (data->d[i] == 0)
+            fprintf(fp, "0,");
+        else
+            fprintf(fp, "%2.8f,", data->d[i]);
     }
     fprintf(fp, "\n");
 }
