@@ -709,15 +709,17 @@ void standard_convolution_layer_impl(float* host_activations,
                                 : curr_layer.activation;
 
                 io_req_t output_req =  partial_layer.output_req;
-                const char* results_var_name =
-                        output_req == IO_DMA
-                                ? "host_results"
-                                : output_req == IO_ACP ? "acp_results"
-                                                       : "cache_results";
-                MAP_ARRAY_TO_ACCEL(kReductionHw,
-                                   results_var_name,
-                                   result_loc,
-                                   result_2d_size * sizeof(float));
+                if (output_req != IO_NONE) {
+                    const char* results_var_name =
+                            output_req == IO_DMA
+                                    ? "host_result"
+                                    : output_req == IO_ACP ? "acp_result"
+                                                           : "cache_result";
+                    MAP_ARRAY_TO_ACCEL(kReductionHw,
+                                       results_var_name,
+                                       result_loc,
+                                       result_2d_size * sizeof(float));
+                }
                 if (do_hw_activation || output_req == IO_DMA) {
                     INVOKE_KERNEL_PROF(kReductionHw,
                                        lnum,
@@ -784,10 +786,12 @@ void standard_convolution_layer_impl(float* host_activations,
                                                        : "cache_results";
                 for (int iter = 0; iter < result_iter; iter++) {
                     PRINT_MSG("Final reduction round %d\n", iter);
-                    MAP_ARRAY_TO_ACCEL(kReductionHw,
-                                       results_var_name,
-                                       result_loc,
-                                       temp_result_size);
+                    if (output_req != IO_NONE) {
+                        MAP_ARRAY_TO_ACCEL(kReductionHw,
+                                           results_var_name,
+                                           result_loc,
+                                           temp_result_size);
+                    }
                     if (do_hw_activation ||
                         partial_layer.output_req == IO_DMA) {
                         // Flush cache lines for temporary results.
@@ -924,15 +928,17 @@ void depthwise_convolution_layer_impl(float* host_activations,
             // Always send data back.
             partial_layer.output_req = curr_layer.output_req;
             io_req_t output_req = partial_layer.output_req;
-            const char* results_var_name = output_req == IO_DMA
-                                                   ? "host_results"
-                                                   : output_req == IO_ACP
-                                                             ? "acp_result"
-                                                             : "cache_result";
-            MAP_ARRAY_TO_ACCEL(kConvolutionHw,
-                               results_var_name,
-                               current_result,
-                               current_iter_result_size * sizeof(float));
+            if (output_req != IO_NONE) {
+                const char* results_var_name =
+                        output_req == IO_DMA
+                                ? "host_results"
+                                : output_req == IO_ACP ? "acp_result"
+                                                       : "cache_result";
+                MAP_ARRAY_TO_ACCEL(kConvolutionHw,
+                                   results_var_name,
+                                   current_result,
+                                   current_iter_result_size * sizeof(float));
+            }
             // The standard "kern" dimension is always 0, since the kernel
             // dimension is now the channel dimension.
             const int kern = 0;
