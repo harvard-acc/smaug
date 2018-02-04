@@ -267,7 +267,16 @@ typedef struct _iarray_t {
 
 #else
 
-#define MAP_ARRAY_TO_ACCEL(req_code, name, base_addr, size)
+// This is to avoid a ton of spurious unused variable warnings when
+// we're not building for gem5.
+#define UNUSED(x) (void)(x)
+#define MAP_ARRAY_TO_ACCEL(req_code, name, base_addr, size)                    \
+    do {                                                                       \
+        UNUSED(req_code);                                                      \
+        UNUSED(name);                                                          \
+        UNUSED(base_addr);                                                     \
+        UNUSED(size);                                                          \
+    } while (0)
 #define INVOKE_KERNEL(req_code, kernel_ptr, args...) kernel_ptr(args)
 
 #endif

@@ -1,3 +1,8 @@
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
+
 #include <assert.h>
 #include <string.h>
 
@@ -1010,4 +1015,8 @@ void depthwise_convolution_layer_impl(float* host_activations,
     }
 }
 
+#endif
+
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
 #endif
