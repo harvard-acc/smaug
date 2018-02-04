@@ -206,12 +206,14 @@ global_sec_header read_global_header_from_txt_file(const char* filename) {
                   "file!\n");
     if (strncmp(header.arch_str, "MONOLITHIC", line_len) == 0)
         header.arch = Arch_Monolithic;
-    if (strncmp(header.arch_str, "COMPOSABLE", line_len) == 0)
+    else if (strncmp(header.arch_str, "COMPOSABLE", line_len) == 0)
         header.arch = Arch_Composable;
-    if (strncmp(header.arch_str, "SMIV", line_len) == 0)
+    else if (strncmp(header.arch_str, "SMIV", line_len) == 0)
         header.arch = Arch_SMIV;
-    if (strncmp(header.arch_str, "EIGEN", line_len) == 0)
+    else if (strncmp(header.arch_str, "EIGEN", line_len) == 0)
         header.arch = Arch_Eigen;
+    else if (strncmp(header.arch_str, "MKLDNN", line_len) == 0)
+        header.arch = Arch_MKLDNN;
 
     ret = fscanf(fp, "# NUM_LAYERS = %d\n", &header.num_layers);
     if (ret != 1)
