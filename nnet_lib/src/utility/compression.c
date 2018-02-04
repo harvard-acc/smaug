@@ -41,6 +41,22 @@ csr_array_t copy_csr_array_t(csr_array_t* existing_array) {
     return csr;
 }
 
+void print_csr_array_t(csr_array_t* csr) {
+    printf("Data: %lu elements\n", csr->num_nonzeros);
+    for (unsigned i = 0; i < csr->num_nonzeros; i++) {
+        printf("%2.8f, ", csr->vals[i]);
+    }
+    printf("\nColumn indices: ");
+    for (unsigned i = 0; i < csr->num_nonzeros; i++) {
+        printf("%d, ", csr->col_idx[i]);
+    }
+    printf("\nRow indices: ");
+    for (unsigned i = 0; i < csr->num_rows + 1; i++) {
+        printf("%d, ", csr->row_idx[i]);
+    }
+    printf("\n");
+}
+
 void free_csr_array_t(csr_array_t* ptr) {
     free(ptr->vals);
     free(ptr->col_idx);
@@ -57,12 +73,12 @@ packed_csr_array_t alloc_packed_csr_array_t(size_t num_total_vectors,
                                             size_t num_rows) {
     packed_csr_array_t csr;
     size_t values_size = next_multiple(
-            num_total_vectors * TOTAL_VECTOR_BYTES, CACHELINE_SIZE);
+            num_total_vectors * TOTAL_VECTOR_BYTES, TOTAL_VECTOR_BYTES);
     size_t col_idx_size = next_multiple(
             num_total_vectors * DATA_TO_INDEX_RATIO * sizeof(uint32_t),
-            CACHELINE_SIZE);
+            TOTAL_VECTOR_BYTES);
     size_t row_idx_size =
-            next_multiple(num_rows * sizeof(uint32_t), CACHELINE_SIZE);
+            next_multiple(num_rows * sizeof(uint32_t), TOTAL_VECTOR_BYTES);
     size_t total_buf_size = values_size + col_idx_size + row_idx_size;
     uint32_t* buffer = (uint32_t*)malloc_aligned(total_buf_size);
     csr.vals = buffer;
@@ -79,6 +95,10 @@ void free_packed_csr_array_t(packed_csr_array_t* ptr) {
     free(ptr->vals);
 }
 
+int compute_num_vectors_in_row(int num_elems_in_row) {
+    return FRAC_CEIL(num_elems_in_row, DATA_PACKING_FACTOR);
+}
+
 /* Compress an uncompressed matrix into the modified CSR format.
  *
  * The modified CSR format is based on the CSC format used in Deep
@@ -88,7 +108,9 @@ void free_packed_csr_array_t(packed_csr_array_t* ptr) {
  *      next nonzero value position. They are represented as 4-bit values,
  *      so if any two nonzero values are spaced 16 columns or more apart,
  *      a padding zero is inserted into the data array with offset 15.
- *   3. Row indices are stored in unmodified CSR format.
+ *   3. Row indices are stored in unmodified CSR format. The value is equal to
+ *      the sum of the number of nonzero values and padding zeros in this row.
+ *      There is no additional zero padding added at the end of the row.
  *   4. Native types are used - float for the data, int for column and row
  *      indices.
  */
@@ -168,9 +190,8 @@ packed_csr_array_t pack_data_vec8_f16(csr_array_t csr_data, dims_t* data_dims) {
     // row-alignment requirements.
     size_t total_num_vectors = 0;
     for (int row = 0; row < data_dims->rows; row++) {
-        int num_elems_in_row =
-                csr_data.row_idx[row + 1] - csr_data.row_idx[row];
-        total_num_vectors += FRAC_CEIL(num_elems_in_row, DATA_PACKING_FACTOR);
+        total_num_vectors += compute_num_vectors_in_row(
+                csr_data.row_idx[row + 1] - csr_data.row_idx[row]);
     }
     PRINT_MSG_V("total num vectors: %lu\n", total_num_vectors);
 
@@ -228,7 +249,14 @@ packed_csr_array_t pack_data_vec8_f16(csr_array_t csr_data, dims_t* data_dims) {
             _data[curr_wgt_dst_idx++] = data_f16;
         }
 
-        // 4 bit indices -> 8 per 32-bit integer.
+        // 4 bit indices -> 8 per 32-bit integer. They are indexed like so:
+        // | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+        // which means that if there are only two indices remaining in this
+        // row, then they will be aligned towards the right 8 bits of the
+        // 32-bit value.
+        //
+        // TODO: Column indices can straddle vector boundaries!!!! This is not
+        // good!!!
         elems_remaining = num_elems_in_row;
         int num_packed_idx_vectors =
                 num_packed_data_vectors * DATA_TO_INDEX_RATIO;
@@ -434,4 +462,201 @@ void decompress_packed_csr_data(uint32_t* cmp_data,
             num_elems_remaining -= 16;
         }
     }
+}
+
+//===--------------------------------------------==//
+// Packed CSR array tiling functions.
+//===--------------------------------------------==//
+
+csr_tile* init_csr_tile() {
+    csr_tile* tile = (csr_tile*)malloc(sizeof(csr_tile));
+    tile->start_row = 0;
+    tile->num_elems = 0;
+    tile->num_rows = 0;
+    tile->num_vectors = 0;
+    tile->total_bytes = 0;
+    tile->eff_total_bytes = 0;
+    tile->next_tile = NULL;
+    return tile;
+}
+
+void free_csr_tile_list(csr_tile_list* list) {
+    if (!list || !list->head)
+      return;
+    csr_tile* head = list->head;
+    do {
+        csr_tile* next = head->next_tile;
+        free_packed_csr_array_t(&head->array);
+        free(head);
+        head = next;
+    } while (head);
+}
+
+// Compute the required bytes to store this store.
+//
+// Args:
+//    num_elems_in_row: Number of nonzeros (plus padding zeros) in this row.
+//
+// Results:
+//    size_for_row: The total number of bytes required for this row, including
+//       all indices.
+//    num_vectors: The number of vectors required to store the packed data in
+//       this row.
+void compute_bytes_for_row_storage(int num_elems_in_row,
+                                   size_t* size_for_row,
+                                   int* num_vectors) {
+    int num_data_vectors = compute_num_vectors_in_row(num_elems_in_row);
+    int data_bytes = num_data_vectors * TOTAL_VECTOR_BYTES;
+    int col_bytes = num_data_vectors * DATA_TO_INDEX_RATIO *
+                    sizeof(INDEX_CONTAINER_TYPE);
+    int row_bytes = 1 * sizeof(int);
+    *size_for_row = data_bytes + col_bytes + row_bytes;
+    *num_vectors = num_data_vectors;
+}
+
+// Determine how to tile a large CSR array in as few tiles as possible.
+//
+// This returns a list of CSR array tiles, which denote the dimensions of each
+// tile and the required storage for the array. The number of tiles is
+// determined by the sparsity of the original array. Tiles are returned as a
+// linked-list.
+//
+// Args:
+//   csr: The original CSR array.
+//   starting_row: Begin tiling from this row in the original array.
+//   num_rows: Tile up to this many rows from starting_row.
+//   num_cols: The total number of columns in the decompressed array.
+//   max_tile_size: The maximum compressed size of each tile.
+//
+// Returns:
+//   A linked list of CSR tile dimensions.
+csr_tile_list compute_tiled_packed_csr_array_dims(packed_csr_array_t* csr,
+                                                  int starting_row,
+                                                  int num_rows,
+                                                  int num_cols,
+                                                  size_t max_tile_size) {
+    int curr_row = 0;
+    size_t num_tiles = 1;
+    csr_tile* head = init_csr_tile();
+    csr_tile* curr = head;
+    curr->start_row = 0;
+    while (curr_row < num_rows) {
+        int packed_row_size = csr->row_idx[starting_row + curr_row];
+        int num_elems = packed_row_size & 0xffff;
+        size_t size_for_row;
+        int num_vectors;
+        compute_bytes_for_row_storage(num_elems, &size_for_row, &num_vectors);
+        if (curr->total_bytes + size_for_row > max_tile_size) {
+            // Finish off the current tile.
+            curr->total_bytes =
+                    next_multiple(curr->total_bytes, TOTAL_VECTOR_BYTES);
+            curr->eff_total_bytes =
+                    next_multiple(curr->num_rows * num_cols * sizeof(float),
+                                  TOTAL_VECTOR_BYTES);
+
+            // Start the next tile. This code can be reused.
+            curr->next_tile = init_csr_tile();
+            curr = curr->next_tile;
+            curr->start_row = curr_row;
+            num_tiles++;
+        }
+        // Now update the current tile.
+        curr->total_bytes += size_for_row;
+        curr->num_rows++;
+        curr->num_elems += num_elems;
+        curr->num_vectors += num_vectors;
+        curr_row++;
+    }
+    // Round the last tile size to vector alignment if necessary.
+    // TODO: This is ugly, fix this...
+    curr->total_bytes = next_multiple(curr->total_bytes, TOTAL_VECTOR_BYTES);
+    curr->eff_total_bytes = next_multiple(
+         curr->num_rows * num_cols * sizeof(float), TOTAL_VECTOR_BYTES);
+
+    csr_tile_list list = (csr_tile_list){ head, num_tiles };
+    return list;
+}
+
+// Tile a large CSR array.
+//
+// The result is a linked list of CSR tiles. Each tile contains metadata about
+// the tile parameters (size, number of nonzeros, etc) as well as a
+// packed_csr_array_t object that contains the data itself.
+//
+// Each tile's row indices start from 0, so if the original array looked like
+// this, and there were two tiles:
+//    Orig:
+//       Row 0: [data, columns]
+//       Row 1: [data, columns]
+//       Row 2: [data, columns]
+//       Row 3: [data, columns]
+//       Row indices: [0, 1, 2, 3]
+//    Tiled:
+//       Row 0: [data, columns]
+//       Row 1: [data, columns]
+//       Row indices: [0, 1]
+//       ----
+//       Row 0: [data, columns]
+//       Row 1: [data, columns]
+//       Row indices: [0, 1]
+//
+// Args:
+//   input: A pointer to the original, complete CSR array.
+//   dims: The dimensions of the decompressed array.
+//   starting_row: Begin tiling the array from this row.
+//   max_tile_size: The maximum size in bytes of each tile.
+csr_tile_list tile_packed_csr_array_t(packed_csr_array_t* input,
+                                      dims_t* dims,
+                                      int starting_row,
+                                      size_t max_tile_size) {
+    // TODO: Add a special case to handle the case when no tiling is needed.
+    csr_tile_list list = compute_tiled_packed_csr_array_dims(
+            input, starting_row, dims->rows, dims->cols, max_tile_size);
+    int start_row = starting_row;
+    // Compute the starting offsets into the value and col_idx arrays, based on
+    // the starting row.
+    int packed_start_row_idx = (input->row_idx[start_row] >> 16) & 0xffff;
+    uint32_t value_offset =
+            packed_start_row_idx * (TOTAL_VECTOR_BYTES / UNPACKED_ELEMENT_SIZE);
+    uint32_t col_offset = packed_start_row_idx * DATA_TO_INDEX_RATIO;
+    csr_tile* curr_tile = list.head;
+    for (unsigned i = 0; i < list.len; i++) {
+        curr_tile->array = alloc_packed_csr_array_t(curr_tile->num_vectors,
+                                                    curr_tile->num_elems,
+                                                    curr_tile->num_rows);
+        // Now copy the relevant regions of the value and column index buffers.
+        // TODO: Unify this behavior with alloc_packed_csr_array_t!!
+        size_t value_bytes_to_copy =
+                curr_tile->num_vectors * TOTAL_VECTOR_BYTES;
+        size_t col_bytes_to_copy =
+                (curr_tile->num_vectors * DATA_TO_INDEX_RATIO) *
+                sizeof(INDEX_CONTAINER_TYPE);
+
+        memcpy((void*)curr_tile->array.vals, input->vals + value_offset,
+               value_bytes_to_copy);
+        memcpy((void*)curr_tile->array.col_idx, input->col_idx + col_offset,
+               col_bytes_to_copy);
+        // The row indices need to start from zero for each tile.
+        int row_offset_reset = (input->row_idx[start_row] >> 16) & 0xffff;
+        for (int r = 0; r < curr_tile->num_rows; r++) {
+            uint32_t packed_idx_size = input->row_idx[r + start_row];
+            uint32_t row_offset = (packed_idx_size >> 16) & 0xffff;
+            uint32_t num_elems = packed_idx_size & 0xffff;
+            curr_tile->array.row_idx[r] =
+                    (((row_offset - row_offset_reset) << 16) & (0xffff0000)) |
+                    num_elems;
+        }
+        // The offset into the value array needs to be calculated with respect
+        // to the type used in packed_csr_array_t (uint32_t*) while taking into
+        // account the fact that values are packed into 32-byte vectors.
+        value_offset +=
+                curr_tile->num_vectors * TOTAL_VECTOR_BYTES / sizeof(uint32_t);
+        // TODO: The offset into the value array is calculated as an 32-bit
+        // integer offset but it should be calculated as a vector offset.
+        col_offset += curr_tile->num_vectors * DATA_TO_INDEX_RATIO;
+
+        start_row += curr_tile->num_rows;
+        curr_tile = curr_tile->next_tile;
+    }
+    return list;
 }

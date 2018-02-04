@@ -139,11 +139,11 @@ class MnistTests(BaseTest):
     if ARCH != "smiv":
       return
     model_file = "mnist/minerva.conf"
-    correct_output = "mnist-minerva-pruned-csr.out"
+    correct_output = "mnist-minerva-pruned.out"
     param_file = os.path.join(
         MODEL_DIR, "mnist/trained/smiv/minerva_pruned_csr.txt")
-    self.runAndValidate(model_file, correct_output, data_init_mode="READ_FILE",
-                        param_file=param_file)
+    self.runAndValidate(model_file, correct_output,
+                        data_init_mode="READ_FILE", param_file=param_file)
 
   def test_pruned_no_csr_minerva(self):
     if ARCH != "smiv" or ARCH != "monolithic":

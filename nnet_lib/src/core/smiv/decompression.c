@@ -69,19 +69,21 @@ void unpack_values_at_row_smiv(uint32_t* csr_data,
 //     is the first set of 8 indices).
 //   cmp_row_offset: The offset (at 4-byte granularity) into @packed_spad at
 //     which the row index pairs start.
+//   dest_offset: The offset (at 4-byte granularity) into @dcmp_data at which
+//      we'll start writing the decompressed data.
 //   data_dims: The dimensions of the uncompressed data.
 //   dcmp_data: The base of the destination scratchpad to store the
 //     uncompressed data.
 void decompress_packed_csr_data_smiv_fxp(uint32_t* cmp_data,
                                          int cmp_col_offset,
                                          int cmp_row_offset,
+                                         int dest_offset,
                                          dims_t* data_dims,
                                          float* dcmp_data) {
     int data_rows = data_dims->rows;
     int data_cols = data_dims->cols;
     int data_pad = data_dims->align_pad;
 
-    ARRAY_2D(float, _data, dcmp_data, data_cols + data_pad);
     PRINT_MSG_V("==== DECOMPRESSING ==== \n");
     decompress_row:
     for (int row = 0; row < data_rows; row++) {
@@ -115,7 +117,8 @@ void decompress_packed_csr_data_smiv_fxp(uint32_t* cmp_data,
                 col_idx += index_buffer[val] + 1;
                 ASSERT(col_idx < data_cols + data_pad &&
                        "Column index exceeds width of matrix!");
-                _data[row][col_idx] = value;
+                dcmp_data[dest_offset +
+                          sub2ind(row, col_idx, data_cols + data_pad)] = value;
                 PRINT_MSG_V(
                         "  Storing _data[%d][%d] = %f\n", row, col_idx, value);
             }

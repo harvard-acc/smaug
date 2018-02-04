@@ -197,51 +197,84 @@ void inner_product_layer_cache_hw(float* cache_activations,
                                 false);
 }
 
-// TODO: Eventually we need to add a start row field to the decompression
-// routine for row-wise tiling.
+// Decompress a CSR array in HW.
+//
+// The compressed data will be sent to one of the scratchpads, and the
+// decompressed data will be written to the UMEM.
+//
+// This one function can be used for any of the available input mechanisms
+// (dma/acp/cache), although much of the complexity is a result of needing to
+// tile the CSR array to fit in the available sceratchpad space. However, the
+// output will always be placed into the UMEM.
+//
+// Arguments:
+//   dma_weights: The compressed data, accessed via DMA.
+//   acp_weights: The compressed data, accessed via ACP.
+//   cache_weights: The compressed data, accessed via HW cache.
+//   cmp_col_offset: The offset (32-bit granularity) into the source compressed
+//       data at which the column indices start.
+//   cmp_row_offset: The offset (32-bit granularity) into the source compressed
+//       data at which the row indices start.
+//   dest_offset: The offset (32-bit granularity) into the destination buffer
+//       from where the data should start getting written. This is required to
+//       support tiled decompression.
+//   compressed_size: The size (bytes) of the complete source CSR array.
+//   decompressed_size: The size (bytes) that the array will take up once
+//       decompressed.
+//   input_in_spad0: Send the CSR data to spad0 if true.
+//   copy_mechanism: Which mechanism to use for sending the input.
+//   spad0: SPAD0 pointer.
+//   spad1: SPAD1 pointer.
+//   umem: UMEM pointer.
 void decompress_packed_csr_smiv_hw(uint32_t* dma_weights,
                                    uint32_t* acp_weights,
                                    uint32_t* cache_weights,
                                    int cmp_col_offset,
                                    int cmp_row_offset,
+                                   int dest_offset,
                                    dims_t* data_dims,
                                    size_t compressed_size,
+                                   size_t decompressed_size,
                                    bool input_in_spad0,
                                    io_req_t copy_mechanism,
                                    float* spad0,
                                    float* spad1,
                                    float* umem) {
     PRINT_MSG("Decompressing CSR data!\n");
+    ASSERT(compressed_size <= SPAD_SIZE &&
+           "CSR array size exceeds scratchpad capacity!");
     // The umem must be zeroed first.
-    int num_rows = compressed_size / (VECTOR_SIZE * sizeof(float));
+    int num_rows = decompressed_size / (VECTOR_SIZE * sizeof(float));
+    int start_row = dest_offset / VECTOR_SIZE;
     VEC_ARRAY_1D(v8fp_t, _umem, umem);
     decompress_reset:
-    for (int i = 0; i < num_rows; i++)
+    for (int i = start_row; i < start_row + num_rows; i++)
         _umem[i] = (v8fp_t){ 0, 0, 0, 0, 0, 0, 0, 0 };
 
     if (copy_mechanism == IO_DMA) {
         if (input_in_spad0) {
             setReadyBits(spad0, compressed_size, 0);
             dmaLoad(spad0, dma_weights, compressed_size);
-            decompress_packed_csr_data_smiv_fxp((uint32_t*)spad0,
-                                                cmp_col_offset, cmp_row_offset,
-                                                data_dims, umem);
+            decompress_packed_csr_data_smiv_fxp(
+                    (uint32_t*)spad0, cmp_col_offset, cmp_row_offset,
+                    dest_offset, data_dims, umem);
         } else {
             setReadyBits(spad1, compressed_size, 0);
             dmaLoad(spad1, dma_weights, compressed_size);
-            decompress_packed_csr_data_smiv_fxp((uint32_t*)spad1,
-                                                cmp_col_offset, cmp_row_offset,
-                                                data_dims, umem);
+            decompress_packed_csr_data_smiv_fxp(
+                    (uint32_t*)spad1, cmp_col_offset, cmp_row_offset,
+                    dest_offset, data_dims, umem);
         }
     } else if (copy_mechanism == IO_ACP) {
-        decompress_packed_csr_data_smiv_fxp(
-                acp_weights, cmp_col_offset, cmp_row_offset, data_dims, umem);
+        decompress_packed_csr_data_smiv_fxp(acp_weights, cmp_col_offset,
+                                            cmp_row_offset, dest_offset,
+                                            data_dims, umem);
     } else if (copy_mechanism == IO_CACHE) {
-        decompress_packed_csr_data_smiv_fxp(
-                cache_weights, cmp_col_offset, cmp_row_offset, data_dims, umem);
+        decompress_packed_csr_data_smiv_fxp(cache_weights, cmp_col_offset,
+                                            cmp_row_offset, dest_offset,
+                                            data_dims, umem);
     }
 }
-
 // Returns true if this inner product layer will require multiple iterations.
 bool inner_product_needs_work_division(layer_t* curr_layer) {
     const unsigned total_weight_bytes = WEIGHT_BYTES(curr_layer, 0);
@@ -420,6 +453,7 @@ void inner_product_layer_hw_dispatch(float* activations,
                                      device_t* device) {
     bool use_pipelined_dma = device->use_pipelined_dma;
     io_req_t input_req = layer->input_req;
+    io_req_t weights_req = layer->weights_req;
     io_req_t output_req = layer->output_req;
     if (output_req != IO_NONE) {
         const char* results_var_name =
@@ -431,14 +465,21 @@ void inner_product_layer_hw_dispatch(float* activations,
                            results,
                            result_size * sizeof(float));
     }
+    // This needs to be handled separately from the inputs IO because if we
+    // used compressed weights, then they have already been DMAed and
+    // decompressed by the point we reach here.
+    if (weights_req == IO_DMA) {
+        begin_ignored_profiling(layer->num);
+        int weights_size = get_num_weights_layer(layer, 0);
+        flush_cache_range(weights, weights_size);
+        end_profiling();
+    }
     if (input_req == IO_DMA || input_req == IO_NONE) {
         // Use DMA for weights/activations.
         // Flush cache lines for activations and weights.
         begin_ignored_profiling(layer->num);
         int activations_size = get_input_activations_size(layer);
-        int weights_size = get_num_weights_layer(layer, 0);
         flush_cache_range(activations, activations_size);
-        flush_cache_range(weights, weights_size);
         end_profiling();
         if (output_req == IO_ACP) {
             // Use ACP for results.
@@ -501,8 +542,8 @@ void inner_product_layer_impl_rowwise(float* host_activations,
                                       float* host_result,
                                       device_t* device,
                                       bool input_in_spad0) {
-    fc_cfg_t fc_cfgs = inner_product_divide_work_rowwise(curr_layer);
     INFO_MSG("Running rowwise inner product.\n");
+    fc_cfg_t fc_cfgs = inner_product_divide_work_rowwise(curr_layer);
     printf("Inner product layer %d work configuration:\n", curr_layer->num);
     print_work_cfg(&fc_cfgs);
     bool needs_multiple_iter = (fc_cfgs.num_iterations > 1);
@@ -589,25 +630,52 @@ void inner_product_layer_impl_rowwise(float* host_activations,
 
         // First decompress the weights.
         if (curr_layer->wgt_storage_type == PackedCSR) {
-            packed_csr_array_t* csr =
-                    (packed_csr_array_t*)curr_layer->host_weights_buffer;
-            MAP_ARRAY_TO_ACCEL(kInnerProductHw, "dma_weights", csr->vals,
-                               csr->total_buf_size);
-            INVOKE_KERNEL_PROF(kInnerProductHw,
-                               curr_layer->num,
-                               decompress_packed_csr_smiv_hw,
-                               csr->vals,  // DMA
-                               csr->vals,  // ACP
-                               csr->vals,  // Cache
-                               csr->col_idx - csr->vals,
-                               csr->row_idx - csr->vals,
-                               &partial_layer.weights,
-                               csr->total_buf_size,
-                               !input_in_spad0,  // Don't overwrite inputs!
-                               device->cpu_default_offload,
-                               g_spad0,
-                               g_spad1,
-                               g_umem);
+            // If this is not the last iteration, then pre-emptively subtract
+            // one from the rows to get rid of decompressing an extra row for
+            // nothing.
+            layer_t temp_layer = partial_layer;
+            if (!is_last_iter)
+                temp_layer.weights.rows--;
+            packed_csr_array_t* src_csr =
+                    (packed_csr_array_t*)temp_layer.host_weights_buffer;
+            csr_tile_list tile_list = tile_packed_csr_array_t(
+                    src_csr, &temp_layer.weights, current_row, SPAD_SIZE);
+            assert(tile_list.len > 0 && "CSR tile list cannot be empty!");
+            csr_tile* curr_tile = tile_list.head;
+            int dest_offset = 0;
+            do {
+                printf("dest_offset = %d\n", dest_offset);
+                packed_csr_array_t array = curr_tile->array;
+                dims_t dims = (dims_t){ curr_tile->num_rows,
+                                        temp_layer.weights.cols,
+                                        temp_layer.weights.height,
+                                        temp_layer.weights.align_pad };
+                MAP_ARRAY_TO_ACCEL(kInnerProductHw, "dma_weights",
+                                   array.vals,
+                                   array.total_buf_size);
+                INVOKE_KERNEL_PROF(kInnerProductHw,
+                                   curr_layer->num,
+                                   decompress_packed_csr_smiv_hw,
+                                   array.vals,  // DMA
+                                   array.vals,  // ACP
+                                   array.vals,  // Cache
+                                   array.col_idx - array.vals,
+                                   array.row_idx - array.vals,
+                                   dest_offset,
+                                   &dims,
+                                   array.total_buf_size,
+                                   curr_tile->eff_total_bytes,
+                                   !input_in_spad0,  // Don't overwrite inputs!
+                                   device->cpu_default_offload,
+                                   g_spad0,
+                                   g_spad1,
+                                   g_umem);
+                dest_offset += (curr_tile->eff_total_bytes / sizeof(uint32_t));
+                curr_tile = curr_tile->next_tile;
+            } while (curr_tile);
+            free_csr_tile_list(&tile_list);
+            // Now that we've decompressed the weights, we don't need to DMA
+            // them again.
             partial_layer.weights_req = IO_NONE;
             PRINT_MSG("Weights:\n");
             PRINT_DEBUG(g_umem,
@@ -617,14 +685,16 @@ void inner_product_layer_impl_rowwise(float* host_activations,
                                 partial_layer.weights.align_pad);
         }
 
+        io_req_t weights_req = partial_layer.weights_req;
         const size_t weights_buffer_size =
                 (curr_iter->cols + curr_iter->align_pad) * curr_iter->rows *
                 sizeof(float);
-        if (input_req != IO_NONE) {
-            const char* weights_var_name =
-                    input_req == IO_DMA ? "host_weights"
-                                        : input_req == IO_ACP ? "acp_weights"
-                                                              : "cache_weights";
+        if (weights_req != IO_NONE) {
+            const char* weights_var_name = weights_req == IO_DMA
+                                                   ? "host_weights"
+                                                   : weights_req == IO_ACP
+                                                             ? "acp_weights"
+                                                             : "cache_weights";
             MAP_ARRAY_TO_ACCEL(kInnerProductHw,
                                weights_var_name,
                                curr_dense_weights_loc,
@@ -632,8 +702,6 @@ void inner_product_layer_impl_rowwise(float* host_activations,
         }
         size_t result_size = NUM_TEST_CASES * partial_layer.inputs.rows *
                              partial_layer.outputs.cols;
-        MAP_ARRAY_TO_ACCEL(kInnerProductHw, "host_weights",
-                           curr_dense_weights_loc, weights_buffer_size);
         inner_product_layer_hw_dispatch(host_inputs_buffer,
                                         curr_dense_weights_loc,
                                         &partial_layer,
@@ -896,9 +964,8 @@ void inner_product_layer_impl(float* host_activations,
         current_result_loc = g_spad0;
     }
     bool input_in_spad0 = (current_result_loc == g_spad1);
-    float* host_weights_layer =
-            host_weights + get_weights_loc_for_layer(layers, lnum);
     layer_t* curr_layer = &layers[lnum];
+    float* host_weights_layer = (float*)curr_layer->host_weights_buffer;
 
     if (curr_layer->wgt_storage_type == Uncompressed) {
         PRINT_MSG("Weights:\n");

@@ -35,6 +35,7 @@ void avgpooling_nhwc_smiv(float* inputs, layer_t curr_layer, float* results);
 void decompress_packed_csr_data_smiv_fxp(uint32_t* cmp_data,
                                          int cmp_col_offset,
                                          int cmp_row_offset,
+                                         int dest_offset,
                                          dims_t* data_dims,
                                          float* dcmp_data);
 

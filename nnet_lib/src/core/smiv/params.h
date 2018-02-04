@@ -4,7 +4,13 @@
 #define DATAPATH_WIDTH 4
 #define SHIFT_REG_SIZE 16
 #define MAX_BATCH 8
+
+#ifndef VECTOR_SIZE
 #define VECTOR_SIZE 8
+#elif VECTOR_SIZE != 8
+#error "Existing VECTOR_SIZE is incompatible with SMIV!"
+#endif
+
 
 // Scalar types.
 typedef float fp_t;

@@ -181,6 +181,9 @@ void run_file_test(const char* filename) {
                                                                 : "FAIL");
 
     packed_csr_array_t packed = pack_data_vec8_f16(csr, &weights_dims);
+    printf("Packed array fields: col offset = %ld, row offset = %ld\n",
+           packed.col_idx - packed.vals, packed.row_idx - packed.vals);
+
     float* decomp_2 = (float*)malloc_aligned(layer_wgt_size * sizeof(float));
     memset(decomp_2, 0, layer_wgt_size * sizeof(float));
     decompress_packed_csr_data(packed.vals,
@@ -205,8 +208,29 @@ void run_file_test(const char* filename) {
            compare_farrays(decomp_1, decomp_2, layer_wgt_size) ? "PASS"
                                                                : "FAIL");
 
+    printf("Testing tiling.\n");
+    layer_t layer;
+    layer.weights = weights_dims;
+    layer.wgt_storage_type = PackedCSR;
+    layer.host_weights_buffer = (void*)&packed;
+    csr_tile_list tile_list =
+            tile_packed_csr_array_t(&packed, &layer, 128*1024);
+    packed_csr_array_t* array = &tile_list.head->array;
+    printf("Tiled packed array fields: col offset = %ld, row offset = %ld\n",
+           array->col_idx - array->vals, array->row_idx - array->vals);
+    bool pass = true;
+    for (int i = 0; i < array->total_buf_size / sizeof(uint32_t); i++) {
+        if (array->vals[i] != packed.vals[i]) {
+            printf("At offset %d, array->vals = %#x, packed->vals = %#x\n", i,
+                   array->vals[i], packed.vals[i]);
+            pass = false;
+        }
+    }
+    printf("Tiling: %s\n", pass ? "PASS": "FAIL");
+
     free(decomp_1);
     free(decomp_2);
+    free_csr_tile_list(&tile_list);
     free_csr_array_t(&csr);
     free_packed_csr_array_t(&packed);
     free(weights.d);
