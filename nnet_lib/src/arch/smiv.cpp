@@ -512,7 +512,7 @@ void set_io_requirements(network_t* network, device_t* device) {
         // to see what's happening.
         curr_layer->input_req = IO_DMA;
         curr_layer->output_req = IO_DMA;
-#endif
+#else
 
         // We only support DMA for hardware batch norm and pooling layers.
         if (curr_layer->type == BATCH_NORM || curr_layer->type == POOLING) {
@@ -572,6 +572,7 @@ void set_io_requirements(network_t* network, device_t* device) {
         } else {
             curr_layer->input_req = device->cpu_default_offload;
         }
+#endif
     }
 
     for (int layer_num = 0; layer_num < network->depth; layer_num++) {
