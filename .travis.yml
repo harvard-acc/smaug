@@ -11,7 +11,7 @@ compiler:
   - gcc
 
 script:
-  - docker run --rm -v $PWD:/workspace/smaug:rw xyzsam/smaug /bin/bash -c "cd smaug/nnet_lib/tests && make all"
+  - docker run --rm -v $PWD:/workspace/smaug:rw xyzsam/smaug /bin/bash -c "cd smaug && ./run_travis.sh"
 
 notifications:
   email:
