@@ -16,7 +16,10 @@ import shutil
 import re
 
 # Floating point equality comparison tolerance in percent.
-FP_ERR = 0.05
+FP_ERR_PCT = 0.05
+
+# Floating point equality comparison tolerance in absolute magnitude.
+FP_ERR_ABS = 0.5
 
 # These get set by the command line argument.
 BINARY = ""
@@ -66,16 +69,22 @@ class BaseTest(unittest.TestCase):
 
     return returncode
 
-  def almostEqual(self, val, ref):
-    """ Returns true if val and ref are within FP_ERR percent of each other. """
+  def almostEqual(self, val, ref,
+                  fp_err_pct=FP_ERR_PCT,
+                  fp_err_abs=FP_ERR_ABS):
+    """ Returns true if val and ref are approximately equal.
+
+    Either the value and reference must be within fp_err_pct percent, or they
+    must be within fp_err_abs magnitude of each other.
+    """
     if ((isinstance(val, float) or isinstance(val, int)) and
         (isinstance(ref, float) or isinstance(ref, int))):
       if ref == 0:
         return val == 0
-      diff_per = (float(val)-ref)/float(ref) * 100
-      if (diff_per < 0):
-          diff_per = -diff_per
-      return diff_per < FP_ERR
+      diff_abs = abs(float(val)-ref)
+      diff_per = diff_abs/float(ref) * 100
+
+      return (diff_per < fp_err_pct or diff_abs < fp_err_abs)
     elif isinstance(val, list) and isinstance(ref, list):
       is_equal = True
       for val_v, ref_v in zip(val, ref):
@@ -94,7 +103,9 @@ class BaseTest(unittest.TestCase):
       cmd += "-f %s " % param_file
     return cmd
 
-  def runAndValidate(self, model_file, correct_output, **kwargs):
+  def runAndValidate(self, model_file, correct_output,
+                     fp_err_pct=FP_ERR_PCT, fp_err_abs=FP_ERR_ABS,
+                     **kwargs):
     returncode = self.launchSubprocess(
         self.createCommand(model_file, correct_output, **kwargs));
 
@@ -111,7 +122,8 @@ class BaseTest(unittest.TestCase):
       self.assertEqual(this, correct,
                        msg="Test output label does not match!")
     for i, (this, correct) in enumerate(zip(test_soft, correct_soft)):
-      is_equal = self.almostEqual(this, correct)
+      is_equal = self.almostEqual(
+          this, correct, fp_err_pct=fp_err_pct, fp_err_abs=fp_err_abs)
       if not is_equal:
         print "\nFAILURE ON TEST %d" % i
         print "  Got:      %s" % this
