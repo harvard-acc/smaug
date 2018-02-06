@@ -223,10 +223,20 @@ class SmivTests(BaseTest):
     self.runAndValidate(model_file, correct_output)
 
 class Cifar10Tests(BaseTest):
-  def test_keras_example(self):
+  def test_keras_example_random_data(self):
     model_file = "cifar10/keras_example.conf"
-    correct_output = "cifar10-keras-example.out"
+    correct_output = "cifar10-keras-example-random-data.out"
     self.runAndValidate(model_file, correct_output)
+
+  def test_keras_example_real_data(self):
+    if ARCH == "composable":
+      return
+    model_file = "cifar10/keras_example.conf"
+    correct_output = "cifar10-keras-example-real-data.out"
+    param_file = os.path.join(
+        MODEL_DIR, "cifar10/trained/%s/cnn-pruned.txt" % ARCH)
+    self.runAndValidate(model_file, correct_output,
+          data_init_mode="READ_FILE", param_file=param_file)
 
   def test_mobilenet(self):
     model_file = "cifar10/mobilenet.conf"
