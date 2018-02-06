@@ -60,15 +60,25 @@ def get_padded_size(shape, data_alignment):
   shape[-1] = inner_dim
   return np.prod(shape)
 
-def get_num_parameters(model_layers, data_alignment):
+def get_num_parameters(
+    model_layers, data_alignment, transpose_weights=False):
   num = 0
+  do_reorder = backend.image_dim_ordering() == "tf"
   for layer in model_layers:
     for w in layer.get_weights():
-      # Skip conv biases.
+      shape = w.shape
       if isinstance(layer, Conv2D):
+        # Skip conv biases.
         if len(w.shape) == 1:
           continue
-      num += get_padded_size(w.shape, data_alignment)
+        elif do_reorder:
+          shape = shape[-1::-1]
+        else:
+          shape = w.shape
+      elif isinstance(layer, Dense) and transpose_weights:
+        shape = shape[-1::-1]
+
+      num += get_padded_size(shape, data_alignment)
   return num
 
 def print_padded_array(outfile, data, data_alignment, fmt="%2.8f"):
@@ -115,7 +125,8 @@ def print_txt_global_section(outfile, arch, num_layers, data_alignment):
 def print_txt_weights_section(outfile, layers, data_alignment,
                               transpose_weights):
   outfile.write("===WEIGHTS BEGIN===\n")
-  outfile.write("# NUM_ELEMS %d\n" % get_num_parameters(layers, data_alignment))
+  outfile.write("# NUM_ELEMS %d\n" % get_num_parameters(
+    layers, data_alignment, transpose_weights=transpose_weights))
   outfile.write("# TYPE float\n")
 
   do_reorder = backend.image_dim_ordering() == "tf"
