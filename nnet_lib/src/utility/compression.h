@@ -19,10 +19,10 @@
 // This many packed data elements fit into the space of the original vector.
 #define DATA_PACKING_FACTOR (VECTOR_SIZE * UNPACKED_ELEMENT_SIZE / PACKED_ELEMENT_SIZE)
 
-#define INDEX_CONTAINER_TYPE int
+typedef int IndexContainerType;
 #define INDEX_BITS (4)
 // This many indices fit into the space of the containing type.
-#define INDEX_PACKING_FACTOR (sizeof(INDEX_CONTAINER_TYPE) * 8 / INDEX_BITS)
+#define INDEX_PACKING_FACTOR (sizeof(IndexContainerType) * 8 / INDEX_BITS)
 // This is the ratio between the number of packed FP values that can fit in a
 // **32-byte vector** to the number of packed indices that can fit in a
 // **32-bit value**.
@@ -49,8 +49,22 @@ typedef struct _csr_array_t {
     size_t num_rows;
 } csr_array_t;
 
-csr_array_t compress_dense_data_csr(float* data, dims_t* data_dims);
+ALWAYS_INLINE
+static inline uint16_t get_row_idx(uint32_t packed_row_idx_size) {
+    return (packed_row_idx_size >> 16) & 0xffff;
+}
 
+ALWAYS_INLINE
+static inline uint16_t get_row_size(uint32_t packed_row_idx_size) {
+    return packed_row_idx_size & 0xffff;
+}
+
+ALWAYS_INLINE
+static inline int create_packed_row(uint16_t row_idx, uint16_t row_size) {
+    return ((row_idx << 16) & 0xffff0000) | (row_size & 0xffff);
+}
+
+csr_array_t compress_dense_data_csr(float* data, dims_t* data_dims);
 void decompress_csr_data(csr_array_t* csr_data,
                          dims_t* data_dims,
                          float* dcmp_data);

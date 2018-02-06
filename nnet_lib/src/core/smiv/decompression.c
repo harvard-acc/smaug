@@ -89,8 +89,8 @@ void decompress_packed_csr_data_smiv_fxp(uint32_t* cmp_data,
     for (int row = 0; row < data_rows; row++) {
         // Unpack the row index pair.
         uint32_t packed_idx_size = cmp_data[cmp_row_offset + row];
-        int curr_row_start_idx = (packed_idx_size >> 16) & 0xffff;
-        int curr_row_size = packed_idx_size & 0xffff;
+        int curr_row_start_idx = get_row_idx(packed_idx_size);
+        int curr_row_size = get_row_size(packed_idx_size);
         PRINT_MSG_V("Row %d\n", row);
         PRINT_MSG_V("  Row start idx: %d\n", curr_row_start_idx);
         PRINT_MSG_V("  Row size: %d\n", curr_row_size);

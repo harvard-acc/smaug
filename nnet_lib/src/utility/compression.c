@@ -275,8 +275,8 @@ packed_csr_array_t pack_data_vec8_f16(csr_array_t csr_data, dims_t* data_dims) {
             curr_col_dst_idx++;
         }
 
-        csr.row_idx[row] = ((curr_packed_row_idx << 16) & 0xffff0000) |
-                           (num_elems_in_row & 0xffff);
+        csr.row_idx[row] =
+                create_packed_row(curr_packed_row_idx, num_elems_in_row);
         curr_packed_row_idx += num_packed_data_vectors;
         PRINT_MSG_V("  packed row = %#x\n", csr.row_idx[row]);
         total_elements_packed += num_elems_in_row;
@@ -423,8 +423,8 @@ void decompress_packed_csr_data(uint32_t* cmp_data,
         // separately in order to properly handle the fact that separate rows
         // cannot cross vector (32-byte) boundaries.
         uint32_t packed_idx_size = cmp_row_idx[row];
-        int curr_row_start_idx = (packed_idx_size >> 16) & 0xffff;
-        int curr_row_size = packed_idx_size & 0xffff;
+        int curr_row_start_idx = get_row_idx(packed_idx_size);
+        int curr_row_size = get_row_size(packed_idx_size);
         PRINT_MSG_V("Row %d\n", row);
         PRINT_MSG_V("  Row start idx: %d\n", curr_row_start_idx);
         PRINT_MSG_V("  Row size: %d\n", curr_row_size);
@@ -508,7 +508,7 @@ void compute_bytes_for_row_storage(int num_elems_in_row,
     int num_data_vectors = compute_num_vectors_in_row(num_elems_in_row);
     int data_bytes = num_data_vectors * TOTAL_VECTOR_BYTES;
     int col_bytes = num_data_vectors * DATA_TO_INDEX_RATIO *
-                    sizeof(INDEX_CONTAINER_TYPE);
+                    sizeof(IndexContainerType);
     int row_bytes = 1 * sizeof(int);
     *size_for_row = data_bytes + col_bytes + row_bytes;
     *num_vectors = num_data_vectors;
@@ -542,7 +542,7 @@ csr_tile_list compute_tiled_packed_csr_array_dims(packed_csr_array_t* csr,
     curr->start_row = 0;
     while (curr_row < num_rows) {
         int packed_row_size = csr->row_idx[starting_row + curr_row];
-        int num_elems = packed_row_size & 0xffff;
+        int num_elems = get_row_size(packed_row_size);
         size_t size_for_row;
         int num_vectors;
         compute_bytes_for_row_storage(num_elems, &size_for_row, &num_vectors);
@@ -615,7 +615,7 @@ csr_tile_list tile_packed_csr_array_t(packed_csr_array_t* input,
     int start_row = starting_row;
     // Compute the starting offsets into the value and col_idx arrays, based on
     // the starting row.
-    int packed_start_row_idx = (input->row_idx[start_row] >> 16) & 0xffff;
+    int packed_start_row_idx = get_row_idx(input->row_idx[start_row]);
     uint32_t value_offset =
             packed_start_row_idx * (TOTAL_VECTOR_BYTES / UNPACKED_ELEMENT_SIZE);
     uint32_t col_offset = packed_start_row_idx * DATA_TO_INDEX_RATIO;
@@ -630,21 +630,20 @@ csr_tile_list tile_packed_csr_array_t(packed_csr_array_t* input,
                 curr_tile->num_vectors * TOTAL_VECTOR_BYTES;
         size_t col_bytes_to_copy =
                 (curr_tile->num_vectors * DATA_TO_INDEX_RATIO) *
-                sizeof(INDEX_CONTAINER_TYPE);
+                sizeof(IndexContainerType);
 
         memcpy((void*)curr_tile->array.vals, input->vals + value_offset,
                value_bytes_to_copy);
         memcpy((void*)curr_tile->array.col_idx, input->col_idx + col_offset,
                col_bytes_to_copy);
         // The row indices need to start from zero for each tile.
-        int row_offset_reset = (input->row_idx[start_row] >> 16) & 0xffff;
+        int row_offset_reset = get_row_idx(input->row_idx[start_row]);
         for (int r = 0; r < curr_tile->num_rows; r++) {
             uint32_t packed_idx_size = input->row_idx[r + start_row];
-            uint32_t row_offset = (packed_idx_size >> 16) & 0xffff;
-            uint32_t num_elems = packed_idx_size & 0xffff;
+            uint32_t row_offset = get_row_idx(packed_idx_size);
+            uint32_t num_elems = get_row_size(packed_idx_size);
             curr_tile->array.row_idx[r] =
-                    (((row_offset - row_offset_reset) << 16) & (0xffff0000)) |
-                    num_elems;
+                    create_packed_row(row_offset - row_offset_reset, num_elems);
         }
         // The offset into the value array needs to be calculated with respect
         // to the type used in packed_csr_array_t (uint32_t*) while taking into
