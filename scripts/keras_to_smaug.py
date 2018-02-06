@@ -25,6 +25,7 @@ import numpy as np
 from keras.applications import mobilenet
 from keras.layers import Dense, Conv2D, AveragePooling2D, MaxPooling2D, BatchNormalization
 from keras.models import Sequential
+from keras import backend
 
 def calc_padding(value, padding):
   if padding == 0 or value % padding == 0:
@@ -117,22 +118,39 @@ def print_txt_weights_section(outfile, layers, data_alignment,
   outfile.write("# NUM_ELEMS %d\n" % get_num_parameters(layers, data_alignment))
   outfile.write("# TYPE float\n")
 
+  do_reorder = backend.image_dim_ordering() == "tf"
   for i, layer in enumerate(layers):
+    batch_norm_params = []
     for w in layer.get_weights():
       if isinstance(layer, Conv2D) and len(w.shape) == 1:
+        print "Skipping conv bias"
         continue
-      if transpose_weights and isinstance(layer, Dense):
+      elif isinstance(layer, Conv2D) and do_reorder:
+        w = np.transpose(w, [3, 2, 1, 0])
+      elif isinstance(layer, Dense) and transpose_weights:
         w = w.T
+      elif isinstance(layer, BatchNormalization):
+        batch_norm_params.append(w)
+        if len(batch_norm_params) == 4:
+          # Reorder the parameters.
+          # Keras weight ordering is gamma, beta, mean, std - we want mean,
+          # std, gamma, beta.
+          w = np.array([batch_norm_params[i] for i in [2,3,1,0]])
+          batch_norm_params = []
+        else:
+          continue
+
       print_padded_array(outfile, w, data_alignment)
 
   outfile.write("\n===WEIGHTS END===\n")
 
 def print_txt_inputs_section(outfile, x_train, data_alignment):
   outfile.write("===DATA BEGIN===\n")
+  input = np.transpose(x_train[0, :], [2, 1, 0])
   outfile.write("# NUM_ELEMS %d\n" % get_padded_size(
-      x_train[0, :].shape, data_alignment))
+      input.shape, data_alignment))
   outfile.write("# TYPE float\n")
-  print_padded_array(outfile, x_train[0, :], data_alignment)
+  print_padded_array(outfile, input, data_alignment)
   outfile.write("\n===DATA END===\n")
 
 def print_txt_labels_section(outfile, y_train):
