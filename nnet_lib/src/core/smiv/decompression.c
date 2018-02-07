@@ -70,7 +70,8 @@ void unpack_values_at_row_smiv(uint32_t* csr_data,
 //   cmp_row_offset: The offset (at 4-byte granularity) into @packed_spad at
 //     which the row index pairs start.
 //   dest_offset: The offset (at 4-byte granularity) into @dcmp_data at which
-//      we'll start writing the decompressed data.
+//      we'll start writing the decompressed data. This offset must also be a
+//      multiple of VECTOR_SIZE.
 //   data_dims: The dimensions of the uncompressed data.
 //   dcmp_data: The base of the destination scratchpad to store the
 //     uncompressed data.
@@ -83,8 +84,14 @@ void decompress_packed_csr_data_smiv_fxp(uint32_t* cmp_data,
     int data_rows = data_dims->rows;
     int data_cols = data_dims->cols;
     int data_pad = data_dims->align_pad;
+    ASSERT(dest_offset % VECTOR_SIZE == 0 &&
+           "dest_offset must be aligned to a multiple of VECTOR_SIZE bytes!");
+    dest_offset /= VECTOR_SIZE;
 
     PRINT_MSG_V("==== DECOMPRESSING ==== \n");
+    // Always store vectors instead of scalars.
+    VEC_ARRAY_1D(v8fp_t, _data, dcmp_data);
+    int vec_cols = (data_cols + data_pad) / VECTOR_SIZE;
     decompress_row:
     for (int row = 0; row < data_rows; row++) {
         // Unpack the row index pair.
@@ -96,7 +103,12 @@ void decompress_packed_csr_data_smiv_fxp(uint32_t* cmp_data,
         PRINT_MSG_V("  Row size: %d\n", curr_row_size);
 
         int col_idx = -1;
+        int vec_col_idx = 0;
         int num_elems_remaining = curr_row_size;
+        // This buffer needs to be placed outside the column loop because
+        // decompressed values may straddle vector boundaries.
+        v8fp_t decompressed_values = (v8fp_t){ 0, 0, 0, 0, 0, 0, 0, 0 };
+        bool has_nonzero_values = false;
         decompress_col:
         for (int col = 0; col < curr_row_size; col += DATA_PACKING_FACTOR) {
             float values_buffer[VECTOR_SIZE * 2];
@@ -117,11 +129,31 @@ void decompress_packed_csr_data_smiv_fxp(uint32_t* cmp_data,
                 col_idx += index_buffer[val] + 1;
                 ASSERT(col_idx < data_cols + data_pad &&
                        "Column index exceeds width of matrix!");
-                dcmp_data[dest_offset +
-                          sub2ind(row, col_idx, data_cols + data_pad)] = value;
+                // Insert this element into the vector at the right slot. If
+                // the jump between the last column index and this one crosses
+                // vector boundaries, then commit the vector, create a new one,
+                // and continue.
+                int vec_elem_idx = col_idx % VECTOR_SIZE;
+                int this_vec_col_idx = col_idx / VECTOR_SIZE;
+                if (this_vec_col_idx > vec_col_idx) {
+                    if (has_nonzero_values) {
+                        has_nonzero_values = false;
+                        _data[dest_offset +
+                              sub2ind(row, vec_col_idx, vec_cols)] =
+                                decompressed_values;
+                        decompressed_values =
+                                (v8fp_t){ 0, 0, 0, 0, 0, 0, 0, 0 };
+                    }
+                    vec_col_idx = this_vec_col_idx;
+                }
+                has_nonzero_values |= (value != 0);
+                decompressed_values[vec_elem_idx] = value;
                 PRINT_MSG_V(
                         "  Storing _data[%d][%d] = %f\n", row, col_idx, value);
             }
+            _data[dest_offset + sub2ind(row, vec_col_idx, vec_cols)] =
+                    decompressed_values;
+
             num_elems_remaining -= 16;
         }
     }
