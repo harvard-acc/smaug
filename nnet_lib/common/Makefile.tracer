@@ -33,7 +33,12 @@ LFLAGS += -lz
 
 LLVM_VERSION = $(shell clang --version | grep -o -m 1 "[0-9\.]\+" | head -n 1)
 GEM5_DMA_SRC = gem5/dma_interface.c
-ALL_TRACER_SRCS = $(SRCS) $(GEM5_DMA_SRC)
+
+# The file containinng the main function must be instrumented LAST so that it
+# can include all labels discovered by the clangtool. Therefore, we take it out
+# of this list and manually append it to the end.
+ALL_TRACER_SRCS = $(filter-out $(NNET_FWD_MAIN), $(SRCS) $(GEM5_DMA_SRC)) \
+									$(NNET_FWD_MAIN)
 
 ifeq ($(ARCH), EIGEN)
 $(error Eigen requires C++, which LLVM-Tracer does not support!)
