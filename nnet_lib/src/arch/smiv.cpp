@@ -53,12 +53,12 @@ void free_work_cfg(work_cfg_t* cfg) {
 
 void print_work_cfg(work_cfg_t* cfg) {
     for (unsigned i = 0; i < cfg->num_iterations; i++) {
-        printf("Iteration %d: height=%d, rows=%d, cols=%d, pad=%d\n",
-               i,
-               cfg->iteration[i].height,
-               cfg->iteration[i].rows,
-               cfg->iteration[i].cols,
-               cfg->iteration[i].align_pad);
+        INFO_MSG("Iteration %d: height=%d, rows=%d, cols=%d, pad=%d\n",
+                 i,
+                 cfg->iteration[i].height,
+                 cfg->iteration[i].rows,
+                 cfg->iteration[i].cols,
+                 cfg->iteration[i].align_pad);
     }
 }
 

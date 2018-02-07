@@ -544,7 +544,7 @@ void inner_product_layer_impl_rowwise(float* host_activations,
                                       bool input_in_spad0) {
     INFO_MSG("Running rowwise inner product.\n");
     fc_cfg_t fc_cfgs = inner_product_divide_work_rowwise(curr_layer);
-    printf("Inner product layer %d work configuration:\n", curr_layer->num);
+    INFO_MSG("Inner product layer %d work configuration:\n", curr_layer->num);
     print_work_cfg(&fc_cfgs);
     bool needs_multiple_iter = (fc_cfgs.num_iterations > 1);
     bool do_bias_in_software =
@@ -801,7 +801,7 @@ void inner_product_layer_impl_colwise(float* host_activations,
                                       bool input_in_spad0) {
     fc_cfg_t fc_cfgs = inner_product_divide_work_colwise(curr_layer);
     INFO_MSG("Running colwise inner product.\n");
-    printf("Inner product layer %d work configuration:\n", curr_layer->num);
+    INFO_MSG("Inner product layer %d work configuration:\n", curr_layer->num);
     print_work_cfg(&fc_cfgs);
 
     bool needs_multiple_iter = (fc_cfgs.num_iterations > 1);

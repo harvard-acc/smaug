@@ -553,7 +553,7 @@ void standard_convolution_layer_impl(float* host_activations,
 #endif
 
     conv_cfg_t conv_cfgs = convolution_divide_work(layers, lnum);
-    printf("Standard convolution layer %d work configuration:\n", lnum);
+    INFO_MSG("Standard convolution layer %d work configuration:\n", lnum);
     print_work_cfg(&conv_cfgs);
 
     // temp_result stores the partially reduced results of each iteration.
@@ -855,7 +855,7 @@ void depthwise_convolution_layer_impl(float* host_activations,
 #endif
 
     conv_cfg_t conv_cfgs = convolution_divide_work(layers, lnum);
-    printf("Depthwise convolution layer %d work configuration:\n", lnum);
+    INFO_MSG("Depthwise convolution layer %d work configuration:\n", lnum);
     print_work_cfg(&conv_cfgs);
 
     bool do_hw_activation = device->use_hw_activation_func &&
