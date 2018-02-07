@@ -1,8 +1,3 @@
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-#endif
-
 #include <assert.h>
 #include <string.h>
 
@@ -87,12 +82,6 @@ void reduction_hw(float* spad0,
             }
         }
     }
-    printf("reduction results:\n");
-    for (int i = 0; i < result_bytes / (int)sizeof(float); i++) {
-        printf("%f, ", host_result[i]);
-    }
-    printf("\n");
-
 }
 
 // ACP reduction module.
@@ -189,7 +178,7 @@ void reduction_cache_hw(float* spad0,
 
 static void convolution_layer_hw(float* host_activations,
                                  float* host_weights,
-                                 float* host_results,
+                                 float* host_result,
                                  float* umem,
                                  float* spad0,
                                  float* spad1,
@@ -202,12 +191,12 @@ static void convolution_layer_hw(float* host_activations,
                                  int start_chan,
                                  bool use_pipelined_dma) {
     layer_t curr_layer = all_layers[layer_num];
-    const int input_height = curr_layer.inputs.height;
-    const int input_rows= curr_layer.inputs.rows;
-    const int input_cols = curr_layer.inputs.cols;
-    const int input_pad = curr_layer.inputs.align_pad;
-    const int k_width = curr_layer.weights.cols;
-    const int k_pad = curr_layer.weights.align_pad;
+    int input_height = curr_layer.inputs.height;
+    int input_rows= curr_layer.inputs.rows;
+    int input_cols = curr_layer.inputs.cols;
+    int input_pad = curr_layer.inputs.align_pad;
+    int k_width = curr_layer.weights.cols;
+    int k_pad = curr_layer.weights.align_pad;
 
     ARRAY_4D(float, _a, host_activations, input_height, input_rows,
              input_cols + input_pad);
@@ -268,40 +257,31 @@ static void convolution_layer_hw(float* host_activations,
     else
         convolution3d_smiv(umem, spad1, partial_layer, start_chan, spad0);
 
-    printf("conv results:\n");
-    for (int i = 0; i < partial_layer.inputs.rows * curr_layer.inputs.height *
-                                    (partial_layer.inputs.cols +
-                                     partial_layer.inputs.align_pad);
-         i++) {
-        printf("%f, ", input_in_spad0 ? spad1[i] : spad0[i]);
-    }
-    printf("\n");
-
     if (partial_layer.output_req == IO_DMA) {
         size_t num_output_pixels =
                 partial_layer.outputs.rows * partial_layer.outputs.height *
                 (partial_layer.outputs.cols + partial_layer.outputs.align_pad);
         if (input_in_spad0) {
             if (use_pipelined_dma) {
-                divide_and_send_dma_req(host_results,
+                divide_and_send_dma_req(host_result,
                                         spad1,
                                         num_output_pixels * sizeof(float),
                                         LOG_PAGE_SIZE,
                                         false);
             } else {
                 dmaStore(
-                        host_results, spad1, num_output_pixels * sizeof(float));
+                        host_result, spad1, num_output_pixels * sizeof(float));
             }
         } else {
             if (use_pipelined_dma) {
-                divide_and_send_dma_req(host_results,
+                divide_and_send_dma_req(host_result,
                                         spad0,
                                         num_output_pixels * sizeof(float),
                                         LOG_PAGE_SIZE,
                                         false);
             } else {
                 dmaStore(
-                        host_results, spad0, num_output_pixels * sizeof(float));
+                        host_result, spad0, num_output_pixels * sizeof(float));
             }
         }
     }
@@ -310,7 +290,7 @@ static void convolution_layer_hw(float* host_activations,
 
 static void convolution_layer_acp_result_hw(float* host_activations,
                                             float* host_weights,
-                                            float* acp_results,
+                                            float* acp_result,
                                             float* umem,
                                             float* spad0,
                                             float* spad1,
@@ -323,12 +303,12 @@ static void convolution_layer_acp_result_hw(float* host_activations,
                                             int start_chan,
                                             bool use_pipelined_dma) {
     layer_t curr_layer = all_layers[layer_num];
-    const int input_height = curr_layer.inputs.height;
-    const int input_rows= curr_layer.inputs.rows;
-    const int input_cols = curr_layer.inputs.cols;
-    const int input_pad = curr_layer.inputs.align_pad;
-    const int k_width = curr_layer.weights.cols;
-    const int k_pad = curr_layer.weights.align_pad;
+    int input_height = curr_layer.inputs.height;
+    int input_rows= curr_layer.inputs.rows;
+    int input_cols = curr_layer.inputs.cols;
+    int input_pad = curr_layer.inputs.align_pad;
+    int k_width = curr_layer.weights.cols;
+    int k_pad = curr_layer.weights.align_pad;
 
     ARRAY_4D(float, _a, host_activations, input_height, input_rows,
              input_cols + input_pad);
@@ -385,9 +365,9 @@ static void convolution_layer_acp_result_hw(float* host_activations,
     }
 
     if (input_in_spad0)
-        convolution3d_smiv(umem, spad0, partial_layer, start_chan, acp_results);
+        convolution3d_smiv(umem, spad0, partial_layer, start_chan, acp_result);
     else
-        convolution3d_smiv(umem, spad1, partial_layer, start_chan, acp_results);
+        convolution3d_smiv(umem, spad1, partial_layer, start_chan, acp_result);
 
 }
 
@@ -404,12 +384,12 @@ static void convolution_layer_acp_hw(float* acp_activations,
                                      int kern,
                                      int start_chan) {
     layer_t curr_layer = all_layers[layer_num];
-    const int input_height = curr_layer.inputs.height;
-    const int input_rows= curr_layer.inputs.rows;
-    const int input_cols = curr_layer.inputs.cols;
-    const int input_pad = curr_layer.inputs.align_pad;
-    const int k_width = curr_layer.weights.cols;
-    const int k_pad = curr_layer.weights.align_pad;
+    int input_height = curr_layer.inputs.height;
+    int input_rows= curr_layer.inputs.rows;
+    int input_cols = curr_layer.inputs.cols;
+    int input_pad = curr_layer.inputs.align_pad;
+    int k_width = curr_layer.weights.cols;
+    int k_pad = curr_layer.weights.align_pad;
 
     ARRAY_4D(float, _a, acp_activations, input_height, input_rows,
              input_cols + input_pad);
@@ -452,12 +432,12 @@ static void convolution_layer_cache_hw(float* cache_activations,
                                        int kern,
                                        int start_chan) {
     layer_t curr_layer = all_layers[layer_num];
-    const int input_height = curr_layer.inputs.height;
-    const int input_rows= curr_layer.inputs.rows;
-    const int input_cols = curr_layer.inputs.cols;
-    const int input_pad = curr_layer.inputs.align_pad;
-    const int k_width = curr_layer.weights.cols;
-    const int k_pad = curr_layer.weights.align_pad;
+    int input_height = curr_layer.inputs.height;
+    int input_rows= curr_layer.inputs.rows;
+    int input_cols = curr_layer.inputs.cols;
+    int input_pad = curr_layer.inputs.align_pad;
+    int k_width = curr_layer.weights.cols;
+    int k_pad = curr_layer.weights.align_pad;
 
     ARRAY_4D(float, _a, cache_activations, input_height, input_rows,
              input_cols + input_pad);
@@ -584,7 +564,6 @@ void standard_convolution_layer_impl(float* host_activations,
     bool do_hw_activation = device->use_hw_activation_func &&
                             is_supported_activation_func(
                                     curr_layer.type, curr_layer.activation);
-    bool use_acp_offload = (device->cpu_activation_func_offload == IO_ACP);
     bool use_pipelined_dma = device->use_pipelined_dma;
 
     io_req_t input_req = curr_layer.input_req;
@@ -720,7 +699,7 @@ void standard_convolution_layer_impl(float* host_activations,
                                        result_loc,
                                        result_2d_size * sizeof(float));
                 }
-                if (do_hw_activation || output_req == IO_DMA) {
+                if (output_req == IO_DMA) {
                     INVOKE_KERNEL_PROF(kReductionHw,
                                        lnum,
                                        reduction_hw,
@@ -781,9 +760,9 @@ void standard_convolution_layer_impl(float* host_activations,
                 io_req_t output_req = partial_layer.output_req;
                 const char* results_var_name =
                         output_req == IO_DMA
-                                ? "host_results"
-                                : output_req == IO_ACP ? "acp_results"
-                                                       : "cache_results";
+                                ? "host_result"
+                                : output_req == IO_ACP ? "acp_result"
+                                                       : "cache_result";
                 for (int iter = 0; iter < result_iter; iter++) {
                     PRINT_MSG("Final reduction round %d\n", iter);
                     if (output_req != IO_NONE) {
@@ -931,7 +910,7 @@ void depthwise_convolution_layer_impl(float* host_activations,
             if (output_req != IO_NONE) {
                 const char* results_var_name =
                         output_req == IO_DMA
-                                ? "host_results"
+                                ? "host_result"
                                 : output_req == IO_ACP ? "acp_result"
                                                        : "cache_result";
                 MAP_ARRAY_TO_ACCEL(kConvolutionHw,
@@ -1021,8 +1000,4 @@ void depthwise_convolution_layer_impl(float* host_activations,
     }
 }
 
-#endif
-
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC diagnostic pop
 #endif
