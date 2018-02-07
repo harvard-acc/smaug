@@ -64,7 +64,7 @@ static inline int create_packed_row(uint16_t row_idx, uint16_t row_size) {
     return ((row_idx << 16) & 0xffff0000) | (row_size & 0xffff);
 }
 
-csr_array_t compress_dense_data_csr(float* data, dims_t* data_dims);
+csr_array_t* compress_dense_data_csr(float* data, dims_t* data_dims);
 void decompress_csr_data(csr_array_t* csr_data,
                          dims_t* data_dims,
                          float* dcmp_data);
@@ -75,16 +75,14 @@ void decompress_packed_csr_data(uint32_t* cmp_data,
                                 dims_t* data_dims,
                                 float* dcmp_data);
 
-packed_csr_array_t pack_data_vec8_f16(csr_array_t csr_data,
-                                      dims_t* data_dims);
+packed_csr_array_t* pack_data_vec8_f16(csr_array_t* csr_data,
+                                       dims_t* data_dims);
 
-// TODO: Return a heap-allocated pointer.
-csr_array_t alloc_csr_array_t(size_t num_nonzeros, size_t num_rows);
-csr_array_t copy_csr_array_t(csr_array_t* existing_array);
+csr_array_t* alloc_csr_array_t(size_t num_nonzeros, size_t num_rows);
+csr_array_t* copy_csr_array_t(csr_array_t* existing_array);
 void print_csr_array_t(csr_array_t* csr);
 void free_csr_array_t(csr_array_t* ptr);
-// TODO: Return a heap-allocated pointer.
-packed_csr_array_t alloc_packed_csr_array_t(size_t num_total_vectors,
+packed_csr_array_t* alloc_packed_csr_array_t(size_t num_total_vectors,
                                             size_t num_nonzeros,
                                             size_t num_rows);
 void free_packed_csr_array_t(packed_csr_array_t* ptr);
@@ -100,8 +98,7 @@ typedef struct _csr_tile {
     size_t total_bytes;
     // This is the size that will be taken up by the decompressed array.
     size_t eff_total_bytes;
-    // TODO: Make this a pointer to a heap-allocated struct.
-    packed_csr_array_t array;
+    packed_csr_array_t* array;
     struct _csr_tile* next_tile;
 } csr_tile;
 
@@ -110,15 +107,15 @@ typedef struct _csr_tile_list {
     size_t len;
 } csr_tile_list;
 
-csr_tile_list compute_tiled_packed_csr_array_dims(packed_csr_array_t* csr,
-                                                  int starting_row,
-                                                  int num_rows,
-                                                  int num_cols,
-                                                  size_t max_tile_size);
-csr_tile_list tile_packed_csr_array_t(packed_csr_array_t* input,
-                                      dims_t* dims,
-                                      int starting_row,
-                                      size_t max_tile_size);
+csr_tile_list* compute_tiled_packed_csr_array_dims(packed_csr_array_t* csr,
+                                                   int starting_row,
+                                                   int num_rows,
+                                                   int num_cols,
+                                                   size_t max_tile_size);
+csr_tile_list* tile_packed_csr_array_t(packed_csr_array_t* input,
+                                       dims_t* dims,
+                                       int starting_row,
+                                       size_t max_tile_size);
 void free_csr_tile_list(csr_tile_list* list);
 
 #endif

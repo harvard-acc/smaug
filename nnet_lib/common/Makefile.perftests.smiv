@@ -33,7 +33,7 @@ run_test_smiv_csr: $(BUILD_DIR)/test_smiv_csr
 	./$< mkl
 $(BUILD_DIR)/test_smiv_csr: ARCH=SMIV
 $(BUILD_DIR)/test_smiv_csr: $(PERFTEST_DIR)/test_smiv_csr.cpp $(ALL_SRCS)
-	$(CXX) $(CFLAGS) $(CPPFLAGS) $^ -o $@ $(LFLAGS)
+	@$(CXX) $(CFLAGS) $(CPPFLAGS) $^ -o $@ $(LFLAGS)
 
 clean:
 	@rm -rf $(MKL_TEST_TARGETS)

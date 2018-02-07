@@ -60,25 +60,25 @@ void run_manual_test() {
                                         5.5, 6.5, 7.5, 8.5 };
     int csr_col_idx[num_nonzeros] = { 15, 0, 3, 1, 8, 15, 0, 3, 10 };
     int csr_row_idx[num_rows + 1] = { 0, 2, 5, 7, 8, 9 };
-    csr_array_t csr = alloc_csr_array_t(num_nonzeros, layer.weights.rows);
-    memcpy(csr.vals, &csr_weights[0], num_nonzeros * sizeof(float));
-    memcpy(csr.col_idx, &csr_col_idx[0], num_nonzeros * sizeof(int));
-    memcpy(csr.row_idx, &csr_row_idx[0], (csr.num_rows + 1) * sizeof(int));
+    csr_array_t* csr = alloc_csr_array_t(num_nonzeros, layer.weights.rows);
+    memcpy(csr->vals, &csr_weights[0], num_nonzeros * sizeof(float));
+    memcpy(csr->col_idx, &csr_col_idx[0], num_nonzeros * sizeof(int));
+    memcpy(csr->row_idx, &csr_row_idx[0], (csr->num_rows + 1) * sizeof(int));
 
     printf("Testing non-packed CSR decompression.\n");
     memset(decomp_1, 0, total_size);
-    decompress_csr_data(&csr, &layer.weights, decomp_1);
+    decompress_csr_data(csr, &layer.weights, decomp_1);
     print_debug(decomp_1,
                 layer.weights.rows,
                 layer.weights.cols,
                 layer.weights.cols);
 
     printf("Testing reference packed CSR decompression.\n");
-    packed_csr_array_t packed = pack_data_vec8_f16(csr, &layer.weights);
+    packed_csr_array_t* packed = pack_data_vec8_f16(csr, &layer.weights);
     memset(decomp_2, 0, total_size);
-    decompress_packed_csr_data(packed.vals,
-                               packed.col_idx,
-                               packed.row_idx,
+    decompress_packed_csr_data(packed->vals,
+                               packed->col_idx,
+                               packed->row_idx,
                                &layer.weights,
                                decomp_2);
     print_debug(decomp_2,
@@ -89,14 +89,15 @@ void run_manual_test() {
            compare_farrays(decomp_1, decomp_2, total_size / sizeof(float))
                    ? "EQUAL"
                    : "NOT EQUAL");
-    free_packed_csr_array_t(&packed);
+    free_packed_csr_array_t(packed);
 
     printf("Testing SMIV packed CSR decompression.\n");
     packed = pack_data_vec8_f16(csr, &layer.weights);
     memset(decomp_2, 0, total_size);
-    decompress_packed_csr_data_smiv_fxp(packed.vals,
-                                        packed.col_idx - packed.vals,
-                                        packed.row_idx - packed.vals,
+    decompress_packed_csr_data_smiv_fxp(packed->vals,
+                                        packed->col_idx - packed->vals,
+                                        packed->row_idx - packed->vals,
+                                        0,
                                         &layer.weights,
                                         decomp_2);
     print_debug(decomp_2,
@@ -107,41 +108,41 @@ void run_manual_test() {
            compare_farrays(decomp_1, decomp_2, total_size / sizeof(float))
                    ? "EQUAL"
                    : "NOT EQUAL");
-    free_packed_csr_array_t(&packed);
+    free_packed_csr_array_t(packed);
 
     printf("\n\nTesting non-packed CSR compression.\n");
-    csr_array_t recomp = compress_dense_data_csr(decomp_2, &layer.weights);
+    csr_array_t* recomp = compress_dense_data_csr(decomp_2, &layer.weights);
     printf("Data: ");
-    for (unsigned i = 0; i < recomp.num_nonzeros; i++) {
-        printf("%3.3f, ", recomp.vals[i]);
+    for (unsigned i = 0; i < recomp->num_nonzeros; i++) {
+        printf("%3.3f, ", recomp->vals[i]);
     }
     printf(": %s\n",
-           compare_farrays(recomp.vals, csr.vals, recomp.num_nonzeros)
+           compare_farrays(recomp->vals, csr->vals, recomp->num_nonzeros)
                    ? "EQUAL"
                    : "NOT EQUAL");
 
     printf("Column indices: ");
-    for (unsigned i = 0; i < recomp.num_nonzeros; i++) {
-        printf("%d, ", recomp.col_idx[i]);
+    for (unsigned i = 0; i < recomp->num_nonzeros; i++) {
+        printf("%d, ", recomp->col_idx[i]);
     }
     printf(": %s\n",
-           compare_iarrays(recomp.col_idx, csr.col_idx, recomp.num_nonzeros)
+           compare_iarrays(recomp->col_idx, csr->col_idx, recomp->num_nonzeros)
                    ? "EQUAL"
                    : "NOT EQUAL");
 
     printf("Row indices: ");
-    for (unsigned i = 0; i < recomp.num_nonzeros; i++) {
-        printf("%d, ", recomp.row_idx[i]);
+    for (unsigned i = 0; i < recomp->num_nonzeros; i++) {
+        printf("%d, ", recomp->row_idx[i]);
     }
     printf(": %s\n",
-           compare_iarrays(recomp.row_idx, csr.row_idx, recomp.num_rows)
+           compare_iarrays(recomp->row_idx, csr->row_idx, recomp->num_rows)
                    ? "EQUAL"
                    : "NOT EQUAL");
 
     free(decomp_1);
     free(decomp_2);
-    free_csr_array_t(&csr);
-    free_csr_array_t(&recomp);
+    free_csr_array_t(csr);
+    free_csr_array_t(recomp);
 }
 
 void run_file_test(const char* filename) {
@@ -158,37 +159,37 @@ void run_file_test(const char* filename) {
     printf("Testing non-packed CSR compression.\n");
     dims_t weights_dims = (dims_t){ 785, 256, 1, 0 };
     size_t layer_wgt_size = get_dims_size(&weights_dims);
-    csr_array_t csr = compress_dense_data_csr(weights.d, &weights_dims);
-    printf("Data: %lu elements\n", csr.num_nonzeros);
-    for (unsigned i = 0; i < csr.num_nonzeros; i++) {
-        printf("%3.3f, ", csr.vals[i]);
+    csr_array_t* csr = compress_dense_data_csr(weights.d, &weights_dims);
+    printf("Data: %lu elements\n", csr->num_nonzeros);
+    for (unsigned i = 0; i < csr->num_nonzeros; i++) {
+        printf("%3.3f, ", csr->vals[i]);
     }
     printf("\nColumn indices: ");
-    for (unsigned i = 0; i < csr.num_nonzeros; i++) {
-        printf("%d, ", csr.col_idx[i]);
+    for (unsigned i = 0; i < csr->num_nonzeros; i++) {
+        printf("%d, ", csr->col_idx[i]);
     }
     printf("\nRow indices: ");
-    for (unsigned i = 0; i < csr.num_rows + 1; i++) {
-        printf("%d, ", csr.row_idx[i]);
+    for (unsigned i = 0; i < csr->num_rows + 1; i++) {
+        printf("%d, ", csr->row_idx[i]);
     }
     printf("\n");
 
     float* decomp_1 = (float*)malloc_aligned(layer_wgt_size * sizeof(float));
     memset(decomp_1, 0, layer_wgt_size * sizeof(float));
-    decompress_csr_data(&csr, &weights_dims, decomp_1);
+    decompress_csr_data(csr, &weights_dims, decomp_1);
     printf("Non-packed CSR decompression: %s\n",
            compare_farrays(decomp_1, weights.d, layer_wgt_size) ? "PASS"
                                                                 : "FAIL");
 
-    packed_csr_array_t packed = pack_data_vec8_f16(csr, &weights_dims);
+    packed_csr_array_t* packed = pack_data_vec8_f16(csr, &weights_dims);
     printf("Packed array fields: col offset = %ld, row offset = %ld\n",
-           packed.col_idx - packed.vals, packed.row_idx - packed.vals);
+           packed->col_idx - packed->vals, packed->row_idx - packed->vals);
 
     float* decomp_2 = (float*)malloc_aligned(layer_wgt_size * sizeof(float));
     memset(decomp_2, 0, layer_wgt_size * sizeof(float));
-    decompress_packed_csr_data(packed.vals,
-                               packed.col_idx,
-                               packed.row_idx,
+    decompress_packed_csr_data(packed->vals,
+                               packed->col_idx,
+                               packed->row_idx,
                                &weights_dims,
                                decomp_2);
     // We have to do an approximate comparison with the non-packed
@@ -199,9 +200,10 @@ void run_file_test(const char* filename) {
 
     // Now use decomp_1 so we can compare the packed decompression exactly.
     memset(decomp_1, 0, layer_wgt_size * sizeof(float));
-    decompress_packed_csr_data_smiv_fxp(packed.vals,
-                                        packed.col_idx - packed.vals,
-                                        packed.row_idx - packed.vals,
+    decompress_packed_csr_data_smiv_fxp(packed->vals,
+                                        packed->col_idx - packed->vals,
+                                        packed->row_idx - packed->vals,
+                                        0,
                                         &weights_dims,
                                         decomp_1);
     printf("SMIV packed CSR decompression: %s\n",
@@ -213,16 +215,16 @@ void run_file_test(const char* filename) {
     layer.weights = weights_dims;
     layer.wgt_storage_type = PackedCSR;
     layer.host_weights_buffer = (void*)&packed;
-    csr_tile_list tile_list =
-            tile_packed_csr_array_t(&packed, &layer, 128*1024);
-    packed_csr_array_t* array = &tile_list.head->array;
+    csr_tile_list* tile_list =
+            tile_packed_csr_array_t(packed, &layer.weights, 0, 128 * 1024);
+    packed_csr_array_t* array = tile_list->head->array;
     printf("Tiled packed array fields: col offset = %ld, row offset = %ld\n",
            array->col_idx - array->vals, array->row_idx - array->vals);
     bool pass = true;
-    for (int i = 0; i < array->total_buf_size / sizeof(uint32_t); i++) {
-        if (array->vals[i] != packed.vals[i]) {
-            printf("At offset %d, array->vals = %#x, packed->vals = %#x\n", i,
-                   array->vals[i], packed.vals[i]);
+    for (size_t i = 0; i < array->total_buf_size / sizeof(uint32_t); i++) {
+        if (array->vals[i] != packed->vals[i]) {
+            printf("At offset %lu, array->vals = %#x, packed->vals = %#x\n", i,
+                   array->vals[i], packed->vals[i]);
             pass = false;
         }
     }
@@ -230,9 +232,9 @@ void run_file_test(const char* filename) {
 
     free(decomp_1);
     free(decomp_2);
-    free_csr_tile_list(&tile_list);
-    free_csr_array_t(&csr);
-    free_packed_csr_array_t(&packed);
+    free_csr_tile_list(tile_list);
+    free_csr_array_t(csr);
+    free_packed_csr_array_t(packed);
     free(weights.d);
 }
 

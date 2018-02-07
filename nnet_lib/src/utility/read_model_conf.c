@@ -506,6 +506,8 @@ static void read_top_level_config(layer_t* layers, cfg_t* network_opts) {
     layers[0].weights.cols = 0;
     layers[0].weights.height = 0;
     layers[0].num = 0;
+    layers[0].wgt_storage_type = Uncompressed;
+    layers[0].host_weights_buffer = NULL;
 
     // Set the global variables.
     data_alignment = DATA_ALIGNMENT;

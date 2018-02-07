@@ -638,32 +638,31 @@ void inner_product_layer_impl_rowwise(float* host_activations,
                 temp_layer.weights.rows--;
             packed_csr_array_t* src_csr =
                     (packed_csr_array_t*)temp_layer.host_weights_buffer;
-            csr_tile_list tile_list = tile_packed_csr_array_t(
+            csr_tile_list* tile_list = tile_packed_csr_array_t(
                     src_csr, &temp_layer.weights, current_row, SPAD_SIZE);
-            assert(tile_list.len > 0 && "CSR tile list cannot be empty!");
-            csr_tile* curr_tile = tile_list.head;
+            assert(tile_list->len > 0 && "CSR tile list cannot be empty!");
+            csr_tile* curr_tile = tile_list->head;
             int dest_offset = 0;
             do {
-                printf("dest_offset = %d\n", dest_offset);
-                packed_csr_array_t array = curr_tile->array;
+                packed_csr_array_t* array = curr_tile->array;
                 dims_t dims = (dims_t){ curr_tile->num_rows,
                                         temp_layer.weights.cols,
                                         temp_layer.weights.height,
                                         temp_layer.weights.align_pad };
                 MAP_ARRAY_TO_ACCEL(kInnerProductHw, "dma_weights",
-                                   array.vals,
-                                   array.total_buf_size);
+                                   array->vals,
+                                   array->total_buf_size);
                 INVOKE_KERNEL_PROF(kInnerProductHw,
                                    curr_layer->num,
                                    decompress_packed_csr_smiv_hw,
-                                   array.vals,  // DMA
-                                   array.vals,  // ACP
-                                   array.vals,  // Cache
-                                   array.col_idx - array.vals,
-                                   array.row_idx - array.vals,
+                                   array->vals,  // DMA
+                                   array->vals,  // ACP
+                                   array->vals,  // Cache
+                                   array->col_idx - array->vals,
+                                   array->row_idx - array->vals,
                                    dest_offset,
                                    &dims,
-                                   array.total_buf_size,
+                                   array->total_buf_size,
                                    curr_tile->eff_total_bytes,
                                    !input_in_spad0,  // Don't overwrite inputs!
                                    device->cpu_default_offload,
@@ -673,9 +672,9 @@ void inner_product_layer_impl_rowwise(float* host_activations,
                 dest_offset += (curr_tile->eff_total_bytes / sizeof(uint32_t));
                 curr_tile = curr_tile->next_tile;
             } while (curr_tile);
-            free_csr_tile_list(&tile_list);
             // Now that we've decompressed the weights, we don't need to DMA
             // them again.
+            free_csr_tile_list(tile_list);
             partial_layer.weights_req = IO_NONE;
             PRINT_MSG("Weights:\n");
             PRINT_DEBUG(g_umem,
