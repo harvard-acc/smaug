@@ -25,7 +25,7 @@ FP_ERR_ABS = 0.5
 BINARY = ""
 ARCH = ""
 
-MODEL_DIR = "../../models/"
+MODEL_DIR = "test_configs"
 CORRECT_OUTPUT_DIR = "correct"
 OUTPUT_LABELS = "output_labels.out"
 
