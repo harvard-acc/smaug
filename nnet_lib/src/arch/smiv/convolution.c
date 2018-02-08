@@ -1,3 +1,5 @@
+#if ARCHITECTURE == SMIV
+
 #include <assert.h>
 #include <string.h>
 
@@ -10,8 +12,6 @@
 #ifdef DMA_MODE
 #include "gem5_harness.h"
 #endif
-
-#if ARCHITECTURE == SMIV
 
 void reduction_hw_impl(float* inputs,
                        float* results,
@@ -612,10 +612,6 @@ void standard_convolution_layer_impl(float* host_activations,
                 partial_layer.inputs.height = iter_cfg.height;
                 partial_layer.outputs.height = iter_cfg.height;
                 partial_layer.weights.height = iter_cfg.height;
-                // We only need to send the inputs to the UMEM on the first
-                // kernel.
-                partial_layer.input_req =
-                        (kern == 0) ? curr_layer.input_req : IO_NONE;
 
                 // For the 2D convolution, we don't want to do activation
                 // functions or send data back.
@@ -623,6 +619,10 @@ void standard_convolution_layer_impl(float* host_activations,
                 partial_layer.output_req = IO_NONE;
                 if (partial_layer.input_req == IO_DMA ||
                     partial_layer.input_req == IO_NONE) {
+                    // We only need to send the inputs to the UMEM on the first
+                    // kernel.
+                    partial_layer.input_req =
+                            (kern == 0) ? partial_layer.input_req : IO_NONE;
                     INVOKE_KERNEL_PROF(kConvolutionHw,
                                        lnum,
                                        convolution_layer_hw,
@@ -827,6 +827,22 @@ void standard_convolution_layer_impl(float* host_activations,
                    result_2d_size * sizeof(float));
         }
         end_profiling();
+
+        // If we sampled the execution, set the remainder of the output to zero
+        // to ensure we get the same results. Don't do this when simulating
+        // though - even if we ran this part, it wouldn't be included as part
+        // of the sampled time (we already called end_profiling() before this),
+        // and it's more likely to throw off measurements. It doesn't represent any
+        // part of the workload accurately either.
+#ifndef GEM5_HARNESS
+        if (is_sampled) {
+            begin_ignored_profiling(lnum);
+            memset(&_result[img][num_kerns_to_simulate][0][0], 0,
+                   result_2d_size * sizeof(float) *
+                           (num_kerns - num_kerns_to_simulate));
+            end_profiling();
+        }
+#endif
     }
     free_work_cfg(&conv_cfgs);
     free(temp_result);
