@@ -507,7 +507,7 @@ void set_io_requirements(network_t* network, device_t* device) {
         // All weights, by default, must be copied, unless the layer is an FC
         // using compressed weights (in which case the compression HW does the
         // copy).
-        curr_layer->weights_req = IO_DMA;
+        curr_layer->weights_req = device->cpu_default_offload;
 
         layer_t* prev_layer = &network->layers[layer_num - 1];
         layer_t* next_layer = &network->layers[layer_num + 1];
