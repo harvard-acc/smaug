@@ -549,15 +549,19 @@ void set_io_requirements(network_t* network, device_t* device) {
         } else {
             curr_layer->output_req = IO_NONE;
         }
-        // We also support one particular case where we only use ACP for
-        // results, and weights/activations will still be transfered by DMA.
+        // We also support one particular case where we only use ACP/CACHE for
+        // results, but weights/activations will still be transferred by DMA.
         if (device->cpu_activation_func_offload != device->cpu_default_offload) {
-            printf("For now we only support using DMA, ACP and cache for "
-                   "transfering everything, and particularly, we support using "
-                   "DMA for inputs/weights with ACP for results.\n");
-            assert(device->cpu_activation_func_offload == IO_ACP &&
-                   device->cpu_default_offload == IO_DMA);
-            curr_layer->output_req = device->cpu_activation_func_offload;
+            if ((device->cpu_activation_func_offload == IO_ACP ||
+                 device->cpu_activation_func_offload == IO_CACHE) &&
+                device->cpu_default_offload == IO_DMA) {
+                curr_layer->output_req = device->cpu_activation_func_offload;
+            } else {
+                printf("[ERROR]: If cpu_activation_func_offload != "
+                       "cpu_default_offload, then cpu_default_offload must be "
+                       "IO_DMA.\n");
+                assert(false);
+            }
         }
         // We only do flattening on the CPU, so if the current layer needs
         // flattening, it means the previous layer needs to send resutls

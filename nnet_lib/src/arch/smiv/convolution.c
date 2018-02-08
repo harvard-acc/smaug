@@ -614,7 +614,8 @@ void standard_convolution_layer_impl(float* host_activations,
                 partial_layer.weights.height = iter_cfg.height;
                 // We only need to send the inputs to the UMEM on the first
                 // kernel.
-                partial_layer.input_req = (kern == 0) ? curr_layer.input_req : IO_NONE;
+                partial_layer.input_req =
+                        (kern == 0) ? curr_layer.input_req : IO_NONE;
 
                 // For the 2D convolution, we don't want to do activation
                 // functions or send data back.

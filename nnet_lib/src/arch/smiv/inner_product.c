@@ -1,5 +1,3 @@
-#if ARCHITECTURE == SMIV
-
 #include <assert.h>
 #include <string.h>
 
@@ -22,6 +20,42 @@ typedef struct _inner_product_options {
     bool input_in_spad0;
     bool use_pipelined_dma;
 } inner_product_options;
+
+//=-------------------------------=//
+// These are INTERNAL data structures and functions that should only be used by
+// the dispatcher! All other functions should directly use layer_t.*_req
+// instead.
+
+typedef enum _access_mechanism {
+    _DmaOrLocal = IO_NONE,
+    _ACP = IO_ACP,
+    _Cache = IO_CACHE,
+    _UnknownMechanism
+} access_mechanism;
+
+typedef struct _access_config {
+    access_mechanism inputs;
+    access_mechanism weights;
+    access_mechanism outputs;
+} access_config;
+
+ALWAYS_INLINE
+static access_mechanism io_to_access_mechanism(io_req_t req) {
+    switch (req) {
+        case IO_NONE:
+        case IO_DMA:
+            return _DmaOrLocal;
+        case IO_ACP:
+            return _ACP;
+        case IO_CACHE:
+            return _Cache;
+        default:
+            assert(false && "Unknown io_req_t value!");
+            return _UnknownMechanism;
+    }
+}
+
+//=-------------------------------=//
 
 ALWAYS_INLINE
 void dma_wrapper(float* host,
@@ -56,6 +90,28 @@ void dma_store_wrapper(float* host_dest,
     dma_wrapper(host_dest, local_src, transfer_size, false, use_pipelined_dma);
 }
 
+// Main implementation of inner product HW.
+//
+// This function handles DMA operations to load the local memory if required,
+// runs the matrix multiply, and then handles the DMA transfer back to the host
+// if required. In the context of this function, "local memory" is any type of
+// memory that the accelerator can access directly (i.e. no DMA required). In
+// other words, "local_activations" could be pointing to SPAD0, but it could
+// have also been "acp_activations".
+//
+// For this reason, the first three arguments are prefixed with dma_, instead
+// of a more generic prefix (since this wrapper is called with varying
+// arguments), because they are only used if DMA is required.
+//
+// Arguments:
+//   dma_activations: The host address of the input activations.
+//   dma_weights: The host address of the input weights.
+//   dma_results: The host address of the input results.
+//   local_activations: Pointer to inputs that the accelerator reads directly.
+//   local_weights: Pointer to weights that the accelerator reads directly.
+//   local_results: Pointer to results that the accelerator writes directly.
+//   curr_layer: Description of this layer's shape and parameters.
+//   options: Additional options for this execution of inner product.
 void inner_product_layer_hw_impl(float* dma_activations,
                                  float* dma_weights,
                                  float* dma_results,
@@ -104,104 +160,184 @@ void inner_product_layer_hw_impl(float* dma_activations,
     }
 }
 
-// HW accelerated inner product, using DMA for data movement.
-//
-// All arguments prefixed with dma_ are host memory pointers and can only be
-// deferenced from the host, except when performing a DMA operation.
 void inner_product_layer_hw(float* dma_activations,
                             float* dma_weights,
                             float* dma_results,
+                            float* cache_activations,
+                            float* cache_weights,
+                            float* cache_results,
+                            float* acp_activations,
+                            float* acp_weights,
+                            float* acp_results,
                             float* umem,
                             float* spad0,
                             float* spad1,
                             layer_t* curr_layer,
+                            access_config* access_config,
                             inner_product_options* options) {
-    if (options->input_in_spad0) {
-        inner_product_layer_hw_impl(dma_activations,
-                                    dma_weights,
-                                    dma_results,
-                                    spad0,
-                                    umem,
-                                    spad1,
-                                    curr_layer,
-                                    options);
-    } else {
-        inner_product_layer_hw_impl(dma_activations,
-                                    dma_weights,
-                                    dma_results,
-                                    spad1,
-                                    umem,
-                                    spad0,
-                                    curr_layer,
-                                    options);
-    }
-}
 
-// HW accelerated inner product, using ACP for output data movement.
+//=--------- Convenience macros for invoking the HW impl ---------------=//
 //
-// All arguments prefixed with dma_ are host memory pointers, to be used only
-// via DMA. acp_results is the host result pointer to be accessed over ACP.
-void inner_product_layer_acp_result_hw(float* dma_activations,
-                                       float* dma_weights,
-                                       float* acp_results,
-                                       float* umem,
-                                       float* spad0,
-                                       float* spad1,
-                                       layer_t* curr_layer,
-                                       inner_product_options* options) {
-    if (options->input_in_spad0) {
-        inner_product_layer_hw_impl(dma_activations,
-                                    dma_weights,
-                                    NULL,
-                                    spad0,
-                                    umem,
-                                    acp_results,
-                                    curr_layer,
-                                    options);
-    } else {
-        inner_product_layer_hw_impl(dma_activations,
-                                    dma_weights,
-                                    NULL,
-                                    spad1,
-                                    umem,
-                                    acp_results,
-                                    curr_layer,
-                                    options);
+// Each of these macros will call inner_product_layer_hw_impl() with a
+// different name for the array arguments, based on the desired access
+// mechanism for each. Since we name our variables in a consistent way -
+// "mechanism_arrayname" - the macro can automatically form the correct
+// variable name by macro concatentation.
+//
+// If DEBUG_LEVEL >= 2, then each invocation of these macros will print
+// the mechanism and variable names used in the function call.
+//
+// Common argument abbreviations:
+//    HA = host activations
+//    HW = host weights
+//    HR = host results
+//    LA = local activations
+//    LW = local weights
+//    RES = local result
+
+// No DMA involved, so we can pass NULL pointers for the first three arguments.
+// All args to this macro are mechanism prefixes (e.g. dma, acp, cache).
+#define INNER_PROD_NO_DMA_IMPL(INPUT, WGT, RES)                                \
+    do {                                                                       \
+        PRINT_MSG(#INPUT "-" #WGT "-" #RES "\n");                              \
+        inner_product_layer_hw_impl(NULL, NULL, NULL, INPUT##_activations,     \
+                                    WGT##_weights, RES##_results, curr_layer,  \
+                                    options);                                  \
+    } while (0)
+
+// DMA potentially used for all host arguments. The first three arguments are
+// mechanism prefixes; all other arguments are the full variable names.
+#define INNER_PROD_WITH_DMA_IMPL(HA, HW, HR, LA, LW, RES)                      \
+    do {                                                                       \
+        PRINT_MSG(#HA "-" #HW "-" #HR "-" #LA "-" #LW "-" #RES "\n");          \
+        inner_product_layer_hw_impl(HA##_activations, HW##_weights,            \
+                                    HR##_results, LA, LW, RES, curr_layer,     \
+                                    options);                                  \
+    } while (0)
+
+// DMA used, with the input coming from either SPAD0 or SPAD1, but the output
+// is going to a non-scratchpad location. Select the right input array with
+// SELECT_SPAD0.
+#define INNER_PROD_WITH_DMA_SPAD_INPUT_IMPL(                                   \
+        HA, HW, HR, SPAD0, SPAD1, SELECT_SPAD0, LW, RES)                       \
+    do {                                                                       \
+        if (SELECT_SPAD0) {                                                    \
+            INNER_PROD_WITH_DMA_IMPL(HA, HW, HR, SPAD0, LW, RES);              \
+        } else {                                                               \
+            INNER_PROD_WITH_DMA_IMPL(HA, HW, HR, SPAD1, LW, RES);              \
+        }                                                                      \
+    } while (0)
+
+// DMA used, with the output going to either SPAD0 or SPAD1, but the input is
+// coming from a non-scratchpad location. Select the right one with
+// SELECT_SPAD0.
+#define INNER_PROD_WITH_DMA_SPAD_OUTPUT_IMPL(                                  \
+        HA, HW, HR, LA, LW, SPAD0, SPAD1, SELECT_SPAD0)                        \
+    do {                                                                       \
+        if (SELECT_SPAD0) {                                                    \
+            INNER_PROD_WITH_DMA_IMPL(HA, HW, HR, LA, LW, SPAD1);               \
+        } else {                                                               \
+            INNER_PROD_WITH_DMA_IMPL(HA, HW, HR, LA, LW, SPAD0);               \
+        }                                                                      \
+    } while (0)
+
+// DMA used, with both inputs and outputs going to/from scratchpads.
+#define INNER_PROD_WITH_DMA_SPAD_IO_IMPL(                                      \
+        HA, HW, HR, LW, SPAD0, SPAD1, SELECT_SPAD0)                            \
+    do {                                                                       \
+        if (SELECT_SPAD0) {                                                    \
+            INNER_PROD_WITH_DMA_IMPL(HA, HW, HR, SPAD0, LW, SPAD1);            \
+        } else {                                                               \
+            INNER_PROD_WITH_DMA_IMPL(HA, HW, HR, SPAD1, LW, SPAD0);            \
+        }                                                                      \
+    } while (0)
+
+// A conditional statement that checks if an access mechanism configuration
+// matches some combination. This can be used directly in an if statement.
+#define DISPATCH(config, _inputs, _weights, _outputs)                         \
+    (((config)->inputs == (_inputs))    &&                                    \
+     ((config)->weights == (_weights))  &&                                    \
+     ((config)->outputs == (_outputs)))
+
+    bool input_in_spad0 = options->input_in_spad0;
+    // These selections use the same mechanism all across.
+    if (DISPATCH(access_config, _DmaOrLocal, _DmaOrLocal, _DmaOrLocal)) {
+        INNER_PROD_WITH_DMA_SPAD_IO_IMPL(
+            dma, dma, dma, umem, spad0, spad1, input_in_spad0);
+    } else if (DISPATCH(access_config, _ACP, _ACP, _ACP)) {
+        INNER_PROD_NO_DMA_IMPL(acp, acp, acp);
+    } else if (DISPATCH(access_config, _Cache, _Cache, _Cache)) {
+        INNER_PROD_NO_DMA_IMPL(cache, cache, cache);
     }
-}
+    // These selections only use _ACP or _Cache for the results.
+    else if (DISPATCH(access_config, _DmaOrLocal, _DmaOrLocal, _ACP)) {
+        INNER_PROD_WITH_DMA_SPAD_INPUT_IMPL(
+                dma, dma, dma, spad0, spad1, input_in_spad0, umem, acp_results);
+    } else if (DISPATCH(access_config, _DmaOrLocal, _DmaOrLocal, _Cache)) {
+        INNER_PROD_WITH_DMA_SPAD_INPUT_IMPL(
+                dma, dma, dma, spad0, spad1, input_in_spad0, umem, cache_results);
+    }
+    // These selections use DMA/None for the inputs.
+    else if (DISPATCH(access_config, _DmaOrLocal, _ACP, _ACP)) {
+        INNER_PROD_WITH_DMA_SPAD_INPUT_IMPL(dma, acp, acp, spad0, spad1,
+                                            input_in_spad0, acp_weights,
+                                            acp_results);
+    } else if (DISPATCH(access_config, _DmaOrLocal, _Cache, _Cache)) {
+        INNER_PROD_WITH_DMA_SPAD_INPUT_IMPL(dma, cache, cache, spad0, spad1,
+                                            input_in_spad0, cache_weights,
+                                            cache_results);
+    }
+    // These selections use DMA/None for the inputs/outputs.
+    //
+    // NOTE: This scenario is currently not possible to specify via the model
+    // configuration file.
+    else if (DISPATCH(access_config, _DmaOrLocal, _ACP, _DmaOrLocal)) {
+        INNER_PROD_WITH_DMA_SPAD_IO_IMPL(
+            dma, acp, dma, acp_weights, spad0, spad1, input_in_spad0);
+    } else if (DISPATCH(access_config, _DmaOrLocal, _Cache, _DmaOrLocal)) {
+        INNER_PROD_WITH_DMA_SPAD_IO_IMPL(
+            dma, cache, dma, cache_weights, spad0, spad1, input_in_spad0);
+    }
+    // These selections use DMA/None for the outputs.
+    //
+    // TODO: Since we're not reading out of the scratchpads for the input, it
+    // shouldn't matter which scratchpad we write into, but currently, the
+    // inner product layer will automatically toggle input_in_spad0 back and
+    // forth regardless of what actually happened. To ensure that future layers
+    // will get the right data, we still have to obey this condition. This
+    // needs to be fixed.
+    else if (DISPATCH(access_config, _ACP, _ACP, _DmaOrLocal)) {
+        INNER_PROD_WITH_DMA_SPAD_OUTPUT_IMPL(acp, acp, dma, acp_activations,
+                                             acp_weights, spad0, spad1,
+                                             input_in_spad0);
+    } else if (DISPATCH(access_config, _Cache, _Cache, _DmaOrLocal)) {
+        INNER_PROD_WITH_DMA_SPAD_OUTPUT_IMPL(cache, cache, dma,
+                                             cache_activations, cache_weights,
+                                             spad0, spad1, input_in_spad0);
+    }
+    // These selections only use DMA for the weights.
+    // This is used if the FC layer is using decompressed CSR weights (after
+    // decompression the weights are already in the UMEM so no more data
+    // movement is required).
+    else if (DISPATCH(access_config, _ACP, _DmaOrLocal, _ACP)) {
+        INNER_PROD_WITH_DMA_IMPL(
+                acp, dma, acp, acp_activations, umem, acp_results);
+    } else if (DISPATCH(access_config, _Cache, _DmaOrLocal, _Cache)) {
+        INNER_PROD_WITH_DMA_IMPL(
+                cache, dma, cache, cache_activations, umem, cache_results);
+    }
+    // Otherwise, give up.
+    else {
+        assert(false &&
+               "This is an unsupported combination of access mechanisms!");
+    }
 
-// HW accelerated inner product, using ACP for everything (inputs, weights and
-// result).
-void inner_product_layer_acp_hw(float* acp_activations,
-                                float* acp_weights,
-                                float* acp_results,
-                                layer_t* curr_layer,
-                                inner_product_options* options) {
-    inner_product_layer_hw_impl(NULL,
-                                NULL,
-                                NULL,
-                                acp_weights,
-                                acp_activations,
-                                acp_results,
-                                curr_layer,
-                                options);
-}
-
-// HW accelerated inner product, using harware cache for everything (inputs,
-// weights and result).
-void inner_product_layer_cache_hw(float* cache_activations,
-                                  float* cache_weights,
-                                  float* cache_results,
-                                  layer_t* curr_layer,
-                                  inner_product_options* options) {
-    inner_product_layer_hw_impl(NULL,
-                                NULL,
-                                NULL,
-                                cache_weights,
-                                cache_activations,
-                                cache_results,
-                                curr_layer,
-                                options);
+#undef DISPATCH
+#undef INNER_PROD_WITH_DMA_SPAD_INPUT_IMPL
+#undef INNER_PROD_WITH_DMA_SPAD_OUTPUT_IMPL
+#undef INNER_PROD_WITH_DMA_SPAD_IO_IMPL
+#undef INNER_PROD_WITH_DMA_IMPL
+#undef INNER_PROD_NO_DMA_IMPL
 }
 
 // Decompress a CSR array in HW.
@@ -460,6 +596,7 @@ void inner_product_layer_hw_dispatch(float* activations,
     io_req_t input_req = layer->input_req;
     io_req_t weights_req = layer->weights_req;
     io_req_t output_req = layer->output_req;
+
     if (output_req != IO_NONE) {
         const char* results_var_name =
                 output_req == IO_DMA ? "dma_results"
@@ -486,51 +623,38 @@ void inner_product_layer_hw_dispatch(float* activations,
         int activations_size = get_input_activations_size(layer);
         flush_cache_range(activations, activations_size);
         end_profiling();
-        if (output_req == IO_ACP) {
-            // Use ACP for results.
-            INVOKE_KERNEL_PROF(kInnerProductHw,
-                               layer->num,
-                               inner_product_layer_acp_result_hw,
-                               activations,
-                               weights,
-                               results,
-                               g_umem,
-                               g_spad0,
-                               g_spad1,
-                               layer,
-                               &options);
-        } else {
-            INVOKE_KERNEL_PROF(kInnerProductHw,
-                               layer->num,
-                               inner_product_layer_hw,
-                               activations,
-                               weights,
-                               results,
-                               g_umem,
-                               g_spad0,
-                               g_spad1,
-                               layer,
-                               &options);
-        }
-    } else if (input_req == IO_ACP) {
-        INVOKE_KERNEL_PROF(kInnerProductHw,
-                           layer->num,
-                           inner_product_layer_acp_hw,
-                           activations,
-                           weights,
-                           results,
-                           layer,
-                           &options);
-    } else if (input_req == IO_CACHE) {
-        INVOKE_KERNEL_PROF(kInnerProductHw,
-                           layer->num,
-                           inner_product_layer_cache_hw,
-                           activations,
-                           weights,
-                           results,
-                           layer,
-                           &options);
     }
+
+    // This object is an internal structure only for the purposes of
+    // simplifying the dispatch mechanism conditional checks!
+    access_config access_config;
+    access_config.inputs = io_to_access_mechanism(layer->input_req);
+    access_config.weights = io_to_access_mechanism(layer->weights_req);
+    access_config.outputs = io_to_access_mechanism(layer->output_req);
+    INVOKE_KERNEL_PROF(kInnerProductHw,
+                       layer->num,
+                       inner_product_layer_hw,
+                       // DMA
+                       activations,
+                       weights,
+                       results,
+                       // CACHE
+                       activations,
+                       weights,
+                       results,
+                       // ACP
+                       activations,
+                       weights,
+                       results,
+                       // Local scratchpads
+                       g_umem,
+                       g_spad0,
+                       g_spad1,
+                       // Other options
+                       layer,
+                       &access_config,
+                       &options);
+
 }
 
 void inner_product_layer_impl_rowwise(float* host_activations,
@@ -699,6 +823,7 @@ void inner_product_layer_impl_rowwise(float* host_activations,
         }
         size_t result_size = NUM_TEST_CASES * partial_layer.inputs.rows *
                              partial_layer.outputs.cols;
+
         inner_product_options options;
         options.do_bias = do_bias;
         options.input_in_spad0 = input_in_spad0;
@@ -869,11 +994,13 @@ void inner_product_layer_impl_colwise(float* host_activations,
                                   curr_iter->align_pad);
         }
 
-        if (input_req != IO_NONE) {
-            const char* weights_var_name =
-                    input_req == IO_DMA ? "dma_weights"
-                                        : input_req == IO_ACP ? "acp_weights"
-                                                              : "cache_weights";
+        io_req_t weights_req = partial_layer.weights_req;
+        if (weights_req != IO_NONE) {
+            const char* weights_var_name = weights_req == IO_DMA
+                                                   ? "dma_weights"
+                                                   : weights_req == IO_ACP
+                                                             ? "acp_weights"
+                                                             : "cache_weights";
             MAP_ARRAY_TO_ACCEL(kInnerProductHw,
                                weights_var_name,
                                host_weights_buffer,
@@ -1005,7 +1132,4 @@ void inner_product_layer_impl(float* host_activations,
                         "supported!\n");
         exit(1);
     }
-
 }
-
-#endif
