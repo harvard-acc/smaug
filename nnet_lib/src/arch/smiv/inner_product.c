@@ -1,3 +1,5 @@
+#if ARCHITECTURE == SMIV
+
 #include <assert.h>
 #include <string.h>
 
@@ -15,147 +17,156 @@
 typedef void (*tiled_inner_product_impl)(
         float*, float*, layer_t*, float*, device_t*, bool);
 
-void inner_product_layer_hw_impl(float* host_activations,
-                                 float* host_weights,
+typedef struct _inner_product_options {
+    bool do_bias;
+    bool input_in_spad0;
+    bool use_pipelined_dma;
+} inner_product_options;
+
+ALWAYS_INLINE
+void dma_wrapper(float* host,
+                 float* local,
+                 size_t transfer_size,
+                 bool is_load,
+                 bool use_pipelined_dma) {
+    if (use_pipelined_dma) {
+        divide_and_send_dma_req(
+                host, local, transfer_size, LOG_PAGE_SIZE, is_load);
+    } else {
+        if (is_load)
+            dmaLoad(local, host, transfer_size);
+       else
+            dmaStore(host, local, transfer_size);
+    }
+}
+
+ALWAYS_INLINE
+void dma_load_wrapper(float* local_dest,
+                      float* host_src,
+                      size_t transfer_size,
+                      bool use_pipelined_dma) {
+    dma_wrapper(host_src, local_dest, transfer_size, true, use_pipelined_dma);
+}
+
+ALWAYS_INLINE
+void dma_store_wrapper(float* host_dest,
+                       float* local_src,
+                       size_t transfer_size,
+                       bool use_pipelined_dma) {
+    dma_wrapper(host_dest, local_src, transfer_size, false, use_pipelined_dma);
+}
+
+void inner_product_layer_hw_impl(float* dma_activations,
+                                 float* dma_weights,
+                                 float* dma_results,
+                                 float* local_activations,
                                  float* local_weights,
-                                 float* local_inputs,
-                                 float* results,
-                                 layer_t* all_layers,
-                                 int lnum,
-                                 bool do_bias,
-                                 bool use_pipelined_dma) {
-    if (all_layers[lnum].weights_req == IO_DMA) {
-        int weights_size = get_num_weights_layer(all_layers, lnum);
-        if (!do_bias)
-            weights_size -= all_layers[lnum].weights.cols;
+                                 float* local_results,
+                                 layer_t* curr_layer,
+                                 inner_product_options* options) {
+    if (curr_layer->weights_req == IO_DMA) {
+        ASSERT(dma_weights && "DMA weights pointer cannot be NULL!");
+        int weights_size = get_num_weights_layer(curr_layer, 0);
+        if (!options->do_bias)
+            weights_size -= curr_layer->weights.cols;
         weights_size *= sizeof(float);
         setReadyBits(local_weights, UMEM_SIZE, 0);
-        if (use_pipelined_dma) {
-            divide_and_send_dma_req(host_weights, local_weights, weights_size,
-                                    LOG_PAGE_SIZE, true);
-        } else {
-            dmaLoad(local_weights, host_weights, weights_size);
-        }
+        dma_load_wrapper(local_weights, dma_weights, weights_size,
+                         options->use_pipelined_dma);
     }
 
-    if (all_layers[lnum].input_req == IO_DMA) {
-        int activations_size = INPUT_BYTES(all_layers, lnum);
-        setReadyBits(local_inputs, SPAD_SIZE, 0);
-        if (use_pipelined_dma)
-            divide_and_send_dma_req(host_activations,
-                                    local_inputs,
-                                    activations_size,
-                                    LOG_PAGE_SIZE,
-                                    true);
-        else
-            dmaLoad(local_inputs, host_activations, activations_size);
+    if (curr_layer->input_req == IO_DMA) {
+        ASSERT(dma_activations && "DMA inputs pointer cannot be NULL!");
+        int activations_size =
+                get_input_activations_size(curr_layer) * sizeof(float);
+        setReadyBits(local_activations, SPAD_SIZE, 0);
+        dma_load_wrapper(local_activations, dma_activations, activations_size,
+                         options->use_pipelined_dma);
     }
 
     matrix_multiply_with_bias_smiv(
-            local_inputs,
+            local_activations,
             local_weights,
-            all_layers[lnum].inputs.rows * NUM_TEST_CASES,
-            all_layers[lnum].weights.rows,
-            all_layers[lnum].weights.cols + all_layers[lnum].weights.align_pad,
-            all_layers[lnum].inputs.align_pad,
-            all_layers[lnum].activation,
-            do_bias,
-            results);
+            curr_layer->inputs.rows * NUM_TEST_CASES,
+            curr_layer->weights.rows,
+            curr_layer->weights.cols + curr_layer->weights.align_pad,
+            curr_layer->inputs.align_pad,
+            curr_layer->activation,
+            options->do_bias,
+            local_results);
+
+    if (curr_layer->output_req == IO_DMA) {
+        ASSERT(dma_results && "DMA results pointer cannot be NULL!");
+        size_t result_size =
+                get_output_activations_size(curr_layer) * sizeof(float);
+        dma_store_wrapper(dma_results, local_results, result_size,
+                          options->use_pipelined_dma);
+    }
 }
 
 // HW accelerated inner product, using DMA for data movement.
 //
-// All arguments prefixed with host_ are host memory pointers and can only be
+// All arguments prefixed with dma_ are host memory pointers and can only be
 // deferenced from the host, except when performing a DMA operation.
-void inner_product_layer_hw(float* host_activations,
-                            float* host_weights,
+void inner_product_layer_hw(float* dma_activations,
+                            float* dma_weights,
+                            float* dma_results,
                             float* umem,
                             float* spad0,
                             float* spad1,
-                            layer_t* all_layers,
-                            int lnum,
-                            bool input_in_spad0,
-                            bool do_bias,
-                            float* host_result,
-                            bool use_pipelined_dma) {
-    bool output_dma_req = (all_layers[lnum].output_req == IO_DMA);
-    size_t result_size = OUTPUT_BYTES(all_layers, lnum);
-    if (input_in_spad0) {
-        inner_product_layer_hw_impl(host_activations,
-                                    host_weights,
-                                    umem,
+                            layer_t* curr_layer,
+                            inner_product_options* options) {
+    if (options->input_in_spad0) {
+        inner_product_layer_hw_impl(dma_activations,
+                                    dma_weights,
+                                    dma_results,
                                     spad0,
+                                    umem,
                                     spad1,
-                                    all_layers,
-                                    lnum,
-                                    do_bias,
-                                    use_pipelined_dma);
-        if (output_dma_req) {
-            if (use_pipelined_dma) {
-                divide_and_send_dma_req(
-                        host_result, spad1, result_size, LOG_PAGE_SIZE, false);
-            } else {
-                store_output_activations_dma(
-                        host_result, spad1, &all_layers[lnum]);
-            }
-        }
+                                    curr_layer,
+                                    options);
     } else {
-        inner_product_layer_hw_impl(host_activations,
-                                    host_weights,
-                                    umem,
+        inner_product_layer_hw_impl(dma_activations,
+                                    dma_weights,
+                                    dma_results,
                                     spad1,
+                                    umem,
                                     spad0,
-                                    all_layers,
-                                    lnum,
-                                    do_bias,
-                                    use_pipelined_dma);
-        if (output_dma_req) {
-            if (use_pipelined_dma) {
-                divide_and_send_dma_req(
-                        host_result, spad0, result_size, LOG_PAGE_SIZE, false);
-            } else {
-                store_output_activations_dma(
-                        host_result, spad0, &all_layers[lnum]);
-            }
-        }
+                                    curr_layer,
+                                    options);
     }
 }
 
 // HW accelerated inner product, using ACP for output data movement.
 //
-// All arguments prefixed with host_ are host memory pointers. acp_result is
-// the host result pointer to be accessed over ACP.
-void inner_product_layer_acp_result_hw(float* host_activations,
-                                       float* host_weights,
-                                       float* acp_result,
+// All arguments prefixed with dma_ are host memory pointers, to be used only
+// via DMA. acp_results is the host result pointer to be accessed over ACP.
+void inner_product_layer_acp_result_hw(float* dma_activations,
+                                       float* dma_weights,
+                                       float* acp_results,
                                        float* umem,
                                        float* spad0,
                                        float* spad1,
-                                       layer_t* all_layers,
-                                       int lnum,
-                                       bool input_in_spad0,
-                                       bool do_bias,
-                                       bool use_pipelined_dma) {
-    if (input_in_spad0) {
-        inner_product_layer_hw_impl(host_activations,
-                                    host_weights,
-                                    umem,
+                                       layer_t* curr_layer,
+                                       inner_product_options* options) {
+    if (options->input_in_spad0) {
+        inner_product_layer_hw_impl(dma_activations,
+                                    dma_weights,
+                                    NULL,
                                     spad0,
-                                    acp_result,
-                                    all_layers,
-                                    lnum,
-                                    do_bias,
-                                    use_pipelined_dma);
-    } else {
-        inner_product_layer_hw_impl(host_activations,
-                                    host_weights,
                                     umem,
+                                    acp_results,
+                                    curr_layer,
+                                    options);
+    } else {
+        inner_product_layer_hw_impl(dma_activations,
+                                    dma_weights,
+                                    NULL,
                                     spad1,
-                                    acp_result,
-                                    all_layers,
-                                    lnum,
-                                    do_bias,
-                                    use_pipelined_dma);
+                                    umem,
+                                    acp_results,
+                                    curr_layer,
+                                    options);
     }
 }
 
@@ -163,38 +174,34 @@ void inner_product_layer_acp_result_hw(float* host_activations,
 // result).
 void inner_product_layer_acp_hw(float* acp_activations,
                                 float* acp_weights,
-                                float* acp_result,
-                                layer_t* all_layers,
-                                int lnum,
-                                bool do_bias) {
+                                float* acp_results,
+                                layer_t* curr_layer,
+                                inner_product_options* options) {
     inner_product_layer_hw_impl(NULL,
+                                NULL,
                                 NULL,
                                 acp_weights,
                                 acp_activations,
-                                acp_result,
-                                all_layers,
-                                lnum,
-                                do_bias,
-                                false);
+                                acp_results,
+                                curr_layer,
+                                options);
 }
 
 // HW accelerated inner product, using harware cache for everything (inputs,
 // weights and result).
 void inner_product_layer_cache_hw(float* cache_activations,
                                   float* cache_weights,
-                                  float* cache_result,
-                                  layer_t* all_layers,
-                                  int lnum,
-                                  bool do_bias) {
+                                  float* cache_results,
+                                  layer_t* curr_layer,
+                                  inner_product_options* options) {
     inner_product_layer_hw_impl(NULL,
+                                NULL,
                                 NULL,
                                 cache_weights,
                                 cache_activations,
-                                cache_result,
-                                all_layers,
-                                lnum,
-                                do_bias,
-                                false);
+                                cache_results,
+                                curr_layer,
+                                options);
 }
 
 // Decompress a CSR array in HW.
@@ -445,21 +452,19 @@ void copy_data_col_range(float* original_data,
 // Call the right HW function based on the device parameters.
 void inner_product_layer_hw_dispatch(float* activations,
                                      float* weights,
-                                     layer_t* layer,
-                                     bool input_in_spad0,
-                                     bool do_bias,
                                      float* results,
+                                     layer_t* layer,
                                      int result_size,
-                                     device_t* device) {
-    bool use_pipelined_dma = device->use_pipelined_dma;
+                                     // Make a copy here.
+                                     inner_product_options options) {
     io_req_t input_req = layer->input_req;
     io_req_t weights_req = layer->weights_req;
     io_req_t output_req = layer->output_req;
     if (output_req != IO_NONE) {
         const char* results_var_name =
-                output_req == IO_DMA ? "host_result"
-                                     : output_req == IO_ACP ? "acp_result"
-                                                            : "cache_result";
+                output_req == IO_DMA ? "dma_results"
+                                     : output_req == IO_ACP ? "acp_results"
+                                                            : "cache_results";
         MAP_ARRAY_TO_ACCEL(kInnerProductHw,
                            results_var_name,
                            results,
@@ -493,25 +498,19 @@ void inner_product_layer_hw_dispatch(float* activations,
                                g_spad0,
                                g_spad1,
                                layer,
-                               0,
-                               input_in_spad0,
-                               do_bias,
-                               use_pipelined_dma);
+                               &options);
         } else {
             INVOKE_KERNEL_PROF(kInnerProductHw,
                                layer->num,
                                inner_product_layer_hw,
                                activations,
                                weights,
+                               results,
                                g_umem,
                                g_spad0,
                                g_spad1,
                                layer,
-                               0,
-                               input_in_spad0,
-                               do_bias,
-                               results,
-                               use_pipelined_dma);
+                               &options);
         }
     } else if (input_req == IO_ACP) {
         INVOKE_KERNEL_PROF(kInnerProductHw,
@@ -521,8 +520,7 @@ void inner_product_layer_hw_dispatch(float* activations,
                            weights,
                            results,
                            layer,
-                           0,
-                           do_bias);
+                           &options);
     } else if (input_req == IO_CACHE) {
         INVOKE_KERNEL_PROF(kInnerProductHw,
                            layer->num,
@@ -531,15 +529,14 @@ void inner_product_layer_hw_dispatch(float* activations,
                            weights,
                            results,
                            layer,
-                           0,
-                           do_bias);
+                           &options);
     }
 }
 
 void inner_product_layer_impl_rowwise(float* host_activations,
                                       float* host_weights,
                                       layer_t* curr_layer,
-                                      float* host_result,
+                                      float* host_results,
                                       device_t* device,
                                       bool input_in_spad0) {
     INFO_MSG("Running rowwise inner product.\n");
@@ -569,13 +566,14 @@ void inner_product_layer_impl_rowwise(float* host_activations,
                 (float*)malloc_aligned(get_dims_size(&curr_layer->outputs) *
                                        sizeof(float) * fc_cfgs.num_iterations);
     } else {
-        host_results_buffer = host_result;
+        host_results_buffer = host_results;
     }
 
     io_req_t input_req = curr_layer->input_req;
-    const char* activations_var_name = input_req == IO_DMA
-            ? "host_activations"
-            : input_req == IO_ACP ? "acp_activations" : "cache_activations";
+    const char* activations_var_name =
+            input_req == IO_DMA ? "dma_activations"
+                                : input_req == IO_ACP ? "acp_activations"
+                                                      : "cache_activations";
     MAP_ARRAY_TO_ACCEL(kInnerProductHw,
                        activations_var_name,
                        host_inputs_buffer,
@@ -685,15 +683,15 @@ void inner_product_layer_impl_rowwise(float* host_activations,
         }
 
         io_req_t weights_req = partial_layer.weights_req;
-        const size_t weights_buffer_size =
-                (curr_iter->cols + curr_iter->align_pad) * curr_iter->rows *
-                sizeof(float);
         if (weights_req != IO_NONE) {
             const char* weights_var_name = weights_req == IO_DMA
-                                                   ? "host_weights"
+                                                   ? "dma_weights"
                                                    : weights_req == IO_ACP
                                                              ? "acp_weights"
                                                              : "cache_weights";
+            const size_t weights_buffer_size =
+                    (curr_iter->cols + curr_iter->align_pad) * curr_iter->rows *
+                    sizeof(float);
             MAP_ARRAY_TO_ACCEL(kInnerProductHw,
                                weights_var_name,
                                curr_dense_weights_loc,
@@ -701,14 +699,16 @@ void inner_product_layer_impl_rowwise(float* host_activations,
         }
         size_t result_size = NUM_TEST_CASES * partial_layer.inputs.rows *
                              partial_layer.outputs.cols;
+        inner_product_options options;
+        options.do_bias = do_bias;
+        options.input_in_spad0 = input_in_spad0;
+        options.use_pipelined_dma = device->use_pipelined_dma;
         inner_product_layer_hw_dispatch(host_inputs_buffer,
                                         curr_dense_weights_loc,
-                                        &partial_layer,
-                                        input_in_spad0,
-                                        do_bias,
                                         current_result,
+                                        &partial_layer,
                                         result_size,
-                                        device);
+                                        options);
 
         PRINT_MSG_V("Partial results:\n");
         PRINT_DEBUG_V(current_result,
@@ -754,7 +754,7 @@ void inner_product_layer_impl_rowwise(float* host_activations,
                  output_cols);  // temp buffer
         ARRAY_2D(float,
                  _host_results,
-                 host_result,
+                 host_results,
                  output_cols);                 // dst buffer.
         float* biases = host_weights + (curr_layer->weights.rows - 1) *
                                                curr_layer->weights.cols;
@@ -779,7 +779,7 @@ void inner_product_layer_impl_rowwise(float* host_activations,
             // TODO: This means it will be harder to separate the MKL primitive
             // construction time from the actual activation function runtime.
             smiv_activation_function(
-                    host_results_buffer, curr_layer, host_result, device);
+                    host_results_buffer, curr_layer, host_results, device);
         }
     }
 
@@ -796,7 +796,7 @@ void inner_product_layer_impl_rowwise(float* host_activations,
 void inner_product_layer_impl_colwise(float* host_activations,
                                       float* host_weights,
                                       layer_t* curr_layer,
-                                      float* host_result,
+                                      float* host_results,
                                       device_t* device,
                                       bool input_in_spad0) {
     fc_cfg_t fc_cfgs = inner_product_divide_work_colwise(curr_layer);
@@ -807,7 +807,7 @@ void inner_product_layer_impl_colwise(float* host_activations,
     bool needs_multiple_iter = (fc_cfgs.num_iterations > 1);
     io_req_t input_req = curr_layer->input_req;
     const char* activations_var_name = input_req == IO_DMA
-            ? "host_activations"
+            ? "dma_activations"
             : input_req == IO_ACP ? "acp_activations" : "cache_activations";
     MAP_ARRAY_TO_ACCEL(kInnerProductHw,
                        activations_var_name,
@@ -832,7 +832,7 @@ void inner_product_layer_impl_colwise(float* host_activations,
         host_results_buffer =
                 (float*)malloc_aligned(OUTPUT_BYTES(curr_layer, 0));
     } else {
-        host_results_buffer = host_result;
+        host_results_buffer = host_results;
     }
 
     int current_col = 0;
@@ -871,7 +871,7 @@ void inner_product_layer_impl_colwise(float* host_activations,
 
         if (input_req != IO_NONE) {
             const char* weights_var_name =
-                    input_req == IO_DMA ? "host_weights"
+                    input_req == IO_DMA ? "dma_weights"
                                         : input_req == IO_ACP ? "acp_weights"
                                                               : "cache_weights";
             MAP_ARRAY_TO_ACCEL(kInnerProductHw,
@@ -883,14 +883,16 @@ void inner_product_layer_impl_colwise(float* host_activations,
         size_t result_size = NUM_TEST_CASES * partial_layer.outputs.rows *
                              partial_layer.outputs.cols;
 
+        inner_product_options options;
+        options.do_bias = true;
+        options.input_in_spad0 = input_in_spad0;
+        options.use_pipelined_dma = device->use_pipelined_dma;
         inner_product_layer_hw_dispatch(host_activations,
                                         host_weights_buffer,
-                                        &partial_layer,
-                                        input_in_spad0,
-                                        true,  // do_bias
                                         current_result,
+                                        &partial_layer,
                                         result_size,
-                                        device);
+                                        options);
 
         PRINT_MSG_V("Partial results:\n");
         PRINT_DEBUG_V(
@@ -917,11 +919,11 @@ void inner_product_layer_impl_colwise(float* host_activations,
     // [ input 1, iter 2 results ] [ input 2, iter 2 results ] ...
     //
     // This routine reorders the results buffer and stores the result into the
-    // final result array (host_result).
+    // final result array (host_results).
     if (NUM_TEST_CASES > 1 && needs_multiple_iter) {
         int output_size =
                 curr_layer->outputs.cols + curr_layer->outputs.align_pad;
-        ARRAY_2D(float, _host_results, host_result, output_size);  // dst buffer.
+        ARRAY_2D(float, _host_results, host_results, output_size);  // dst buffer.
         current_result = host_results_buffer;  // temporary buffer.
         int curr_col = 0;
         for (unsigned it = 0; it < fc_cfgs.num_iterations; it++) {
@@ -952,7 +954,7 @@ void inner_product_layer_impl(float* host_activations,
                               float* host_weights,
                               layer_t* layers,
                               int lnum,
-                              float* host_result,
+                              float* host_results,
                               device_t* device) {
     static float* current_result_loc = NULL;
     if (current_result_loc == NULL) {
@@ -986,7 +988,7 @@ void inner_product_layer_impl(float* host_activations,
         tiled_inner_product_impl impl =
                 (input_size > weight_size) ? &inner_product_layer_impl_colwise
                                            : &inner_product_layer_impl_rowwise;
-        impl(host_activations, host_weights_layer, curr_layer, host_result,
+        impl(host_activations, host_weights_layer, curr_layer, host_results,
              device, input_in_spad0);
     } else if (curr_layer->wgt_storage_type == PackedCSR) {
         // If the weights are stored in CSR format, we can only do row-wise
@@ -995,7 +997,7 @@ void inner_product_layer_impl(float* host_activations,
         inner_product_layer_impl_rowwise(host_activations,
                                          host_weights_layer,
                                          curr_layer,
-                                         host_result,
+                                         host_results,
                                          device,
                                          input_in_spad0);
     } else if (curr_layer->wgt_storage_type == CSR) {
@@ -1005,3 +1007,5 @@ void inner_product_layer_impl(float* host_activations,
     }
 
 }
+
+#endif
