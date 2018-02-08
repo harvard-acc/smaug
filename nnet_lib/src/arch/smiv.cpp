@@ -512,10 +512,10 @@ void set_io_requirements(network_t* network, device_t* device) {
         layer_t* prev_layer = &network->layers[layer_num - 1];
         layer_t* next_layer = &network->layers[layer_num + 1];
 #if DEBUG_LEVEL > 0
-        // When debugging, if we don't DMA the results back, we won't be able
+        // When debugging, if we don't send the results back, we won't be able
         // to see what's happening.
-        curr_layer->input_req = IO_DMA;
-        curr_layer->output_req = IO_DMA;
+        curr_layer->input_req = device->cpu_default_offload;
+        curr_layer->output_req = device->cpu_default_offload;
 #else
 
         // We only support DMA for hardware batch norm and pooling layers.
