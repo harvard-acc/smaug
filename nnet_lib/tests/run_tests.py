@@ -167,6 +167,53 @@ class MnistTests(BaseTest):
     self.runAndValidate(model_file, correct_output, data_init_mode="READ_FILE",
                         param_file=param_file)
 
+class MinervaAccessMechanismTests(BaseTest):
+  """ These tests exercise different combinations of the offload mechanisms. """
+  def setUp(self):
+    """ All these tests should produce the SAME output. """
+    super(MinervaAccessMechanismTests, self).setUp()
+    self.correct_output = "mnist-minerva.out"
+
+  def test_minerva_all_cache(self):
+    model_file = "mnist/minerva-access-mechs/minerva_cache.conf"
+    self.runAndValidate(model_file, self.correct_output)
+
+  def test_minerva_all_acp(self):
+    model_file = "mnist/minerva-access-mechs/minerva_acp.conf"
+    self.runAndValidate(model_file, self.correct_output)
+
+  def test_minerva_dma_acp(self):
+    model_file = "mnist/minerva-access-mechs/minerva_dma_acp.conf"
+    self.runAndValidate(model_file, self.correct_output)
+
+  def test_minerva_dma_cache(self):
+    model_file = "mnist/minerva-access-mechs/minerva_dma_cache.conf"
+    self.runAndValidate(model_file, self.correct_output)
+
+  def test_minerva_dma_acp_no_hw_act_func(self):
+    model_file = "mnist/minerva-access-mechs/minerva_dma_acp_no_hw_act_func.conf"
+    self.runAndValidate(model_file, self.correct_output)
+
+  def test_minerva_dma_cache_no_hw_act_func(self):
+    model_file = "mnist/minerva-access-mechs/minerva_dma_cache_no_hw_act_func.conf"
+    self.runAndValidate(model_file, self.correct_output)
+
+class MinervaAccessMechanismCsrTests(MinervaAccessMechanismTests):
+  """ Same as MinervaAccessMechanismTests, but with compressed weights. """
+  def setUp(self):
+    super(MinervaAccessMechanismTests, self).setUp()
+    self.correct_output = "mnist-minerva-pruned.out"
+    self.param_file = os.path.join(
+        MODEL_DIR, "mnist/trained/%s/minerva_pruned.txt" % ARCH)
+
+  def runAndValidate(self, model_file, correct_output):
+    """ Supply the model parameter file as an additional argument. """
+    if ARCH != "smiv":
+      return
+    super(MinervaAccessMechanismTests, self).runAndValidate(
+        model_file, correct_output,
+        param_file=self.param_file, data_init_mode="READ_FILE");
+
 class GenericTests(BaseTest):
   def test_1_kernel(self):
     model_file = "generic/cnn-1c1k-1p-3fc.conf"
