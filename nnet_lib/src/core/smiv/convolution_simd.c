@@ -184,7 +184,7 @@ void convolution3d_smiv_1kernel_noreduce_simd_fxp(float* a,
     const int end_col = (has_boundary_case ? input_fetches_per_row
                                            : input_fetches_per_row - 1);
     const int end_kern = k_width;
-    const int end_chan = curr_layer.inputs.height;
+    const int end_chan = curr_layer.weights.height;
 
     VEC_ARRAY_3D(v8fp_t, _a, a, a_height, a_padded_width);
     VEC_ARRAY_3D(v8fp_t, _kernels, kernels, k_width, k_padded_width);

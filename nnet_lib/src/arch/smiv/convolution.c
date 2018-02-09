@@ -1,9 +1,8 @@
-#if ARCHITECTURE == SMIV
-
 #include <assert.h>
 #include <string.h>
 
 #include "arch/smiv_common.h"
+#include "arch/smiv/dispatch_utils.h"
 #include "core/nnet_fwd_defs.h"
 #include "core/ref/activation_functions.h"
 #include "core/smiv/smiv.h"
@@ -13,458 +12,339 @@
 #include "gem5_harness.h"
 #endif
 
-void reduction_hw_impl(float* inputs,
-                       float* results,
-                       bool needs_input_load,
+typedef struct _convolution_options {
+    int img;
+    int kern;
+    int start_chan;
+    bool use_pipelined_dma;
+} convolution_options;
+
+typedef struct _reduction_options {
+    bool input_in_spad0;
+    bool use_pipelined_dma;
+} reduction_options;
+
+void reduction_hw_impl(float* host_inputs,
+                       float* host_results,
+                       float* local_inputs,
+                       float* local_results,
                        layer_t partial_layer,
-                       size_t result_size,
-                       float* host_result,
-                       bool use_pipelined_dma) {
+                       reduction_options* options) {
+    size_t result_size =
+            partial_layer.outputs.rows *
+            (partial_layer.outputs.cols + partial_layer.outputs.align_pad);
     // This is only required if we want to initiate a final round of reduction.
-    if (needs_input_load) {
+    if (partial_layer.input_req == IO_DMA) {
+        ASSERT(host_inputs && "host_inputs cannot be NULL for DMA!");
         size_t input_bytes =
                 result_size * partial_layer.inputs.height * sizeof(float);
-        setReadyBits(inputs, input_bytes, 0);
-        if (use_pipelined_dma) {
-            divide_and_send_dma_req(
-                    host_result, inputs, input_bytes, LOG_PAGE_SIZE, true);
-        } else {
-            dmaLoad(inputs, host_result, input_bytes);
-        }
+        setReadyBits(local_inputs, input_bytes, 0);
+        dma_load_wrapper(local_inputs, host_inputs, input_bytes,
+                         options->use_pipelined_dma);
     }
 
-    reduction_smiv(inputs, partial_layer, results);
+    reduction_smiv(local_inputs, partial_layer, local_results);
+
+    if (partial_layer.output_req == IO_DMA) {
+        ASSERT(host_results && "host_results cannot be NULL for DMA!");
+        int result_bytes = result_size * sizeof(float);
+        dma_store_wrapper(host_results, local_results, result_bytes,
+                          options->use_pipelined_dma);
+    }
 }
 
-// Default Reduction module.
-//
-// Call this when we want to use DMA exclusively for moving data.
-void reduction_hw(float* spad0,
-                  float* spad1,
+void reduction_hw(float* dma_activations,
+                  float* dma_results,
+                  float* acp_activations,
+                  float* acp_results,
+                  float* cache_activations,
+                  float* cache_results,
                   float* umem,
-                  bool input_in_spad0,
-                  bool needs_input_load,
-                  layer_t partial_layer,
-                  size_t result_size,
-                  float* host_result,
-                  bool use_pipelined_dma) {
-    int result_bytes = result_size * sizeof(float);
-    if (input_in_spad0) {
-        reduction_hw_impl(spad0,
-                          spad1,
-                          needs_input_load,
-                          partial_layer,
-                          result_size,
-                          host_result,
-                          use_pipelined_dma);
-        if (partial_layer.output_req == IO_DMA) {
-            if (use_pipelined_dma) {
-                divide_and_send_dma_req(
-                        host_result, spad1, result_bytes, LOG_PAGE_SIZE, true);
-            } else {
-                dmaStore(host_result, spad1, result_bytes);
-            }
-        }
-    } else {
-        reduction_hw_impl(spad1,
-                          spad0,
-                          needs_input_load,
-                          partial_layer,
-                          result_size,
-                          host_result,
-                          use_pipelined_dma);
-        if (partial_layer.output_req == IO_DMA) {
-            if (use_pipelined_dma) {
-                divide_and_send_dma_req(
-                        host_result, spad0, result_bytes, LOG_PAGE_SIZE, true);
-            } else {
-                dmaStore(host_result, spad0, result_bytes);
-            }
-        }
+                  float* spad0,
+                  float* spad1,
+                  layer_t curr_layer,
+                  access_config* access_config,
+                  reduction_options* options) {
+
+//=--------- Convenience macros for invoking the HW impl ---------------=//
+//
+// Each of these macros will call reduction_hw_impl() with a different name for
+// the array arguments, based on the desired access mechanism for each. Since
+// we name our variables in a consistent way - "mechanism_arrayname" - the
+// macro can automatically form the correct variable name by macro
+// concatentation.
+//
+// If DEBUG_LEVEL >= 2, then each invocation of these macros will print
+// the mechanism and variable names used in the function call.
+//
+// Common argument abbreviations:
+//    HA = host activations
+//    HW = host weights
+//    HR = host results
+//    LA = local activations
+//    LW = local weights
+//    LR = local result
+
+#define REDUCTION_NO_DMA_IMPL(INPUT, LR)                                       \
+    do {                                                                       \
+        PRINT_MSG(#INPUT "-" #LR "\n");                                        \
+        reduction_hw_impl(NULL, NULL, INPUT##_activations, LR##_results,       \
+                          curr_layer, options);                                \
+    } while (0)
+
+#define REDUCTION_WITH_DMA_IMPL(HA, HR, LA, LR)                                \
+    do {                                                                       \
+        PRINT_MSG(#HA "-" #HR "-" #LA "-" #LR "\n");                           \
+        reduction_hw_impl(                                                     \
+                HA##_activations, HR##_results, LA, LR, curr_layer, options);  \
+    } while (0)
+
+// DMA used, with the input coming from either SPAD0 or SPAD1, but the output
+// is going to a non-scratchpad location. Select the right input array with
+// SELECT_SPAD0.
+#define REDUCTION_WITH_DMA_SPAD_INPUT_IMPL(                                    \
+        HA, HR, SPAD0, SPAD1, SELECT_SPAD0, LR)                                \
+    do {                                                                       \
+        if (SELECT_SPAD0) {                                                    \
+            REDUCTION_WITH_DMA_IMPL(HA, HR, SPAD0, LR);                        \
+        } else {                                                               \
+            REDUCTION_WITH_DMA_IMPL(HA, HR, SPAD1, LR);                        \
+        }                                                                      \
+    } while (0)
+
+// DMA used, with the output going to either SPAD0 or SPAD1, but the input is
+// coming from a non-scratchpad location. Select the right one with
+// SELECT_SPAD0.
+#define REDUCTION_WITH_DMA_SPAD_OUTPUT_IMPL(                                   \
+        HA, HR, LA, SPAD0, SPAD1, SELECT_SPAD0)                                \
+    do {                                                                       \
+        if (SELECT_SPAD0) {                                                    \
+            REDUCTION_WITH_DMA_IMPL(HA, HR, LA, SPAD0);                        \
+        } else {                                                               \
+            REDUCTION_WITH_DMA_IMPL(HA, HR, LA, SPAD1);                        \
+        }                                                                      \
+    } while (0)
+
+// DMA used, with both inputs and outputs going to/from scratchpads.
+#define REDUCTION_WITH_DMA_SPAD_IO_IMPL(HA, HR, SPAD0, SPAD1, SELECT_SPAD0)    \
+    do {                                                                       \
+        if (SELECT_SPAD0) {                                                    \
+            REDUCTION_WITH_DMA_IMPL(HA, HR, SPAD0, SPAD1);                     \
+        } else {                                                               \
+            REDUCTION_WITH_DMA_IMPL(HA, HR, SPAD1, SPAD0);                     \
+        }                                                                      \
+    } while (0)
+
+    bool input_in_spad0 = options->input_in_spad0;
+    if (DISPATCH_2(access_config, _DmaOrLocal, _DmaOrLocal)) {
+        REDUCTION_WITH_DMA_SPAD_IO_IMPL(dma, dma, spad0, spad1, input_in_spad0);
+    } else if (DISPATCH_2(access_config, _ACP, _ACP)) {
+        REDUCTION_NO_DMA_IMPL(acp, acp);
+    } else if (DISPATCH_2(access_config, _Cache, _Cache)) {
+        REDUCTION_NO_DMA_IMPL(cache, cache);
+    }
+    // These selections only use _ACP or _Cache for the results.
+    else if (DISPATCH_2(access_config, _DmaOrLocal, _ACP)) {
+        REDUCTION_WITH_DMA_SPAD_INPUT_IMPL(
+                dma, acp, spad0, spad1, input_in_spad0, acp_results);
+    } else if (DISPATCH_2(access_config, _DmaOrLocal, _Cache)) {
+        REDUCTION_WITH_DMA_SPAD_INPUT_IMPL(
+                dma, cache, spad0, spad1, input_in_spad0, cache_results);
+    }
+    // These selections use DMA/None for the outputs.
+    else if (DISPATCH_2(access_config, _ACP, _DmaOrLocal)) {
+        REDUCTION_WITH_DMA_SPAD_OUTPUT_IMPL(
+                acp, dma, acp_activations, spad0, spad1, input_in_spad0);
+    } else if (DISPATCH_2(access_config, _Cache, _DmaOrLocal)) {
+        REDUCTION_WITH_DMA_SPAD_OUTPUT_IMPL(
+                cache, dma, cache_activations, spad0, spad1, input_in_spad0);
+    }
+    // Otherwise, give up.
+    else {
+        assert(false &&
+               "This is an unsupported combination of access mechanisms!");
+    }
+
+#undef REDUCTION_WITH_DMA_SPAD_INPUT_IMPL
+#undef REDUCTION_WITH_DMA_SPAD_OUTPUT_IMPL
+#undef REDUCTION_WITH_DMA_SPAD_IO_IMPL
+#undef REDUCTION_WITH_DMA_IMPL
+#undef REDUCTION_NO_DMA_IMPL
+}
+
+// Main implementation of convolutional HW.
+//
+// Arguments:
+//   dma_activations: The host address of the input activations.
+//      **NOTE**: This should be the base of the entire input image, not the
+//      base of a tiled section of the input.
+//   dma_weights: The host address of the input weights.
+//   dma_results: The host address of the input results.
+//   local_activations: Pointer to inputs that the accelerator reads directly.
+//   local_weights: Pointer to weights that the accelerator reads directly.
+//   local_results: Pointer to results that the accelerator writes directly.
+//   curr_layer: Description of this layer's shape and parameters.
+//      **NOTE**: The input dims_t field in this describes the COMPLETE and
+//      UNTILED dimensions input, whereas the dimensions for the weights and
+//      outputs describe the TILED dimensions.
+//   options: Additional options for this execution of convolution.
+static void convolution_layer_hw_impl(float* dma_activations,
+                                      float* dma_weights,
+                                      float* dma_results,
+                                      float* local_activations,
+                                      float* local_weights,
+                                      float* local_results,
+                                      // TODO: make this a pointer instead.
+                                      layer_t curr_layer,
+                                      convolution_options* options) {
+    // This is the full input height, NOT the tiled height!
+    int total_input_height = curr_layer.inputs.height;
+    int input_rows = curr_layer.inputs.rows;
+    int input_cols = curr_layer.inputs.cols;
+    int input_pad = curr_layer.inputs.align_pad;
+    int start_chan = options->start_chan;
+    int img = options->img;
+
+    ARRAY_4D(float, _dma_activations, dma_activations, total_input_height,
+             input_rows, input_cols + input_pad);
+
+    // We should only DMA part of the weights.
+    size_t num_weights =
+            curr_layer.weights.rows * curr_layer.weights.height *
+            (curr_layer.weights.cols + curr_layer.weights.align_pad);
+    if (curr_layer.weights_req == IO_DMA) {
+        ASSERT(dma_weights && "dma_weights cannot be NULL for DMA!");
+        setReadyBits(local_weights, num_weights * sizeof(float), 0);
+        dma_load_wrapper(local_weights, dma_weights,
+                         num_weights * sizeof(float),
+                         options->use_pipelined_dma);
+    }
+    if (curr_layer.input_req == IO_DMA) {
+        // Read in ALL channels of the input into the UMEM at once, so that we
+        // can reuse them on subsequent output channels.
+        ASSERT(dma_activations && "dma_activations cannot be NULL for DMA!");
+        size_t num_input_pixels =
+                input_rows * total_input_height * (input_cols + input_pad);
+        setReadyBits(local_activations, num_input_pixels * sizeof(float), 0);
+        dma_load_wrapper(local_activations, &_dma_activations[img][0][0][0],
+                         num_input_pixels * sizeof(float),
+                         options->use_pipelined_dma);
+    }
+
+    convolution3d_smiv(local_activations, local_weights, curr_layer, start_chan,
+                       local_results);
+
+    if (curr_layer.output_req == IO_DMA) {
+        ASSERT(dma_results && "dma_results cannot be NULL for DMA!");
+        size_t num_output_pixels =
+                curr_layer.outputs.rows * curr_layer.outputs.height *
+                (curr_layer.outputs.cols + curr_layer.outputs.align_pad);
+        dma_store_wrapper(dma_results, local_results,
+                          num_output_pixels * sizeof(float),
+                          options->use_pipelined_dma);
     }
 }
 
-// ACP reduction module.
+// Main entry point of convolution HW.
 //
-// The two scratchpads must remain named spad0 and spad1, but we use a
-// different name for the result, called acp_result (instead of umem), to
-// distinguish that the Aladdin config file should mark this array with acp.
+// Unlike the other blocks, the conv block is restricted to storing inputs in
+// the UMEM and the weights and outputs in the two scratchpads, so there is
+// need to select the right spad.
 //
-// Importantly, acp_result is a pointer that corresponds to the host, unlike
-// spad0/spad1/umem, which are accelerator-local memory.
-void reduction_acp_hw(float* spad0,
-                      float* spad1,
-                      float* acp_result,
-                      bool input_in_spad0,
-                      bool needs_input_load,
-                      layer_t partial_layer,
-                      size_t result_size) {
-    if (needs_input_load) {
-        // Standard convolutional layer is finishing off the reduction. Since we
-        // want to use acp for inputs/outputs, needs_input_load should be set
-        // to false. For partial reduction, we still use the local scrachpads
-        // for inputs.
-        reduction_hw_impl(acp_result,
-                          acp_result,
-                          false,
-                          partial_layer,
-                          result_size,
-                          NULL,
-                          false);
-    } else if (input_in_spad0) {
-        reduction_hw_impl(spad0,
-                          acp_result,
-                          needs_input_load,
-                          partial_layer,
-                          result_size,
-                          acp_result,
-                          false);
-    } else {
-        reduction_hw_impl(spad1,
-                          acp_result,
-                          needs_input_load,
-                          partial_layer,
-                          result_size,
-                          acp_result,
-                          false);
-    }
-}
-
-// Cache reduction module.
-//
-// The two scratchpads must remain named spad0 and spad1, but we use a
-// different name for the result, called cache_result (instead of umem), to
-// distinguish that the Aladdin config file should mark this array with cache.
-//
-// Importantly, cache_result is a pointer that corresponds to the host, unlike
-// spad0/spad1/umem, which are accelerator-local memory.
-void reduction_cache_hw(float* spad0,
-                        float* spad1,
-                        float* cache_result,
-                        bool input_in_spad0,
-                        bool needs_input_load,
-                        layer_t partial_layer,
-                        size_t result_size) {
-    if (needs_input_load) {
-        // Standard convolutional layer is finishing off the reduction. Since we
-        // want to use cache for inputs/outputs, needs_input_load should be set
-        // to false. For partial reduction, we still use the local scrachpads
-        // for inputs.
-        reduction_hw_impl(cache_result,
-                          cache_result,
-                          false,
-                          partial_layer,
-                          result_size,
-                          NULL,
-                          false);
-    } else if (input_in_spad0) {
-        reduction_hw_impl(spad0,
-                          cache_result,
-                          needs_input_load,
-                          partial_layer,
-                          result_size,
-                          cache_result,
-                          false);
-    } else {
-        reduction_hw_impl(spad1,
-                          cache_result,
-                          needs_input_load,
-                          partial_layer,
-                          result_size,
-                          cache_result,
-                          false);
-    }
-}
-
-static void convolution_layer_hw(float* host_activations,
-                                 float* host_weights,
-                                 float* host_result,
+static void convolution_layer_hw(float* dma_activations,
+                                 float* dma_weights,
+                                 float* dma_results,
+                                 float* cache_activations,
+                                 float* cache_weights,
+                                 float* cache_results,
+                                 float* acp_activations,
+                                 float* acp_weights,
+                                 float* acp_results,
                                  float* umem,
                                  float* spad0,
                                  float* spad1,
-                                 bool input_in_spad0,
-                                 layer_t* all_layers,
-                                 layer_t partial_layer,
-                                 int layer_num,
-                                 int img,
-                                 int kern,
-                                 int start_chan,
-                                 bool use_pipelined_dma) {
-    layer_t curr_layer = all_layers[layer_num];
-    int input_height = curr_layer.inputs.height;
-    int input_rows= curr_layer.inputs.rows;
-    int input_cols = curr_layer.inputs.cols;
-    int input_pad = curr_layer.inputs.align_pad;
-    int k_width = curr_layer.weights.cols;
-    int k_pad = curr_layer.weights.align_pad;
+                                 layer_t curr_layer,
+                                 access_config*  access_config,
+                                 convolution_options* options) {
+//=--------- Convenience macros for invoking the HW impl ---------------=//
+//
+// Because the convolutional block cannot mix the use of scratchpads and the
+// umem, we don't need the macros to help us select which spad to use, which
+// reduces the number of macros greatly.
 
-    ARRAY_4D(float, _a, host_activations, input_height, input_rows,
-             input_cols + input_pad);
-    ARRAY_4D(float, _kernels, host_weights, input_height, k_width,
-             k_width + k_pad);
+// No DMA or scratchpads are used at all.
+#define CONV3D_NO_DMA_IMPL(INPUT, WGT, LR)                                     \
+    do {                                                                       \
+        PRINT_MSG(#INPUT "-" #WGT "-" #LR "\n");                               \
+        convolution_layer_hw_impl(NULL, NULL, NULL, INPUT##_activations,       \
+                                  WGT##_weights, LR##_results, curr_layer,     \
+                                  options);                                    \
+    } while (0)
 
-    // We should only DMA part of the weights.
-    size_t num_weights =
-            partial_layer.weights.rows * partial_layer.weights.height *
-            (partial_layer.weights.cols + partial_layer.weights.align_pad);
-    if (input_in_spad0) {
-        setReadyBits(spad0, num_weights * sizeof(float), 0);
-        if (use_pipelined_dma) {
-            divide_and_send_dma_req(&_kernels[kern][start_chan][0][0],
-                                    spad0,
-                                    num_weights * sizeof(float),
-                                    LOG_PAGE_SIZE,
-                                    true);
-        } else {
-            dmaLoad(spad0,
-                    &_kernels[kern][start_chan][0][0],
-                    num_weights * sizeof(float));
-        }
-    } else {
-        setReadyBits(spad1, num_weights * sizeof(float), 0);
-        if (use_pipelined_dma) {
-            divide_and_send_dma_req(&_kernels[kern][start_chan][0][0],
-                                    spad1,
-                                    num_weights * sizeof(float),
-                                    LOG_PAGE_SIZE,
-                                    true);
-        } else {
-            dmaLoad(spad1,
-                    &_kernels[kern][start_chan][0][0],
-                    num_weights * sizeof(float));
-        }
+// Inputs can come from anywhere (dma, cache, or acp), and outputs can go
+// anywhere.
+#define CONV3D_WITH_DMA_IMPL(HA, HW, HR, LA, LW, LR)                           \
+    do {                                                                       \
+        PRINT_MSG(#HA "-" #HW "-" #HR "-" #LA "-" #LW "-" #LR "\n");           \
+        convolution_layer_hw_impl(HA##_activations, HW##_weights,              \
+                                  HR##_results, LA, LW, LR, curr_layer,        \
+                                  options);                                    \
+    } while (0)
+
+    // These selections use the same mechanism all across.
+    if (DISPATCH_3(access_config, _DmaOrLocal, _DmaOrLocal, _DmaOrLocal)) {
+        CONV3D_WITH_DMA_IMPL(dma, dma, dma, umem, spad0, spad1);
+    } else if (DISPATCH_3(access_config, _ACP, _ACP, _ACP)) {
+        CONV3D_NO_DMA_IMPL(acp, acp, acp);
+    } else if (DISPATCH_3(access_config, _Cache, _Cache, _Cache)) {
+        CONV3D_NO_DMA_IMPL(cache, cache, cache);
     }
-    if (partial_layer.input_req == IO_DMA) {
-        // Read in ALL channels of the input into the UMEM at once, so that we
-        // can reuse them on subsequent output channels.
-        size_t num_input_pixels =
-                partial_layer.inputs.rows * curr_layer.inputs.height *
-                (partial_layer.inputs.cols + partial_layer.inputs.align_pad);
-        setReadyBits(umem, num_input_pixels * sizeof(float), 0);
-        if (use_pipelined_dma) {
-            divide_and_send_dma_req(&_a[img][0][0][0],
-                                    umem,
-                                    num_input_pixels * sizeof(float),
-                                    LOG_PAGE_SIZE,
-                                    true);
-        } else {
-            dmaLoad(umem, &_a[img][0][0][0], num_input_pixels * sizeof(float));
-        }
+    // These selections only use _ACP or _Cache for the results.
+    else if (DISPATCH_3(access_config, _DmaOrLocal, _DmaOrLocal, _ACP)) {
+        CONV3D_WITH_DMA_IMPL(dma, dma, acp, umem, spad0, acp_results);
+    } else if (DISPATCH_3(access_config, _DmaOrLocal, _DmaOrLocal, _Cache)) {
+        CONV3D_WITH_DMA_IMPL(dma, dma, cache, umem, spad0, cache_results);
     }
-
-    if (input_in_spad0)
-        convolution3d_smiv(umem, spad0, partial_layer, start_chan, spad1);
-    else
-        convolution3d_smiv(umem, spad1, partial_layer, start_chan, spad0);
-
-    if (partial_layer.output_req == IO_DMA) {
-        size_t num_output_pixels =
-                partial_layer.outputs.rows * partial_layer.outputs.height *
-                (partial_layer.outputs.cols + partial_layer.outputs.align_pad);
-        if (input_in_spad0) {
-            if (use_pipelined_dma) {
-                divide_and_send_dma_req(host_result,
-                                        spad1,
-                                        num_output_pixels * sizeof(float),
-                                        LOG_PAGE_SIZE,
-                                        false);
-            } else {
-                dmaStore(
-                        host_result, spad1, num_output_pixels * sizeof(float));
-            }
-        } else {
-            if (use_pipelined_dma) {
-                divide_and_send_dma_req(host_result,
-                                        spad0,
-                                        num_output_pixels * sizeof(float),
-                                        LOG_PAGE_SIZE,
-                                        false);
-            } else {
-                dmaStore(
-                        host_result, spad0, num_output_pixels * sizeof(float));
-            }
-        }
+    // These selections use DMA/None for the inputs.
+    else if (DISPATCH_3(access_config, _DmaOrLocal, _ACP, _ACP)) {
+        CONV3D_WITH_DMA_IMPL(dma, acp, acp, umem, acp_weights, acp_results);
+    } else if (DISPATCH_3(access_config, _DmaOrLocal, _Cache, _Cache)) {
+        CONV3D_WITH_DMA_IMPL(
+                dma, cache, cache, umem, cache_weights, cache_results);
+    }
+    // These selections use DMA/None for the inputs/outputs.
+    //
+    // NOTE: This scenario is currently not possible to specify via the model
+    // configuration file.
+    else if (DISPATCH_3(access_config, _DmaOrLocal, _ACP, _DmaOrLocal)) {
+        CONV3D_WITH_DMA_IMPL(dma, acp, dma, umem, acp_weights, spad1);
+    } else if (DISPATCH_3(access_config, _DmaOrLocal, _Cache, _DmaOrLocal)) {
+        CONV3D_WITH_DMA_IMPL(dma, cache, dma, umem, cache_weights, spad1);
+    }
+    // These selections use DMA/None for the outputs.
+    else if (DISPATCH_3(access_config, _ACP, _ACP, _DmaOrLocal)) {
+        CONV3D_WITH_DMA_IMPL(
+                acp, acp, dma, acp_activations, acp_weights, spad1);
+    } else if (DISPATCH_3(access_config, _Cache, _Cache, _DmaOrLocal)) {
+        CONV3D_WITH_DMA_IMPL(
+                cache, cache, dma, cache_activations, cache_weights, spad1);
+    }
+    // These selections only use DMA for the weights.
+    else if (DISPATCH_3(access_config, _ACP, _DmaOrLocal, _ACP)) {
+        CONV3D_WITH_DMA_IMPL(
+                acp, dma, acp, acp_activations, spad0, acp_results);
+    } else if (DISPATCH_3(access_config, _Cache, _DmaOrLocal, _Cache)) {
+        CONV3D_WITH_DMA_IMPL(
+                cache, dma, cache, cache_activations, spad0, cache_results);
+    }
+    // Otherwise, give up.
+    else {
+        assert(false &&
+               "This is an unsupported combination of access mechanisms!");
     }
 
-}
-
-static void convolution_layer_acp_result_hw(float* host_activations,
-                                            float* host_weights,
-                                            float* acp_result,
-                                            float* umem,
-                                            float* spad0,
-                                            float* spad1,
-                                            bool input_in_spad0,
-                                            layer_t* all_layers,
-                                            layer_t partial_layer,
-                                            int layer_num,
-                                            int img,
-                                            int kern,
-                                            int start_chan,
-                                            bool use_pipelined_dma) {
-    layer_t curr_layer = all_layers[layer_num];
-    int input_height = curr_layer.inputs.height;
-    int input_rows= curr_layer.inputs.rows;
-    int input_cols = curr_layer.inputs.cols;
-    int input_pad = curr_layer.inputs.align_pad;
-    int k_width = curr_layer.weights.cols;
-    int k_pad = curr_layer.weights.align_pad;
-
-    ARRAY_4D(float, _a, host_activations, input_height, input_rows,
-             input_cols + input_pad);
-    ARRAY_4D(float, _kernels, host_weights, input_height, k_width,
-             k_width + k_pad);
-
-    // We should only DMA part of the weights.
-    size_t num_weights =
-            partial_layer.weights.rows * partial_layer.weights.height *
-            (partial_layer.weights.cols + partial_layer.weights.align_pad);
-    if (input_in_spad0) {
-        setReadyBits(spad0, num_weights * sizeof(float), 0);
-        if (use_pipelined_dma) {
-            divide_and_send_dma_req(&_kernels[kern][start_chan][0][0],
-                                    spad0,
-                                    num_weights * sizeof(float),
-                                    LOG_PAGE_SIZE,
-                                    true);
-        } else {
-            dmaLoad(spad0,
-                    &_kernels[kern][start_chan][0][0],
-                    num_weights * sizeof(float));
-        }
-    } else {
-        setReadyBits(spad1, num_weights * sizeof(float), 0);
-        if (use_pipelined_dma) {
-            divide_and_send_dma_req(&_kernels[kern][start_chan][0][0],
-                                    spad1,
-                                    num_weights * sizeof(float),
-                                    LOG_PAGE_SIZE,
-                                    true);
-        } else {
-            dmaLoad(spad1,
-                    &_kernels[kern][start_chan][0][0],
-                    num_weights * sizeof(float));
-        }
-    }
-    if (partial_layer.input_req == IO_DMA) {
-        // Read in ALL channels of the input into the UMEM at once, so that we
-        // can reuse them on subsequent output channels.
-        size_t num_input_pixels =
-                partial_layer.inputs.rows * curr_layer.inputs.height *
-                (partial_layer.inputs.cols + partial_layer.inputs.align_pad);
-        setReadyBits(umem, num_input_pixels * sizeof(float), 0);
-        if (use_pipelined_dma) {
-            divide_and_send_dma_req(&_a[img][0][0][0],
-                                    umem,
-                                    num_input_pixels * sizeof(float),
-                                    LOG_PAGE_SIZE,
-                                    true);
-        } else {
-            dmaLoad(umem, &_a[img][0][0][0], num_input_pixels * sizeof(float));
-        }
-    }
-
-    if (input_in_spad0)
-        convolution3d_smiv(umem, spad0, partial_layer, start_chan, acp_result);
-    else
-        convolution3d_smiv(umem, spad1, partial_layer, start_chan, acp_result);
-
-}
-
-static void convolution_layer_acp_hw(float* acp_activations,
-                                     float* acp_weights,
-                                     float* acp_result,
-                                     float* spad0,
-                                     float* spad1,
-                                     bool input_in_spad0,
-                                     layer_t* all_layers,
-                                     layer_t partial_layer,
-                                     int layer_num,
-                                     int img,
-                                     int kern,
-                                     int start_chan) {
-    layer_t curr_layer = all_layers[layer_num];
-    int input_height = curr_layer.inputs.height;
-    int input_rows= curr_layer.inputs.rows;
-    int input_cols = curr_layer.inputs.cols;
-    int input_pad = curr_layer.inputs.align_pad;
-    int k_width = curr_layer.weights.cols;
-    int k_pad = curr_layer.weights.align_pad;
-
-    ARRAY_4D(float, _a, acp_activations, input_height, input_rows,
-             input_cols + input_pad);
-    ARRAY_4D(float, _kernels, acp_weights, input_height, k_width,
-             k_width + k_pad);
-
-    if (partial_layer.output_req == IO_ACP) {
-        // Depthwise convolutional layer wants to transfer results via ACP.
-        // Standard convolutional layer will put the results in spad0/spad1.
-        convolution3d_smiv(&_a[img][0][0][0],
-                           &_kernels[kern][start_chan][0][0],
-                           partial_layer,
-                           start_chan,
-                           acp_result);
-    } else if (input_in_spad0) {
-        convolution3d_smiv(&_a[img][0][0][0],
-                           &_kernels[kern][start_chan][0][0],
-                           partial_layer,
-                           start_chan,
-                           spad1);
-    } else {
-        convolution3d_smiv(&_a[img][0][0][0],
-                           &_kernels[kern][start_chan][0][0],
-                           partial_layer,
-                           start_chan,
-                           spad0);
-    }
-}
-
-static void convolution_layer_cache_hw(float* cache_activations,
-                                       float* cache_weights,
-                                       float* cache_result,
-                                       float* spad0,
-                                       float* spad1,
-                                       bool input_in_spad0,
-                                       layer_t* all_layers,
-                                       layer_t partial_layer,
-                                       int layer_num,
-                                       int img,
-                                       int kern,
-                                       int start_chan) {
-    layer_t curr_layer = all_layers[layer_num];
-    int input_height = curr_layer.inputs.height;
-    int input_rows= curr_layer.inputs.rows;
-    int input_cols = curr_layer.inputs.cols;
-    int input_pad = curr_layer.inputs.align_pad;
-    int k_width = curr_layer.weights.cols;
-    int k_pad = curr_layer.weights.align_pad;
-
-    ARRAY_4D(float, _a, cache_activations, input_height, input_rows,
-             input_cols + input_pad);
-    ARRAY_4D(float, _kernels, cache_weights, input_height, k_width,
-             k_width + k_pad);
-
-    if (partial_layer.output_req == IO_CACHE) {
-        // Depthwise convolutional layer wants to transfer results via cache.
-        // Standard convolutional layer will put the results in spad0/spad1.
-        convolution3d_smiv(&_a[img][0][0][0],
-                           &_kernels[kern][start_chan][0][0],
-                           partial_layer,
-                           start_chan,
-                           cache_result);
-    } else if (input_in_spad0) {
-        convolution3d_smiv(&_a[img][0][0][0],
-                           &_kernels[kern][start_chan][0][0],
-                           partial_layer,
-                           start_chan,
-                           spad1);
-    } else {
-        convolution3d_smiv(&_a[img][0][0][0],
-                           &_kernels[kern][start_chan][0][0],
-                           partial_layer,
-                           start_chan,
-                           spad0);
-    }
+#undef CONV3D_WITH_DMA_IMPL
+#undef CONV3D_NO_DMA_IMPL
 }
 
 // Find a good way to pack the convolution into the accelerator.
@@ -533,24 +413,22 @@ void standard_convolution_layer_impl(float* host_activations,
                                      float* host_result,
                                      device_t* device,
                                      sampling_param_t* sampling_param) {
-    layer_t curr_layer = layers[lnum];
-    const int result_height = curr_layer.outputs.rows;
-    const int result_width = curr_layer.outputs.cols;
-    const int result_pad = curr_layer.outputs.align_pad;
-    const int num_kerns = curr_layer.outputs.height;
-    const int result_2d_size = result_height * (result_width + result_pad);
-    const int activations_size = INPUT_BYTES(layers, lnum);
-    const int weights_size = WEIGHT_BYTES(layers, lnum);
+    const layer_t curr_layer = layers[lnum];
+    int result_height = curr_layer.outputs.rows;
+    int result_width = curr_layer.outputs.cols;
+    int result_pad = curr_layer.outputs.align_pad;
+    int num_kerns = curr_layer.outputs.height;
+    int input_height = curr_layer.inputs.height;
+    int k_width = curr_layer.weights.cols;
+    int k_pad = curr_layer.weights.align_pad;
     ARRAY_4D(float, _result, host_result, num_kerns, result_height,
              result_width + result_pad);
-
-#if DEBUG_LEVEL >= 1
-    const int input_height = curr_layer.inputs.height;
-    const int k_width = curr_layer.weights.cols;
-    const int k_pad = curr_layer.weights.align_pad;
     ARRAY_4D(float, _kernels, host_weights, input_height, k_width,
              k_width + k_pad);
-#endif
+
+    const int activations_size = INPUT_BYTES(layers, lnum);
+    const int result_2d_size = result_height * (result_width + result_pad);
+    const int weights_size = WEIGHT_BYTES(layers, lnum);
 
     conv_cfg_t conv_cfgs = convolution_divide_work(layers, lnum);
     INFO_MSG("Standard convolution layer %d work configuration:\n", lnum);
@@ -568,7 +446,7 @@ void standard_convolution_layer_impl(float* host_activations,
 
     io_req_t input_req = curr_layer.input_req;
     const char* activations_var_name =
-            input_req == IO_DMA ? "host_activations"
+            input_req == IO_DMA ? "dma_activations"
                                 : input_req == IO_ACP ? "acp_activations"
                                                       : "cache_activations";
     MAP_ARRAY_TO_ACCEL(kConvolutionHw,
@@ -609,70 +487,63 @@ void standard_convolution_layer_impl(float* host_activations,
 
                 // Create a new layer description for this iteration.
                 layer_t partial_layer = curr_layer;
-                partial_layer.inputs.height = iter_cfg.height;
+
+                // Extraneous but just to reinforce the fact that inputs.height
+                // refers to the COMPLETE, UNTILED height.
+                partial_layer.inputs.height = curr_layer.inputs.height;
+                // These height dimensions represent the TILED dimensions.
                 partial_layer.outputs.height = iter_cfg.height;
                 partial_layer.weights.height = iter_cfg.height;
+                float* current_weights_loc = &_kernels[kern][start_chan][0][0];
+                size_t weights_block_size =
+                        get_dims_size(&partial_layer.weights);
 
                 // For the 2D convolution, we don't want to do activation
                 // functions or send data back.
                 partial_layer.activation = NO_ACTIVATION;
                 partial_layer.output_req = IO_NONE;
-                if (partial_layer.input_req == IO_DMA ||
-                    partial_layer.input_req == IO_NONE) {
-                    // We only need to send the inputs to the UMEM on the first
-                    // kernel.
-                    partial_layer.input_req =
-                            (kern == 0) ? partial_layer.input_req : IO_NONE;
-                    INVOKE_KERNEL_PROF(kConvolutionHw,
-                                       lnum,
-                                       convolution_layer_hw,
-                                       host_activations,
-                                       host_weights,
-                                       NULL,
-                                       g_umem,
-                                       g_spad0,
-                                       g_spad1,
-                                       true,
-                                       layers,
-                                       partial_layer,
-                                       lnum,
-                                       img,
-                                       kern,
-                                       start_chan,
-                                       use_pipelined_dma);
-                } else if (partial_layer.input_req == IO_ACP) {
-                    INVOKE_KERNEL_PROF(kConvolutionHw,
-                                       lnum,
-                                       convolution_layer_acp_hw,
-                                       host_activations,
-                                       host_weights,
-                                       NULL,
-                                       g_spad0,
-                                       g_spad1,
-                                       true,
-                                       layers,
-                                       partial_layer,
-                                       lnum,
-                                       img,
-                                       kern,
-                                       start_chan);
-                } else if (partial_layer.input_req == IO_CACHE) {
-                    INVOKE_KERNEL_PROF(kConvolutionHw,
-                                       lnum,
-                                       convolution_layer_cache_hw,
-                                       host_activations,
-                                       host_weights,
-                                       NULL,
-                                       g_spad0,
-                                       g_spad1,
-                                       true,
-                                       layers,
-                                       partial_layer,
-                                       lnum,
-                                       img,
-                                       kern,
-                                       start_chan);
-                }
+
+                // We send all the inputs to the UMEM in one go, so then we
+                // can reuse them for later output channels.
+                if (partial_layer.input_req == IO_DMA && kern > 0)
+                    partial_layer.input_req = IO_NONE;
+
+                convolution_options conv_options;
+                conv_options.img = img;
+                conv_options.kern = kern;
+                conv_options.start_chan = start_chan;
+                conv_options.use_pipelined_dma = use_pipelined_dma;
+                access_config access_cfg =
+                        layer_to_access_config(&partial_layer);
+                io_req_t weights_req = curr_layer.weights_req;
+                const char* weights_var_name =
+                        weights_req == IO_DMA
+                                ? "dma_weights"
+                                : weights_req == IO_ACP ? "acp_weights"
+                                                        : "cache_weights";
+                MAP_ARRAY_TO_ACCEL(kConvolutionHw, weights_var_name,
+                                   current_weights_loc, weights_block_size);
+                INVOKE_KERNEL_PROF(kConvolutionHw,
+                                   lnum,
+                                   convolution_layer_hw,
+                                   // DMA
+                                   host_activations,
+                                   current_weights_loc,
+                                   NULL,
+                                   // ACP
+                                   host_activations,
+                                   current_weights_loc,
+                                   NULL,
+                                   // Cache
+                                   host_activations,
+                                   current_weights_loc,
+                                   NULL,
+                                   g_umem,
+                                   g_spad0,
+                                   g_spad1,
+                                   partial_layer,
+                                   &access_cfg,
+                                   &conv_options);
 
                 // Reduce the results.
                 //
@@ -680,6 +551,7 @@ void standard_convolution_layer_impl(float* host_activations,
                 // the standard reduction function with DMA. If the act func is
                 // not supported, then use the ACP reduction impl, except if
                 // the user specified to use DMA anyways.
+                partial_layer.input_req = IO_NONE;
                 partial_layer.output_req = curr_layer.output_req;
                 // For standard convolution, only do the activation in the
                 // reduction block.
@@ -692,50 +564,37 @@ void standard_convolution_layer_impl(float* host_activations,
                 if (output_req != IO_NONE) {
                     const char* results_var_name =
                             output_req == IO_DMA
-                                    ? "host_result"
-                                    : output_req == IO_ACP ? "acp_result"
-                                                           : "cache_result";
+                                    ? "dma_results"
+                                    : output_req == IO_ACP ? "acp_results"
+                                                           : "cache_results";
                     MAP_ARRAY_TO_ACCEL(kReductionHw,
                                        results_var_name,
                                        result_loc,
                                        result_2d_size * sizeof(float));
                 }
-                if (output_req == IO_DMA) {
-                    INVOKE_KERNEL_PROF(kReductionHw,
-                                       lnum,
-                                       reduction_hw,
-                                       g_spad0,
-                                       g_spad1,
-                                       g_umem,
-                                       false,
-                                       false,
-                                       partial_layer,
-                                       result_2d_size,
-                                       result_loc,
-                                       use_pipelined_dma);
-                } else if (output_req == IO_ACP) {
-                    INVOKE_KERNEL_PROF(kReductionHw,
-                                       lnum,
-                                       reduction_acp_hw,
-                                       g_spad0,
-                                       g_spad1,
-                                       result_loc,
-                                       false,
-                                       false,
-                                       partial_layer,
-                                       result_2d_size);
-                } else if (output_req == IO_CACHE) {
-                    INVOKE_KERNEL_PROF(kReductionHw,
-                                       lnum,
-                                       reduction_cache_hw,
-                                       g_spad0,
-                                       g_spad1,
-                                       result_loc,
-                                       false,
-                                       false,
-                                       partial_layer,
-                                       result_2d_size);
-                }
+                partial_layer.inputs.height = iter_cfg.height;
+                reduction_options red_options;
+                red_options.input_in_spad0 = false;
+                red_options.use_pipelined_dma = device->use_pipelined_dma;
+                access_cfg = layer_to_access_config(&partial_layer);
+                INVOKE_KERNEL_PROF(kReductionHw,
+                                   lnum,
+                                   reduction_hw,
+                                   // DMA
+                                   NULL,
+                                   result_loc,
+                                   // ACP
+                                   NULL,
+                                   result_loc,
+                                   // Cache
+                                   NULL,
+                                   result_loc,
+                                   g_umem,
+                                   g_spad0,
+                                   g_spad1,
+                                   partial_layer,
+                                   &access_cfg,
+                                   &red_options);
 
                 result_loc += result_2d_size;
                 start_chan += iter_cfg.height;
@@ -750,73 +609,56 @@ void standard_convolution_layer_impl(float* host_activations,
                              (float)SPAD_SIZE);
                 assert(result_iter <= 1 &&
                        "Only support 1 last iteration of reduction!");
-                int num_result_chans = min2((int)conv_cfgs.num_iterations,
-                                            SPAD_SIZE / result_2d_size);
 
                 // Create a new layer description for this iteration.
                 layer_t partial_layer = curr_layer;
-                partial_layer.inputs.height = num_result_chans;
+                partial_layer.inputs.height = (int)conv_cfgs.num_iterations;
                 partial_layer.outputs.height = 1;
 
                 io_req_t output_req = partial_layer.output_req;
                 const char* results_var_name =
                         output_req == IO_DMA
-                                ? "host_result"
-                                : output_req == IO_ACP ? "acp_result"
-                                                       : "cache_result";
-                for (int iter = 0; iter < result_iter; iter++) {
-                    PRINT_MSG("Final reduction round %d\n", iter);
-                    if (output_req != IO_NONE) {
-                        MAP_ARRAY_TO_ACCEL(kReductionHw,
-                                           results_var_name,
-                                           result_loc,
-                                           temp_result_size);
-                    }
-                    if (do_hw_activation ||
-                        partial_layer.output_req == IO_DMA) {
-                        // Flush cache lines for temporary results.
-                        begin_ignored_profiling(lnum);
-                        flush_cache_range(
-                                temp_result, temp_result_size / sizeof(float));
-                        end_profiling();
-
-                        INVOKE_KERNEL_PROF(kReductionHw,
-                                           lnum,
-                                           reduction_hw,
-                                           g_spad0,
-                                           g_spad1,
-                                           g_umem,
-                                           false,
-                                           true,
-                                           partial_layer,
-                                           result_2d_size,
-                                           result_loc,
-                                           use_pipelined_dma);
-                    } else if (partial_layer.output_req == IO_ACP) {
-                        INVOKE_KERNEL_PROF(kReductionHw,
-                                           lnum,
-                                           reduction_acp_hw,
-                                           g_spad0,
-                                           g_spad1,
-                                           result_loc,
-                                           false,
-                                           true,
-                                           partial_layer,
-                                           result_2d_size);
-                    } else if (partial_layer.output_req == IO_CACHE) {
-                        INVOKE_KERNEL_PROF(kReductionHw,
-                                           lnum,
-                                           reduction_cache_hw,
-                                           g_spad0,
-                                           g_spad1,
-                                           result_loc,
-                                           false,
-                                           true,
-                                           partial_layer,
-                                           result_2d_size);
-                    }
-                    result_loc += result_2d_size;
+                                ? "dma_results"
+                                : output_req == IO_ACP ? "acp_results"
+                                                       : "cache_results";
+                PRINT_MSG("Final reduction round\n");
+                if (output_req != IO_NONE) {
+                    MAP_ARRAY_TO_ACCEL(kReductionHw,
+                                       results_var_name,
+                                       result_loc,
+                                       temp_result_size);
                 }
+                if (do_hw_activation || partial_layer.output_req == IO_DMA) {
+                    // Flush cache lines for temporary results.
+                    begin_ignored_profiling(lnum);
+                    flush_cache_range(
+                            temp_result, temp_result_size / sizeof(float));
+                    end_profiling();
+                }
+                partial_layer.input_req = device->cpu_default_offload;
+                reduction_options red_options;
+                red_options.input_in_spad0 = true;
+                red_options.use_pipelined_dma = device->use_pipelined_dma;
+                access_config access_cfg =
+                        layer_to_access_config(&partial_layer);
+                INVOKE_KERNEL_PROF(kReductionHw,
+                                   lnum,
+                                   reduction_hw,
+                                   // DMA
+                                   result_loc,
+                                   result_loc,
+                                   // ACP
+                                   result_loc,
+                                   result_loc,
+                                   // Cache
+                                   result_loc,
+                                   result_loc,
+                                   g_umem,
+                                   g_spad0,
+                                   g_spad1,
+                                   partial_layer,
+                                   &access_cfg,
+                                   &red_options);
             }
 
             // If the HW doesn't support the activation function, don't run the
@@ -854,22 +696,18 @@ void depthwise_convolution_layer_impl(float* host_activations,
                                       int lnum,
                                       float* host_result,
                                       device_t* device) {
-
     layer_t curr_layer = layers[lnum];
     const int result_height = curr_layer.outputs.rows;
     const int result_width = curr_layer.outputs.cols;
     const int result_pad = curr_layer.outputs.align_pad;
+    const int input_height = curr_layer.inputs.height;
+    const int k_width = curr_layer.weights.cols;
+    const int k_pad = curr_layer.weights.align_pad;
     const int activations_size = get_input_activations_size(&curr_layer);
     const int weights_size = get_num_weights_layer(layers, lnum);
     ARRAY_3D(float, _result, host_result, result_height,
              result_width + result_pad);
-
-#if DEBUG_LEVEL >= 1
-    const int input_height = curr_layer.inputs.height;
-    const int k_width = curr_layer.weights.cols;
-    const int k_pad = curr_layer.weights.align_pad;
     ARRAY_3D(float, _kernels, host_weights, k_width, k_width + k_pad);
-#endif
 
     conv_cfg_t conv_cfgs = convolution_divide_work(layers, lnum);
     INFO_MSG("Depthwise convolution layer %d work configuration:\n", lnum);
@@ -882,7 +720,7 @@ void depthwise_convolution_layer_impl(float* host_activations,
     bool use_pipelined_dma = device->use_pipelined_dma;
     io_req_t input_req = curr_layer.input_req;
     const char* activations_var_name =
-            input_req == IO_DMA ? "host_activations"
+            input_req == IO_DMA ? "dma_activations"
                                 : input_req == IO_ACP ? "acp_activations"
                                                       : "cache_activations";
     MAP_ARRAY_TO_ACCEL(kConvolutionHw,
@@ -912,9 +750,14 @@ void depthwise_convolution_layer_impl(float* host_activations,
 
             // Create a new layer description for this iteration.
             layer_t partial_layer = curr_layer;
+            // These are the UNTILED dimensions.
             partial_layer.inputs.height = iter_cfg.height;
+            // These are the TILED dimensions.
             partial_layer.outputs.height = iter_cfg.height;
             partial_layer.weights.height = iter_cfg.height;
+            float* current_weights_loc = &_kernels[start_chan][0][0];
+            size_t weights_block_size = get_dims_size(&partial_layer.weights);
+
             // Unlike the standard convolution, filters are applied
             // channelwise, so we don't need to wait to do activation functions
             // until after the reductions (which don't exist in depthwise
@@ -923,98 +766,57 @@ void depthwise_convolution_layer_impl(float* host_activations,
                     !do_hw_activation ? NO_ACTIVATION : curr_layer.activation;
             // Always send data back.
             partial_layer.output_req = curr_layer.output_req;
-            io_req_t output_req = partial_layer.output_req;
-            if (output_req != IO_NONE) {
+            if (partial_layer.output_req != IO_NONE) {
                 const char* results_var_name =
-                        output_req == IO_DMA
-                                ? "host_result"
-                                : output_req == IO_ACP ? "acp_result"
-                                                       : "cache_result";
+                        partial_layer.output_req == IO_DMA
+                                ? "dma_results"
+                                : partial_layer.output_req == IO_ACP
+                                          ? "acp_results"
+                                          : "cache_results";
                 MAP_ARRAY_TO_ACCEL(kConvolutionHw,
                                    results_var_name,
                                    current_result,
                                    current_iter_result_size * sizeof(float));
             }
+            convolution_options conv_options;
+            conv_options.img = img;
             // The standard "kern" dimension is always 0, since the kernel
             // dimension is now the channel dimension.
-            const int kern = 0;
-            if (partial_layer.input_req == IO_DMA) {
-                if (partial_layer.output_req == IO_ACP) {
-                    // Use ACP only for results.
-                    INVOKE_KERNEL_PROF(kConvolutionHw,
-                                       lnum,
-                                       convolution_layer_acp_result_hw,
-                                       host_activations,
-                                       host_weights,
-                                       current_result,
-                                       g_umem,
-                                       g_spad0,
-                                       g_spad1,
-                                       true,
-                                       layers,
-                                       partial_layer,
-                                       lnum,
-                                       img,
-                                       kern,
-                                       start_chan,
-                                       use_pipelined_dma);
-                } else {
-                    INVOKE_KERNEL_PROF(kConvolutionHw,
-                                       lnum,
-                                       convolution_layer_hw,
-                                       host_activations,
-                                       host_weights,
-                                       current_result,
-                                       g_umem,
-                                       g_spad0,
-                                       g_spad1,
-                                       true,
-                                       layers,
-                                       partial_layer,
-                                       lnum,
-                                       img,
-                                       kern,
-                                       start_chan,
-                                       use_pipelined_dma);
-                }
-            } else if (partial_layer.input_req == IO_ACP) {
-                INVOKE_KERNEL_PROF(kConvolutionHw,
-                                   lnum,
-                                   convolution_layer_acp_hw,
-                                   host_activations,
-                                   host_weights,
-                                   current_result,
-                                   g_spad0,
-                                   g_spad1,
-                                   true,
-                                   layers,
-                                   partial_layer,
-                                   lnum,
-                                   img,
-                                   kern,
-                                   start_chan);
-            } else if (partial_layer.input_req == IO_CACHE) {
-                INVOKE_KERNEL_PROF(kConvolutionHw,
-                                   lnum,
-                                   convolution_layer_cache_hw,
-                                   host_activations,
-                                   host_weights,
-                                   current_result,
-                                   g_spad0,
-                                   g_spad1,
-                                   true,
-                                   layers,
-                                   partial_layer,
-                                   lnum,
-                                   img,
-                                   kern,
-                                   start_chan);
-            }
-
+            conv_options.kern = 0;
+            conv_options.start_chan = start_chan;
+            conv_options.use_pipelined_dma = use_pipelined_dma;
+            access_config access_cfg = layer_to_access_config(&partial_layer);
+            io_req_t weights_req = partial_layer.weights_req;
+            const char* weights_var_name = weights_req == IO_DMA
+                                                   ? "dma_weights"
+                                                   : weights_req == IO_ACP
+                                                             ? "acp_weights"
+                                                             : "cache_weights";
+            MAP_ARRAY_TO_ACCEL(kConvolutionHw, weights_var_name,
+                               current_weights_loc, weights_block_size);
+            INVOKE_KERNEL_PROF(kConvolutionHw,
+                               lnum,
+                               convolution_layer_hw,
+                               // DMA
+                               host_activations,
+                               current_weights_loc,
+                               current_result,
+                               // ACP
+                               host_activations,
+                               current_weights_loc,
+                               current_result,
+                               // Cache
+                               host_activations,
+                               current_weights_loc,
+                               current_result,
+                               g_umem,
+                               g_spad0,
+                               g_spad1,
+                               partial_layer,
+                               &access_cfg,
+                               &conv_options);
             current_result += current_iter_result_size;
             start_chan += iter_cfg.height;
         }
     }
 }
-
-#endif

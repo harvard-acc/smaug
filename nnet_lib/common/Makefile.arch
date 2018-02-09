@@ -52,6 +52,11 @@ MKL_SRCS = core/mkl/convolution.cpp \
 					 core/mkl/activation_functions.cpp \
 					 utility/mkl/utility.cpp
 
+SMIV_ARCH_SRCS = arch/smiv/inner_product.c \
+							 	 arch/smiv/convolution.c \
+								 arch/smiv/pooling.c \
+								 arch/smiv/dispatch_utils.c
+
 NNET_FWD_MAIN = nnet_fwd.c
 CPP_NNET_FWD_MAIN = nnet_fwd.cpp
 CONFIG_H = config.h
@@ -65,8 +70,8 @@ ARCH ?= MONOLITHIC
 
 ifeq ($(ARCH), SMIV)
 EXEC = nnet-smiv
-export WORKLOAD=inner_product_layer_hw,convolution_layer_hw,convolution_layer_acp_result_hw,convolution_layer_acp_hw,convolution_layer_cache_hw,activation_hw,reduction_hw,reduction_acp_hw,reduction_cache_hw,batch_norm_layer_hw,pooling_layer_hw,decompress_packed_csr_smiv_hw
-SRCS += $(NNET_FWD_MAIN)
+export WORKLOAD=inner_product_layer_hw,convolution_layer_hw,activation_hw,reduction_hw,batch_norm_layer_hw,pooling_layer_hw,decompress_packed_csr_smiv_hw
+SRCS += $(NNET_FWD_MAIN) $(SMIV_ARCH_SRCS)
 else ifeq	($(ARCH), COMPOSABLE)
 EXEC = nnet-composable
 export WORKLOAD=inner_product_layer_hw,convolution_layer_hw,activation_hw,batch_norm_layer_hw,max_pooling_hw,avg_pooling_hw

@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "arch/smiv_common.h"
+#include "arch/smiv/dispatch_utils.h"
 #include "core/nnet_fwd_defs.h"
 #include "core/smiv/params.h"
 #include "core/smiv/smiv.h"
@@ -20,75 +21,6 @@ typedef struct _inner_product_options {
     bool input_in_spad0;
     bool use_pipelined_dma;
 } inner_product_options;
-
-//=-------------------------------=//
-// These are INTERNAL data structures and functions that should only be used by
-// the dispatcher! All other functions should directly use layer_t.*_req
-// instead.
-
-typedef enum _access_mechanism {
-    _DmaOrLocal = IO_NONE,
-    _ACP = IO_ACP,
-    _Cache = IO_CACHE,
-    _UnknownMechanism
-} access_mechanism;
-
-typedef struct _access_config {
-    access_mechanism inputs;
-    access_mechanism weights;
-    access_mechanism outputs;
-} access_config;
-
-ALWAYS_INLINE
-static access_mechanism io_to_access_mechanism(io_req_t req) {
-    switch (req) {
-        case IO_NONE:
-        case IO_DMA:
-            return _DmaOrLocal;
-        case IO_ACP:
-            return _ACP;
-        case IO_CACHE:
-            return _Cache;
-        default:
-            assert(false && "Unknown io_req_t value!");
-            return _UnknownMechanism;
-    }
-}
-
-//=-------------------------------=//
-
-ALWAYS_INLINE
-void dma_wrapper(float* host,
-                 float* local,
-                 size_t transfer_size,
-                 bool is_load,
-                 bool use_pipelined_dma) {
-    if (use_pipelined_dma) {
-        divide_and_send_dma_req(
-                host, local, transfer_size, LOG_PAGE_SIZE, is_load);
-    } else {
-        if (is_load)
-            dmaLoad(local, host, transfer_size);
-       else
-            dmaStore(host, local, transfer_size);
-    }
-}
-
-ALWAYS_INLINE
-void dma_load_wrapper(float* local_dest,
-                      float* host_src,
-                      size_t transfer_size,
-                      bool use_pipelined_dma) {
-    dma_wrapper(host_src, local_dest, transfer_size, true, use_pipelined_dma);
-}
-
-ALWAYS_INLINE
-void dma_store_wrapper(float* host_dest,
-                       float* local_src,
-                       size_t transfer_size,
-                       bool use_pipelined_dma) {
-    dma_wrapper(host_dest, local_src, transfer_size, false, use_pipelined_dma);
-}
 
 // Main implementation of inner product HW.
 //
@@ -193,25 +125,25 @@ void inner_product_layer_hw(float* dma_activations,
 //    HR = host results
 //    LA = local activations
 //    LW = local weights
-//    RES = local result
+//    LR = local result
 
 // No DMA involved, so we can pass NULL pointers for the first three arguments.
 // All args to this macro are mechanism prefixes (e.g. dma, acp, cache).
-#define INNER_PROD_NO_DMA_IMPL(INPUT, WGT, RES)                                \
+#define INNER_PROD_NO_DMA_IMPL(INPUT, WGT, LR)                                 \
     do {                                                                       \
-        PRINT_MSG(#INPUT "-" #WGT "-" #RES "\n");                              \
+        PRINT_MSG(#INPUT "-" #WGT "-" #LR "\n");                               \
         inner_product_layer_hw_impl(NULL, NULL, NULL, INPUT##_activations,     \
-                                    WGT##_weights, RES##_results, curr_layer,  \
+                                    WGT##_weights, LR##_results, curr_layer,   \
                                     options);                                  \
     } while (0)
 
 // DMA potentially used for all host arguments. The first three arguments are
 // mechanism prefixes; all other arguments are the full variable names.
-#define INNER_PROD_WITH_DMA_IMPL(HA, HW, HR, LA, LW, RES)                      \
+#define INNER_PROD_WITH_DMA_IMPL(HA, HW, HR, LA, LW, LR)                       \
     do {                                                                       \
-        PRINT_MSG(#HA "-" #HW "-" #HR "-" #LA "-" #LW "-" #RES "\n");          \
+        PRINT_MSG(#HA "-" #HW "-" #HR "-" #LA "-" #LW "-" #LR "\n");           \
         inner_product_layer_hw_impl(HA##_activations, HW##_weights,            \
-                                    HR##_results, LA, LW, RES, curr_layer,     \
+                                    HR##_results, LA, LW, LR, curr_layer,      \
                                     options);                                  \
     } while (0)
 
@@ -219,12 +151,12 @@ void inner_product_layer_hw(float* dma_activations,
 // is going to a non-scratchpad location. Select the right input array with
 // SELECT_SPAD0.
 #define INNER_PROD_WITH_DMA_SPAD_INPUT_IMPL(                                   \
-        HA, HW, HR, SPAD0, SPAD1, SELECT_SPAD0, LW, RES)                       \
+        HA, HW, HR, SPAD0, SPAD1, SELECT_SPAD0, LW, LR)                        \
     do {                                                                       \
         if (SELECT_SPAD0) {                                                    \
-            INNER_PROD_WITH_DMA_IMPL(HA, HW, HR, SPAD0, LW, RES);              \
+            INNER_PROD_WITH_DMA_IMPL(HA, HW, HR, SPAD0, LW, LR);               \
         } else {                                                               \
-            INNER_PROD_WITH_DMA_IMPL(HA, HW, HR, SPAD1, LW, RES);              \
+            INNER_PROD_WITH_DMA_IMPL(HA, HW, HR, SPAD1, LW, LR);               \
         }                                                                      \
     } while (0)
 
@@ -252,37 +184,30 @@ void inner_product_layer_hw(float* dma_activations,
         }                                                                      \
     } while (0)
 
-// A conditional statement that checks if an access mechanism configuration
-// matches some combination. This can be used directly in an if statement.
-#define DISPATCH(config, _inputs, _weights, _outputs)                         \
-    (((config)->inputs == (_inputs))    &&                                    \
-     ((config)->weights == (_weights))  &&                                    \
-     ((config)->outputs == (_outputs)))
-
     bool input_in_spad0 = options->input_in_spad0;
     // These selections use the same mechanism all across.
-    if (DISPATCH(access_config, _DmaOrLocal, _DmaOrLocal, _DmaOrLocal)) {
+    if (DISPATCH_3(access_config, _DmaOrLocal, _DmaOrLocal, _DmaOrLocal)) {
         INNER_PROD_WITH_DMA_SPAD_IO_IMPL(
             dma, dma, dma, umem, spad0, spad1, input_in_spad0);
-    } else if (DISPATCH(access_config, _ACP, _ACP, _ACP)) {
+    } else if (DISPATCH_3(access_config, _ACP, _ACP, _ACP)) {
         INNER_PROD_NO_DMA_IMPL(acp, acp, acp);
-    } else if (DISPATCH(access_config, _Cache, _Cache, _Cache)) {
+    } else if (DISPATCH_3(access_config, _Cache, _Cache, _Cache)) {
         INNER_PROD_NO_DMA_IMPL(cache, cache, cache);
     }
     // These selections only use _ACP or _Cache for the results.
-    else if (DISPATCH(access_config, _DmaOrLocal, _DmaOrLocal, _ACP)) {
+    else if (DISPATCH_3(access_config, _DmaOrLocal, _DmaOrLocal, _ACP)) {
         INNER_PROD_WITH_DMA_SPAD_INPUT_IMPL(
-                dma, dma, dma, spad0, spad1, input_in_spad0, umem, acp_results);
-    } else if (DISPATCH(access_config, _DmaOrLocal, _DmaOrLocal, _Cache)) {
+                dma, dma, acp, spad0, spad1, input_in_spad0, umem, acp_results);
+    } else if (DISPATCH_3(access_config, _DmaOrLocal, _DmaOrLocal, _Cache)) {
         INNER_PROD_WITH_DMA_SPAD_INPUT_IMPL(
-                dma, dma, dma, spad0, spad1, input_in_spad0, umem, cache_results);
+                dma, dma, cache, spad0, spad1, input_in_spad0, umem, cache_results);
     }
     // These selections use DMA/None for the inputs.
-    else if (DISPATCH(access_config, _DmaOrLocal, _ACP, _ACP)) {
+    else if (DISPATCH_3(access_config, _DmaOrLocal, _ACP, _ACP)) {
         INNER_PROD_WITH_DMA_SPAD_INPUT_IMPL(dma, acp, acp, spad0, spad1,
                                             input_in_spad0, acp_weights,
                                             acp_results);
-    } else if (DISPATCH(access_config, _DmaOrLocal, _Cache, _Cache)) {
+    } else if (DISPATCH_3(access_config, _DmaOrLocal, _Cache, _Cache)) {
         INNER_PROD_WITH_DMA_SPAD_INPUT_IMPL(dma, cache, cache, spad0, spad1,
                                             input_in_spad0, cache_weights,
                                             cache_results);
@@ -291,10 +216,10 @@ void inner_product_layer_hw(float* dma_activations,
     //
     // NOTE: This scenario is currently not possible to specify via the model
     // configuration file.
-    else if (DISPATCH(access_config, _DmaOrLocal, _ACP, _DmaOrLocal)) {
+    else if (DISPATCH_3(access_config, _DmaOrLocal, _ACP, _DmaOrLocal)) {
         INNER_PROD_WITH_DMA_SPAD_IO_IMPL(
             dma, acp, dma, acp_weights, spad0, spad1, input_in_spad0);
-    } else if (DISPATCH(access_config, _DmaOrLocal, _Cache, _DmaOrLocal)) {
+    } else if (DISPATCH_3(access_config, _DmaOrLocal, _Cache, _DmaOrLocal)) {
         INNER_PROD_WITH_DMA_SPAD_IO_IMPL(
             dma, cache, dma, cache_weights, spad0, spad1, input_in_spad0);
     }
@@ -306,11 +231,11 @@ void inner_product_layer_hw(float* dma_activations,
     // forth regardless of what actually happened. To ensure that future layers
     // will get the right data, we still have to obey this condition. This
     // needs to be fixed.
-    else if (DISPATCH(access_config, _ACP, _ACP, _DmaOrLocal)) {
+    else if (DISPATCH_3(access_config, _ACP, _ACP, _DmaOrLocal)) {
         INNER_PROD_WITH_DMA_SPAD_OUTPUT_IMPL(acp, acp, dma, acp_activations,
                                              acp_weights, spad0, spad1,
                                              input_in_spad0);
-    } else if (DISPATCH(access_config, _Cache, _Cache, _DmaOrLocal)) {
+    } else if (DISPATCH_3(access_config, _Cache, _Cache, _DmaOrLocal)) {
         INNER_PROD_WITH_DMA_SPAD_OUTPUT_IMPL(cache, cache, dma,
                                              cache_activations, cache_weights,
                                              spad0, spad1, input_in_spad0);
@@ -319,10 +244,10 @@ void inner_product_layer_hw(float* dma_activations,
     // This is used if the FC layer is using decompressed CSR weights (after
     // decompression the weights are already in the UMEM so no more data
     // movement is required).
-    else if (DISPATCH(access_config, _ACP, _DmaOrLocal, _ACP)) {
+    else if (DISPATCH_3(access_config, _ACP, _DmaOrLocal, _ACP)) {
         INNER_PROD_WITH_DMA_IMPL(
                 acp, dma, acp, acp_activations, umem, acp_results);
-    } else if (DISPATCH(access_config, _Cache, _DmaOrLocal, _Cache)) {
+    } else if (DISPATCH_3(access_config, _Cache, _DmaOrLocal, _Cache)) {
         INNER_PROD_WITH_DMA_IMPL(
                 cache, dma, cache, cache_activations, umem, cache_results);
     }
@@ -332,7 +257,6 @@ void inner_product_layer_hw(float* dma_activations,
                "This is an unsupported combination of access mechanisms!");
     }
 
-#undef DISPATCH
 #undef INNER_PROD_WITH_DMA_SPAD_INPUT_IMPL
 #undef INNER_PROD_WITH_DMA_SPAD_OUTPUT_IMPL
 #undef INNER_PROD_WITH_DMA_SPAD_IO_IMPL
