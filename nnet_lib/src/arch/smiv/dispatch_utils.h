@@ -53,4 +53,11 @@ void dma_store_wrapper(float* host_dest,
                        size_t transfer_size,
                        bool use_pipelined_dma);
 
+//=--------------------------------------------------------------------------=//
+// Returns the canonical function arg name for this access mechanism.
+
+const char* get_host_inputs_var_name(io_req_t req);
+const char* get_host_weights_var_name(io_req_t req);
+const char* get_host_results_var_name(io_req_t req);
+
 #endif

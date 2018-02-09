@@ -444,16 +444,11 @@ void standard_convolution_layer_impl(float* host_activations,
                                     curr_layer.type, curr_layer.activation);
     bool use_pipelined_dma = device->use_pipelined_dma;
 
-    io_req_t input_req = curr_layer.input_req;
-    const char* activations_var_name =
-            input_req == IO_DMA ? "dma_activations"
-                                : input_req == IO_ACP ? "acp_activations"
-                                                      : "cache_activations";
     MAP_ARRAY_TO_ACCEL(kConvolutionHw,
-                       activations_var_name,
+                       get_host_inputs_var_name(curr_layer.input_req),
                        host_activations,
                        activations_size);
-    if (input_req == IO_DMA) {
+    if (curr_layer.input_req == IO_DMA) {
         // Flush cache lines for activations and weights.
         begin_ignored_profiling(lnum);
         flush_cache_range(host_activations, activations_size / sizeof(float));
@@ -515,14 +510,10 @@ void standard_convolution_layer_impl(float* host_activations,
                 conv_options.use_pipelined_dma = use_pipelined_dma;
                 access_config access_cfg =
                         layer_to_access_config(&partial_layer);
-                io_req_t weights_req = curr_layer.weights_req;
-                const char* weights_var_name =
-                        weights_req == IO_DMA
-                                ? "dma_weights"
-                                : weights_req == IO_ACP ? "acp_weights"
-                                                        : "cache_weights";
-                MAP_ARRAY_TO_ACCEL(kConvolutionHw, weights_var_name,
-                                   current_weights_loc, weights_block_size);
+                MAP_ARRAY_TO_ACCEL(
+                        kConvolutionHw,
+                        get_host_weights_var_name(partial_layer.weights_req),
+                        current_weights_loc, weights_block_size);
                 INVOKE_KERNEL_PROF(kConvolutionHw,
                                    lnum,
                                    convolution_layer_hw,
@@ -559,19 +550,12 @@ void standard_convolution_layer_impl(float* host_activations,
                         conv_cfgs.num_iterations > 1 || !do_hw_activation
                                 ? NO_ACTIVATION
                                 : curr_layer.activation;
+                MAP_ARRAY_TO_ACCEL(
+                        kReductionHw,
+                        get_host_results_var_name(partial_layer.output_req),
+                        result_loc,
+                        result_2d_size * sizeof(float));
 
-                io_req_t output_req =  partial_layer.output_req;
-                if (output_req != IO_NONE) {
-                    const char* results_var_name =
-                            output_req == IO_DMA
-                                    ? "dma_results"
-                                    : output_req == IO_ACP ? "acp_results"
-                                                           : "cache_results";
-                    MAP_ARRAY_TO_ACCEL(kReductionHw,
-                                       results_var_name,
-                                       result_loc,
-                                       result_2d_size * sizeof(float));
-                }
                 partial_layer.inputs.height = iter_cfg.height;
                 reduction_options red_options;
                 red_options.input_in_spad0 = false;
@@ -615,18 +599,13 @@ void standard_convolution_layer_impl(float* host_activations,
                 partial_layer.inputs.height = (int)conv_cfgs.num_iterations;
                 partial_layer.outputs.height = 1;
 
-                io_req_t output_req = partial_layer.output_req;
-                const char* results_var_name =
-                        output_req == IO_DMA
-                                ? "dma_results"
-                                : output_req == IO_ACP ? "acp_results"
-                                                       : "cache_results";
                 PRINT_MSG("Final reduction round\n");
-                if (output_req != IO_NONE) {
-                    MAP_ARRAY_TO_ACCEL(kReductionHw,
-                                       results_var_name,
-                                       result_loc,
-                                       temp_result_size);
+                if (partial_layer.output_req != IO_NONE) {
+                    MAP_ARRAY_TO_ACCEL(
+                            kReductionHw,
+                            get_host_results_var_name(partial_layer.output_req),
+                            result_loc,
+                            temp_result_size);
                 }
                 if (do_hw_activation || partial_layer.output_req == IO_DMA) {
                     // Flush cache lines for temporary results.
@@ -700,7 +679,6 @@ void depthwise_convolution_layer_impl(float* host_activations,
     const int result_height = curr_layer.outputs.rows;
     const int result_width = curr_layer.outputs.cols;
     const int result_pad = curr_layer.outputs.align_pad;
-    const int input_height = curr_layer.inputs.height;
     const int k_width = curr_layer.weights.cols;
     const int k_pad = curr_layer.weights.align_pad;
     const int activations_size = get_input_activations_size(&curr_layer);
@@ -718,16 +696,11 @@ void depthwise_convolution_layer_impl(float* host_activations,
                                     curr_layer.type, curr_layer.activation);
 
     bool use_pipelined_dma = device->use_pipelined_dma;
-    io_req_t input_req = curr_layer.input_req;
-    const char* activations_var_name =
-            input_req == IO_DMA ? "dma_activations"
-                                : input_req == IO_ACP ? "acp_activations"
-                                                      : "cache_activations";
     MAP_ARRAY_TO_ACCEL(kConvolutionHw,
-                       activations_var_name,
+                       get_host_inputs_var_name(curr_layer.input_req),
                        host_activations,
                        activations_size * sizeof(float));
-    if (input_req == IO_DMA) {
+    if (curr_layer.input_req == IO_DMA) {
         // Flush cache lines for activations and weights.
         begin_ignored_profiling(lnum);
         flush_cache_range(host_activations, activations_size);
@@ -767,16 +740,11 @@ void depthwise_convolution_layer_impl(float* host_activations,
             // Always send data back.
             partial_layer.output_req = curr_layer.output_req;
             if (partial_layer.output_req != IO_NONE) {
-                const char* results_var_name =
-                        partial_layer.output_req == IO_DMA
-                                ? "dma_results"
-                                : partial_layer.output_req == IO_ACP
-                                          ? "acp_results"
-                                          : "cache_results";
-                MAP_ARRAY_TO_ACCEL(kConvolutionHw,
-                                   results_var_name,
-                                   current_result,
-                                   current_iter_result_size * sizeof(float));
+                MAP_ARRAY_TO_ACCEL(
+                        kConvolutionHw,
+                        get_host_results_var_name(partial_layer.output_req),
+                        current_result,
+                        current_iter_result_size * sizeof(float));
             }
             convolution_options conv_options;
             conv_options.img = img;
@@ -786,14 +754,10 @@ void depthwise_convolution_layer_impl(float* host_activations,
             conv_options.start_chan = start_chan;
             conv_options.use_pipelined_dma = use_pipelined_dma;
             access_config access_cfg = layer_to_access_config(&partial_layer);
-            io_req_t weights_req = partial_layer.weights_req;
-            const char* weights_var_name = weights_req == IO_DMA
-                                                   ? "dma_weights"
-                                                   : weights_req == IO_ACP
-                                                             ? "acp_weights"
-                                                             : "cache_weights";
-            MAP_ARRAY_TO_ACCEL(kConvolutionHw, weights_var_name,
-                               current_weights_loc, weights_block_size);
+            MAP_ARRAY_TO_ACCEL(
+                    kConvolutionHw,
+                    get_host_weights_var_name(partial_layer.weights_req),
+                    current_weights_loc, weights_block_size);
             INVOKE_KERNEL_PROF(kConvolutionHw,
                                lnum,
                                convolution_layer_hw,

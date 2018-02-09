@@ -63,3 +63,19 @@ void dma_store_wrapper(float* host_dest,
                        bool use_pipelined_dma) {
     dma_wrapper(host_dest, local_src, transfer_size, false, use_pipelined_dma);
 }
+
+const char* get_host_inputs_var_name(io_req_t req) {
+    return req == IO_DMA
+                   ? "dma_activations"
+                   : req == IO_ACP ? "acp_activations" : "cache_activations";
+}
+
+const char* get_host_weights_var_name(io_req_t req) {
+    return req == IO_DMA ? "dma_weights"
+                         : req == IO_ACP ? "acp_weights" : "cache_weights";
+}
+
+const char* get_host_results_var_name(io_req_t req) {
+    return req == IO_DMA ? "dma_results"
+                         : req == IO_ACP ? "acp_results" : "cache_results";
+}
