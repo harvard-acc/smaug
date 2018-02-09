@@ -214,6 +214,46 @@ class MinervaAccessMechanismCsrTests(MinervaAccessMechanismTests):
         model_file, correct_output,
         param_file=self.param_file, data_init_mode="READ_FILE");
 
+class Cifar10CnnAccessMechanismTests(BaseTest):
+  """ These tests exercise different combinations of the offload mechanisms. """
+  def setUp(self):
+    """ All these tests should produce the SAME output from random data. """
+    super(Cifar10CnnAccessMechanismTests, self).setUp()
+    self.correct_output = "cifar10-keras-example-random-data.out"
+
+  def test_cifar10_cnn_all_cache(self):
+    model_file = "cifar10/cnn-access-mechs/cnn-cache.conf"
+    self.runAndValidate(model_file, self.correct_output)
+
+  def test_cifar10_cnn_all_acp(self):
+    model_file = "cifar10/cnn-access-mechs/cnn-acp.conf"
+    self.runAndValidate(model_file, self.correct_output)
+
+  def test_cifar10_cnn_dma_acp(self):
+    model_file = "cifar10/cnn-access-mechs/cnn-dma-acp.conf"
+    self.runAndValidate(model_file, self.correct_output)
+
+  def test_cifar10_cnn_dma_cache(self):
+    model_file = "cifar10/cnn-access-mechs/cnn-dma-cache.conf"
+    self.runAndValidate(model_file, self.correct_output)
+
+  def test_cifar10_cnn_acp_no_hw_act_func(self):
+    model_file = "cifar10/cnn-access-mechs/cnn-acp-no-hw-act-func.conf"
+    self.runAndValidate(model_file, self.correct_output)
+
+  def test_cifar10_cnn_cache_no_hw_act_func(self):
+    model_file = "cifar10/cnn-access-mechs/cnn-cache-no-hw-act-func.conf"
+    self.runAndValidate(model_file, self.correct_output)
+
+  def test_cifar10_cnn_dma_acp_no_hw_act_func(self):
+    model_file = "cifar10/cnn-access-mechs/cnn-dma-acp-no-hw-act-func.conf"
+    self.runAndValidate(model_file, self.correct_output)
+
+  def test_cifar10_cnn_dma_cache_no_hw_act_func(self):
+    model_file = "cifar10/cnn-access-mechs/cnn-dma-cache-no-hw-act-func.conf"
+    self.runAndValidate(model_file, self.correct_output)
+
+
 class GenericTests(BaseTest):
   def test_1_kernel(self):
     model_file = "generic/cnn-1c1k-1p-3fc.conf"
