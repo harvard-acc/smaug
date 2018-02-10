@@ -78,7 +78,8 @@ dims_t convert_nchw_to_nhwc(float* input,
 
     dims_t nhwc = nchw_to_nhwc_dims(&input_dims, data_alignment);
     if (*result == NULL)
-        *result = (float*)malloc_aligned(get_dims_size(&nhwc) * sizeof(float));
+        *result = (float*)malloc_aligned(num_inputs * get_dims_size(&nhwc) *
+                                         sizeof(float));
     ARRAY_4D(float, _input, input, input_channels, input_rows,
              input_cols + input_pad);
     ARRAY_4D(float, _result, *result, nhwc.height, nhwc.rows,
@@ -114,7 +115,8 @@ dims_t convert_nhwc_to_nchw(float* input,
                             float** result) {
     dims_t nchw = nhwc_to_nchw_dims(&input_dims, data_alignment);
     if (*result == NULL) {
-        *result = (float*)malloc_aligned(get_dims_size(&nchw) * sizeof(float));
+        *result = (float*)malloc_aligned(num_inputs * get_dims_size(&nchw) *
+                                         sizeof(float));
     }
     ARRAY_4D(float, _input, input, input_dims.height, input_dims.rows,
              input_dims.cols + input_dims.align_pad);
