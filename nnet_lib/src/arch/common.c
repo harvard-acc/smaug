@@ -5,17 +5,18 @@
 
 // Common dispatch function for executing a layer.
 //
-// The activation function is NOT applied on the output.
+// Whether an activation function will be applied on the output or not depends
+// on the backend.
 //
 // A result_buf value is returned indicating the final location of the output of
 // this layer. It is either equal to the pointers @activations or @result.
-result_buf run_layer_skip_activation_func(float* activations,
-                                          float* weights,
-                                          layer_t* layers,
-                                          int layer_num,
-                                          float* result,
-                                          device_t* device,
-                                          sampling_param_t* sampling_param) {
+result_buf layer_dispatcher(float* activations,
+                            float* weights,
+                            layer_t* layers,
+                            int layer_num,
+                            float* result,
+                            device_t* device,
+                            sampling_param_t* sampling_param) {
     layer_t curr_layer = layers[layer_num];
     layer_type l_type = curr_layer.type;
     result_buf result_loc = result;

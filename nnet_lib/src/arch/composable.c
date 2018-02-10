@@ -272,13 +272,13 @@ result_buf run_layer(float* activations,
                      sampling_param_t* sampling_param) {
     layer_t curr_layer = layers[layer_num];
 
-    result_buf result_loc = run_layer_skip_activation_func(activations,
-                                                           weights,
-                                                           layers,
-                                                           layer_num,
-                                                           result,
-                                                           device,
-                                                           sampling_param);
+    result_buf result_loc = layer_dispatcher(activations,
+                                             weights,
+                                             layers,
+                                             layer_num,
+                                             result,
+                                             device,
+                                             sampling_param);
 
     if (curr_layer.activation != NO_ACTIVATION) {
         PRINT_MSG("\nactivation function\n");

@@ -115,14 +115,14 @@ result_buf run_layer(float* activations,
     begin_profiling("run_layer", layer_num);
     layer_t curr_layer = layers[layer_num];
 
-    begin_profiling("run_layer_skip_activation_func", layer_num);
-    result_buf result_loc = run_layer_skip_activation_func(activations,
-                                                           weights,
-                                                           layers,
-                                                           layer_num,
-                                                           result,
-                                                           device,
-                                                           sampling_param);
+    begin_profiling("layer_dispatcher", layer_num);
+    result_buf result_loc = layer_dispatcher(activations,
+                                             weights,
+                                             layers,
+                                             layer_num,
+                                             result,
+                                             device,
+                                             sampling_param);
     end_profiling();
 
     if (curr_layer.activation != NO_ACTIVATION) {
