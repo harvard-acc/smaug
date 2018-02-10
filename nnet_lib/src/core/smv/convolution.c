@@ -1,5 +1,3 @@
-#include <stdio.h>
-
 #include "core/nnet_fwd_defs.h"
 #include "core/smv/params.h"
 
@@ -11,15 +9,15 @@
 //   kernels: A 3D kernel, indexed as [row][col][channel].
 //   curr_layer: Layer (or partial layer) configuration.
 //   start_chan: Start reading the input from this channel.
-//   result: a 3D array indexed as [row][col][channel].
+//   result: a 3D array indexed as [channel][row][col].
 //
 // Returns:
-//   The reduced 3D convolution values in result in N(C=1)HW format.
-void convolution3d_smv_1kernel_nhwc_fxp(float* a,
-                                        float* kernels,
-                                        layer_t curr_layer,
-                                        int start_chan,
-                                        float* result) {
+//   The reduced 3D convolution values in result in NCHW format.
+void convolution3d_smv_nhwc_fxp(float* a,
+                                float* kernels,
+                                layer_t curr_layer,
+                                int start_chan,
+                                float* result) {
     const int result_rows = curr_layer.outputs.rows;
     const int result_cols = curr_layer.outputs.cols;
     const int result_height = curr_layer.outputs.height;

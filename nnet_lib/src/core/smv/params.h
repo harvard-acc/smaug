@@ -1,6 +1,7 @@
 #ifndef _SMV_PARAMS_H_
 #define _SMV_PARAMS_H_
 
+#define VECTOR_SIZE 8
 #define NUM_MACC_INSTS 4
 #define NUM_PE_INSTS 4
 

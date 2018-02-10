@@ -20,7 +20,9 @@ CORE_SRCS = core/ref/activation_functions.c \
 						core/smiv/batch_norm.c \
 						core/smiv/max_pooling_nhwc.c \
 						core/smiv/average_pooling_nhwc.c \
-						core/smiv/decompression.c
+						core/smiv/decompression.c \
+						core/smv/convolution.c \
+						core/smv/smv.c
 
 UTILITY_SRCS = utility/init_data.c \
 							 utility/utility.c \

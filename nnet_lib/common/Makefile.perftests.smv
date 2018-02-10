@@ -1,0 +1,36 @@
+# Testbenches for SMV.
+
+include common/Makefile.arch
+
+TEST_TARGET = $(BUILD_DIR)/test_$(TEST)
+test_$(TEST): $(TEST_TARGET)
+
+DLEVEL = 0
+PERFTEST_DIR = $(SRC_DIR)/perftests
+TEST_SRCS = $(wildcard $(PERFTEST_DIR)/test_smiv_*.cpp)
+SMV_TESTS = test_smv_conv
+
+SMV_TEST_TARGETS = $(patsubst %, $(BUILD_DIR)/%, $(SMV_TESTS))
+SMV_LIB_SRCS = arch/smiv.cpp $(SMIV_ARCH_SRCS) $(MKL_SRCS)
+LIB_SRCS = $(CORE_SRCS) $(UTILITY_SRCS) $(ARCH_SRCS) $(SMV_LIB_SRCS)
+
+GEM5_FULL_PATH_SRCS = $(patsubst %, $(ALADDIN_HOME)/%, $(GEM5_DMA_SRC))
+LIB_FULL_PATH_SRCS = $(patsubst %, $(SRC_DIR)/%, $(LIB_SRCS))
+ALL_SRCS = $(LIB_FULL_PATH_SRCS) $(GEM5_FULL_PATH_SRCS)
+
+INCLUDES += -I$(MKLDNNROOT)/include
+LFLAGS += -L$(MKLDNNROOT)/lib -lmkldnn
+
+PERF_CFLAGS = -ffast-math -march=native
+CPPFLAGS += -DDMA_MODE -DDMA_INTERFACE_V3 -DDEBUG_LEVEL=$(DLEVEL)
+CFLAGS += -std=c++11 -O3 $(PERF_CFLAGS) -mf16c -flax-vector-conversions
+
+run_test_smv_conv: $(BUILD_DIR)/test_smiv_conv
+	./test_smv_conv
+# For now, use the SMIV architecture label.
+$(BUILD_DIR)/test_smv_conv: ARCH=SMIV
+$(BUILD_DIR)/test_smv_conv: $(PERFTEST_DIR)/test_smv_conv.cpp $(ALL_SRCS)
+	@$(CXX) $(CFLAGS) $(CPPFLAGS) $^ -o $@ $(LFLAGS)
+
+clean:
+	@rm -rf $(MKL_TEST_TARGETS)
