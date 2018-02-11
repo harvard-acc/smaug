@@ -95,19 +95,15 @@ static void convolution_layer_smv_hw(float* host_activations,
                 num_input_pixels * sizeof(float));
     }
 
-    // We will invoke the hardware multiple times, but we don't DMA every time,
-    // so we need to make sure not to overwrite data from past iterations.
-    int ofmap_2d_elems =
-            curr_layer.outputs.rows *
-            (curr_layer.outputs.cols + curr_layer.outputs.align_pad);
-    int ofmap_offset = options->kern_start * ofmap_2d_elems;
-    int kern_offset = options->kern_start * single_weights_elems;
-    // TODO: This may not be allowed in Aladdin. We may have to pass the
-    // offsets as an additional parameter.
-    convolution3d_smv(
-            umem, &spad0[kern_offset], curr_layer, &spad1[ofmap_offset]);
+    // We will invoke the hardware multiple times, but we don't DMA every time.
+    // So, we need to read weights from and write outputs to the kern_start'th
+    // output channel.
+    convolution3d_smv(umem, spad0, curr_layer, options->kern_start, spad1);
 
     if (curr_layer.output_req == IO_DMA) {
+        int ofmap_2d_elems =
+                curr_layer.outputs.rows *
+                (curr_layer.outputs.cols + curr_layer.outputs.align_pad);
         int num_output_pixels = options->total_tile_ofmaps * ofmap_2d_elems;
         dmaStore(host_results, spad1, num_output_pixels * sizeof(float));
     }

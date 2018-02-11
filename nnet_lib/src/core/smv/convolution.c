@@ -8,6 +8,8 @@
 //   a: 3D array, indexed as [row][col][channel].
 //   kernels: A 3D kernel, indexed as [row][col][channel].
 //   curr_layer: Layer (or partial layer) configuration.
+//   kern_start: If the kernel array contains weights for multiple output
+//      feature maps, start from this one.
 //   result: a 3D array indexed as [channel][row][col].
 //
 // Returns:
@@ -15,6 +17,7 @@
 void convolution3d_smv_nhwc_fxp(float* a,
                                 float* kernels,
                                 layer_t curr_layer,
+                                int kern_start,
                                 float* result) {
     int result_rows = curr_layer.outputs.rows;
     int result_cols = curr_layer.outputs.cols;
@@ -113,7 +116,8 @@ void convolution3d_smv_nhwc_fxp(float* a,
                                      vec_i++) {
                                     int chan_idx = macc_offset + vec_i;
                                     kernel_reg[chan_idx] =
-                                            _kernels[pe_id][kern_row][kern_col]
+                                            _kernels[kern_start + pe_id]
+                                                    [kern_row][kern_col]
                                                     [pe_offset + chan_idx];
                                 }
                             }
@@ -134,7 +138,8 @@ void convolution3d_smv_nhwc_fxp(float* a,
                                 pe_iters == 0) {
                                 accum_reg = 0;
                             } else {
-                                accum_reg = _result[pe_id][out_row][out_col];
+                                accum_reg = _result[kern_start + pe_id][out_row]
+                                                   [out_col];
                             }
                             reduction_adders:
                             for (int macc_idx = 0; macc_idx < NUM_MACC_INSTS;
@@ -147,7 +152,8 @@ void convolution3d_smv_nhwc_fxp(float* a,
                                             product_reg[pe_id][macc_idx][vec_i];
                                 }
                             }
-                            _result[pe_id][out_row][out_col] = accum_reg;
+                            _result[kern_start + pe_id][out_row][out_col] =
+                                    accum_reg;
                         }
                     }
                 }

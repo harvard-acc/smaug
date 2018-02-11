@@ -7,6 +7,7 @@
 void convolution3d_smv_nhwc_fxp(float* a,
                                 float* kernels,
                                 layer_t curr_layer,
+                                int kern_start,
                                 float* result);
 
 #endif
