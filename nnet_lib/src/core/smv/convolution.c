@@ -29,19 +29,23 @@ void convolution3d_smv_nhwc_fxp(float* a,
     int k_pad = curr_layer.weights.align_pad;
     int k_stride = curr_layer.field_stride;
 
-    int a_width = curr_layer.inputs.cols;
+    int a_rows = curr_layer.inputs.rows;
+    int a_cols = curr_layer.inputs.cols;
     int a_height = curr_layer.inputs.height;
     int a_pad = curr_layer.inputs.align_pad;
 
-    int res_row, res_col;
+    int end_row = a_rows - k_rows + 1;
+    int end_col = a_cols - k_cols + 1;
+
+    int in_row, in_col;
     const int pe_depth = VECTOR_SIZE * NUM_MACC_INSTS;
     // Local Regs
     float product_reg[NUM_PE_INSTS][NUM_MACC_INSTS][VECTOR_SIZE];
     float act_reg[NUM_MACC_INSTS * VECTOR_SIZE];
 
     ARRAY_3D(float, _result, result, result_rows, result_cols + result_pad);
-    ARRAY_4D(float, _kernels, kernels, k_cols, k_cols, k_height + k_pad);
-    ARRAY_3D(float, _a, a, a_width, a_height + a_pad);
+    ARRAY_4D(float, _kernels, kernels, k_rows, k_cols, k_height + k_pad);
+    ARRAY_3D(float, _a, a, a_cols, a_height + a_pad);
     int num_chan_blocks = (k_height - 1) / pe_depth;
     k_col:
     for (int kern_row = 0; kern_row < k_rows; kern_row++) {  // Kernel rows
@@ -53,14 +57,17 @@ void convolution3d_smv_nhwc_fxp(float* a,
             pe_iteration:
             for (int pe_iters = 0; pe_iters < num_chan_blocks + 1; pe_iters++) {
                 int pe_offset = pe_iters * pe_depth;
+                int out_i = 0;  // The result row.
+
                 conv3d_row:
-                for (int out_row = 0; out_row < result_rows;
-                     out_row += k_stride) {
+                for (int out_row = 0; out_row < end_row; out_row += k_stride) {
+                    int out_j = 0;  // The result col.
+
                     conv3d_col:
-                    for (int out_col = 0; out_col < result_cols;
+                    for (int out_col = 0; out_col < end_col;
                          out_col += k_stride) {
-                        res_row = out_row + kern_row;
-                        res_col = out_col + kern_col;
+                        in_row = out_row + kern_row;
+                        in_col = out_col + kern_col;
 
                         int max_ch_grp = NUM_MACC_INSTS;
                         // This is just computing the remaining groups of
@@ -88,7 +95,7 @@ void convolution3d_smv_nhwc_fxp(float* a,
                             load_act_vector:
                             for (int vec_i = 0; vec_i < VECTOR_SIZE; vec_i++) {
                                 int chan_idx = macc_offset + vec_i;
-                                act_reg[chan_idx] = _a[res_row][res_col]
+                                act_reg[chan_idx] = _a[in_row][in_col]
                                                      [pe_offset + chan_idx];
                             }
                         }
@@ -138,8 +145,8 @@ void convolution3d_smv_nhwc_fxp(float* a,
                                 pe_iters == 0) {
                                 accum_reg = 0;
                             } else {
-                                accum_reg = _result[kern_start + pe_id][out_row]
-                                                   [out_col];
+                                accum_reg = _result[kern_start + pe_id][out_i]
+                                                   [out_j];
                             }
                             reduction_adders:
                             for (int macc_idx = 0; macc_idx < NUM_MACC_INSTS;
@@ -152,10 +159,13 @@ void convolution3d_smv_nhwc_fxp(float* a,
                                             product_reg[pe_id][macc_idx][vec_i];
                                 }
                             }
-                            _result[kern_start + pe_id][out_row][out_col] =
+                            _result[kern_start + pe_id][out_i][out_j] =
                                     accum_reg;
                         }
+                        out_j++;
                     }
+                    out_i++;
+                    out_j = 0;
                 }
             }
         }
