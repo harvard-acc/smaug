@@ -8,7 +8,6 @@
 //   a: 3D array, indexed as [row][col][channel].
 //   kernels: A 3D kernel, indexed as [row][col][channel].
 //   curr_layer: Layer (or partial layer) configuration.
-//   start_chan: Start reading the input from this channel.
 //   result: a 3D array indexed as [channel][row][col].
 //
 // Returns:
@@ -16,7 +15,6 @@
 void convolution3d_smv_nhwc_fxp(float* a,
                                 float* kernels,
                                 layer_t curr_layer,
-                                int start_chan,
                                 float* result) {
     int result_rows = curr_layer.outputs.rows;
     int result_cols = curr_layer.outputs.cols;
@@ -132,8 +130,8 @@ void convolution3d_smv_nhwc_fxp(float* a,
                                             act_reg[chan_idx];
                                 }
                             }
-                            if (kern_col == 0 && kern_row == 0 && pe_iters == 0 &&
-                                start_chan == 0) {
+                            if (kern_col == 0 && kern_row == 0 &&
+                                pe_iters == 0) {
                                 accum_reg = 0;
                             } else {
                                 accum_reg = _result[pe_id][out_row][out_col];

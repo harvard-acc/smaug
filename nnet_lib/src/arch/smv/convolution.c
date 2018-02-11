@@ -22,6 +22,13 @@ typedef struct _conv_tiling_cfg {
     int num_tiles;
 } conv_tiling_cfg;
 
+typedef struct _convolution_options {
+    int img;
+    int kern_start;
+    int kern_end;
+    int total_tile_ofmaps;
+} convolution_options;
+
 void init_conv_tiling_cfg(conv_tiling_cfg* cfg, int num_tiles) {
     cfg->num_tiles = num_tiles;
     cfg->tiles = (conv_tile*)malloc(sizeof(conv_tile) * num_tiles);
@@ -53,64 +60,56 @@ static void convolution_layer_smv_hw(float* host_activations,
                                      float* umem,
                                      float* spad0,
                                      float* spad1,
-                                     bool input_in_spad0,
-                                     layer_t* all_layers,
-                                     layer_t partial_layer,
-                                     int layer_num,
-                                     int img,
-                                     int kern,
-                                     int start_chan) {
-
-    layer_t curr_layer = all_layers[layer_num];
+                                     layer_t curr_layer,
+                                     convolution_options* options) {
     const int input_height = curr_layer.inputs.height;
     const int input_rows = curr_layer.inputs.rows;
     const int input_cols = curr_layer.inputs.cols;
-    const int input_pad = partial_layer.inputs.align_pad;
-    const int k_width = partial_layer.weights.cols;
-    const int k_height = partial_layer.weights.height;
-    const int k_pad = partial_layer.weights.align_pad;
+    const int input_pad = curr_layer.inputs.align_pad;
+    const int k_width = curr_layer.weights.cols;
+    const int k_height = curr_layer.weights.height;
+    const int k_pad = curr_layer.weights.align_pad;
     ARRAY_4D(float, _a, host_activations, input_height + input_pad, input_rows,
              input_cols);
     ARRAY_4D(float, _kernels, host_weights, k_width, k_width, k_height + k_pad);
     // DMA all the weights that we can fit in the current tile (which is
     // specified by this tile's outputs.height).
-    size_t num_weights =
-            partial_layer.outputs.height * partial_layer.weights.rows *
-            (partial_layer.weights.height + partial_layer.weights.align_pad) *
-            partial_layer.weights.cols;
-    if (input_in_spad0) {
+    // We should only DMA part of the weights.
+    int single_weights_elems =
+            curr_layer.weights.rows * curr_layer.weights.cols *
+            (curr_layer.weights.height + curr_layer.weights.align_pad);
+    int num_weights = options->total_tile_ofmaps * single_weights_elems;
+    if (curr_layer.weights_req == IO_DMA) {
         setReadyBits(spad0, num_weights * sizeof(float), 0);
-        dmaLoad(spad0, &_kernels[kern][start_chan][0][0],
-                num_weights * sizeof(float));
-    } else {
-        setReadyBits(spad1, num_weights * sizeof(float), 0);
-        dmaLoad(spad1, &_kernels[kern][start_chan][0][0],
+        dmaLoad(spad0, &_kernels[options->kern_start][0][0][0],
                 num_weights * sizeof(float));
     }
-    if (partial_layer.input_req == IO_DMA) {
+    if (curr_layer.input_req == IO_DMA) {
         // Read in ALL channels of the input into the UMEM at once, so that we
         // can reuse them on subsequent output channels.
         size_t num_input_pixels =
-                partial_layer.inputs.rows *
-                (partial_layer.inputs.height + partial_layer.inputs.align_pad) *
-                (partial_layer.inputs.cols);
+                curr_layer.inputs.rows * curr_layer.inputs.cols *
+                (curr_layer.inputs.height + curr_layer.inputs.align_pad);
         setReadyBits(umem, num_input_pixels * sizeof(float), 0);
-        dmaLoad(umem, &_a[img][0][0][0], num_input_pixels * sizeof(float));
+        dmaLoad(umem, &_a[options->img][0][0][0],
+                num_input_pixels * sizeof(float));
     }
 
-    if (input_in_spad0)
-        convolution3d_smv(umem, spad0, partial_layer, start_chan, spad1);
-    else
-        convolution3d_smv(umem, spad1, partial_layer, start_chan, spad0);
+    // We will invoke the hardware multiple times, but we don't DMA every time,
+    // so we need to make sure not to overwrite data from past iterations.
+    int ofmap_2d_elems =
+            curr_layer.outputs.rows *
+            (curr_layer.outputs.cols + curr_layer.outputs.align_pad);
+    int ofmap_offset = options->kern_start * ofmap_2d_elems;
+    int kern_offset = options->kern_start * single_weights_elems;
+    // TODO: This may not be allowed in Aladdin. We may have to pass the
+    // offsets as an additional parameter.
+    convolution3d_smv(
+            umem, &spad0[kern_offset], curr_layer, &spad1[ofmap_offset]);
 
-    if (partial_layer.output_req == IO_DMA) {
-        size_t num_output_pixels =
-                partial_layer.outputs.rows * partial_layer.outputs.height *
-                (partial_layer.outputs.cols + partial_layer.outputs.align_pad);
-        if (input_in_spad0)
-            dmaStore(host_results, spad1, num_output_pixels * sizeof(float));
-        else
-            dmaStore(host_results, spad0, num_output_pixels * sizeof(float));
+    if (curr_layer.output_req == IO_DMA) {
+        int num_output_pixels = options->total_tile_ofmaps * ofmap_2d_elems;
+        dmaStore(host_results, spad1, num_output_pixels * sizeof(float));
     }
 }
 
@@ -126,11 +125,6 @@ static layer_t create_partial_layer_from_tile(layer_t* full_layer,
     return partial_layer;
 }
 
-// Tile the convolution for a single set of output feature maps.
-//
-// This is only required if the input itself does not fit into the UMEM. We
-// currently don't support this, so the tiling doesn't actually do anything,
-// but at least the framework is there for when we do need it.
 static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer) {
     conv_tiling_cfg cfg;
     int total_input_bytes =
@@ -143,15 +137,42 @@ static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer) {
         assert(false);
     }
 
-    init_conv_tiling_cfg(&cfg, 1);
-    cfg.tiles[0].input_dims[0] = curr_layer->inputs.height;
-    cfg.tiles[0].input_dims[1] = curr_layer->inputs.cols;
-    cfg.tiles[0].input_dims[2] = curr_layer->inputs.rows;
-    cfg.tiles[0].input_dims[3] = NUM_TEST_CASES;
-    cfg.tiles[0].input_dims[4] = 1;
-    cfg.tiles[0].input_pad =
-            calc_padding(cfg.tiles[0].input_dims[0], DATA_ALIGNMENT);
-    cfg.tiles[0].num_ofmaps = NUM_PE_INSTS;
+    const int output_2d_size =
+            curr_layer->outputs.rows *
+            (curr_layer->outputs.cols + curr_layer->outputs.align_pad) *
+            sizeof(float);
+    if (output_2d_size > SPAD_SIZE) {
+        fprintf(stderr,
+                "A single output channel doesn't fit on the scratchpad! We "
+                "don't support this mode of tiling yet!\n");
+        assert(false);
+    }
+
+    // Divide up the work over output channels.
+    // The number of output feature maps we can support at once is determined
+    // by how many weights and output feature maps can fit into the two
+    // scratchpads.
+    const int single_kernel_size =
+            get_nhwc_dims_size(&curr_layer->weights) * sizeof(float);
+    const int max_kernels_per_iter = SPAD_SIZE / single_kernel_size;
+    const int max_ofmaps_per_iter = SPAD_SIZE / output_2d_size;
+    const int num_ofmaps_per_iter =
+            min2(max_kernels_per_iter, max_ofmaps_per_iter);
+    const int num_iters =
+            ceil(((float)curr_layer->outputs.height) / num_ofmaps_per_iter);
+    init_conv_tiling_cfg(&cfg, num_iters);
+    int remaining_ofmaps = curr_layer->outputs.height;
+    for (int i = 0; i < num_iters; i++) {
+        cfg.tiles[i].input_dims[0] = curr_layer->inputs.height;
+        cfg.tiles[i].input_dims[1] = curr_layer->inputs.cols;
+        cfg.tiles[i].input_dims[2] = curr_layer->inputs.rows;
+        cfg.tiles[i].input_dims[3] = NUM_TEST_CASES;
+        cfg.tiles[i].input_dims[4] = 1;
+        cfg.tiles[i].input_pad =
+                calc_padding(cfg.tiles[0].input_dims[0], DATA_ALIGNMENT);
+        cfg.tiles[i].num_ofmaps = min2(remaining_ofmaps, num_ofmaps_per_iter);
+        remaining_ofmaps -= num_ofmaps_per_iter;
+    }
     return cfg;
 }
 
@@ -171,14 +192,16 @@ void standard_convolution_layer_smv_impl(float* host_activations,
     const int input_height = curr_layer.inputs.height;
     const int k_width = curr_layer.weights.cols;
     const int k_pad = curr_layer.weights.align_pad;
-    const int result_3d_size =
-            result_rows * (result_cols + result_pad) * result_height;
+    const int result_2d_size = result_rows * (result_cols + result_pad);
     const int single_kernel_size =
             get_dims_size(&curr_layer.weights) * sizeof(float);
     float* nhwc_activations = NULL;
     dims_t activations_nhwc = convert_nchw_to_nhwc(
             host_activations, NUM_TEST_CASES, curr_layer.inputs, DATA_ALIGNMENT,
             &nhwc_activations);
+    MAP_ARRAY_TO_ACCEL(kConvolutionHw, "host_activations", nhwc_activations,
+                       get_dims_size(&curr_layer.inputs) * sizeof(float));
+
     ARRAY_4D(float, _result, host_result, result_height, result_rows,
              result_cols + result_pad);
     ARRAY_4D(float, _kernels, host_weights, input_height, k_width,
@@ -187,16 +210,9 @@ void standard_convolution_layer_smv_impl(float* host_activations,
     conv_tiling_cfg tiling = convolution_divide_work(&curr_layer);
     print_conv_tiling_cfg(&tiling);
 
-    size_t host_conv_buffer_size =
-            result_3d_size * tiling.num_tiles * sizeof(float);
-    float* host_conv_buffer = (float*)malloc_aligned(host_conv_buffer_size);
     bool do_hw_activation = device->use_hw_activation_func &&
                             is_supported_activation_func(
                                     curr_layer.type, curr_layer.activation);
-
-    MAP_ARRAY_TO_ACCEL(kConvolutionHw, "host_activations", nhwc_activations,
-                       get_dims_size(&curr_layer.inputs) * sizeof(float));
-
     // Sampling: if set, only run up to the specified number of output
     // channels.  Set all remaining outputs to zero.
     const int sample_num_kerns = sampling_param->standard_conv_num_filters;
@@ -208,37 +224,59 @@ void standard_convolution_layer_smv_impl(float* host_activations,
         begin_profiling(__func__, lnum);
         if (is_sampled)
             set_profiling_type_sampled(num_kerns_to_simulate, num_kerns);
-        for (int kern = 0; kern < num_kerns_to_simulate; kern += NUM_PE_INSTS) {
-            int num_kerns = min2(num_kerns_to_simulate - kern, NUM_PE_INSTS);
-            // Convert weights to NHWC.
+
+        int kern_start = 0;
+        for (int t = 0; t < tiling.num_tiles; t++) {
+            conv_tile* tile = &tiling.tiles[t];
+            layer_t partial_layer =
+                    create_partial_layer_from_tile(&curr_layer, tile);
+            if (t != 0)
+                partial_layer.input_req = IO_NONE;
+
+            // Set up the results buffer and mappings.
+            float* result_loc = &_result[img][kern_start][0][0];
+            int result_size = result_2d_size * tile->num_ofmaps * sizeof(float);
+            MAP_ARRAY_TO_ACCEL(
+                    kConvolutionHw, "host_results", result_loc, result_size);
+
+            // Convert weights to NHWC and set up mappings.
             float* nhwc_weights = NULL;
             dims_t weights_nhwc = convert_nchw_to_nhwc(
-                    &_kernels[kern][0][0][0], num_kerns, curr_layer.weights,
-                    DATA_ALIGNMENT, &nhwc_weights);
+                    &_kernels[kern_start][0][0][0], tile->num_ofmaps,
+                    curr_layer.weights, DATA_ALIGNMENT, &nhwc_weights);
             MAP_ARRAY_TO_ACCEL(kConvolutionHw, "host_weights", nhwc_weights,
                                num_kerns * single_kernel_size);
-            int start_chan = 0;
-            for (int t = 0; t < tiling.num_tiles; t++) {
-                conv_tile tile = tiling.tiles[t];
-                layer_t partial_layer =
-                        create_partial_layer_from_tile(&curr_layer, &tile);
-                partial_layer.input_req = (kern == 0) ? IO_DMA : IO_NONE;
-                MAP_ARRAY_TO_ACCEL(kConvolutionHw, "host_results",
-                                   host_conv_buffer, host_conv_buffer_size);
+
+            int num_hw_iters = ceil((float)tile->num_ofmaps / NUM_PE_INSTS);
+            for (int iter = 0; iter < num_hw_iters; iter++) {
+                int num_kerns =
+                        min2(num_kerns_to_simulate - kern_start, NUM_PE_INSTS);
+                convolution_options options;
+                options.img = img;
+                // This kern_start is with respect to the current set of output
+                // fmaps in the tile.
+                options.kern_start = iter * NUM_PE_INSTS;
+                options.kern_end = options.kern_start + num_kerns;
+                // This is required to DMA the correct number of weights and
+                // outputs back from the accelerator at the beginning and end.
+                options.total_tile_ofmaps = tile->num_ofmaps;
+                // Only DMA weights on the first iteration.
+                if (iter > 0)
+                    partial_layer.weights_req = IO_NONE;
+                // Only DMA results back on the last.
+                partial_layer.output_req = (iter < num_hw_iters - 1)
+                                                   ? IO_NONE
+                                                   : curr_layer.output_req;
                 INVOKE_KERNEL_PROF(kConvolutionHw, lnum,
                                    convolution_layer_smv_hw, nhwc_activations,
-                                   nhwc_weights, host_conv_buffer, g_umem,
-                                   g_spad0, g_spad1, true, layers,
-                                   partial_layer, lnum, img, 0, start_chan);
+                                   nhwc_weights, result_loc, g_umem, g_spad0,
+                                   g_spad1, partial_layer, &options);
             }
             free(nhwc_weights);
-            // TODO: Can we get rid of this memcpy?
-            memcpy(&_result[img][kern][0][0], host_conv_buffer,
-                   result_3d_size * sizeof(float));
+            kern_start += tile->num_ofmaps;
         }
         end_profiling();
     }
     free(nhwc_activations);
     free_conv_tiling_cfg(&tiling);
-    free(host_conv_buffer);
 }
