@@ -100,11 +100,15 @@ static void convolution_layer_smv_hw(float* host_activations,
     // output channel.
     convolution3d_smv(umem, spad0, curr_layer, options->kern_start, spad1);
 
+    // Run the activation function in-place if applicable.
+    int ofmap_2d_elems =
+            curr_layer.outputs.rows *
+            (curr_layer.outputs.cols + curr_layer.outputs.align_pad);
+    int num_output_pixels = options->total_tile_ofmaps * ofmap_2d_elems;
+    smv_activation_fun(
+            spad1, NUM_TEST_CASES, num_output_pixels, curr_layer.activation);
+
     if (curr_layer.output_req == IO_DMA) {
-        int ofmap_2d_elems =
-                curr_layer.outputs.rows *
-                (curr_layer.outputs.cols + curr_layer.outputs.align_pad);
-        int num_output_pixels = options->total_tile_ofmaps * ofmap_2d_elems;
         dmaStore(host_results, spad1, num_output_pixels * sizeof(float));
     }
 }
@@ -245,6 +249,7 @@ void standard_convolution_layer_smv_impl(float* host_activations,
 
             int num_hw_iters = ceil((float)tile->num_ofmaps / NUM_PE_INSTS);
             for (int iter = 0; iter < num_hw_iters; iter++) {
+                bool is_last_iter = (iter == num_hw_iters - 1);
                 int num_kerns =
                         min2(num_kerns_to_simulate - kern_start, NUM_PE_INSTS);
                 convolution_options options;
@@ -260,9 +265,12 @@ void standard_convolution_layer_smv_impl(float* host_activations,
                 if (iter > 0)
                     partial_layer.weights_req = IO_NONE;
                 // Only DMA results back on the last.
-                partial_layer.output_req = (iter < num_hw_iters - 1)
-                                                   ? IO_NONE
-                                                   : curr_layer.output_req;
+                partial_layer.output_req =
+                        !is_last_iter ? IO_NONE : curr_layer.output_req;
+                // Only run the activation function on the last iteration.
+                partial_layer.activation = (is_last_iter && do_hw_activation)
+                                                   ? curr_layer.activation
+                                                   : NO_ACTIVATION;
                 INVOKE_KERNEL_PROF(kConvolutionHw, lnum,
                                    convolution_layer_smv_hw, nhwc_activations,
                                    nhwc_weights, result_loc, g_umem, g_spad0,

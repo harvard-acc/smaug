@@ -96,6 +96,10 @@ void standard_convolution_layer_smv_impl(float* host_activations,
                                          float* host_result,
                                          device_t* device,
                                          sampling_param_t* sampling_param);
+void smv_activation_fun(float* activations,
+                        int batch_size,
+                        int input_size,
+                        activation_type activation);
 #endif
 
 #endif  // ARCHITECTURE == SMIV
