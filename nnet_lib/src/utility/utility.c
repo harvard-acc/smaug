@@ -294,6 +294,11 @@ size_t get_dims_size(dims_t* dims) {
     return dims->rows * (dims->cols + dims->align_pad) * dims->height;
 }
 
+// Compute the total size of this dims_t in NHWC format.
+size_t get_nhwc_dims_size(dims_t* dims) {
+    return dims->rows * dims->cols * (dims->height + dims->align_pad);
+}
+
 size_t next_multiple(size_t request, size_t align) {
   size_t n = request/align;
   if (n == 0)
