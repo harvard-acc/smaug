@@ -18,24 +18,21 @@ void convolution3d_smv_nhwc_fxp(float* a,
                                 layer_t curr_layer,
                                 int start_chan,
                                 float* result) {
-    const int result_rows = curr_layer.outputs.rows;
-    const int result_cols = curr_layer.outputs.cols;
-    const int result_height = curr_layer.outputs.height;
-    const int result_pad = curr_layer.outputs.align_pad;
+    int result_rows = curr_layer.outputs.rows;
+    int result_cols = curr_layer.outputs.cols;
+    int result_pad = curr_layer.outputs.align_pad;
 
-    const int k_cols = curr_layer.weights.cols;
-    const int k_rows = curr_layer.weights.rows;
-    const int k_height = curr_layer.weights.height;
-    const int k_pad = curr_layer.weights.align_pad;
-    const int k_stride = curr_layer.field_stride;
+    int k_cols = curr_layer.weights.cols;
+    int k_rows = curr_layer.weights.rows;
+    int k_height = curr_layer.weights.height;
+    int k_pad = curr_layer.weights.align_pad;
+    int k_stride = curr_layer.field_stride;
 
-    const int a_length = curr_layer.inputs.rows;
-    const int a_width = curr_layer.inputs.cols;
-    const int a_height = curr_layer.inputs.height;
-    const int a_pad = curr_layer.inputs.align_pad;
+    int a_width = curr_layer.inputs.cols;
+    int a_height = curr_layer.inputs.height;
+    int a_pad = curr_layer.inputs.align_pad;
 
     int res_row, res_col;
-    int num_ch_grps;
     const int pe_depth = VECTOR_SIZE * NUM_MACC_INSTS;
     // Local Regs
     float product_reg[NUM_PE_INSTS][NUM_MACC_INSTS][VECTOR_SIZE];

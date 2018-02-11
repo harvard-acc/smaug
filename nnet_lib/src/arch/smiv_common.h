@@ -50,6 +50,9 @@ extern float* g_umem;
 extern float* g_spad0;
 extern float* g_spad1;
 
+typedef void (*convolution_impl)(
+        float*, float*, layer_t*, int, float*, device_t*, sampling_param_t*);
+
 // Returns whether the hardware can execute this activation function on this
 // layer type or not.
 bool is_supported_activation_func(layer_type ltype, activation_type func);
@@ -84,6 +87,16 @@ void depthwise_convolution_layer_impl(float* host_activations,
                                       device_t* device);
 
 void pooling_layer_impl(float* inputs, layer_t* curr_layer, float* results);
+
+#ifdef ENABLE_SMV_CONVOLUTION
+void standard_convolution_layer_smv_impl(float* host_activations,
+                                         float* host_weights,
+                                         layer_t* layers,
+                                         int lnum,
+                                         float* host_result,
+                                         device_t* device,
+                                         sampling_param_t* sampling_param);
+#endif
 
 #endif  // ARCHITECTURE == SMIV
 #endif

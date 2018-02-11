@@ -141,6 +141,11 @@ result_buf standard_convolution_layer(float* activations,
     MAP_ARRAY_TO_ACCEL(
             kConvolutionHw, weights_var_name, current_layer_weights, weights_size);
     layer_t curr_layer = layers[lnum];
+#ifdef ENABLE_SMV_CONVOLUTION
+    convolution_impl impl = &standard_convolution_layer_smv_impl;
+#else
+    convolution_impl impl = &standard_convolution_layer_impl;
+#endif
     if (curr_layer.c_padding > 0) {
         // TODO: Replace this with a memcpy implementation.
         copy_zeropad(activations, layers, lnum, result);
@@ -152,22 +157,22 @@ result_buf standard_convolution_layer(float* activations,
         PRINT_DEBUG4D_V(weights, curr_layer.weights.rows,
                         curr_layer.weights.cols + curr_layer.weights.align_pad,
                         curr_layer.weights.height);
-        standard_convolution_layer_impl(result,
-                                        current_layer_weights,
-                                        layers,
-                                        lnum,
-                                        activations,
-                                        device,
-                                        sampling_param);
+        impl(result,
+             current_layer_weights,
+             layers,
+             lnum,
+             activations,
+             device,
+             sampling_param);
         return activations;
     }
-    standard_convolution_layer_impl(activations,
-                                    current_layer_weights,
-                                    layers,
-                                    lnum,
-                                    result,
-                                    device,
-                                    sampling_param);
+    impl(activations,
+         current_layer_weights,
+         layers,
+         lnum,
+         result,
+         device,
+         sampling_param);
     return result;
 }
 
