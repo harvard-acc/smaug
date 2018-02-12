@@ -585,9 +585,12 @@ static void read_sampling_param(cfg_t* all_opts, sampling_param_t* sampling) {
                 cfg_getint(sampling_opts, "standard_conv_num_filters");
         sampling->fc_num_neurons =
                 cfg_getint(sampling_opts, "fc_num_neurons");
+        sampling->smv_conv_inner_iters =
+                cfg_getint(sampling_opts, "smv_conv_inner_iters");
     } else {
         sampling->standard_conv_num_filters = 0;
         sampling->fc_num_neurons = 0;
+        sampling->smv_conv_inner_iters = 0;
     }
 }
 
@@ -696,9 +699,11 @@ static void print_sampling_param(sampling_param_t* sampling_param) {
     printf("Sampling configuration\n");
     printf("----------------------------------------\n"
            "   Standard convolution filters: %d\n"
-           "   FC num neurons: %d\n",
+           "   FC num neurons: %d\n"
+           "   SMV convolution inner iters: %d\n",
            sampling_param->standard_conv_num_filters,
-           sampling_param->fc_num_neurons);
+           sampling_param->fc_num_neurons,
+           sampling_param->smv_conv_inner_iters);
     printf("========================================\n");
 
 }
@@ -745,9 +750,10 @@ static void install_validation_callbacks(cfg_t* cfg) {
     cfg_set_validate_func(cfg,
                           "sampling_param|standard_conv_num_filters",
                           validate_unsigned_int);
-    cfg_set_validate_func(cfg,
-                          "sampling_param|fc_num_neurons",
-                          validate_unsigned_int);
+    cfg_set_validate_func(
+            cfg, "sampling_param|fc_num_neurons", validate_unsigned_int);
+    cfg_set_validate_func(
+            cfg, "sampling_param|smv_conv_inner_iters", validate_unsigned_int);
 }
 
 int configure_network_from_file(const char* cfg_file,

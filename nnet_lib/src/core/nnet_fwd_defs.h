@@ -185,9 +185,25 @@ typedef struct _device_t {
     void* session;
 } device_t;
 
+// Sampling parameters to reduce simulation time.
+//
+// These parameters will allow us to skip work in very regular workload phases.
+// How the sampled time is interpreted and upsampled is not handled by SMAUG -
+// the user is responsible for doing that.
+//
+// TODO: These parameters are very backend specific and should be collected
+// into backend-specific structures.
 typedef struct _sampling_param_t {
+    // SMIV: Only run this many output feature maps per conv layer.
     int standard_conv_num_filters;
+
+    // How many neurons should be simulated for an FC layer.
+    // Currently UNUSED.
     int fc_num_neurons;
+
+    // SMV: Run this many iterations of the inner tiling loop.
+    // See smv/arch/convolution.c for details.
+    int smv_conv_inner_iters;
 } sampling_param_t;
 
 // Wraps a dynamically allocated array (d for data) and its size (number of

@@ -322,18 +322,12 @@ void standard_convolution_layer_smv_impl(float* host_activations,
     bool do_hw_activation = device->use_hw_activation_func &&
                             is_supported_activation_func(
                                     curr_layer.type, curr_layer.activation);
-    // Sampling: if set, only run up to the specified number of output
-    // channels.  Set all remaining outputs to zero.
-    const int sample_num_kerns = sampling_param->standard_conv_num_filters;
-    const int num_kerns_to_simulate =
-            sample_num_kerns == 0 ? num_kerns
-                                  : min2(num_kerns, sample_num_kerns);
-    bool is_sampled = num_kerns_to_simulate < num_kerns;
+    int sampled_inner_iters = sampling_param->smv_conv_inner_iters;
+    // A value of 0 means do not sample, so set this value to the actual number
+    // of inner iterations, if there are any.
+    if (sampled_inner_iters == 0)
+        sampled_inner_iters = max2(0, num_kerns - 2);
     for (int img = 0; img < NUM_TEST_CASES; img++) {
-        begin_profiling(__func__, lnum);
-        if (is_sampled)
-            set_profiling_type_sampled(num_kerns_to_simulate, num_kerns);
-
         int kern_start = 0;
         for (int t = 0; t < tiling.num_tiles; t++) {
             conv_tile* tile = &tiling.tiles[t];
@@ -360,19 +354,42 @@ void standard_convolution_layer_smv_impl(float* host_activations,
                     nhwc_weights, num_kerns * single_kernel_size);
 
             int num_hw_iters = ceil((float)tile->num_ofmaps / NUM_PE_INSTS);
+            int inner_iters_executed = 0;
+
+            // Sampling operates on iterations of the following loop over
+            // num_hw_iters. We always execute the first and last iterations,
+            // because those iterations are responsible for handling data
+            // movement.  Between those two iterations, we only run up to
+            // sampled_inner_iter iterations. The remaining iterations have
+            // their outputs set to zero.
+            begin_profiling("standard_convolution_layer_smv_impl_tile", lnum);
+            bool is_sampled = (sampled_inner_iters > 0 &&
+                               sampled_inner_iters < tile->num_ofmaps - 2);
+            if (is_sampled)
+                set_profiling_type_sampled(
+                        sampled_inner_iters + 2, tile->num_ofmaps);
             for (int iter = 0; iter < num_hw_iters; iter++) {
                 bool is_last_iter = (iter == num_hw_iters - 1);
-                int num_kerns =
-                        min2(num_kerns_to_simulate - kern_start, NUM_PE_INSTS);
+                int num_kerns_this_iter =
+                        min2(tile->num_ofmaps - kern_start, NUM_PE_INSTS);
                 convolution_options options;
                 options.img = img;
                 // This kern_start is with respect to the current set of output
                 // fmaps in the tile.
                 options.kern_start = iter * NUM_PE_INSTS;
-                options.kern_end = options.kern_start + num_kerns;
+                options.kern_end = options.kern_start + num_kerns_this_iter;
                 // This is required to DMA the correct number of weights and
                 // outputs back from the accelerator at the beginning and end.
                 options.total_tile_ofmaps = tile->num_ofmaps;
+
+                if (iter != 0 && !is_last_iter &&
+                    inner_iters_executed >= sampled_inner_iters) {
+                    // Skip this iteration and zero out the result.
+                    memset(&_result[img][options.kern_start][0][0], 0,
+                           result_2d_size * num_kerns_this_iter);
+                    continue;
+                }
+
                 // Only DMA inputs on the first iteration.
                 if (iter > 0 && partial_layer.input_req == IO_DMA)
                     partial_layer.input_req = IO_NONE;
@@ -399,11 +416,15 @@ void standard_convolution_layer_smv_impl(float* host_activations,
                         nhwc_activations, nhwc_weights, result_loc,  // ACP
                         g_umem, g_spad0, g_spad1, partial_layer, &access_cfg,
                         &options);
+
+                if (iter != 0 && !is_last_iter) {
+                    inner_iters_executed++;
+                }
             }
             free(nhwc_weights);
             kern_start += tile->num_ofmaps;
+            end_profiling();
         }
-        end_profiling();
     }
     free(nhwc_activations);
     free_conv_tiling_cfg(&tiling);
