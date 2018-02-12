@@ -39,7 +39,10 @@ void convolution3d_smv_nhwc_fxp(float* a,
 
     int in_row, in_col;
     const int pe_depth = VECTOR_SIZE * NUM_MACC_INSTS;
-    // Local Regs
+    // If we have less than four channels, don't run the extra ones.
+    const int kEffNumPeInsts = min2(curr_layer.outputs.height, NUM_PE_INSTS);
+    // Local Regs. These should always be sized the same (so NUM_PE_INSTS,
+    // rather than kNumEffPeInsts).
     float product_reg[NUM_PE_INSTS][NUM_MACC_INSTS][VECTOR_SIZE];
     float act_reg[NUM_MACC_INSTS * VECTOR_SIZE];
 
@@ -100,7 +103,7 @@ void convolution3d_smv_nhwc_fxp(float* a,
                             }
                         }
                         pe_groups:
-                        for (int pe_id = 0; pe_id < NUM_PE_INSTS; pe_id++) {
+                        for (int pe_id = 0; pe_id < kEffNumPeInsts; pe_id++) {
                             float accum_reg;
                             float kernel_reg[NUM_MACC_INSTS * VECTOR_SIZE];
                             reset_wt_mu:
