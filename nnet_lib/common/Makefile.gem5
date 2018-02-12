@@ -23,7 +23,7 @@ else ifeq ($(ARCH), SMIV)
 COMP = $(CXX)
 GEM5_SIMD_CFLAGS = -msse3 -msse2 -mno-ssse3 -mno-sse4.1 -mno-sse4.2
 CFLAGS += -std=gnu++11 $(GEM5_SIMD_FLAGS)
-CPPFLAGS += -I$(MKLDNNROOT)/include
+CPPFLAGS += -I$(MKLDNNROOT)/include -DENABLE_SMV_CONVOLUTION
 LFLAGS += -L$(MKLDNNROOT)/lib -lmkldnn
 NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smiv.cpp \
 												 $(SRC_DIR)/core/mkl/activation_functions.cpp \

@@ -48,7 +48,8 @@ SRCS += arch/monolithic.c
 else ifeq ($(ARCH), COMPOSABLE)
 SRCS += arch/composable.c
 else ifeq ($(ARCH), SMIV)
-SRCS += arch/smiv.c
+SRCS += $(SMIV_ARCH_SRCS) arch/smiv.c
+CPPFLAGS += -DENABLE_SMV_CONVOLUTION
 endif
 SUBBUILDDIRS = $(patsubst %, $(BUILD_DIR)/%, $(MODULES))
 
