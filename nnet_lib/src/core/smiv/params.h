@@ -11,7 +11,6 @@
 #error "Existing VECTOR_SIZE is incompatible with SMIV!"
 #endif
 
-
 // Scalar types.
 typedef float fp_t;
 typedef int sfx_t;
