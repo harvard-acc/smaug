@@ -41,26 +41,55 @@ void convolution3d_smv_nhwc_fxp(float* a,
     const int pe_depth = VECTOR_SIZE * NUM_MACC_INSTS;
     // If we have less than four channels, don't run the extra ones.
     const int kEffNumPeInsts = min2(curr_layer.outputs.height, NUM_PE_INSTS);
-    // Local Regs. These should always be sized the same (so NUM_PE_INSTS,
-    // rather than kNumEffPeInsts).
-    float product_reg[NUM_PE_INSTS][NUM_MACC_INSTS][VECTOR_SIZE];
-    float act_reg[NUM_MACC_INSTS * VECTOR_SIZE];
 
     ARRAY_3D(float, _result, result, result_rows, result_cols + result_pad);
     ARRAY_4D(float, _kernels, kernels, k_rows, k_cols, k_height + k_pad);
     ARRAY_3D(float, _a, a, a_cols, a_height + a_pad);
     int num_chan_blocks = (k_height - 1) / pe_depth;
+
     k_col:
     for (int kern_row = 0; kern_row < k_rows; kern_row++) {  // Kernel rows
         k_row:
         for (int kern_col = 0; kern_col < k_cols; kern_col++) {  // Kernel cols
-
             // This loops over all the input channels in groups of VECTOR_SIZE
             // * NUM_MACC_INSTS.
             pe_iteration:
-            for (int pe_iters = 0; pe_iters < num_chan_blocks + 1; pe_iters++) {
-                int pe_offset = pe_iters * pe_depth;
+            for (int ifmap_iters = 0; ifmap_iters < num_chan_blocks + 1;
+                 ifmap_iters++) {
+                int ifmap_offset = ifmap_iters * pe_depth;
                 int out_i = 0;  // The result row.
+
+                int max_ch_grp = NUM_MACC_INSTS;
+                // this is just computing the remaining groups of
+                // channels on the last iteration.
+                if (ifmap_iters == num_chan_blocks) {
+                    max_ch_grp = ((k_height -
+                                   ifmap_iters * NUM_MACC_INSTS * VECTOR_SIZE) /
+                                  VECTOR_SIZE) + 1;
+                }
+
+                // Load in all the weights at once before beginning the input
+                // loop.
+                float kernel_reg[NUM_PE_INSTS][NUM_MACC_INSTS][VECTOR_SIZE];
+                load_kern_pe:
+                for (int pe_id = 0; pe_id < kEffNumPeInsts; pe_id++) {
+                    load_kern_mu:
+                    for (int macc_idx = 0; macc_idx < NUM_MACC_INSTS;
+                         macc_idx++) {
+                        int macc_offset = macc_idx * VECTOR_SIZE;
+                        load_kern_vector:
+                        for (int vec_i = 0; vec_i < VECTOR_SIZE; vec_i++) {
+                            int chan_idx = macc_offset + vec_i;
+                            float value =
+                                    (macc_idx >= max_ch_grp)
+                                            ? 0
+                                            : _kernels[kern_start + pe_id]
+                                                      [kern_row][kern_col]
+                                                      [ifmap_offset + chan_idx];
+                            kernel_reg[pe_id][macc_idx][vec_i] = value;
+                        }
+                    }
+                }
 
                 conv3d_row:
                 for (int out_row = 0; out_row < end_row; out_row += k_stride) {
@@ -69,83 +98,49 @@ void convolution3d_smv_nhwc_fxp(float* a,
                     conv3d_col:
                     for (int out_col = 0; out_col < end_col;
                          out_col += k_stride) {
+                        // Local Regs. These should always be sized the same (so
+                        // NUM_PE_INSTS, rather than kNumEffPeInsts).
+                        float product_reg[NUM_PE_INSTS][NUM_MACC_INSTS]
+                                         [VECTOR_SIZE];
+                        float act_reg[NUM_MACC_INSTS][VECTOR_SIZE];
                         in_row = out_row + kern_row;
                         in_col = out_col + kern_col;
 
-                        int max_ch_grp = NUM_MACC_INSTS;
-                        // This is just computing the remaining groups of
-                        // channels on the last iteration.
-                        if (pe_iters == num_chan_blocks) {
-                            max_ch_grp = ((k_height - pe_iters * NUM_MACC_INSTS *
-                                                              VECTOR_SIZE) /
-                                          VECTOR_SIZE) +
-                                         1;
-                        }
-                        reset_act_mu:
-                        for (int macc_idx = 0; macc_idx < NUM_MACC_INSTS;
-                             macc_idx++) {
-                            int macc_offset = macc_idx * VECTOR_SIZE;
-                            reset_act_vector:
-                            for (int vec_i = 0; vec_i < VECTOR_SIZE; vec_i++) {
-                                int chan_idx = macc_offset + vec_i;
-                                act_reg[chan_idx] = 0;
-                            }
-                        }
+                        // Load in the activations first, then broadcast them
+                        // to all the PEs.
                         load_act_mu:
-                        for (int macc_idx = 0; macc_idx < max_ch_grp;
+                        for (int macc_idx = 0; macc_idx < NUM_MACC_INSTS;
                              macc_idx++) {
                             int macc_offset = macc_idx * VECTOR_SIZE;
                             load_act_vector:
                             for (int vec_i = 0; vec_i < VECTOR_SIZE; vec_i++) {
                                 int chan_idx = macc_offset + vec_i;
-                                act_reg[chan_idx] = _a[in_row][in_col]
-                                                     [pe_offset + chan_idx];
+                                float value =
+                                        (macc_idx >= max_ch_grp)
+                                                ? 0
+                                                : _a[in_row][in_col]
+                                                    [ifmap_offset + chan_idx];
+                                act_reg[macc_idx][vec_i] = value;
                             }
                         }
+
                         pe_groups:
                         for (int pe_id = 0; pe_id < kEffNumPeInsts; pe_id++) {
-                            float accum_reg;
-                            float kernel_reg[NUM_MACC_INSTS * VECTOR_SIZE];
-                            reset_wt_mu:
-                            for (int macc_idx = 0; macc_idx < NUM_MACC_INSTS;
-                                 macc_idx++) {
-                                int macc_offset = macc_idx * VECTOR_SIZE;
-                                reset_wt_vector:
-                                for (int vec_i = 0; vec_i < VECTOR_SIZE;
-                                     vec_i++) {
-                                    int chan_idx = macc_offset + vec_i;
-                                    kernel_reg[chan_idx] = 0;
-                                }
-                            }
-                            load_wt_mu:
-                            for (int macc_idx = 0; macc_idx < max_ch_grp;
-                                 macc_idx++) {
-                                int macc_offset = macc_idx * VECTOR_SIZE;
-                                load_wt_vector:
-                                for (int vec_i = 0; vec_i < VECTOR_SIZE;
-                                     vec_i++) {
-                                    int chan_idx = macc_offset + vec_i;
-                                    kernel_reg[chan_idx] =
-                                            _kernels[kern_start + pe_id]
-                                                    [kern_row][kern_col]
-                                                    [pe_offset + chan_idx];
-                                }
-                            }
+                            float accum_reg = 0;
+
                             mu_groups:
                             for (int macc_idx = 0; macc_idx < NUM_MACC_INSTS;
                                  macc_idx++) {
-                                int macc_offset = macc_idx * VECTOR_SIZE;
                                 ch_groups:
                                 for (int vec_i = 0; vec_i < VECTOR_SIZE;
                                      vec_i++) {
-                                    int chan_idx = macc_offset + vec_i;
                                     product_reg[pe_id][macc_idx][vec_i] =
-                                            kernel_reg[chan_idx] *
-                                            act_reg[chan_idx];
+                                            kernel_reg[pe_id][macc_idx][vec_i] *
+                                            act_reg[macc_idx][vec_i];
                                 }
                             }
                             if (kern_col == 0 && kern_row == 0 &&
-                                pe_iters == 0) {
+                                ifmap_iters == 0) {
                                 accum_reg = 0;
                             } else {
                                 accum_reg = _result[kern_start + pe_id][out_i]
@@ -157,13 +152,13 @@ void convolution3d_smv_nhwc_fxp(float* a,
                                 reduction_inner:
                                 for (int vec_i = 0; vec_i < VECTOR_SIZE;
                                      vec_i++) {
-                                    accum_reg =
-                                            accum_reg +
+                                    accum_reg +=
                                             product_reg[pe_id][macc_idx][vec_i];
                                 }
                             }
                             _result[kern_start + pe_id][out_i][out_j] =
                                     accum_reg;
+
                         }
                         out_j++;
                     }
