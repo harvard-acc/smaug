@@ -56,6 +56,13 @@ typedef void (*convolution_impl)(
 // Returns whether the hardware can execute this activation function on this
 // layer type or not.
 bool is_supported_activation_func(layer_type ltype, activation_type func);
+void copy_data_col_range(float* original_data,
+                         dims_t* original_dims,
+                         int start_col,
+                         int num_cols,
+                         float* new_buffer);
+bool inner_product_needs_work_division(layer_t* curr_layer);
+void inner_product_check_absolute_size_limits(layer_t* curr_layer);
 
 result_buf smiv_activation_function(float* activations,
                                     layer_t* layer,
@@ -87,8 +94,11 @@ void depthwise_convolution_layer_impl(float* host_activations,
                                       device_t* device);
 
 void pooling_layer_impl(float* inputs, layer_t* curr_layer, float* results);
+void decompress_packed_csr_smiv_impl(layer_t* layer,
+                                     int start_row,
+                                     bool input_in_spad0,
+                                     device_t* device);
 
-#ifdef ENABLE_SMV_CONVOLUTION
 void standard_convolution_layer_smv_impl(float* host_activations,
                                          float* host_weights,
                                          layer_t* layers,
@@ -96,11 +106,16 @@ void standard_convolution_layer_smv_impl(float* host_activations,
                                          float* host_result,
                                          device_t* device,
                                          sampling_param_t* sampling_param);
+void inner_product_layer_smv_impl(float* host_activations,
+                                  float* host_weights,
+                                  layer_t* layers,
+                                  int lnum,
+                                  float* host_results,
+                                  device_t* device);
 void smv_activation_fun(float* activations,
                         int batch_size,
                         int input_size,
                         activation_type activation);
-#endif
 
 #endif  // ARCHITECTURE == SMIV
 #endif
