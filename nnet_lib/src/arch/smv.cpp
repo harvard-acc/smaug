@@ -504,13 +504,6 @@ nnet_fwd_outer:
 
     network.layers[network.depth - 1].result_in_temp = (result_loc == result.d);
 
-    if (result_loc == result.d)
-        dmaStore(result.d, result.d, NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
-    else
-        dmaStore(activations.d, activations.d,
-                 NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
-    dmaStore(network.layers, network.layers, network.depth * sizeof(layer_t));
-
     free(g_smv.umem);
     free(g_smv.spad0);
     free(g_smv.spad1);
