@@ -8,6 +8,7 @@
 .PHONY: tests build smiv monolithic composable
 
 smiv: 			ARCH=SMIV
+smv: 			  ARCH=SMV
 monolithic: ARCH=MONOLITHIC
 composable: ARCH=COMPOSABLE
 eigen:      ARCH=EIGEN
@@ -19,6 +20,7 @@ all:
 	@$(MAKE) -C . --no-print-directory monolithic
 	@$(MAKE) -C . --no-print-directory composable
 	@$(MAKE) -C . --no-print-directory smiv
+	@$(MAKE) -C . --no-print-directory smv
 #	@$(MAKE) -C . --no-print-directory eigen
 	@$(MAKE) -C . --no-print-directory mkl
 
@@ -29,6 +31,9 @@ build:
 
 smiv: build
 	@python run_tests.py smiv ../build/nnet-smiv-native
+
+smv: build
+	@python run_tests.py smv ../build/nnet-smv-native
 
 monolithic: build
 	@python run_tests.py monolithic ../build/nnet-monolithic-native
