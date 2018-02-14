@@ -1,3 +1,3 @@
-// Use this file when building with g++ to take advantage of the Eigen backend.
+// Use this file when building for the tracer.
 
 #include "smiv.cpp"

@@ -1,5 +1,6 @@
 #include <assert.h>
-#include "arch/smiv_common.h"
+#include "arch/common.h"
+#include "arch/smiv/common.h"
 #include "arch/smiv/dispatch_utils.h"
 #include "core/nnet_fwd_defs.h"
 #include "core/smiv/params.h"
@@ -40,23 +41,23 @@
 //   spad0: SPAD0 pointer.
 //   spad1: SPAD1 pointer.
 //   umem: UMEM pointer.
-void decompress_packed_csr_smiv_hw(uint32_t* dma_weights,
-                                   uint32_t* acp_weights,
-                                   uint32_t* cache_weights,
-                                   int cmp_col_offset,
-                                   int cmp_row_offset,
-                                   int dest_offset,
-                                   dims_t* data_dims,
-                                   size_t compressed_size,
-                                   size_t decompressed_size,
-                                   bool input_in_spad0,
-                                   io_req_t copy_mechanism,
-                                   bool use_pipelined_dma,
-                                   float* spad0,
-                                   float* spad1,
-                                   float* umem) {
+static void smiv_decompress_packed_csr_hw(uint32_t* dma_weights,
+                                          uint32_t* acp_weights,
+                                          uint32_t* cache_weights,
+                                          int cmp_col_offset,
+                                          int cmp_row_offset,
+                                          int dest_offset,
+                                          dims_t* data_dims,
+                                          size_t compressed_size,
+                                          size_t decompressed_size,
+                                          bool input_in_spad0,
+                                          io_req_t copy_mechanism,
+                                          bool use_pipelined_dma,
+                                          float* spad0,
+                                          float* spad1,
+                                          float* umem) {
     PRINT_MSG("Decompressing CSR data!\n");
-    ASSERT(compressed_size <= SPAD_SIZE &&
+    ASSERT(compressed_size <= SMIV_SPAD_SIZE &&
            "CSR array size exceeds scratchpad capacity!");
     // The umem must be zeroed first.
     int num_rows = decompressed_size / (VECTOR_SIZE * sizeof(float));
@@ -97,14 +98,15 @@ void decompress_packed_csr_smiv_hw(uint32_t* dma_weights,
     }
 }
 
-void decompress_packed_csr_smiv_impl(layer_t* layer,
+void smiv_decompress_packed_csr_impl(layer_t* layer,
                                      int start_row,
                                      bool input_in_spad0,
+                                     smiv_global* g_smiv,
                                      device_t* device) {
     packed_csr_array_t* src_csr =
             (packed_csr_array_t*)layer->host_weights_buffer;
     csr_tile_list* tile_list = tile_packed_csr_array_t(
-            src_csr, &layer->weights, start_row, SPAD_SIZE);
+            src_csr, &layer->weights, start_row, SMIV_SPAD_SIZE);
     assert(tile_list->len > 0 && "CSR tile list cannot be empty!");
     csr_tile* curr_tile = tile_list->head;
     int dest_offset = 0;
@@ -113,12 +115,12 @@ void decompress_packed_csr_smiv_impl(layer_t* layer,
         dims_t dims = (dims_t){ curr_tile->num_rows, layer->weights.cols,
                                 layer->weights.height,
                                 layer->weights.align_pad };
-        MAP_ARRAY_TO_ACCEL(kInnerProductHw,
+        MAP_ARRAY_TO_ACCEL(kSmivInnerProductHw,
                            get_host_weights_var_name(layer->weights_req),
                            array->vals, array->total_buf_size);
-        INVOKE_KERNEL_PROF(kInnerProductHw,
+        INVOKE_KERNEL_PROF(kSmivInnerProductHw,
                            layer->num,
-                           decompress_packed_csr_smiv_hw,
+                           smiv_decompress_packed_csr_hw,
                            array->vals,  // DMA
                            array->vals,  // ACP
                            array->vals,  // Cache
@@ -131,9 +133,9 @@ void decompress_packed_csr_smiv_impl(layer_t* layer,
                            !input_in_spad0,  // Don't overwrite inputs!
                            device->cpu_default_offload,
                            device->use_pipelined_dma,
-                           g_spad0,
-                           g_spad1,
-                           g_umem);
+                           g_smiv->spad0,
+                           g_smiv->spad1,
+                           g_smiv->umem);
         dest_offset += (curr_tile->eff_total_bytes / sizeof(uint32_t));
         curr_tile = curr_tile->next_tile;
     } while (curr_tile);

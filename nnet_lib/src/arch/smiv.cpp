@@ -6,9 +6,6 @@
 
 #include "nnet_fwd.h"
 #include "core/ref/activation_functions.h"
-#include "core/ref/batch_norm.h"
-#include "core/ref/convolution.h"
-#include "core/ref/matrix_multiply.h"
 #include "core/ref/pooling.h"
 #include "core/ref/zeropad.h"
 #include "core/smiv/smiv.h"
@@ -17,7 +14,7 @@
 #include "utility/utility.h"
 #include "arch/common.h"
 #include "arch/interface.h"
-#include "arch/smiv_common.h"
+#include "arch/smiv/common.h"
 
 #ifdef __cplusplus
 #include "mkldnn.hpp"
@@ -34,33 +31,7 @@
 
 #if ARCHITECTURE == SMIV
 
-// These are GLOBAL arrays which cannot be referenced directly by a HW
-// function. Instead, pass them to the top level functions as function
-// arguments, and use a boolean flag to indicate which one contains the data
-// needed.
-float* g_umem;
-float* g_spad0;
-float* g_spad1;
-
-void init_work_cfg(work_cfg_t* cfg, unsigned num_iterations) {
-    cfg->num_iterations = num_iterations;
-    cfg->iteration = (dims_t*)malloc(sizeof(dims_t) * num_iterations);
-}
-
-void free_work_cfg(work_cfg_t* cfg) {
-    free(cfg->iteration);
-}
-
-void print_work_cfg(work_cfg_t* cfg) {
-    for (unsigned i = 0; i < cfg->num_iterations; i++) {
-        INFO_MSG("Iteration %d: height=%d, rows=%d, cols=%d, pad=%d\n",
-                 i,
-                 cfg->iteration[i].height,
-                 cfg->iteration[i].rows,
-                 cfg->iteration[i].cols,
-                 cfg->iteration[i].align_pad);
-    }
-}
+smiv_global g_smiv;
 
 // Use the same accelerator id for all hardware blocks. This means we will
 // simulate only ONE datapath instead of multiple, which means that the two
@@ -70,11 +41,11 @@ void print_work_cfg(work_cfg_t* cfg) {
 // control to the CPU at the right places.  In contrast, if we used two
 // different ids, we would have two different datapaths that could not share
 // data directly.
-unsigned kConvolutionHw = 0x0003;
-unsigned kInnerProductHw = 0x0003;
-unsigned kReductionHw = 0x0003;
-unsigned kBatchNormHw = 0x0003;
-unsigned kPoolingHw = 0x0003;
+unsigned kSmivConvolutionHw = 0x0003;
+unsigned kSmivInnerProductHw = 0x0003;
+unsigned kSmivReductionHw = 0x0003;
+unsigned kSmivBatchNormHw = 0x0003;
+unsigned kSmivPoolingHw = 0x0003;
 
 result_buf flatten_input(float* activations,
                          layer_t* layers,
@@ -86,27 +57,6 @@ result_buf flatten_input(float* activations,
     return result_loc;
 }
 
-bool is_supported_activation_func(layer_type ltype, activation_type func) {
-    if (ltype == FC || ltype == CONV_STANDARD || ltype == CONV_POINTWISE ||
-        ltype == BATCH_NORM || ltype == CONV_DEPTHWISE) {
-        switch (func) {
-            case NO_ACTIVATION:
-            case RELU:
-            case RELU_THRESHOLD:
-            case LRELU:
-            case ELU:
-            case SELU:
-            case TANH:
-            case SIGMOID:
-                return true;
-            default:
-                return false;
-        }
-    } else {
-        return false;
-    }
-}
-
 result_buf inner_product_layer(float* host_activations,
                                float* host_weights,
                                layer_t* layers,
@@ -114,13 +64,8 @@ result_buf inner_product_layer(float* host_activations,
                                float* host_result,
                                device_t* device,
                                sampling_param_t* sampling_param) {
-#ifdef ENABLE_SMV_CONVOLUTION
-    inner_product_layer_smv_impl(
-            host_activations, host_weights, layers, lnum, host_result, device);
-#else
-    inner_product_layer_impl(
-            host_activations, host_weights, layers, lnum, host_result, device);
-#endif
+    smiv_inner_product_layer_impl(host_activations, host_weights, layers, lnum,
+                                  host_result, &g_smiv, device);
     return host_result;
 }
 
@@ -143,14 +88,9 @@ result_buf standard_convolution_layer(float* activations,
                                                            ? "acp_weights"
                                                            : "cache_weights";
     int weights_size = WEIGHT_BYTES(layers, lnum);
-    MAP_ARRAY_TO_ACCEL(
-            kConvolutionHw, weights_var_name, current_layer_weights, weights_size);
+    MAP_ARRAY_TO_ACCEL(kSmivConvolutionHw, weights_var_name,
+                       current_layer_weights, weights_size);
     layer_t curr_layer = layers[lnum];
-#ifdef ENABLE_SMV_CONVOLUTION
-    convolution_impl impl = &standard_convolution_layer_smv_impl;
-#else
-    convolution_impl impl = &standard_convolution_layer_impl;
-#endif
     if (curr_layer.c_padding > 0) {
         // TODO: Replace this with a memcpy implementation.
         copy_zeropad(activations, layers, lnum, result);
@@ -162,22 +102,24 @@ result_buf standard_convolution_layer(float* activations,
         PRINT_DEBUG4D_V(weights, curr_layer.weights.rows,
                         curr_layer.weights.cols + curr_layer.weights.align_pad,
                         curr_layer.weights.height);
-        impl(result,
-             current_layer_weights,
-             layers,
-             lnum,
-             activations,
-             device,
-             sampling_param);
+        smiv_standard_convolution_layer_impl(result,
+                                             current_layer_weights,
+                                             layers,
+                                             lnum,
+                                             activations,
+                                             &g_smiv,
+                                             device,
+                                             sampling_param);
         return activations;
     }
-    impl(activations,
-         current_layer_weights,
-         layers,
-         lnum,
-         result,
-         device,
-         sampling_param);
+    smiv_standard_convolution_layer_impl(activations,
+                                         current_layer_weights,
+                                         layers,
+                                         lnum,
+                                         result,
+                                         &g_smiv,
+                                         device,
+                                         sampling_param);
     return result;
 }
 
@@ -196,8 +138,8 @@ result_buf depthwise_convolution_layer(float* activations,
                                                            ? "acp_weights"
                                                            : "cache_weights";
     int weights_size = WEIGHT_BYTES(layers, lnum);
-    MAP_ARRAY_TO_ACCEL(
-            kConvolutionHw, weights_var_name, current_layer_weights, weights_size);
+    MAP_ARRAY_TO_ACCEL(kSmivConvolutionHw, weights_var_name,
+                       current_layer_weights, weights_size);
     layer_t curr_layer = layers[lnum];
     if (curr_layer.c_padding > 0) {
         copy_zeropad(activations, layers, lnum, result);
@@ -209,13 +151,15 @@ result_buf depthwise_convolution_layer(float* activations,
         PRINT_DEBUG4D_V(weights, curr_layer.weights.rows,
                         curr_layer.weights.cols + curr_layer.weights.align_pad,
                         curr_layer.weights.height);
-        depthwise_convolution_layer_impl(result, current_layer_weights, layers,
-                                         lnum, activations, device);
+        smiv_depthwise_convolution_layer_impl(result, current_layer_weights,
+                                              layers, lnum, activations,
+                                              &g_smiv, device);
 
         return activations;
     }
-    depthwise_convolution_layer_impl(
-            activations, current_layer_weights, layers, lnum, result, device);
+    smiv_depthwise_convolution_layer_impl(activations, current_layer_weights,
+                                          layers, lnum, result, &g_smiv,
+                                          device);
 
     return result;
 }
@@ -259,8 +203,8 @@ result_buf pointwise_convolution_layer(float* activations,
             get_dims_size(&layers[lnum].outputs) * sizeof(float));
 
     // Finally, invoke the FC hardware.
-    inner_product_layer_impl(
-            nhwc_inputs, weights, layers, lnum, nhwc_outputs, device);
+    smiv_inner_product_layer_impl(
+            nhwc_inputs, weights, layers, lnum, nhwc_outputs, &g_smiv, device);
 
     PRINT_MSG_V("1x1 GEMM results:\n");
     PRINT_DEBUG_V(nhwc_outputs, fc_dims.rows,
@@ -294,7 +238,7 @@ result_buf pooling_layer(float* activations,
                          sampling_param_t* sampling_param) {
     layer_t curr_layer = layers[lnum];
     if (device->use_hw_pooling) {
-        pooling_layer_impl(activations, &layers[lnum], result);
+        smiv_pooling_layer_impl(activations, &layers[lnum], &g_smiv, result);
     } else {
 #ifdef __cplusplus
         if (curr_layer.pool == MAX) {
@@ -322,57 +266,6 @@ result_buf pooling_layer(float* activations,
     return result;
 }
 
-void batch_norm_layer_hw(float* host_activations,
-                         float* host_weights,
-                         float* host_result,
-                         float* umem,
-                         float* spad0,
-                         float* spad1,
-                         bool input_in_spad0,
-                         layer_t* curr_layer) {
-    // DMA in the weights (to UMEM)
-    setReadyBits(umem, UMEM_SIZE, 0);
-    dmaLoad(umem, host_weights, WEIGHT_BYTES(curr_layer, 0));
-
-    // DMA in the inputs (to SPAD0)
-    if (curr_layer->input_req == IO_DMA) {
-        if (input_in_spad0) {
-            setReadyBits(spad0, SPAD_SIZE, 0);
-            grab_input_activations_dma(host_activations, spad0, curr_layer);
-        } else {
-            setReadyBits(spad1, SPAD_SIZE, 0);
-            grab_input_activations_dma(host_activations, spad1, curr_layer);
-        }
-    }
-
-    // The main kernel
-#ifdef ENABLE_SIMD_IMPL
-    if (input_in_spad0)
-        batch_norm_simd_fxp(spad0, umem, curr_layer, NUM_TEST_CASES, spad1);
-    else
-        batch_norm_simd_fxp(spad1, umem, curr_layer, NUM_TEST_CASES, spad0);
-#else
-    int input_size = curr_layer->inputs.rows * curr_layer->inputs.height *
-                     (curr_layer->inputs.cols + curr_layer->inputs.align_pad);
-    activation_type activation = curr_layer->activation;
-    if (input_in_spad0) {
-        batch_norm_fxp(spad0, umem, curr_layer, NUM_TEST_CASES, spad1);
-        activation_fun(spad1, NUM_TEST_CASES, input_size, activation);
-    } else {
-        batch_norm_fxp(spad1, umem, curr_layer, NUM_TEST_CASES, spad0);
-        activation_fun(spad0, NUM_TEST_CASES, input_size, activation);
-    }
-#endif
-
-    // DMA out the result (from SPAD1)
-    if (curr_layer->output_req == IO_DMA) {
-        if (input_in_spad0)
-            store_output_activations_dma(host_result, spad1, curr_layer);
-        else
-            store_output_activations_dma(host_result, spad0, curr_layer);
-    }
-}
-
 result_buf batch_norm_layer(float* activations,
                             float* weights,
                             layer_t* layers,
@@ -380,83 +273,11 @@ result_buf batch_norm_layer(float* activations,
                             float* result,
                             device_t* device,
                             sampling_param_t* sampling_param) {
-    layer_t curr_layer = layers[lnum];
-    float* curr_layer_weights =
-            weights + get_weights_loc_for_layer(layers, lnum);
-
-    if (device->use_hw_batch_norm) {
-        int weights_size = WEIGHT_BYTES(layers, lnum);
-        if (weights_size > UMEM_SIZE) {
-            fprintf(stderr, "[ERROR]: Batch norm weights are larger than the "
-                            "UMEM - not currently supported!\n");
-        }
-        assert(weights_size <= UMEM_SIZE);
-        int inputs_size = INPUT_BYTES(layers, lnum);
-        int outputs_size = OUTPUT_BYTES(layers, lnum);
-        assert(inputs_size == outputs_size);
-        if (inputs_size > SPAD_SIZE) {
-            fprintf(stderr, "[ERROR]: Batch norm inputs don't fit on the "
-                            "scratchpad!\n");
-        }
-        assert(inputs_size <= SPAD_SIZE);
-        if (!device->use_hw_activation_func)
-            curr_layer.activation = NO_ACTIVATION;
-
-        // Flush cache lines for activations and weights.
-        begin_ignored_profiling(lnum);
-        flush_cache_range(activations, inputs_size / sizeof(float));
-        flush_cache_range(curr_layer_weights, weights_size / sizeof(float));
-        end_profiling();
-
-        MAP_ARRAY_TO_ACCEL(
-                kBatchNormHw, "host_activations", activations, inputs_size);
-        MAP_ARRAY_TO_ACCEL(
-                kBatchNormHw, "host_weights", curr_layer_weights, weights_size);
-        MAP_ARRAY_TO_ACCEL(kBatchNormHw, "host_result", result, outputs_size);
-        // TODO: For now, always put the input into spad0.
-        INVOKE_KERNEL_PROF(kBatchNormHw, lnum, batch_norm_layer_hw, activations,
-                           curr_layer_weights, result, g_umem, g_spad0, g_spad1,
-                           true, &layers[lnum]);
-    } else {
-        begin_profiling(__func__, lnum);
-        // The reference implementation is faster than MKL since we can
-        // precompute some of the weights, and there's no way to implement this
-        // in MKL at the present moment.
-        batch_norm_fxp(activations,
-                       curr_layer_weights,
-                       &curr_layer,
-                       NUM_TEST_CASES,
-                       result);
-        if (device->use_hw_activation_func) {
-            int input_size = get_dims_size(&curr_layer.inputs);
-            activation_fun(
-                    result, NUM_TEST_CASES, input_size, curr_layer.activation);
-        }
-        end_profiling();
-    }
+    smiv_batch_norm_layer_impl(
+            activations, weights, layers, lnum, result, &g_smiv, device);
     return result;
 }
 
-result_buf smiv_activation_function(float* activations,
-                                    layer_t* layer,
-                                    float* results,
-                                    device_t* device) {
-#ifdef __cplusplus
-    begin_ignored_profiling(layer->num);
-    nnet_mkl::activation_fun(
-            activations, NUM_TEST_CASES, layer, results, device);
-    end_profiling();
-    nnet_mkl::MklSession* session = nnet_mkl::get_session(device);
-    session->run_and_clear();
-    return results;
-#else
-    int output_size = get_dims_size(&layer->outputs);
-    begin_profiling(ACTIVATION_TYPE_STR(layer->activation), layer->num);
-    activation_fun(activations, NUM_TEST_CASES, output_size, layer->activation);
-    end_profiling();
-    return activations;
-#endif
-}
 
 result_buf run_layer(float* activations,
                      float* weights,
@@ -481,7 +302,7 @@ result_buf run_layer(float* activations,
     bool do_activation = act_func != NO_ACTIVATION;
     bool do_hw_activation =
             device->use_hw_activation_func &&
-            is_supported_activation_func(layers[layer_num].type, act_func);
+            smiv_is_supported_activation_func(layers[layer_num].type, act_func);
     if (do_activation && !do_hw_activation) {
         if (result_loc == activations) {
             result_loc = smiv_activation_function(
@@ -550,11 +371,11 @@ void set_io_requirements(network_t* network, device_t* device) {
             // We need to do data layout on the CPU before invoking pooling
             // block and we don't support local caching for batch norm right
             // now.
-            next_layer->type == BATCH_NORM ||
-            next_layer->type == POOLING ||
+            next_layer->type == BATCH_NORM || next_layer->type == POOLING ||
             // If the FC block needs work division, we can't locally cache.
             (curr_layer->type == FC && next_layer->type == FC &&
-             inner_product_needs_work_division(&network->layers[layer_num]))) {
+             smiv_inner_product_needs_work_division(
+                     &network->layers[layer_num]))) {
             curr_layer->output_req = device->cpu_default_offload;
         } else {
             curr_layer->output_req = IO_NONE;
@@ -598,7 +419,6 @@ void set_io_requirements(network_t* network, device_t* device) {
                network->layers[layer_num].input_req,
                network->layers[layer_num].output_req);
     }
-
 }
 
 // Runs the forward pass of a neural network.
@@ -614,9 +434,9 @@ void nnet_fwd(farray_t activations,
     int l;
     layer_t curr_layer;
 
-    g_umem = (float*)malloc_aligned(UMEM_SIZE);
-    g_spad0 = (float*)malloc_aligned(SPAD_SIZE);
-    g_spad1 = (float*)malloc_aligned(SPAD_SIZE);
+    g_smiv.umem = (float*)malloc_aligned(SMIV_UMEM_SIZE);
+    g_smiv.spad0 = (float*)malloc_aligned(SMIV_SPAD_SIZE);
+    g_smiv.spad1 = (float*)malloc_aligned(SMIV_SPAD_SIZE);
 
 #ifdef __cplusplus
     nnet_mkl::MklSession* session = new nnet_mkl::MklSession();
@@ -639,7 +459,7 @@ void nnet_fwd(farray_t activations,
 
     set_io_requirements(&network, device);
 
-    MAP_ARRAY_TO_ACCEL(kConvolutionHw, "host_activations", activations.d,
+    MAP_ARRAY_TO_ACCEL(kSmivConvolutionHw, "host_activations", activations.d,
                        activations.size);
 
     //******************//
@@ -668,9 +488,9 @@ nnet_fwd_outer:
                  NUM_TEST_CASES * NUM_CLASSES * sizeof(float));
     dmaStore(network.layers, network.layers, network.depth * sizeof(layer_t));
 
-    free(g_umem);
-    free(g_spad0);
-    free(g_spad1);
+    free(g_smiv.umem);
+    free(g_smiv.spad0);
+    free(g_smiv.spad1);
 }
 
 #endif

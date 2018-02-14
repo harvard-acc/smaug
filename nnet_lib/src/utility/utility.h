@@ -47,6 +47,12 @@ size_t store_output_activations_dma(float* host_activations,
                                     float* accel_activations,
                                     layer_t* layer);
 
+void copy_data_col_range(float* original_data,
+                              dims_t* original_dims,
+                              int start_col,
+                              int num_cols,
+                              float* new_buffer);
+
 static inline void clflush(float* addr) {
     __asm__ volatile("clflush %0" : : "r"(addr));
 }

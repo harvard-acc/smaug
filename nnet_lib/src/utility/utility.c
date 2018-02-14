@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <string.h>
 #include "nnet_fwd.h"
 
 #ifdef DMA_MODE
@@ -302,6 +303,33 @@ size_t get_dims_size(dims_t* dims) {
 // Compute the total size of this dims_t in NHWC format.
 size_t get_nhwc_dims_size(dims_t* dims) {
     return dims->rows * dims->cols * (dims->height + dims->align_pad);
+}
+
+// Copy a range of columns from a 2D array data buffer to a new buffer.
+//
+// The data from section starting at (row, col) = (0, start_col) to (num_rows,
+// start_col + num_cols) will be copied.
+//
+// Args:
+//   original_data: Original data buffer
+//   original_dims: Dimensions of this buffer. Height is ignored.
+//   start_col: The starting column.
+//   num_cols: Number of cols in the range to copy.
+//   new_buffer: Destination buffer.
+void copy_data_col_range(float* original_data,
+                         dims_t* original_dims,
+                         int start_col,
+                         int num_cols,
+                         float* new_buffer) {
+    int num_rows = original_dims->rows * NUM_TEST_CASES;
+    int num_total_cols =
+            original_dims->cols + original_dims->align_pad;
+    ARRAY_2D(float, _data, original_data, num_total_cols);
+    for (int r = 0; r < num_rows; r++) {
+        memcpy(new_buffer + r * num_cols,
+               &_data[r][start_col],
+               num_cols * sizeof(float));
+    }
 }
 
 size_t next_multiple(size_t request, size_t align) {

@@ -1,7 +1,8 @@
 #include <assert.h>
 #include <string.h>
 
-#include "arch/smiv_common.h"
+#include "arch/common.h"
+#include "arch/smiv/common.h"
 #include "arch/smiv/dispatch_utils.h"
 #include "core/nnet_fwd_defs.h"
 #include "core/ref/activation_functions.h"
@@ -17,19 +18,19 @@ typedef struct _convolution_options {
     int kern;
     int start_chan;
     bool use_pipelined_dma;
-} convolution_options;
+} smiv_convolution_options;
 
 typedef struct _reduction_options {
     bool input_in_spad0;
     bool use_pipelined_dma;
-} reduction_options;
+} smiv_reduction_options;
 
-void reduction_hw_impl(float* host_inputs,
-                       float* host_results,
-                       float* local_inputs,
-                       float* local_results,
-                       layer_t partial_layer,
-                       reduction_options* options) {
+static void smiv_reduction_hw_impl(float* host_inputs,
+                                   float* host_results,
+                                   float* local_inputs,
+                                   float* local_results,
+                                   layer_t partial_layer,
+                                   smiv_reduction_options* options) {
     size_t result_size =
             partial_layer.outputs.rows *
             (partial_layer.outputs.cols + partial_layer.outputs.align_pad);
@@ -53,49 +54,49 @@ void reduction_hw_impl(float* host_inputs,
     }
 }
 
-void reduction_hw(float* dma_activations,
-                  float* dma_results,
-                  float* acp_activations,
-                  float* acp_results,
-                  float* cache_activations,
-                  float* cache_results,
-                  float* umem,
-                  float* spad0,
-                  float* spad1,
-                  layer_t curr_layer,
-                  access_config* access_config,
-                  reduction_options* options) {
+static void smiv_reduction_hw(float* dma_activations,
+                              float* dma_results,
+                              float* acp_activations,
+                              float* acp_results,
+                              float* cache_activations,
+                              float* cache_results,
+                              float* umem,
+                              float* spad0,
+                              float* spad1,
+                              layer_t curr_layer,
+                              access_config* access_config,
+                              smiv_reduction_options* options) {
 
-//=--------- Convenience macros for invoking the HW impl ---------------=//
-//
-// Each of these macros will call reduction_hw_impl() with a different name for
-// the array arguments, based on the desired access mechanism for each. Since
-// we name our variables in a consistent way - "mechanism_arrayname" - the
-// macro can automatically form the correct variable name by macro
-// concatentation.
-//
-// If DEBUG_LEVEL >= 2, then each invocation of these macros will print
-// the mechanism and variable names used in the function call.
-//
-// Common argument abbreviations:
-//    HA = host activations
-//    HW = host weights
-//    HR = host results
-//    LA = local activations
-//    LW = local weights
-//    LR = local result
+    //=--------- Convenience macros for invoking the HW impl ---------------=//
+    //
+    // Each of these macros will call reduction_hw_impl() with a different name
+    // for the array arguments, based on the desired access mechanism for each.
+    // Since we name our variables in a consistent way - "mechanism_arrayname" -
+    // the macro can automatically form the correct variable name by macro
+    // concatentation.
+    //
+    // If DEBUG_LEVEL >= 2, then each invocation of these macros will print
+    // the mechanism and variable names used in the function call.
+    //
+    // Common argument abbreviations:
+    //    HA = host activations
+    //    HW = host weights
+    //    HR = host results
+    //    LA = local activations
+    //    LW = local weights
+    //    LR = local result
 
 #define REDUCTION_NO_DMA_IMPL(INPUT, LR)                                       \
     do {                                                                       \
         PRINT_MSG(#INPUT "-" #LR "\n");                                        \
-        reduction_hw_impl(NULL, NULL, INPUT##_activations, LR##_results,       \
-                          curr_layer, options);                                \
+        smiv_reduction_hw_impl(NULL, NULL, INPUT##_activations, LR##_results,  \
+                               curr_layer, options);                           \
     } while (0)
 
 #define REDUCTION_WITH_DMA_IMPL(HA, HR, LA, LR)                                \
     do {                                                                       \
         PRINT_MSG(#HA "-" #HR "-" #LA "-" #LR "\n");                           \
-        reduction_hw_impl(                                                     \
+        smiv_reduction_hw_impl(                                                \
                 HA##_activations, HR##_results, LA, LR, curr_layer, options);  \
     } while (0)
 
@@ -188,15 +189,15 @@ void reduction_hw(float* dma_activations,
 //      UNTILED dimensions input, whereas the dimensions for the weights and
 //      outputs describe the TILED dimensions.
 //   options: Additional options for this execution of convolution.
-static void convolution_layer_hw_impl(float* dma_activations,
-                                      float* dma_weights,
-                                      float* dma_results,
-                                      float* local_activations,
-                                      float* local_weights,
-                                      float* local_results,
-                                      // TODO: make this a pointer instead.
-                                      layer_t curr_layer,
-                                      convolution_options* options) {
+static void smiv_convolution_layer_hw_impl(float* dma_activations,
+                                           float* dma_weights,
+                                           float* dma_results,
+                                           float* local_activations,
+                                           float* local_weights,
+                                           float* local_results,
+                                           // TODO: make this a pointer instead.
+                                           layer_t curr_layer,
+                                           smiv_convolution_options* options) {
     // This is the full input height, NOT the tiled height!
     int total_input_height = curr_layer.inputs.height;
     int input_rows = curr_layer.inputs.rows;
@@ -251,21 +252,21 @@ static void convolution_layer_hw_impl(float* dma_activations,
 // the UMEM and the weights and outputs in the two scratchpads, so there is
 // need to select the right spad.
 //
-static void convolution_layer_hw(float* dma_activations,
-                                 float* dma_weights,
-                                 float* dma_results,
-                                 float* cache_activations,
-                                 float* cache_weights,
-                                 float* cache_results,
-                                 float* acp_activations,
-                                 float* acp_weights,
-                                 float* acp_results,
-                                 float* umem,
-                                 float* spad0,
-                                 float* spad1,
-                                 layer_t curr_layer,
-                                 access_config*  access_config,
-                                 convolution_options* options) {
+static void smiv_convolution_layer_hw(float* dma_activations,
+                                      float* dma_weights,
+                                      float* dma_results,
+                                      float* cache_activations,
+                                      float* cache_weights,
+                                      float* cache_results,
+                                      float* acp_activations,
+                                      float* acp_weights,
+                                      float* acp_results,
+                                      float* umem,
+                                      float* spad0,
+                                      float* spad1,
+                                      layer_t curr_layer,
+                                      access_config* access_config,
+                                      smiv_convolution_options* options) {
 //=--------- Convenience macros for invoking the HW impl ---------------=//
 //
 // Because the convolutional block cannot mix the use of scratchpads and the
@@ -276,9 +277,9 @@ static void convolution_layer_hw(float* dma_activations,
 #define CONV3D_NO_DMA_IMPL(INPUT, WGT, LR)                                     \
     do {                                                                       \
         PRINT_MSG(#INPUT "-" #WGT "-" #LR "\n");                               \
-        convolution_layer_hw_impl(NULL, NULL, NULL, INPUT##_activations,       \
-                                  WGT##_weights, LR##_results, curr_layer,     \
-                                  options);                                    \
+        smiv_convolution_layer_hw_impl(NULL, NULL, NULL, INPUT##_activations,  \
+                                       WGT##_weights, LR##_results,            \
+                                       curr_layer, options);                   \
     } while (0)
 
 // Inputs can come from anywhere (dma, cache, or acp), and outputs can go
@@ -286,9 +287,9 @@ static void convolution_layer_hw(float* dma_activations,
 #define CONV3D_WITH_DMA_IMPL(HA, HW, HR, LA, LW, LR)                           \
     do {                                                                       \
         PRINT_MSG(#HA "-" #HW "-" #HR "-" #LA "-" #LW "-" #LR "\n");           \
-        convolution_layer_hw_impl(HA##_activations, HW##_weights,              \
-                                  HR##_results, LA, LW, LR, curr_layer,        \
-                                  options);                                    \
+        smiv_convolution_layer_hw_impl(HA##_activations, HW##_weights,         \
+                                       HR##_results, LA, LW, LR, curr_layer,   \
+                                       options);                               \
     } while (0)
 
     // These selections use the same mechanism all across.
@@ -348,7 +349,7 @@ static void convolution_layer_hw(float* dma_activations,
 }
 
 // Find a good way to pack the convolution into the accelerator.
-static conv_cfg_t convolution_divide_work(layer_t* layers, int lnum) {
+static conv_cfg_t smiv_convolution_divide_work(layer_t* layers, int lnum) {
     conv_cfg_t conv_cfgs;
     unsigned total_input_bytes = INPUT_BYTES(layers, lnum) / NUM_TEST_CASES;
     // This is the unreduced output for a single output channel.
@@ -356,14 +357,14 @@ static conv_cfg_t convolution_divide_work(layer_t* layers, int lnum) {
             layers[lnum].outputs.rows *
             (layers[lnum].outputs.cols + layers[lnum].outputs.align_pad) *
             layers[lnum].inputs.height * sizeof(float);
-    if (total_input_bytes > UMEM_SIZE) {
+    if (total_input_bytes > SMIV_UMEM_SIZE) {
         printf("A single input image exceeds the capacity of the UMEM, which "
                "is not supported!\n");
         assert(false);
     }
-    if (total_output_bytes <= SPAD_SIZE) {
+    if (total_output_bytes <= SMIV_SPAD_SIZE) {
         PRINT_MSG_V("Entire input problem fits into the local memory.\n");
-        init_work_cfg(&conv_cfgs, 1);
+        init_smiv_work_cfg(&conv_cfgs, 1);
         conv_cfgs.iteration[0].rows = layers[lnum].inputs.rows;
         conv_cfgs.iteration[0].cols = layers[lnum].inputs.cols;
         conv_cfgs.iteration[0].height = layers[lnum].inputs.height;
@@ -380,10 +381,10 @@ static conv_cfg_t convolution_divide_work(layer_t* layers, int lnum) {
             sizeof(float);
     unsigned input_channels = layers[lnum].inputs.height;
 
-    int max_channels_per_iter = SPAD_SIZE / output_channel_size;
+    int max_channels_per_iter = SMIV_SPAD_SIZE / output_channel_size;
     if (max_channels_per_iter >= 2) {
         PRINT_MSG_V("We can fit at least 2 unreduced input channels at once.\n");
-        init_work_cfg(&conv_cfgs,
+        init_smiv_work_cfg(&conv_cfgs,
                       ceil((float)input_channels / max_channels_per_iter));
         int total_channels = input_channels;
         for (unsigned i = 0; i < conv_cfgs.num_iterations; i++) {
@@ -406,13 +407,14 @@ static conv_cfg_t convolution_divide_work(layer_t* layers, int lnum) {
     return conv_cfgs;
 }
 
-void standard_convolution_layer_impl(float* host_activations,
-                                     float* host_weights,
-                                     layer_t* layers,
-                                     int lnum,
-                                     float* host_result,
-                                     device_t* device,
-                                     sampling_param_t* sampling_param) {
+void smiv_standard_convolution_layer_impl(float* host_activations,
+                                          float* host_weights,
+                                          layer_t* layers,
+                                          int lnum,
+                                          float* host_result,
+                                          smiv_global* g_smiv,
+                                          device_t* device,
+                                          sampling_param_t* sampling_param) {
     const layer_t curr_layer = layers[lnum];
     int result_height = curr_layer.outputs.rows;
     int result_width = curr_layer.outputs.cols;
@@ -430,9 +432,9 @@ void standard_convolution_layer_impl(float* host_activations,
     const int result_2d_size = result_height * (result_width + result_pad);
     const int weights_size = WEIGHT_BYTES(layers, lnum);
 
-    conv_cfg_t conv_cfgs = convolution_divide_work(layers, lnum);
+    conv_cfg_t conv_cfgs = smiv_convolution_divide_work(layers, lnum);
     INFO_MSG("Standard convolution layer %d work configuration:\n", lnum);
-    print_work_cfg(&conv_cfgs);
+    print_smiv_work_cfg(&conv_cfgs);
 
     // temp_result stores the partially reduced results of each iteration.
     size_t temp_result_size =
@@ -440,11 +442,11 @@ void standard_convolution_layer_impl(float* host_activations,
     float* temp_result = (float*)malloc_aligned(temp_result_size);
 
     bool do_hw_activation = device->use_hw_activation_func &&
-                            is_supported_activation_func(
+                            smiv_is_supported_activation_func(
                                     curr_layer.type, curr_layer.activation);
     bool use_pipelined_dma = device->use_pipelined_dma;
 
-    MAP_ARRAY_TO_ACCEL(kConvolutionHw,
+    MAP_ARRAY_TO_ACCEL(kSmivConvolutionHw,
                        get_host_inputs_var_name(curr_layer.input_req),
                        host_activations,
                        activations_size);
@@ -503,7 +505,7 @@ void standard_convolution_layer_impl(float* host_activations,
                 if (partial_layer.input_req == IO_DMA && kern > 0)
                     partial_layer.input_req = IO_NONE;
 
-                convolution_options conv_options;
+                smiv_convolution_options conv_options;
                 conv_options.img = img;
                 conv_options.kern = kern;
                 conv_options.start_chan = start_chan;
@@ -511,12 +513,12 @@ void standard_convolution_layer_impl(float* host_activations,
                 access_config access_cfg =
                         layer_to_access_config(&partial_layer);
                 MAP_ARRAY_TO_ACCEL(
-                        kConvolutionHw,
+                        kSmivConvolutionHw,
                         get_host_weights_var_name(partial_layer.weights_req),
                         current_weights_loc, weights_block_size);
-                INVOKE_KERNEL_PROF(kConvolutionHw,
+                INVOKE_KERNEL_PROF(kSmivConvolutionHw,
                                    lnum,
-                                   convolution_layer_hw,
+                                   smiv_convolution_layer_hw,
                                    // DMA
                                    host_activations,
                                    current_weights_loc,
@@ -529,9 +531,9 @@ void standard_convolution_layer_impl(float* host_activations,
                                    host_activations,
                                    current_weights_loc,
                                    NULL,
-                                   g_umem,
-                                   g_spad0,
-                                   g_spad1,
+                                   g_smiv->umem,
+                                   g_smiv->spad0,
+                                   g_smiv->spad1,
                                    partial_layer,
                                    &access_cfg,
                                    &conv_options);
@@ -551,19 +553,19 @@ void standard_convolution_layer_impl(float* host_activations,
                                 ? NO_ACTIVATION
                                 : curr_layer.activation;
                 MAP_ARRAY_TO_ACCEL(
-                        kReductionHw,
+                        kSmivReductionHw,
                         get_host_results_var_name(partial_layer.output_req),
                         result_loc,
                         result_2d_size * sizeof(float));
 
                 partial_layer.inputs.height = iter_cfg.height;
-                reduction_options red_options;
+                smiv_reduction_options red_options;
                 red_options.input_in_spad0 = false;
                 red_options.use_pipelined_dma = device->use_pipelined_dma;
                 access_cfg = layer_to_access_config(&partial_layer);
-                INVOKE_KERNEL_PROF(kReductionHw,
+                INVOKE_KERNEL_PROF(kSmivReductionHw,
                                    lnum,
-                                   reduction_hw,
+                                   smiv_reduction_hw,
                                    // DMA
                                    NULL,
                                    result_loc,
@@ -573,9 +575,9 @@ void standard_convolution_layer_impl(float* host_activations,
                                    // Cache
                                    NULL,
                                    result_loc,
-                                   g_umem,
-                                   g_spad0,
-                                   g_spad1,
+                                   g_smiv->umem,
+                                   g_smiv->spad0,
+                                   g_smiv->spad1,
                                    partial_layer,
                                    &access_cfg,
                                    &red_options);
@@ -590,7 +592,7 @@ void standard_convolution_layer_impl(float* host_activations,
 
                 int result_iter =
                         ceil(result_2d_size * conv_cfgs.num_iterations /
-                             (float)SPAD_SIZE);
+                             (float)SMIV_SPAD_SIZE);
                 assert(result_iter <= 1 &&
                        "Only support 1 last iteration of reduction!");
 
@@ -602,7 +604,7 @@ void standard_convolution_layer_impl(float* host_activations,
                 PRINT_MSG("Final reduction round\n");
                 if (partial_layer.output_req != IO_NONE) {
                     MAP_ARRAY_TO_ACCEL(
-                            kReductionHw,
+                            kSmivReductionHw,
                             get_host_results_var_name(partial_layer.output_req),
                             result_loc,
                             temp_result_size);
@@ -615,14 +617,14 @@ void standard_convolution_layer_impl(float* host_activations,
                     end_profiling();
                 }
                 partial_layer.input_req = device->cpu_default_offload;
-                reduction_options red_options;
+                smiv_reduction_options red_options;
                 red_options.input_in_spad0 = true;
                 red_options.use_pipelined_dma = device->use_pipelined_dma;
                 access_config access_cfg =
                         layer_to_access_config(&partial_layer);
-                INVOKE_KERNEL_PROF(kReductionHw,
+                INVOKE_KERNEL_PROF(kSmivReductionHw,
                                    lnum,
-                                   reduction_hw,
+                                   smiv_reduction_hw,
                                    // DMA
                                    result_loc,
                                    result_loc,
@@ -632,9 +634,9 @@ void standard_convolution_layer_impl(float* host_activations,
                                    // Cache
                                    result_loc,
                                    result_loc,
-                                   g_umem,
-                                   g_spad0,
-                                   g_spad1,
+                                   g_smiv->umem,
+                                   g_smiv->spad0,
+                                   g_smiv->spad1,
                                    partial_layer,
                                    &access_cfg,
                                    &red_options);
@@ -665,16 +667,17 @@ void standard_convolution_layer_impl(float* host_activations,
         }
 #endif
     }
-    free_work_cfg(&conv_cfgs);
+    free_smiv_work_cfg(&conv_cfgs);
     free(temp_result);
 }
 
-void depthwise_convolution_layer_impl(float* host_activations,
-                                      float* host_weights,
-                                      layer_t* layers,
-                                      int lnum,
-                                      float* host_result,
-                                      device_t* device) {
+void smiv_depthwise_convolution_layer_impl(float* host_activations,
+                                           float* host_weights,
+                                           layer_t* layers,
+                                           int lnum,
+                                           float* host_result,
+                                           smiv_global* g_smiv,
+                                           device_t* device) {
     layer_t curr_layer = layers[lnum];
     const int result_height = curr_layer.outputs.rows;
     const int result_width = curr_layer.outputs.cols;
@@ -687,16 +690,16 @@ void depthwise_convolution_layer_impl(float* host_activations,
              result_width + result_pad);
     ARRAY_3D(float, _kernels, host_weights, k_width, k_width + k_pad);
 
-    conv_cfg_t conv_cfgs = convolution_divide_work(layers, lnum);
+    conv_cfg_t conv_cfgs = smiv_convolution_divide_work(layers, lnum);
     INFO_MSG("Depthwise convolution layer %d work configuration:\n", lnum);
-    print_work_cfg(&conv_cfgs);
+    print_smiv_work_cfg(&conv_cfgs);
 
     bool do_hw_activation = device->use_hw_activation_func &&
-                            is_supported_activation_func(
+                            smiv_is_supported_activation_func(
                                     curr_layer.type, curr_layer.activation);
 
     bool use_pipelined_dma = device->use_pipelined_dma;
-    MAP_ARRAY_TO_ACCEL(kConvolutionHw,
+    MAP_ARRAY_TO_ACCEL(kSmivConvolutionHw,
                        get_host_inputs_var_name(curr_layer.input_req),
                        host_activations,
                        activations_size * sizeof(float));
@@ -741,12 +744,12 @@ void depthwise_convolution_layer_impl(float* host_activations,
             partial_layer.output_req = curr_layer.output_req;
             if (partial_layer.output_req != IO_NONE) {
                 MAP_ARRAY_TO_ACCEL(
-                        kConvolutionHw,
+                        kSmivConvolutionHw,
                         get_host_results_var_name(partial_layer.output_req),
                         current_result,
                         current_iter_result_size * sizeof(float));
             }
-            convolution_options conv_options;
+            smiv_convolution_options conv_options;
             conv_options.img = img;
             // The standard "kern" dimension is always 0, since the kernel
             // dimension is now the channel dimension.
@@ -755,12 +758,12 @@ void depthwise_convolution_layer_impl(float* host_activations,
             conv_options.use_pipelined_dma = use_pipelined_dma;
             access_config access_cfg = layer_to_access_config(&partial_layer);
             MAP_ARRAY_TO_ACCEL(
-                    kConvolutionHw,
+                    kSmivConvolutionHw,
                     get_host_weights_var_name(partial_layer.weights_req),
                     current_weights_loc, weights_block_size);
-            INVOKE_KERNEL_PROF(kConvolutionHw,
+            INVOKE_KERNEL_PROF(kSmivConvolutionHw,
                                lnum,
-                               convolution_layer_hw,
+                               smiv_convolution_layer_hw,
                                // DMA
                                host_activations,
                                current_weights_loc,
@@ -773,9 +776,9 @@ void depthwise_convolution_layer_impl(float* host_activations,
                                host_activations,
                                current_weights_loc,
                                current_result,
-                               g_umem,
-                               g_spad0,
-                               g_spad1,
+                               g_smiv->umem,
+                               g_smiv->spad0,
+                               g_smiv->spad1,
                                partial_layer,
                                &access_cfg,
                                &conv_options);

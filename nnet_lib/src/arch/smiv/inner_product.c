@@ -1,12 +1,13 @@
 #include <assert.h>
 #include <string.h>
 
-#include "arch/smiv_common.h"
+#include "arch/common.h"
+#include "arch/smiv/common.h"
 #include "arch/smiv/dispatch_utils.h"
 #include "core/nnet_fwd_defs.h"
 #include "core/smiv/params.h"
 #include "core/smiv/smiv.h"
-#include "core/smv/smv.h"
+#include "core/smiv/smiv.h"
 #include "utility/compression.h"
 #include "utility/utility.h"
 #include "config.h"
@@ -16,13 +17,13 @@
 #endif
 
 typedef void (*tiled_inner_product_impl)(
-        float*, float*, layer_t*, float*, device_t*, bool);
+        float*, float*, layer_t*, float*, smiv_global*, device_t*, bool);
 
 typedef struct _inner_product_options {
     bool do_bias;
     bool input_in_spad0;
     bool use_pipelined_dma;
-} inner_product_options;
+} smiv_inner_product_options;
 
 // Main implementation of inner product HW.
 //
@@ -46,21 +47,21 @@ typedef struct _inner_product_options {
 //   local_results: Pointer to results that the accelerator writes directly.
 //   curr_layer: Description of this layer's shape and parameters.
 //   options: Additional options for this execution of inner product.
-void inner_product_layer_hw_impl(float* dma_activations,
-                                 float* dma_weights,
-                                 float* dma_results,
-                                 float* local_activations,
-                                 float* local_weights,
-                                 float* local_results,
-                                 layer_t* curr_layer,
-                                 inner_product_options* options) {
+static void inner_product_layer_hw_impl(float* dma_activations,
+                                        float* dma_weights,
+                                        float* dma_results,
+                                        float* local_activations,
+                                        float* local_weights,
+                                        float* local_results,
+                                        layer_t* curr_layer,
+                                        smiv_inner_product_options* options) {
     if (curr_layer->weights_req == IO_DMA) {
         ASSERT(dma_weights && "DMA weights pointer cannot be NULL!");
         int weights_size = get_num_weights_layer(curr_layer, 0);
         if (!options->do_bias)
             weights_size -= curr_layer->weights.cols;
         weights_size *= sizeof(float);
-        setReadyBits(local_weights, UMEM_SIZE, 0);
+        setReadyBits(local_weights, SMIV_UMEM_SIZE, 0);
         dma_load_wrapper(local_weights, dma_weights, weights_size,
                          options->use_pipelined_dma);
     }
@@ -69,7 +70,7 @@ void inner_product_layer_hw_impl(float* dma_activations,
         ASSERT(dma_activations && "DMA inputs pointer cannot be NULL!");
         int activations_size =
                 get_input_activations_size(curr_layer) * sizeof(float);
-        setReadyBits(local_activations, SPAD_SIZE, 0);
+        setReadyBits(local_activations, SMIV_SPAD_SIZE, 0);
         dma_load_wrapper(local_activations, dma_activations, activations_size,
                          options->use_pipelined_dma);
     }
@@ -94,21 +95,21 @@ void inner_product_layer_hw_impl(float* dma_activations,
     }
 }
 
-void inner_product_layer_hw(float* dma_activations,
-                            float* dma_weights,
-                            float* dma_results,
-                            float* cache_activations,
-                            float* cache_weights,
-                            float* cache_results,
-                            float* acp_activations,
-                            float* acp_weights,
-                            float* acp_results,
-                            float* umem,
-                            float* spad0,
-                            float* spad1,
-                            layer_t* curr_layer,
-                            access_config* access_config,
-                            inner_product_options* options) {
+static void inner_product_layer_hw(float* dma_activations,
+                                   float* dma_weights,
+                                   float* dma_results,
+                                   float* cache_activations,
+                                   float* cache_weights,
+                                   float* cache_results,
+                                   float* acp_activations,
+                                   float* acp_weights,
+                                   float* acp_results,
+                                   float* umem,
+                                   float* spad0,
+                                   float* spad1,
+                                   layer_t* curr_layer,
+                                   access_config* access_config,
+                                   smiv_inner_product_options* options) {
 
 //=--------- Convenience macros for invoking the HW impl ---------------=//
 //
@@ -267,26 +268,26 @@ void inner_product_layer_hw(float* dma_activations,
 }
 
 // Returns true if this inner product layer will require multiple iterations.
-bool inner_product_needs_work_division(layer_t* curr_layer) {
+bool smiv_inner_product_needs_work_division(layer_t* curr_layer) {
     const unsigned total_weight_bytes = WEIGHT_BYTES(curr_layer, 0);
-    return total_weight_bytes > UMEM_SIZE;
+    return total_weight_bytes > SMIV_UMEM_SIZE;
 }
 
 // These are the conditions under which we just will not try to run the layer
 // at all.
 //
 // TODO: These are not quite the right constraints.
-void inner_product_check_absolute_size_limits(layer_t* curr_layer) {
+void smiv_inner_product_check_absolute_size_limits(layer_t* curr_layer) {
     const unsigned total_input_bytes =
             get_input_activations_size(curr_layer) / NUM_TEST_CASES;
-    if (total_input_bytes > SPAD_SIZE) {
+    if (total_input_bytes > SMIV_SPAD_SIZE) {
         printf("A single input does not fit in the SPAD, which is not "
                "supported!\n");
         assert(false);
     }
     const unsigned total_output_bytes =
             get_output_activations_size(curr_layer) / NUM_TEST_CASES;
-    if (total_output_bytes > SPAD_SIZE) {
+    if (total_output_bytes > SMIV_SPAD_SIZE) {
         printf("A single output does not fit in the SPAD, which is not "
                "supported!\n");
         assert(false);
@@ -302,13 +303,13 @@ void inner_product_check_absolute_size_limits(layer_t* curr_layer) {
 // Columnwise work division means to do the matrix multiply in groups of In x W,
 // where W = On/iterations. This will require weights reordering, but not input
 // reordering.
-fc_cfg_t inner_product_divide_work_colwise(layer_t* curr_layer) {
+fc_cfg_t smiv_inner_product_divide_work_colwise(layer_t* curr_layer) {
     fc_cfg_t fc_cfgs;
-    inner_product_check_absolute_size_limits(curr_layer);
-    if (!inner_product_needs_work_division(curr_layer)) {
+    smiv_inner_product_check_absolute_size_limits(curr_layer);
+    if (!smiv_inner_product_needs_work_division(curr_layer)) {
         // No work division means to return an fc_cfg_t that is holds the
         // entire weights.
-        init_work_cfg(&fc_cfgs, 1);
+        init_smiv_work_cfg(&fc_cfgs, 1);
         fc_cfgs.iteration[0] = curr_layer->weights;
         return fc_cfgs;
     }
@@ -318,11 +319,11 @@ fc_cfg_t inner_product_divide_work_colwise(layer_t* curr_layer) {
     const unsigned num_neurons =
             curr_layer->weights.cols + curr_layer->weights.align_pad;
     const unsigned minimum_work_size = num_inputs * VECTOR_SIZE * sizeof(float);
-    if (minimum_work_size > UMEM_SIZE) {
+    if (minimum_work_size > SMIV_UMEM_SIZE) {
         printf("This weights layer exceeds our current capability to run!\n");
         assert(false);
     }
-    const unsigned max_work_units_per_iteration = UMEM_SIZE / minimum_work_size;
+    const unsigned max_work_units_per_iteration = SMIV_UMEM_SIZE / minimum_work_size;
     const unsigned bytes_per_iteration =
             max_work_units_per_iteration * minimum_work_size;
     const unsigned num_cols_per_iteration =
@@ -331,7 +332,7 @@ fc_cfg_t inner_product_divide_work_colwise(layer_t* curr_layer) {
     const unsigned num_iterations =
             ceil(((float)total_weight_bytes) / bytes_per_iteration);
 
-    init_work_cfg(&fc_cfgs, num_iterations);
+    init_smiv_work_cfg(&fc_cfgs, num_iterations);
     unsigned num_cols_remaining = num_neurons;
     for (unsigned i = 0; i < num_iterations; i++) {
         int num_cols_this_iter =
@@ -353,13 +354,13 @@ fc_cfg_t inner_product_divide_work_colwise(layer_t* curr_layer) {
 // Rowwise work division means to do the matrix multiply in groups of W x On,
 // where W = In/iterations. This will require inputs reordering, but not
 // weights reordering.
-fc_cfg_t inner_product_divide_work_rowwise(layer_t* curr_layer) {
+fc_cfg_t smiv_inner_product_divide_work_rowwise(layer_t* curr_layer) {
     fc_cfg_t fc_cfgs;
-    inner_product_check_absolute_size_limits(curr_layer);
-    if (!inner_product_needs_work_division(curr_layer)) {
+    smiv_inner_product_check_absolute_size_limits(curr_layer);
+    if (!smiv_inner_product_needs_work_division(curr_layer)) {
         // No work division means to return an fc_cfg_t that is holds the
         // entire weights.
-        init_work_cfg(&fc_cfgs, 1);
+        init_smiv_work_cfg(&fc_cfgs, 1);
         fc_cfgs.iteration[0] = curr_layer->weights;
         return fc_cfgs;
     }
@@ -374,11 +375,12 @@ fc_cfg_t inner_product_divide_work_rowwise(layer_t* curr_layer) {
     const int num_neurons =
             curr_layer->weights.cols + curr_layer->weights.align_pad;
     const unsigned minimum_work_size = num_neurons * 2 * sizeof(float);
-    if (minimum_work_size > UMEM_SIZE) {
+    if (minimum_work_size > SMIV_UMEM_SIZE) {
         printf("This weights layer exceeds our current capability to run!\n");
         assert(false);
     }
-    const unsigned max_work_units_per_iteration = UMEM_SIZE / minimum_work_size;
+    const unsigned max_work_units_per_iteration =
+            SMIV_UMEM_SIZE / minimum_work_size;
     const unsigned bytes_per_iteration =
             max_work_units_per_iteration * minimum_work_size;
     const unsigned num_rows_per_iteration =
@@ -387,7 +389,7 @@ fc_cfg_t inner_product_divide_work_rowwise(layer_t* curr_layer) {
     const unsigned num_iterations =
             ceil(((float)total_weight_bytes) / bytes_per_iteration);
 
-    init_work_cfg(&fc_cfgs, num_iterations);
+    init_smiv_work_cfg(&fc_cfgs, num_iterations);
     unsigned num_rows_remaining = num_inputs;
     for (unsigned i = 0; i < num_iterations; i++) {
         int num_rows_this_iter =
@@ -406,47 +408,21 @@ fc_cfg_t inner_product_divide_work_rowwise(layer_t* curr_layer) {
     return fc_cfgs;
 }
 
-// Copy a range of columns from a 2D array data buffer to a new buffer.
-//
-// The data from section starting at (row, col) = (0, start_col) to (num_rows,
-// start_col + num_cols) will be copied.
-//
-// Args:
-//   original_data: Original data buffer
-//   original_dims: Dimensions of this buffer. Height is ignored.
-//   start_col: The starting column.
-//   num_cols: Number of cols in the range to copy.
-//   new_buffer: Destination buffer.
-void copy_data_col_range(float* original_data,
-                         dims_t* original_dims,
-                         int start_col,
-                         int num_cols,
-                         float* new_buffer) {
-    int num_rows = original_dims->rows * NUM_TEST_CASES;
-    int num_total_cols =
-            original_dims->cols + original_dims->align_pad;
-    ARRAY_2D(float, _data, original_data, num_total_cols);
-    for (int r = 0; r < num_rows; r++) {
-        memcpy(new_buffer + r * num_cols,
-               &_data[r][start_col],
-               num_cols * sizeof(float));
-    }
-}
-
 // Call the right HW function based on the device parameters.
-void inner_product_layer_hw_dispatch(float* activations,
-                                     float* weights,
-                                     float* results,
-                                     layer_t* layer,
-                                     int result_size,
-                                     // Make a copy here.
-                                     inner_product_options options) {
+void smiv_inner_product_layer_hw_dispatch(float* activations,
+                                          float* weights,
+                                          float* results,
+                                          layer_t* layer,
+                                          int result_size,
+                                          smiv_global* g_smiv,
+                                          // Make a copy here.
+                                          smiv_inner_product_options options) {
     io_req_t input_req = layer->input_req;
     io_req_t weights_req = layer->weights_req;
     io_req_t output_req = layer->output_req;
 
     if (output_req != IO_NONE) {
-        MAP_ARRAY_TO_ACCEL(kInnerProductHw,
+        MAP_ARRAY_TO_ACCEL(kSmivInnerProductHw,
                            get_host_results_var_name(output_req),
                            results,
                            result_size * sizeof(float));
@@ -475,7 +451,7 @@ void inner_product_layer_hw_dispatch(float* activations,
     access_config.inputs = io_to_access_mechanism(layer->input_req);
     access_config.weights = io_to_access_mechanism(layer->weights_req);
     access_config.outputs = io_to_access_mechanism(layer->output_req);
-    INVOKE_KERNEL_PROF(kInnerProductHw,
+    INVOKE_KERNEL_PROF(kSmivInnerProductHw,
                        layer->num,
                        inner_product_layer_hw,
                        // DMA
@@ -491,9 +467,9 @@ void inner_product_layer_hw_dispatch(float* activations,
                        weights,
                        results,
                        // Local scratchpads
-                       g_umem,
-                       g_spad0,
-                       g_spad1,
+                       g_smiv->umem,
+                       g_smiv->spad0,
+                       g_smiv->spad1,
                        // Other options
                        layer,
                        &access_config,
@@ -501,16 +477,17 @@ void inner_product_layer_hw_dispatch(float* activations,
 
 }
 
-void inner_product_layer_impl_rowwise(float* host_activations,
-                                      float* host_weights,
-                                      layer_t* curr_layer,
-                                      float* host_results,
-                                      device_t* device,
-                                      bool input_in_spad0) {
+void smiv_inner_product_layer_impl_rowwise(float* host_activations,
+                                           float* host_weights,
+                                           layer_t* curr_layer,
+                                           float* host_results,
+                                           smiv_global* g_smiv,
+                                           device_t* device,
+                                           bool input_in_spad0) {
     INFO_MSG("Running rowwise inner product.\n");
-    fc_cfg_t fc_cfgs = inner_product_divide_work_rowwise(curr_layer);
+    fc_cfg_t fc_cfgs = smiv_inner_product_divide_work_rowwise(curr_layer);
     INFO_MSG("Inner product layer %d work configuration:\n", curr_layer->num);
-    print_work_cfg(&fc_cfgs);
+    print_smiv_work_cfg(&fc_cfgs);
     bool needs_multiple_iter = (fc_cfgs.num_iterations > 1);
     bool do_bias_in_software =
             fc_cfgs.iteration[fc_cfgs.num_iterations - 1].rows == 1;
@@ -537,7 +514,7 @@ void inner_product_layer_impl_rowwise(float* host_activations,
         host_results_buffer = host_results;
     }
 
-    MAP_ARRAY_TO_ACCEL(kInnerProductHw,
+    MAP_ARRAY_TO_ACCEL(kSmivInnerProductHw,
                        get_host_inputs_var_name(curr_layer->input_req),
                        host_inputs_buffer,
                        inputs_buffer_size);
@@ -562,7 +539,7 @@ void inner_product_layer_impl_rowwise(float* host_activations,
         activation_type act_func = curr_layer->activation;
         bool do_hw_activation =
                 device->use_hw_activation_func &&
-                is_supported_activation_func(curr_layer->type, act_func);
+                smiv_is_supported_activation_func(curr_layer->type, act_func);
         if (!do_hw_activation)
             partial_layer.activation = NO_ACTIVATION;
 
@@ -597,13 +574,13 @@ void inner_product_layer_impl_rowwise(float* host_activations,
             layer_t temp_layer = partial_layer;
             if (!is_last_iter)
                 temp_layer.weights.rows--;
-            decompress_packed_csr_smiv_impl(
-                    &temp_layer, current_row, input_in_spad0, device);
+            smiv_decompress_packed_csr_impl(
+                    &temp_layer, current_row, input_in_spad0, g_smiv, device);
             // Now that we've decompressed the weights, we don't need to DMA
             // them again.
             partial_layer.weights_req = IO_NONE;
             PRINT_MSG("Weights:\n");
-            PRINT_DEBUG(g_umem,
+            PRINT_DEBUG(g_smiv->umem,
                         partial_layer.weights.rows,
                         partial_layer.weights.cols,
                         partial_layer.weights.cols +
@@ -615,7 +592,7 @@ void inner_product_layer_impl_rowwise(float* host_activations,
                     (curr_iter->cols + curr_iter->align_pad) * curr_iter->rows *
                     sizeof(float);
             MAP_ARRAY_TO_ACCEL(
-                    kInnerProductHw,
+                    kSmivInnerProductHw,
                     get_host_weights_var_name(partial_layer.weights_req),
                     curr_dense_weights_loc,
                     weights_buffer_size);
@@ -623,16 +600,17 @@ void inner_product_layer_impl_rowwise(float* host_activations,
         size_t result_size = NUM_TEST_CASES * partial_layer.inputs.rows *
                              partial_layer.outputs.cols;
 
-        inner_product_options options;
+        smiv_inner_product_options options;
         options.do_bias = do_bias;
         options.input_in_spad0 = input_in_spad0;
         options.use_pipelined_dma = device->use_pipelined_dma;
-        inner_product_layer_hw_dispatch(host_inputs_buffer,
-                                        curr_dense_weights_loc,
-                                        current_result,
-                                        &partial_layer,
-                                        result_size,
-                                        options);
+        smiv_inner_product_layer_hw_dispatch(host_inputs_buffer,
+                                             curr_dense_weights_loc,
+                                             current_result,
+                                             &partial_layer,
+                                             result_size,
+                                             g_smiv,
+                                             options);
 
         PRINT_MSG_V("Partial results:\n");
         PRINT_DEBUG_V(current_result,
@@ -665,7 +643,7 @@ void inner_product_layer_impl_rowwise(float* host_activations,
         bool do_activation = act_func != NO_ACTIVATION;
         bool do_hw_activation =
                 device->use_hw_activation_func &&
-                is_supported_activation_func(curr_layer->type, act_func);
+                smiv_is_supported_activation_func(curr_layer->type, act_func);
         bool do_activation_here = do_activation && do_hw_activation;
 
         int output_rows = curr_layer->outputs.rows;
@@ -714,22 +692,23 @@ void inner_product_layer_impl_rowwise(float* host_activations,
         free(host_results_buffer);
     }
 
-    free_work_cfg(&fc_cfgs);
+    free_smiv_work_cfg(&fc_cfgs);
 }
 
-void inner_product_layer_impl_colwise(float* host_activations,
-                                      float* host_weights,
-                                      layer_t* curr_layer,
-                                      float* host_results,
-                                      device_t* device,
-                                      bool input_in_spad0) {
-    fc_cfg_t fc_cfgs = inner_product_divide_work_colwise(curr_layer);
+void smiv_inner_product_layer_impl_colwise(float* host_activations,
+                                           float* host_weights,
+                                           layer_t* curr_layer,
+                                           float* host_results,
+                                           smiv_global* g_smiv,
+                                           device_t* device,
+                                           bool input_in_spad0) {
+    fc_cfg_t fc_cfgs = smiv_inner_product_divide_work_colwise(curr_layer);
     INFO_MSG("Running colwise inner product.\n");
     INFO_MSG("Inner product layer %d work configuration:\n", curr_layer->num);
-    print_work_cfg(&fc_cfgs);
+    print_smiv_work_cfg(&fc_cfgs);
 
     bool needs_multiple_iter = (fc_cfgs.num_iterations > 1);
-    MAP_ARRAY_TO_ACCEL(kInnerProductHw,
+    MAP_ARRAY_TO_ACCEL(kSmivInnerProductHw,
                        get_host_inputs_var_name(curr_layer->input_req),
                        host_activations,
                        INPUT_BYTES(curr_layer, 0));
@@ -766,7 +745,7 @@ void inner_product_layer_impl_colwise(float* host_activations,
         activation_type act_func = curr_layer->activation;
         bool do_hw_activation =
                 device->use_hw_activation_func &&
-                is_supported_activation_func(curr_layer->type, act_func);
+                smiv_is_supported_activation_func(curr_layer->type, act_func);
         if (!do_hw_activation)
             partial_layer.activation = NO_ACTIVATION;
 
@@ -791,7 +770,7 @@ void inner_product_layer_impl_colwise(float* host_activations,
 
         if (curr_layer->weights_req != IO_NONE) {
             MAP_ARRAY_TO_ACCEL(
-                    kInnerProductHw,
+                    kSmivInnerProductHw,
                     get_host_weights_var_name(curr_layer->weights_req),
                     host_weights_buffer,
                     weights_buffer_size);
@@ -800,16 +779,17 @@ void inner_product_layer_impl_colwise(float* host_activations,
         size_t result_size = NUM_TEST_CASES * partial_layer.outputs.rows *
                              partial_layer.outputs.cols;
 
-        inner_product_options options;
+        smiv_inner_product_options options;
         options.do_bias = true;
         options.input_in_spad0 = input_in_spad0;
         options.use_pipelined_dma = device->use_pipelined_dma;
-        inner_product_layer_hw_dispatch(host_activations,
-                                        host_weights_buffer,
-                                        current_result,
-                                        &partial_layer,
-                                        result_size,
-                                        options);
+        smiv_inner_product_layer_hw_dispatch(host_activations,
+                                             host_weights_buffer,
+                                             current_result,
+                                             &partial_layer,
+                                             result_size,
+                                             g_smiv,
+                                             options);
 
         PRINT_MSG_V("Partial results:\n");
         PRINT_DEBUG_V(
@@ -864,24 +844,25 @@ void inner_product_layer_impl_colwise(float* host_activations,
         free(host_results_buffer);
     }
 
-    free_work_cfg(&fc_cfgs);
+    free_smiv_work_cfg(&fc_cfgs);
 }
 
-void inner_product_layer_impl(float* host_activations,
-                              float* host_weights,
-                              layer_t* layers,
-                              int lnum,
-                              float* host_results,
-                              device_t* device) {
+void smiv_inner_product_layer_impl(float* host_activations,
+                                   float* host_weights,
+                                   layer_t* layers,
+                                   int lnum,
+                                   float* host_results,
+                                   smiv_global* g_smiv,
+                                   device_t* device) {
     static float* current_result_loc = NULL;
     if (current_result_loc == NULL) {
-        current_result_loc = g_spad1;
-    } else if (current_result_loc == g_spad0) {
-        current_result_loc = g_spad1;
-    } else if (current_result_loc == g_spad1) {
-        current_result_loc = g_spad0;
+        current_result_loc = g_smiv->spad1;
+    } else if (current_result_loc == g_smiv->spad0) {
+        current_result_loc = g_smiv->spad1;
+    } else if (current_result_loc == g_smiv->spad1) {
+        current_result_loc = g_smiv->spad0;
     }
-    bool input_in_spad0 = (current_result_loc == g_spad1);
+    bool input_in_spad0 = (current_result_loc == g_smiv->spad1);
     layer_t* curr_layer = &layers[lnum];
     float* host_weights_layer = (float*)curr_layer->host_weights_buffer;
 
@@ -903,20 +884,22 @@ void inner_product_layer_impl(float* host_activations,
         int weight_size = get_num_weights_layer(layers, lnum);
         INFO_MSG("Input size: %d, weight size: %d\n", input_size, weight_size);
         tiled_inner_product_impl impl =
-                (input_size > weight_size) ? &inner_product_layer_impl_colwise
-                                           : &inner_product_layer_impl_rowwise;
+                (input_size > weight_size)
+                        ? &smiv_inner_product_layer_impl_colwise
+                        : &smiv_inner_product_layer_impl_rowwise;
         impl(host_activations, host_weights_layer, curr_layer, host_results,
-             device, input_in_spad0);
+             g_smiv, device, input_in_spad0);
     } else if (curr_layer->wgt_storage_type == PackedCSR) {
         // If the weights are stored in CSR format, we can only do row-wise
         // tiling.
         INFO_MSG("Running rowwise inner product for packed CSR weights.\n");
-        inner_product_layer_impl_rowwise(host_activations,
-                                         host_weights_layer,
-                                         curr_layer,
-                                         host_results,
-                                         device,
-                                         input_in_spad0);
+        smiv_inner_product_layer_impl_rowwise(host_activations,
+                                              host_weights_layer,
+                                              curr_layer,
+                                              host_results,
+                                              g_smiv,
+                                              device,
+                                              input_in_spad0);
     } else if (curr_layer->wgt_storage_type == CSR) {
         fprintf(stderr, "Inner product layer for unpacked CSR weights is not "
                         "supported!\n");
