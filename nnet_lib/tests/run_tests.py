@@ -56,11 +56,12 @@ class BaseTest(unittest.TestCase):
 
   def launchSubprocess(self, cmd):
     with open(self.output_filename, "w") as f:
-      returncode = subprocess.call(
-          cmd, shell=True, stdout=f, stderr=subprocess.STDOUT)
+      fnull = open(os.devnull, "w")
+      returncode = subprocess.call(cmd, shell=True, stdout=fnull, stderr=f)
+      fnull.close()
 
     if returncode != 0:
-      print "\nTEST FAILED! Contents of stdout:"
+      print "\nTEST FAILED! Contents of stderr:"
       print "--------------------------------\n"
       with open(self.output_filename, "r") as f:
         for line in f:
