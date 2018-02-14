@@ -72,8 +72,15 @@
 #endif
 
 #if ARCHITECTURE == SMIV
-#if TRANSPOSE_WEIGHTS == 1 && !defined(ENABLE_SMV_CONVOLUTION)
+#if TRANSPOSE_WEIGHTS == 1
 #error "SMIV does not support transposed weights!"
+#endif
+#define DATA_ALIGNMENT 8
+#define PRECOMPUTE_BN_VARIANCE 1
+
+#elif ARCHITECTURE == SMV
+#if TRANSPOSE_WEIGHTS == 0
+#error "SMV does not support non-transposed weights!"
 #endif
 #define DATA_ALIGNMENT 8
 #define PRECOMPUTE_BN_VARIANCE 1
@@ -105,6 +112,8 @@
 #define ARCH_STR "COMPOSABLE"
 #elif ARCHITECTURE == SMIV
 #define ARCH_STR "SMIV"
+#elif ARCHITECTURE == SMV
+#define ARCH_STR "SMV"
 #elif ARCHITECTURE == EIGEN
 #define ARCH_STR "EIGEN"
 #elif ARCHITECTURE == MKLDNN

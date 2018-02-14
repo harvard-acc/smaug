@@ -9,14 +9,14 @@ void convolution3d_smv(float* a,
                        int kern_start,
                        float* result);
 
-void matrix_multiply_smv(float* a,
-                         float* b,
-                         int a_height,
-                         int b_height,
-                         int b_width,
-                         int a_pad,
-                         activation_type act_func,
-                         int result_start,
-                         float* result);
+void matrix_multiply_transpose_smv(float* a,
+                                   float* b,
+                                   int a_height,
+                                   int b_height,
+                                   int b_width,
+                                   int a_pad,
+                                   activation_type act_func,
+                                   int result_start,
+                                   float* result);
 
 #endif

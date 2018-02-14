@@ -21,6 +21,7 @@ typedef enum _Architecture {
     Arch_SMIV = SMIV,
     Arch_Eigen = EIGEN,
     Arch_MKLDNN = MKLDNN,
+    Arch_SMV = SMV,
     Arch_END
 } Architecture;
 

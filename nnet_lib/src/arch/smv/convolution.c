@@ -1,7 +1,9 @@
 #include <string.h>
 
+#include "arch/common.h"
+#include "arch/smiv/common.h"
 #include "arch/smiv/dispatch_utils.h"
-#include "arch/smiv_common.h"
+#include "arch/smv/common.h"
 #include "core/smv/params.h"
 #include "core/smv/smv.h"
 #include "utility/data_layout_conversion.h"
@@ -22,12 +24,12 @@ typedef struct _conv_tiling_cfg {
     int num_tiles;
 } conv_tiling_cfg;
 
-typedef struct _convolution_options {
+typedef struct _smv_convolution_options {
     int img;
     int kern_start;
     int kern_end;
     int total_tile_ofmaps;
-} convolution_options;
+} smv_convolution_options;
 
 void init_conv_tiling_cfg(conv_tiling_cfg* cfg, int num_tiles) {
     cfg->num_tiles = num_tiles;
@@ -54,14 +56,14 @@ void print_conv_tiling_cfg(conv_tiling_cfg* cfg) {
     }
 }
 
-static void convolution_layer_smv_hw_impl(float* dma_activations,
+static void smv_convolution_layer_hw_impl(float* dma_activations,
                                           float* dma_weights,
                                           float* dma_results,
                                           float* local_activations,
                                           float* local_weights,
                                           float* local_results,
                                           layer_t curr_layer,
-                                          convolution_options* options) {
+                                          smv_convolution_options* options) {
     const int input_height = curr_layer.inputs.height;
     const int input_rows = curr_layer.inputs.rows;
     const int input_cols = curr_layer.inputs.cols;
@@ -114,7 +116,7 @@ static void convolution_layer_smv_hw_impl(float* dma_activations,
     }
 }
 
-static void convolution_layer_smv_hw(float* dma_activations,
+static void smv_convolution_layer_hw(float* dma_activations,
                                      float* dma_weights,
                                      float* dma_results,
                                      float* cache_activations,
@@ -128,7 +130,7 @@ static void convolution_layer_smv_hw(float* dma_activations,
                                      float* spad1,
                                      layer_t curr_layer,
                                      access_config* access_config,
-                                     convolution_options* options) {
+                                     smv_convolution_options* options) {
 //=--------- Convenience macros for invoking the HW impl ---------------=//
 //
 // Because the convolutional block cannot mix the use of scratchpads and the
@@ -139,7 +141,7 @@ static void convolution_layer_smv_hw(float* dma_activations,
 #define CONV3D_NO_DMA_IMPL(INPUT, WGT, LR)                                     \
     do {                                                                       \
         PRINT_MSG(#INPUT "-" #WGT "-" #LR "\n");                               \
-        convolution_layer_smv_hw_impl(NULL, NULL, NULL, INPUT##_activations,   \
+        smv_convolution_layer_hw_impl(NULL, NULL, NULL, INPUT##_activations,   \
                                       WGT##_weights, LR##_results, curr_layer, \
                                       options);                                \
     } while (0)
@@ -149,7 +151,7 @@ static void convolution_layer_smv_hw(float* dma_activations,
 #define CONV3D_WITH_DMA_IMPL(HA, HW, HR, LA, LW, LR)                           \
     do {                                                                       \
         PRINT_MSG(#HA "-" #HW "-" #HR "-" #LA "-" #LW "-" #LR "\n");           \
-        convolution_layer_smv_hw_impl(HA##_activations, HW##_weights,          \
+        smv_convolution_layer_hw_impl(HA##_activations, HW##_weights,          \
                                       HR##_results, LA, LW, LR, curr_layer,    \
                                       options);                                \
     } while (0)
@@ -238,7 +240,7 @@ static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer) {
             (get_dims_size(&curr_layer->inputs) * sizeof(float)) /
             NUM_TEST_CASES;
 
-    if (total_input_bytes > UMEM_SIZE) {
+    if (total_input_bytes > SMV_UMEM_SIZE) {
         printf("A single input image exceeds the capacity of the UMEM, which "
                "is not supported!\n");
         assert(false);
@@ -248,7 +250,7 @@ static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer) {
             curr_layer->outputs.rows *
             (curr_layer->outputs.cols + curr_layer->outputs.align_pad) *
             sizeof(float);
-    if (output_2d_size > SPAD_SIZE) {
+    if (output_2d_size > SMV_SPAD_SIZE) {
         fprintf(stderr,
                 "A single output channel doesn't fit on the scratchpad! We "
                 "don't support this mode of tiling yet!\n");
@@ -261,8 +263,8 @@ static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer) {
     // scratchpads.
     const int single_kernel_size =
             get_nhwc_dims_size(&curr_layer->weights) * sizeof(float);
-    const int max_kernels_per_iter = SPAD_SIZE / single_kernel_size;
-    const int max_ofmaps_per_iter = SPAD_SIZE / output_2d_size;
+    const int max_kernels_per_iter = SMV_SPAD_SIZE / single_kernel_size;
+    const int max_ofmaps_per_iter = SMV_SPAD_SIZE / output_2d_size;
     const int num_ofmaps_per_iter =
             min2(max_kernels_per_iter, max_ofmaps_per_iter);
     const int num_iters =
@@ -283,11 +285,12 @@ static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer) {
     return cfg;
 }
 
-void standard_convolution_layer_smv_impl(float* host_activations,
+void smv_standard_convolution_layer_impl(float* host_activations,
                                          float* host_weights,
                                          layer_t* layers,
                                          int lnum,
                                          float* host_result,
+                                         smv_global* g_smv,
                                          device_t* device,
                                          sampling_param_t* sampling_param) {
     layer_t curr_layer = layers[lnum];
@@ -306,7 +309,7 @@ void standard_convolution_layer_smv_impl(float* host_activations,
     dims_t activations_nhwc = convert_nchw_to_nhwc(
             host_activations, NUM_TEST_CASES, curr_layer.inputs, DATA_ALIGNMENT,
             &nhwc_activations);
-    MAP_ARRAY_TO_ACCEL(kConvolutionHw,
+    MAP_ARRAY_TO_ACCEL(kSmvConvolutionHw,
                        get_host_inputs_var_name(curr_layer.input_req),
                        nhwc_activations,
                        get_dims_size(&curr_layer.inputs) * sizeof(float));
@@ -320,7 +323,7 @@ void standard_convolution_layer_smv_impl(float* host_activations,
     print_conv_tiling_cfg(&tiling);
 
     bool do_hw_activation = device->use_hw_activation_func &&
-                            is_supported_activation_func(
+                            smiv_is_supported_activation_func(
                                     curr_layer.type, curr_layer.activation);
     int sampled_inner_iters = sampling_param->smv_conv_inner_iters;
     // A value of 0 means do not sample, so set this value to the actual number
@@ -339,7 +342,7 @@ void standard_convolution_layer_smv_impl(float* host_activations,
             // Set up the results buffer and mappings.
             float* result_loc = &_result[img][kern_start][0][0];
             int result_size = result_2d_size * tile->num_ofmaps * sizeof(float);
-            MAP_ARRAY_TO_ACCEL(kConvolutionHw,
+            MAP_ARRAY_TO_ACCEL(kSmvConvolutionHw,
                                get_host_results_var_name(curr_layer.output_req),
                                result_loc, result_size);
 
@@ -349,7 +352,7 @@ void standard_convolution_layer_smv_impl(float* host_activations,
                     &_kernels[kern_start][0][0][0], tile->num_ofmaps,
                     curr_layer.weights, DATA_ALIGNMENT, &nhwc_weights);
             MAP_ARRAY_TO_ACCEL(
-                    kConvolutionHw,
+                    kSmvConvolutionHw,
                     get_host_weights_var_name(curr_layer.weights_req),
                     nhwc_weights, num_kerns * single_kernel_size);
 
@@ -372,7 +375,7 @@ void standard_convolution_layer_smv_impl(float* host_activations,
                 bool is_last_iter = (iter == num_hw_iters - 1);
                 int num_kerns_this_iter =
                         min2(tile->num_ofmaps - kern_start, NUM_PE_INSTS);
-                convolution_options options;
+                smv_convolution_options options;
                 options.img = img;
                 // This kern_start is with respect to the current set of output
                 // fmaps in the tile.
@@ -410,12 +413,12 @@ void standard_convolution_layer_smv_impl(float* host_activations,
                 access_config access_cfg =
                         layer_to_access_config(&partial_layer);
                 INVOKE_KERNEL_PROF(
-                        kConvolutionHw, lnum, convolution_layer_smv_hw,
+                        kSmvConvolutionHw, lnum, smv_convolution_layer_hw,
                         nhwc_activations, nhwc_weights, result_loc,  // DMA
                         nhwc_activations, nhwc_weights, result_loc,  // Cache
                         nhwc_activations, nhwc_weights, result_loc,  // ACP
-                        g_umem, g_spad0, g_spad1, partial_layer, &access_cfg,
-                        &options);
+                        g_smv->umem, g_smv->spad0, g_smv->spad1, partial_layer,
+                        &access_cfg, &options);
 
                 if (iter != 0 && !is_last_iter) {
                     inner_iters_executed++;

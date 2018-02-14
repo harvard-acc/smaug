@@ -13,7 +13,7 @@ void convolution3d_smv(float* a,
 #endif
 }
 
-void matrix_multiply_smv(float* a,
+void matrix_multiply_transpose_smv(float* a,
                                    float* b,
                                    int a_height,
                                    int b_height,

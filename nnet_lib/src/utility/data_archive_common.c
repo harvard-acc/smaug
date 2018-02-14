@@ -36,6 +36,9 @@ char* arch2str(Architecture arch) {
       case Arch_SMIV:
         snprintf(arch_str, 5, "%s", "SMIV");
         break;
+      case Arch_SMV:
+        snprintf(arch_str, 4, "%s", "SMV");
+        break;
       case Arch_Eigen:
         snprintf(arch_str, 6, "%s", "EIGEN");
         break;

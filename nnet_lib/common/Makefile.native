@@ -23,6 +23,18 @@ NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smiv.cpp \
 												 $(SRC_DIR)/core/mkl/pooling.cpp \
 												 $(SRC_DIR)/utility/mkl/utility.cpp
 LFLAGS += -L$(MKLDNNROOT)/lib -lmkldnn
+else ifeq ($(ARCH), SMV)
+COMP = $(CXX)
+CPPFLAGS += -I$(MKLDNNROOT)/include -DTRANSPOSE_WEIGHTS=1
+CFLAGS += -std=gnu++11 $(NATIVE_SIMD_FLAGS) -mf16c -flax-vector-conversions
+NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smv.cpp \
+												 $(SRC_DIR)/core/mkl/activation_functions.cpp \
+												 $(SRC_DIR)/core/mkl/batch_norm.cpp \
+												 $(SRC_DIR)/core/mkl/pooling.cpp \
+												 $(SRC_DIR)/utility/mkl/utility.cpp
+LFLAGS += -L$(MKLDNNROOT)/lib -lmkldnn
+else
+$(error "Unknown architecture $(ARCH)!")
 endif
 
 # Output binary name
