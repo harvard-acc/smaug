@@ -60,10 +60,8 @@ void smv_inner_product_layer_hw_impl(float* dma_activations,
                                      smv_inner_product_options* options) {
     if (curr_layer->weights_req == IO_DMA) {
         ASSERT(dma_weights && "DMA weights pointer cannot be NULL!");
-        int weights_size = get_num_weights_layer(curr_layer, 0);
-        if (options->do_bias)
-            weights_size += curr_layer->outputs.cols;
-        weights_size *= sizeof(float);
+        // This size includes the biases if options->do_bias is true.
+        int weights_size = get_num_weights_layer(curr_layer, 0) * sizeof(float);
         setReadyBits(local_weights, SMV_UMEM_SIZE, 0);
         dma_load_wrapper(local_weights, dma_weights, weights_size,
                          options->use_pipelined_dma);
@@ -333,10 +331,7 @@ fc_cfg_t smv_inner_product_tile_rowwise(layer_t* curr_layer) {
         // No work division means to return an fc_cfg_t that is holds the
         // entire weights.
         init_smiv_work_cfg(&fc_cfgs, 1);
-        fc_cfgs.iteration[0] = { curr_layer->weights.rows - 1,
-                                 curr_layer->weights.cols,
-                                 curr_layer->weights.height,
-                                 curr_layer->weights.align_pad };
+        fc_cfgs.iteration[0] = curr_layer->weights;
         return fc_cfgs;
     }
     // Divide up the weights. The minimum amount of work is PEs x N, where N is
@@ -344,7 +339,7 @@ fc_cfg_t smv_inner_product_tile_rowwise(layer_t* curr_layer) {
     // omitted until the very last iteration.
     // If the final iteration has weights.rows == 1, then we know all that is
     // left to do is add the biases, so just do it in SW instead.
-    const int num_inputs = (curr_layer->weights.rows - 1) * NUM_TEST_CASES;
+    const int num_inputs = curr_layer->weights.rows * NUM_TEST_CASES;
     const int num_neurons =
             curr_layer->weights.cols + curr_layer->weights.align_pad;
     const unsigned minimum_work_size =
@@ -475,15 +470,30 @@ void smv_inner_product_layer_impl_rowwise(float* host_activations,
         bool do_bias = is_last_iter;
 
         layer_t partial_layer = *curr_layer;
-        if (!is_last_iter && partial_layer.output_req == IO_DMA)
-            partial_layer.output_req = IO_NONE;
-        partial_layer.weights = *curr_iter;
-        activation_type act_func = curr_layer->activation;
-        bool do_hw_activation =
-                device->use_hw_activation_func &&
-                smiv_is_supported_activation_func(curr_layer->type, act_func);
-        if (!do_hw_activation)
+        // If this is not the last iteration, we don't want to run the
+        // activation function, and we don't want to DMA the data back until
+        // the end.
+        if (!is_last_iter) {
             partial_layer.activation = NO_ACTIVATION;
+            if (partial_layer.output_req == IO_DMA)
+                partial_layer.output_req = IO_NONE;
+        } else {
+            // Check if we even support this activation function at all.
+            activation_type act_func = partial_layer.activation;
+            bool do_hw_activation = device->use_hw_activation_func &&
+                                    smiv_is_supported_activation_func(
+                                            partial_layer.type, act_func);
+            if (!do_hw_activation)
+                partial_layer.activation = NO_ACTIVATION;
+        }
+
+        partial_layer.weights = *curr_iter;
+        if (!do_bias) {
+            partial_layer.biases.rows = 0;
+            partial_layer.biases.cols = 0;
+            partial_layer.biases.height = 0;
+            partial_layer.biases.align_pad = 0;
+        }
 
         int iter_weights_size =
                 (curr_iter->rows) * (curr_iter->cols + curr_iter->align_pad);

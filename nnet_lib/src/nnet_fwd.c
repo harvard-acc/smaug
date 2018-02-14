@@ -243,14 +243,18 @@ void process_compressed_weights(network_t* network,
         if (layer->wgt_storage_type == Uncompressed) {
             layer->host_weights_buffer = (void*)weights_loc;
         } else if (layer->wgt_storage_type == CSR) {
+            dims_t dims_with_bias = layer->weights;
+            dims_with_bias.rows += layer->biases.rows;
             csr_array_t* csr =
-                    compress_dense_data_csr(weights_loc, &layer->weights);
+                    compress_dense_data_csr(weights_loc, &dims_with_bias);
             layer->host_weights_buffer = (void*)csr;
         } else if (layer->wgt_storage_type == PackedCSR) {
+            dims_t dims_with_bias = layer->weights;
+            dims_with_bias.rows += layer->biases.rows;
             csr_array_t* csr =
-                    compress_dense_data_csr(weights_loc, &layer->weights);
+                    compress_dense_data_csr(weights_loc, &dims_with_bias);
             packed_csr_array_t* packed_csr =
-                    pack_data_vec8_f16(csr, &layer->weights);
+                    pack_data_vec8_f16(csr, &dims_with_bias);
             layer->host_weights_buffer = (void*)packed_csr;
             free_csr_array_t(csr);
         }

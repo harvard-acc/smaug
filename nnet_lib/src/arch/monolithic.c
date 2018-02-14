@@ -40,16 +40,16 @@ result_buf inner_product_layer(float* activations,
                                float* result,
                                device_t* device,
                                sampling_param_t* sampling_param) {
+    // These kernels fuse the bias with the GEMM and assume that the rows
+    // parameter includes the extra row of biases.
 #if TRANSPOSE_WEIGHTS == 0
     matrix_multiply_with_bias(
-            activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows,
-            layers[lnum].weights.cols + layers[lnum].weights.align_pad,
-            result);
+            activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows + 1,
+            layers[lnum].weights.cols + layers[lnum].weights.align_pad, result);
 #else
     matrix_multiply_with_bias_transpose(
-            activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows,
-            layers[lnum].weights.cols + layers[lnum].weights.align_pad,
-            result);
+            activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows + 1,
+            layers[lnum].weights.cols + layers[lnum].weights.align_pad, result);
 #endif
     return result;
 }

@@ -82,13 +82,13 @@ class InnerProductOp : public BaseMklOp<DType> {
             return { this->layer->weights.cols, prev_layer->outputs.height,
                      prev_layer->outputs.rows, prev_layer->outputs.cols };
         } else {
-            return { this->layer->weights.cols, this->layer->weights.rows - 1 };
+            return { this->layer->weights.cols, this->layer->weights.rows };
         }
     }
 
     // Return a mem_dims object for the bias, assuming x format.
     mem_dims get_bias_dims() {
-        return { this->layer->weights.cols };
+        return { this->layer->biases.cols };
     }
 
     // Create an input memory primitive from a raw pointer.
@@ -125,8 +125,8 @@ class InnerProductOp : public BaseMklOp<DType> {
     // biases stored at the end.
     mem_ref_t create_bias_memory(DType* weights_buffer) {
         // Biases are assumed to not be transposed.
-        float* biases = weights_buffer + ((this->layer->weights.rows - 1) *
-                                          this->layer->weights.cols);
+        float* biases = weights_buffer +
+                        (this->layer->weights.rows * this->layer->weights.cols);
         return this->create_memory(biases, get_bias_dims(), mem_fmt::x);
     }
 

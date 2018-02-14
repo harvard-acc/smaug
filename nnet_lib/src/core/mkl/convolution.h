@@ -206,8 +206,8 @@ class PointwiseConvolution3dOp : public Convolution3dOp<DType> {
     // The pointer is assumed to point at the start of the weights section
     // (aka, same as the argument for create_weight_memory()).
     virtual mem_ref_t create_bias_memory(DType* weights_buffer) {
-        DType* biases = weights_buffer + (this->layer->weights.rows - 1) *
-                                                 this->layer->weights.cols;
+        DType* biases = weights_buffer +
+                        (this->layer->weights.rows * this->layer->weights.cols);
         return this->create_memory(biases, this->get_bias_dims(), mem_fmt::x);
     }
 };

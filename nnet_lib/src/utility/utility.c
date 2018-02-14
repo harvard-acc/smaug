@@ -260,27 +260,31 @@ void get_weights_dims_layer(layer_t* layers,
 
 // Get the total number of weights for layer @l in the network.
 int get_num_weights_layer(layer_t* layers, int l) {
+    int num_weights;
     if (layers[l].type == FC || layers[l].type == CONV_POINTWISE) {
         // Assumes height = 1.
-        if (TRANSPOSE_WEIGHTS == 1) {
-            return layers[l].weights.cols *
+        if (TRANSPOSE_WEIGHTS == 1 && layers[l].type == FC) {
+            num_weights = layers[l].weights.cols *
                    (layers[l].weights.rows + layers[l].weights.align_pad);
         } else {
-            return layers[l].weights.rows *
+            num_weights = layers[l].weights.rows *
                    (layers[l].weights.cols + layers[l].weights.align_pad);
         }
     } else if (layers[l].type == CONV_STANDARD ||
                layers[l].type == CONV_DEPTHWISE) {
-        return layers[l].weights.rows *
+        num_weights = layers[l].weights.rows *
                (layers[l].weights.cols + layers[l].weights.align_pad) *
                layers[l].weights.height * layers[l].outputs.height;
     } else if (layers[l].type == BATCH_NORM) {
-        return layers[l].weights.rows *
+        num_weights = layers[l].weights.rows *
                (layers[l].weights.cols + layers[l].weights.align_pad) *
                layers[l].weights.height;
     } else {
-        return 0;
+        num_weights = 0;
     }
+    num_weights += layers[l].biases.rows * layers[l].biases.height *
+                   (layers[l].biases.cols + layers[l].biases.align_pad);
+    return num_weights;
 }
 
 // Get the total number of weights for the entire network.

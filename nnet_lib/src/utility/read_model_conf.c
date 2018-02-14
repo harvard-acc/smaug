@@ -302,6 +302,9 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
         layers[l].weights.cols = cfg_getint(conv_params, "kernel_size");
         layers[l].weights.height = layers[l].inputs.height;
         layers[l].field_stride = cfg_getint(conv_params, "stride");
+        layers[l].biases.rows = 0;
+        layers[l].biases.cols = 0;
+        layers[l].biases.height = 0;
 
         layers[l].c_padding = cfg_getint(conv_params, "pad");
 #if ARCHITECTURE != EIGEN
@@ -343,6 +346,9 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
         layers[l].weights.cols = cfg_getint(conv_params, "kernel_size");
         layers[l].weights.height = 1;
         layers[l].field_stride = cfg_getint(conv_params, "stride");
+        layers[l].biases.rows = 0;
+        layers[l].biases.cols = 0;
+        layers[l].biases.height = 0;
 
         layers[l].c_padding = cfg_getint(conv_params, "pad");
         layers[l].inputs.rows += layers[l].c_padding * 2;
@@ -368,9 +374,12 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
         // 1x1 convolutions use FC-formatted weights, so each row is a filter and
         // each col maps to a channel in the input.
         cfg_t* conv_params = cfg_getsec(layer_opts, "convolution_param");
-        layers[l].weights.rows = layers[l].inputs.height + 1;
+        layers[l].weights.rows = layers[l].inputs.height;
         layers[l].weights.cols = cfg_getint(conv_params, "num_output");
         layers[l].weights.height = 1;
+        layers[l].biases.rows = 1;
+        layers[l].biases.cols = cfg_getint(conv_params, "num_output");
+        layers[l].biases.height = 1;
         layers[l].field_stride = cfg_getint(conv_params, "stride");
 
         layers[l].c_padding = 0;
@@ -393,8 +402,11 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
             layers[l].inputs.cols = layers[l-1].outputs.cols;
         }
 
-        layers[l].weights.rows = layers[l].inputs.cols + 1;  // for bias.
+        layers[l].weights.rows = layers[l].inputs.cols;  // for bias.
         layers[l].weights.cols = cfg_getint(fc_params, "num_output");
+
+        layers[l].biases.rows = 1;
+        layers[l].biases.cols = cfg_getint(fc_params, "num_output");
 
         layers[l].outputs.rows = layers[l].inputs.rows;
         layers[l].outputs.cols = layers[l].weights.cols;
@@ -402,6 +414,7 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
         layers[l].inputs.height = 1;
         layers[l].outputs.height = 1;
         layers[l].weights.height = 1;
+        layers[l].biases.height = 1;
         return;
     }
 
@@ -414,6 +427,9 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
       layers[l].weights.rows = cfg_getint(pool_params, "size");
       layers[l].weights.cols = cfg_getint(pool_params, "size");
       layers[l].weights.height = 0;  // Not used.
+      layers[l].biases.rows = 0;
+      layers[l].biases.cols = 0;
+      layers[l].biases.height = 0;
       layers[l].field_stride = cfg_getint(pool_params, "stride");
 
       layers[l].outputs.rows = (layers[l].inputs.rows - layers[l].weights.cols) /
@@ -465,6 +481,9 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
               cfg_error(layer_opts, "Invalid location for batch norm layer.");
               break;
       }
+      layers[l].biases.rows = 0;
+      layers[l].biases.cols = 0;
+      layers[l].biases.height = 0;
       layers[l].outputs.rows = layers[l].inputs.rows;
       layers[l].outputs.cols = layers[l].inputs.cols;
       layers[l].outputs.height = layers[l].inputs.height;
@@ -491,14 +510,15 @@ static void handle_data_alignment(layer_t* layers, int l) {
     }
     if (TRANSPOSE_WEIGHTS == 1 && layers[l].type == FC) {
         // When FC weights are transposed (stored col-major), the dimension
-        // that needs to be aligned now are the rows. Make sure to subtract one
-        // to account for the biases.
+        // that needs to be aligned now are the rows.
         layers[l].weights.align_pad =
-                calc_padding(layers[l].weights.rows - 1, data_alignment);
+                calc_padding(layers[l].weights.rows, data_alignment);
     } else {
         layers[l].weights.align_pad =
                 calc_padding(layers[l].weights.cols, data_alignment);
     }
+    layers[l].biases.align_pad =
+            calc_padding(layers[l].biases.cols, data_alignment);
 }
 
 static void read_top_level_config(layer_t* layers, cfg_t* network_opts) {
@@ -513,6 +533,9 @@ static void read_top_level_config(layer_t* layers, cfg_t* network_opts) {
     layers[0].weights.rows = 0;
     layers[0].weights.cols = 0;
     layers[0].weights.height = 0;
+    layers[0].biases.rows = 0;
+    layers[0].biases.cols = 0;
+    layers[0].biases.height = 0;
     layers[0].num = 0;
     layers[0].wgt_storage_type = Uncompressed;
     layers[0].host_weights_buffer = NULL;

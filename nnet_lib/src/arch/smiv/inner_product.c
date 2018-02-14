@@ -311,11 +311,12 @@ fc_cfg_t smiv_inner_product_divide_work_colwise(layer_t* curr_layer) {
         // entire weights.
         init_smiv_work_cfg(&fc_cfgs, 1);
         fc_cfgs.iteration[0] = curr_layer->weights;
+        fc_cfgs.iteration[0].rows += curr_layer->biases.rows;
         return fc_cfgs;
     }
     // Divide up the weights. The minimum required work (for now) is an Nx8
     // strip of weights, where N is the number of hidden neurons.
-    const int num_inputs = curr_layer->weights.rows;
+    const int num_inputs = curr_layer->weights.rows + curr_layer->biases.rows;
     const unsigned num_neurons =
             curr_layer->weights.cols + curr_layer->weights.align_pad;
     const unsigned minimum_work_size = num_inputs * VECTOR_SIZE * sizeof(float);
@@ -362,6 +363,7 @@ fc_cfg_t smiv_inner_product_divide_work_rowwise(layer_t* curr_layer) {
         // entire weights.
         init_smiv_work_cfg(&fc_cfgs, 1);
         fc_cfgs.iteration[0] = curr_layer->weights;
+        fc_cfgs.iteration[0].rows += curr_layer->biases.rows;
         return fc_cfgs;
     }
     // Divide up the weights. The minimum amount of work is 2xN, where N is the
@@ -371,7 +373,9 @@ fc_cfg_t smiv_inner_product_divide_work_rowwise(layer_t* curr_layer) {
     // num_inputs includes the extra row of biases. If the final iteration has
     // weights.rows == 1, then we know we should just add the biases in
     // software; otherwise we do it in HW.
-    const int num_inputs = curr_layer->weights.rows * NUM_TEST_CASES;
+    const int num_inputs =
+            (curr_layer->weights.rows + curr_layer->biases.rows) *
+            NUM_TEST_CASES;
     const int num_neurons =
             curr_layer->weights.cols + curr_layer->weights.align_pad;
     const unsigned minimum_work_size = num_neurons * 2 * sizeof(float);
@@ -658,8 +662,8 @@ void smiv_inner_product_layer_impl_rowwise(float* host_activations,
                  _host_results,
                  host_results,
                  output_cols);                 // dst buffer.
-        float* biases = host_weights + (curr_layer->weights.rows - 1) *
-                                               curr_layer->weights.cols;
+        float* biases = host_weights +
+                        (curr_layer->weights.rows * curr_layer->weights.cols);
         current_result = host_results_buffer;  // temporary buffer.
         for (int r = 0; r < output_rows; r++) {
             for (int c = 0; c < output_cols; c++) {
@@ -702,8 +706,8 @@ void smiv_inner_product_layer_impl_colwise(float* host_activations,
                                            smiv_global* g_smiv,
                                            device_t* device,
                                            bool input_in_spad0) {
-    fc_cfg_t fc_cfgs = smiv_inner_product_divide_work_colwise(curr_layer);
     INFO_MSG("Running colwise inner product.\n");
+    fc_cfg_t fc_cfgs = smiv_inner_product_divide_work_colwise(curr_layer);
     INFO_MSG("Inner product layer %d work configuration:\n", curr_layer->num);
     print_smiv_work_cfg(&fc_cfgs);
 
@@ -750,9 +754,9 @@ void smiv_inner_product_layer_impl_colwise(float* host_activations,
             partial_layer.activation = NO_ACTIVATION;
 
         PRINT_MSG("FC iteration %d: weights %dx%d\n",
-                    it,
-                    partial_layer.weights.rows,
-                    partial_layer.weights.cols);
+                  it,
+                  partial_layer.weights.rows,
+                  partial_layer.weights.cols);
 
         if (needs_multiple_iter) {
             copy_data_col_range(host_weights,

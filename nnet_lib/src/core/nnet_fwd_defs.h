@@ -118,6 +118,7 @@ typedef struct _layer_t {
 
   dims_t inputs;
   dims_t weights;
+  dims_t biases;
   dims_t outputs;
 
   void* host_weights_buffer;

@@ -54,7 +54,6 @@ void init_fc_weights(float* weights,
     int w_tot_cols = transpose ? w_cols : w_cols + w_pad;
     // Always store the biases after all the weights, regardless of whether
     // weights are transposed or not.
-    w_rows--;  // Remove the bias row from the equation for now.
     float val = 0;
     // First store the weights.
     for (int i = 0; i < w_rows; i++) {
@@ -211,10 +210,7 @@ void init_weights(float* weights,
             default:
                 continue;
         }
-        if (transpose && layers[l].type == FC)
-            w_offset += (w_rows + w_pad) * w_cols * w_height * w_depth;
-        else
-            w_offset += w_rows * (w_cols + w_pad) * w_height * w_depth;
+        w_offset += get_num_weights_layer(layers, l);
     }
     // NOTE: FOR SIGMOID ACTIVATION FUNCTION, WEIGHTS SHOULD BE BIG
     // Otherwise everything just becomes ~0.5 after sigmoid, and results are

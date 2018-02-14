@@ -41,18 +41,18 @@ void inner_product_layer_hw(float* activations,
                             layer_t* layers,
                             int lnum,
                             float* result) {
+    // These kernels fuse the bias with the GEMM and assume that the rows
+    // parameter includes the extra row of biases.
     grab_weights_dma(weights, weights, lnum, layers);
     grab_input_activations_dma(activations, activations, &layers[lnum]);
 #if TRANSPOSE_WEIGHTS == 0
     matrix_multiply_with_bias(
-            activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows,
-            layers[lnum].weights.cols + layers[lnum].weights.align_pad,
-            result);
+            activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows + 1,
+            layers[lnum].weights.cols + layers[lnum].weights.align_pad, result);
 #else
     matrix_multiply_with_bias_transpose(
-            activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows,
-            layers[lnum].weights.cols + layers[lnum].weights.align_pad,
-            result);
+            activations, weights, NUM_TEST_CASES, layers[lnum].weights.rows + 1,
+            layers[lnum].weights.cols + layers[lnum].weights.align_pad, result);
 #endif
     store_output_activations_dma(result, result, &layers[lnum]);
 }
