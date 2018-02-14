@@ -1,7 +1,12 @@
 #ifndef _SMV_PARAMS_H_
 #define _SMV_PARAMS_H_
 
+#ifndef VECTOR_SIZE
 #define VECTOR_SIZE 8
+#elif VECTOR_SIZE != 8
+#error "Existing VECTOR_SIZE is incompatible with SMV!"
+#endif
+
 #define NUM_MACC_INSTS 4
 #define NUM_PE_INSTS 4
 

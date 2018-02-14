@@ -12,3 +12,17 @@ void convolution3d_smv(float* a,
     convolution3d_smv_nhwc_fxp(a, kernels, curr_layer, kern_start, result);
 #endif
 }
+
+void matrix_multiply_smv(float* a,
+                                   float* b,
+                                   int a_height,
+                                   int b_height,
+                                   int b_width,
+                                   int a_pad,
+                                   activation_type act_func,
+                                   int result_start,
+                                   float* result) {
+    matrix_multiply_transpose_smv_nobatch_vec_fxp(a, b, a_height, b_height,
+                                                  b_width, a_pad, act_func,
+                                                  result_start, result);
+}
