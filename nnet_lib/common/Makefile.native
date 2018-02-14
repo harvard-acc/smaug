@@ -15,7 +15,7 @@ COMP = $(CC)
 CFLAGS += -std=gnu99
 else ifeq ($(ARCH), SMIV)
 COMP = $(CXX)
-CPPFLAGS += -I$(MKLDNNROOT)/include -DENABLE_SMV_CONVOLUTION
+CPPFLAGS += -I$(MKLDNNROOT)/include -DENABLE_SMV_CONVOLUTION -DTRANSPOSE_WEIGHTS=1
 CFLAGS += -std=gnu++11 $(NATIVE_SIMD_FLAGS) -mf16c -flax-vector-conversions
 NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smiv.cpp \
 												 $(SRC_DIR)/core/mkl/activation_functions.cpp \

@@ -114,8 +114,13 @@ result_buf inner_product_layer(float* host_activations,
                                float* host_result,
                                device_t* device,
                                sampling_param_t* sampling_param) {
+#ifdef ENABLE_SMV_CONVOLUTION
+    inner_product_layer_smv_impl(
+            host_activations, host_weights, layers, lnum, host_result, device);
+#else
     inner_product_layer_impl(
             host_activations, host_weights, layers, lnum, host_result, device);
+#endif
     return host_result;
 }
 

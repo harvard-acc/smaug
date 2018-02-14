@@ -6,8 +6,10 @@
 #include "core/nnet_fwd_defs.h"
 #include "core/smiv/params.h"
 #include "core/smiv/smiv.h"
+#include "core/smv/smv.h"
 #include "utility/compression.h"
 #include "utility/utility.h"
+#include "config.h"
 
 #ifdef DMA_MODE
 #include "gem5_harness.h"

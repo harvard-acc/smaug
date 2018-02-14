@@ -72,7 +72,7 @@
 #endif
 
 #if ARCHITECTURE == SMIV
-#if TRANSPOSE_WEIGHTS == 1
+#if TRANSPOSE_WEIGHTS == 1 && !defined(ENABLE_SMV_CONVOLUTION)
 #error "SMIV does not support transposed weights!"
 #endif
 #define DATA_ALIGNMENT 8
