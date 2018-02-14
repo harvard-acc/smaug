@@ -11,7 +11,10 @@ result_buf smiv_activation_function(float* activations,
                                     layer_t* layer,
                                     float* results,
                                     device_t* device) {
-#ifdef __cplusplus
+    // MKL is giving unexpectedly worse performance than our reference
+    // implementation. So use the reference implementation for activation
+    // functions for now.
+#if 0
     begin_ignored_profiling(layer->num);
     nnet_mkl::activation_fun(
             activations, NUM_TEST_CASES, layer, results, device);

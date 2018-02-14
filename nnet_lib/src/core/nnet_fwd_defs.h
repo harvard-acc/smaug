@@ -254,8 +254,8 @@ typedef struct _iarray_t {
      arg == LRELU ? "LRELU" : \
      arg == ELU ? "ELU" : \
      arg == SELU ? "SELU" : \
-     arg == TANH ? "TANH" : \
-     arg == SIGMOID ?  "SIGMOID" : \
+     arg == TANH ? "Tanh" : \
+     arg == SIGMOID ?  "Sigmoid" : \
      arg == SOFTMAX ? "SOFTMAX" : "UNKNOWN")
 
 
