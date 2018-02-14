@@ -210,6 +210,8 @@ global_sec_header read_global_header_from_txt_file(const char* filename) {
         header.arch = Arch_Composable;
     else if (strncmp(header.arch_str, "SMIV", line_len) == 0)
         header.arch = Arch_SMIV;
+    else if (strncmp(header.arch_str, "SMV", line_len) == 0)
+        header.arch = Arch_SMV;
     else if (strncmp(header.arch_str, "EIGEN", line_len) == 0)
         header.arch = Arch_Eigen;
     else if (strncmp(header.arch_str, "MKLDNN", line_len) == 0)
