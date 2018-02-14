@@ -31,39 +31,6 @@ access_config layer_to_access_config(layer_t* curr_layer) {
     return access_config;
 }
 
-ALWAYS_INLINE
-void dma_wrapper(float* host,
-                 float* local,
-                 size_t transfer_size,
-                 bool is_load,
-                 bool use_pipelined_dma) {
-    if (use_pipelined_dma) {
-        divide_and_send_dma_req(
-                host, local, transfer_size, LOG_PAGE_SIZE, is_load);
-    } else {
-        if (is_load)
-            dmaLoad(local, host, transfer_size);
-       else
-            dmaStore(host, local, transfer_size);
-    }
-}
-
-ALWAYS_INLINE
-void dma_load_wrapper(float* local_dest,
-                      float* host_src,
-                      size_t transfer_size,
-                      bool use_pipelined_dma) {
-    dma_wrapper(host_src, local_dest, transfer_size, true, use_pipelined_dma);
-}
-
-ALWAYS_INLINE
-void dma_store_wrapper(float* host_dest,
-                       float* local_src,
-                       size_t transfer_size,
-                       bool use_pipelined_dma) {
-    dma_wrapper(host_dest, local_src, transfer_size, false, use_pipelined_dma);
-}
-
 const char* get_host_inputs_var_name(io_req_t req) {
     return req == IO_DMA
                    ? "dma_activations"

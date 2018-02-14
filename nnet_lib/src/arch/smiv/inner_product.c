@@ -304,6 +304,7 @@ void decompress_packed_csr_smiv_hw(uint32_t* dma_weights,
                                    size_t decompressed_size,
                                    bool input_in_spad0,
                                    io_req_t copy_mechanism,
+                                   bool use_pipelined_dma,
                                    float* spad0,
                                    float* spad1,
                                    float* umem) {
@@ -321,13 +322,19 @@ void decompress_packed_csr_smiv_hw(uint32_t* dma_weights,
     if (copy_mechanism == IO_DMA) {
         if (input_in_spad0) {
             setReadyBits(spad0, compressed_size, 0);
-            dmaLoad(spad0, dma_weights, compressed_size);
+            dma_load_wrapper(spad0,
+                             (float*)dma_weights,
+                             compressed_size,
+                             use_pipelined_dma);
             decompress_packed_csr_data_smiv_fxp(
                     (uint32_t*)spad0, cmp_col_offset, cmp_row_offset,
                     dest_offset, data_dims, umem);
         } else {
             setReadyBits(spad1, compressed_size, 0);
-            dmaLoad(spad1, dma_weights, compressed_size);
+            dma_load_wrapper(spad1,
+                             (float*)dma_weights,
+                             compressed_size,
+                             use_pipelined_dma);
             decompress_packed_csr_data_smiv_fxp(
                     (uint32_t*)spad1, cmp_col_offset, cmp_row_offset,
                     dest_offset, data_dims, umem);
@@ -705,6 +712,7 @@ void inner_product_layer_impl_rowwise(float* host_activations,
                                    curr_tile->eff_total_bytes,
                                    !input_in_spad0,  // Don't overwrite inputs!
                                    device->cpu_default_offload,
+                                   device->use_pipelined_dma,
                                    g_spad0,
                                    g_spad1,
                                    g_umem);
