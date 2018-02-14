@@ -489,8 +489,16 @@ static void handle_data_alignment(layer_t* layers, int l) {
         layers[l].outputs.align_pad =
                 calc_padding(layers[l].outputs.cols, data_alignment);
     }
-    layers[l].weights.align_pad =
-            calc_padding(layers[l].weights.cols, data_alignment);
+    if (TRANSPOSE_WEIGHTS == 1 && layers[l].type == FC) {
+        // When FC weights are transposed (stored col-major), the dimension
+        // that needs to be aligned now are the rows. Make sure to subtract one
+        // to account for the biases.
+        layers[l].weights.align_pad =
+                calc_padding(layers[l].weights.rows - 1, data_alignment);
+    } else {
+        layers[l].weights.align_pad =
+                calc_padding(layers[l].weights.cols, data_alignment);
+    }
 }
 
 static void read_top_level_config(layer_t* layers, cfg_t* network_opts) {

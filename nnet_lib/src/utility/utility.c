@@ -261,8 +261,13 @@ void get_weights_dims_layer(layer_t* layers,
 int get_num_weights_layer(layer_t* layers, int l) {
     if (layers[l].type == FC || layers[l].type == CONV_POINTWISE) {
         // Assumes height = 1.
-        return layers[l].weights.rows *
-               (layers[l].weights.cols + layers[l].weights.align_pad);
+        if (TRANSPOSE_WEIGHTS == 1) {
+            return layers[l].weights.cols *
+                   (layers[l].weights.rows + layers[l].weights.align_pad);
+        } else {
+            return layers[l].weights.rows *
+                   (layers[l].weights.cols + layers[l].weights.align_pad);
+        }
     } else if (layers[l].type == CONV_STANDARD ||
                layers[l].type == CONV_DEPTHWISE) {
         return layers[l].weights.rows *

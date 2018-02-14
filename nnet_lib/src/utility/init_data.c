@@ -51,35 +51,34 @@ void init_fc_weights(float* weights,
                      int w_pad,
                      data_init_mode mode,
                      bool transpose) {
-    int w_tot_cols = w_cols + w_pad;
-    float val = 0;
+    int w_tot_cols = transpose ? w_cols : w_cols + w_pad;
     // Always store the biases after all the weights, regardless of whether
     // weights are transposed or not.
-    int w_rows_minus_1 = w_rows - 1;
-    for (int h = 0; h < w_height; h++) {
-        // First store the weights.
-        for (int i = 0; i < w_rows_minus_1; i++) {
-            for (int j = 0; j < w_tot_cols; j++) {
-                if (j < w_cols) {
-                    val = get_rand_weight(mode, i);
-                } else {  // extra zero padding.
-                    val = 0;
-                }
-                if (transpose)
-                    weights[sub3ind(h, j, i, w_tot_cols, w_rows_minus_1)] = val;
-                else
-                    weights[sub3ind(h, i, j, w_rows_minus_1, w_tot_cols)] = val;
-            }
-        }
-        // Store the biases.
+    w_rows--;  // Remove the bias row from the equation for now.
+    float val = 0;
+    // First store the weights.
+    for (int i = 0; i < w_rows; i++) {
         for (int j = 0; j < w_tot_cols; j++) {
-            if (j < w_cols) {
-                val = get_rand_weight(mode, w_rows_minus_1);
+            if (transpose) {
+                // Loop var i can't go past the row padding!
+                val = get_rand_weight(mode, i);
+                weights[sub2ind(j, i, w_rows + w_pad)] = val;
             } else {
-                val = 0;
+                val = j < w_cols ? get_rand_weight(mode, i) : 0;
+                weights[sub2ind(i, j, w_cols + w_pad)] = val;
             }
-            weights[sub3ind(h, w_rows - 1, j, w_rows, w_tot_cols)] = val;
         }
+    }
+    int bias_offset = transpose ? (w_rows + w_pad) * w_cols
+                                : (w_cols + w_pad) * w_rows;
+    // Store the biases.
+    for (int j = 0; j < w_tot_cols; j++) {
+        if (j < w_cols) {
+            val = get_rand_weight(mode, w_rows);
+        } else {
+            val = 0;
+        }
+        weights[bias_offset + j] = val;
     }
 }
 
@@ -190,7 +189,6 @@ void init_weights(float* weights,
     for (l = 0; l < num_layers; l++) {
         get_weights_dims_layer(
                 layers, l, &w_rows, &w_cols, &w_height, &w_depth, &w_pad);
-        int w_tot_cols = w_cols + w_pad;
         switch (layers[l].type) {
             case CONV_POINTWISE:
                 init_pointwise_conv_weights(weights + w_offset, w_height,
@@ -213,7 +211,10 @@ void init_weights(float* weights,
             default:
                 continue;
         }
-        w_offset += w_rows * w_tot_cols * w_height * w_depth;
+        if (transpose && layers[l].type == FC)
+            w_offset += (w_rows + w_pad) * w_cols * w_height * w_depth;
+        else
+            w_offset += w_rows * (w_cols + w_pad) * w_height * w_depth;
     }
     // NOTE: FOR SIGMOID ACTIVATION FUNCTION, WEIGHTS SHOULD BE BIG
     // Otherwise everything just becomes ~0.5 after sigmoid, and results are
