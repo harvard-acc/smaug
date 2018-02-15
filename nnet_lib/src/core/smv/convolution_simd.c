@@ -135,8 +135,6 @@ void convolution3d_smv_nhwc_vec_fxp(float* a,
 
                         pe_groups:
                         for (int pe_id = 0; pe_id < kEffNumPeInsts; pe_id++) {
-                            float accum_reg = 0;
-
                             mu_groups:
                             for (int macc_idx = 0; macc_idx < NUM_MACC_INSTS;
                                  macc_idx++) {
@@ -144,19 +142,19 @@ void convolution3d_smv_nhwc_vec_fxp(float* a,
                                         kernel_reg[pe_id][macc_idx] *
                                         act_reg[macc_idx];
                             }
-                            accum_reg = results_buffer[pe_id][res_buf_j];
-                            reduction_adders:
+                            v8fp_t accum_vec_reg = zero;
+                            reduction_1:
                             for (int macc_idx = 0; macc_idx < NUM_MACC_INSTS;
                                  macc_idx++) {
-                                reduction_inner:
-                                for (int vec_i = 0; vec_i < VECTOR_SIZE;
-                                     vec_i++) {
-                                    accum_reg +=
-                                            product_reg[pe_id][macc_idx][vec_i];
-                                }
+                                accum_vec_reg += product_reg[pe_id][macc_idx];
                             }
-                            results_buffer[pe_id][res_buf_j] =
-                                    accum_reg;
+
+                            float accum_reg = 0;
+                            reduction_2:
+                            for (int vec_i = 0; vec_i < VECTOR_SIZE; vec_i++) {
+                                accum_reg += accum_vec_reg[vec_i];
+                            }
+                            results_buffer[pe_id][res_buf_j] += accum_reg;
                         }
 
                         if ((out_j + 1) % VECTOR_SIZE == 0 ||

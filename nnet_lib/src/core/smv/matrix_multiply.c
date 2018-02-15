@@ -82,13 +82,16 @@ void matrix_multiply_transpose_smv_nobatch_vec_fxp(float* a,
                                                 weights_reg[macc_idx];
                     }
 
-                    float accum_reg = 0;
-                    reduce_mu:
+                    v8fp_t accum_vec_reg = zero;
+                    reduce_1:
                     for (int macc_idx = 0; macc_idx < NUM_MACC_INSTS; macc_idx++) {
-                        reduce_vec:
-                        for (int vec_i = 0; vec_i < VECTOR_SIZE; vec_i++) {
-                            accum_reg += product_reg[macc_idx][vec_i];
-                        }
+                        accum_vec_reg += product_reg[macc_idx];
+                    }
+
+                    float accum_reg = 0;
+                    reduce_2:
+                    for (int vec_i = 0; vec_i < VECTOR_SIZE; vec_i++) {
+                        accum_reg += accum_vec_reg[vec_i];
                     }
                     partial_sums[psum_offset + pe_id] += accum_reg;
                 }
