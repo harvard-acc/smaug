@@ -63,7 +63,7 @@ void batch_norm_post_conv_simd_fxp(float* inputs,
     const int input_cols_vec = FRAC_CEIL(input_cols, VECTOR_SIZE);
     activation_type act = curr_layer->activation;
 
-    ARRAY_2D(float, _weights, weights, num_chans + weight_align_pad);
+    VEC_ARRAY_2D(v8fp_t, _weights, weights, num_chans + weight_align_pad);
     VEC_ARRAY_4D(v8fp_t,
                  _inputs,
                  inputs,
@@ -80,35 +80,42 @@ void batch_norm_post_conv_simd_fxp(float* inputs,
     bn_batch:
     for (int i = 0; i < batch_size; i++) {
         bn_chan:
-        for (int h = 0; h < num_chans; h++) {
-            float mean = _weights[MeanIndex][h];
-            float recip_sqrt_var = _weights[VarianceIndex][h];
-            float gamma = _weights[GammaIndex][h];
-            float beta = _weights[BetaIndex][h];
-            v8fp_t mean_vec = {
-                mean, mean, mean, mean, mean, mean, mean, mean
-            };
-            v8fp_t recip_sqrt_var_vec = { recip_sqrt_var, recip_sqrt_var,
-                                          recip_sqrt_var, recip_sqrt_var,
-                                          recip_sqrt_var, recip_sqrt_var,
-                                          recip_sqrt_var, recip_sqrt_var };
-            v8fp_t gamma_vec = { gamma, gamma, gamma, gamma,
-                                 gamma, gamma, gamma, gamma };
-            v8fp_t beta_vec = {
-                beta, beta, beta, beta, beta, beta, beta, beta
-            };
+        for (int h = 0; h < FRAC_CEIL(num_chans, VECTOR_SIZE); h++) {
+            v8fp_t mean_vec = _weights[MeanIndex][h];
+            v8fp_t recip_sqrt_var_vec = _weights[VarianceIndex][h];
+            v8fp_t gamma_vec = _weights[GammaIndex][h];
+            v8fp_t beta_vec = _weights[BetaIndex][h];
 
-            bn_row:
-            for (int r = 0; r < input_rows; r++) {
-                bn_col:
-                for (int c = 0; c < input_cols_vec; c++) {
-                    _results[i][h][r][c] =
-                            batch_norm_simd_op(_inputs[i][h][r][c],
-                                               mean_vec,
-                                               recip_sqrt_var_vec,
-                                               gamma_vec,
-                                               beta_vec,
-                                               act);
+            bn_chan_vec:
+            for (int v = 0; v < VECTOR_SIZE; v++) {
+                float mean = mean_vec[v];
+                float recip_sqrt_var = recip_sqrt_var_vec[v];
+                float gamma = gamma_vec[v];
+                float beta = beta_vec[v];
+                v8fp_t mean_vec = { mean, mean, mean, mean,
+                                    mean, mean, mean, mean };
+                v8fp_t recip_sqrt_var_vec = { recip_sqrt_var, recip_sqrt_var,
+                                              recip_sqrt_var, recip_sqrt_var,
+                                              recip_sqrt_var, recip_sqrt_var,
+                                              recip_sqrt_var, recip_sqrt_var };
+                v8fp_t gamma_vec = { gamma, gamma, gamma, gamma,
+                                     gamma, gamma, gamma, gamma };
+                v8fp_t beta_vec = { beta, beta, beta, beta,
+                                    beta, beta, beta, beta };
+
+                bn_row:
+                for (int r = 0; r < input_rows; r++) {
+                    bn_col:
+                    for (int c = 0; c < input_cols_vec; c++) {
+                        int ofmap = h * VECTOR_SIZE + v;
+                        _results[i][ofmap][r][c] =
+                                batch_norm_simd_op(_inputs[i][ofmap][r][c],
+                                                   mean_vec,
+                                                   recip_sqrt_var_vec,
+                                                   gamma_vec,
+                                                   beta_vec,
+                                                   act);
+                    }
                 }
             }
         }
