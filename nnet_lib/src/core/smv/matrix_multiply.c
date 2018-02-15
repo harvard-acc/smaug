@@ -40,11 +40,11 @@ void matrix_multiply_transpose_smv_nobatch_vec_fxp(float* a,
     VEC_ARRAY_2D(v8fp_t, _a, a, a_width + a_pad);
     VEC_ARRAY_2D(v8fp_t, _b, b, b_width);
     VEC_ARRAY_2D(v8fp_t, _result, result, b_width);
+    v8fp_t partial_sums;
 
     input_act:
     for (int input_act = 0; input_act < a_height; input_act++) {
         int psum_offset = 0;
-        v8fp_t partial_sums = zero;
         wgt_row:
         for (int wgt_row = 0; wgt_row < b_height; wgt_row += NUM_PE_INSTS) {
             if (wgt_row % VECTOR_SIZE == 0)
@@ -52,6 +52,13 @@ void matrix_multiply_transpose_smv_nobatch_vec_fxp(float* a,
 
             wgt_col:
             for (int wgt_col = 0; wgt_col < b_width_vec; wgt_col+=NUM_MACC_INSTS) {
+                // To work around an Aladdin dependence analysis bug where
+                // InsertElement operations on vector types can be serialized
+                // across unrolled loop iterations, we use a normal scalar
+                // array here instead. Prior to committing the data to the
+                // scratchpad, we'll copy this data back to a vector register.
+                float partial_sums_inner[VECTOR_SIZE / 2] = { 0, 0, 0, 0 };
+
                 v8fp_t act_reg[NUM_MACC_INSTS];
                 act_reg_load:
                 for (int act_vec = 0; act_vec < NUM_MACC_INSTS; act_vec++) {
@@ -93,9 +100,14 @@ void matrix_multiply_transpose_smv_nobatch_vec_fxp(float* a,
                     for (int vec_i = 0; vec_i < VECTOR_SIZE; vec_i++) {
                         accum_reg += accum_vec_reg[vec_i];
                     }
-                    partial_sums[psum_offset + pe_id] += accum_reg;
+                    partial_sums_inner[pe_id] += accum_reg;
+                }
+                copy_psums:
+                for (int i = 0; i < NUM_PE_INSTS; i++) {
+                    partial_sums[psum_offset + i] += partial_sums_inner[i];
                 }
             }
+
             int next_wgt_row = wgt_row + NUM_PE_INSTS;
             if (next_wgt_row % VECTOR_SIZE ==  0 || next_wgt_row >= b_height) {
                 _result[input_act][(result_start + wgt_row) / VECTOR_SIZE] =
