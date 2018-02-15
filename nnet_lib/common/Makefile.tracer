@@ -49,7 +49,11 @@ else ifeq ($(ARCH), COMPOSABLE)
 SRCS += arch/composable.c
 else ifeq ($(ARCH), SMIV)
 SRCS += $(SMIV_ARCH_SRCS) arch/smiv.c
-CPPFLAGS += -DENABLE_SMV_CONVOLUTION
+else ifeq ($(ARCH), SMV)
+SRCS += $(SMIV_ARCH_SRCS) $(SMV_ARCH_SRCS) arch/smv.c
+CPPFLAGS += -DTRANSPOSE_WEIGHTS=1
+else
+$(error "Unknown architecture $(ARCH)!")
 endif
 SUBBUILDDIRS = $(patsubst %, $(BUILD_DIR)/%, $(MODULES))
 

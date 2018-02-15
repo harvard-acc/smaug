@@ -102,6 +102,8 @@ SRCS += $(CPP_NNET_FWD_MAIN)
 else ifeq ($(ARCH), MKLDNN)
 EXEC = nnet-mkl
 SRCS += $(CPP_NNET_FWD_MAIN)
+else
+$(error "Unknown architecture $(ARCH)!")
 endif
 
 INCLUDES += -I$(ALADDIN_HOME)/../../include \
