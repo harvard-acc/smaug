@@ -157,7 +157,14 @@ def print_txt_weights_section(outfile, layers, data_alignment,
 
 def print_txt_inputs_section(outfile, x_train, data_alignment):
   outfile.write("===DATA BEGIN===\n")
-  input = np.transpose(x_train[0, :], [2, 1, 0])
+  if len(x_train.shape) > 3:
+    # This means we have a channel dimension, and the TF backend stores data in
+    # channel-last format, so we need to transpose to get to NCHW.
+    input = np.transpose(x_train[0, :], [2, 1, 0])
+  else:
+    # No channel dimension, so it's just a flat image. In this case, we don't
+    # need to do anything.
+    input = x_train[0, :]
   outfile.write("# NUM_ELEMS %d\n" % get_padded_size(
       input.shape, data_alignment))
   outfile.write("# TYPE float\n")
