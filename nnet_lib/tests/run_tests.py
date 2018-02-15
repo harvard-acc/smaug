@@ -149,17 +149,17 @@ class MnistTests(BaseTest):
     # The model file was generated with SMIV as the backend (the only one that
     # supports handling sparse data), so it can't be run on the other backends.
     # But the result should be the same as the uncompressed version.
-    if ARCH != "smiv":
+    if ARCH != "smiv" and ARCH != "smv":
       return
     model_file = "mnist/minerva.conf"
     correct_output = "mnist-minerva-pruned.out"
     param_file = os.path.join(
-        MODEL_DIR, "mnist/trained/smiv/minerva_pruned_csr.txt")
+        MODEL_DIR, "mnist/trained/%s/minerva_pruned_csr.txt" % ARCH)
     self.runAndValidate(model_file, correct_output,
                         data_init_mode="READ_FILE", param_file=param_file)
 
   def test_pruned_no_csr_minerva(self):
-    if ARCH != "smiv" or ARCH != "monolithic":
+    if ARCH == "composable":
       return
     model_file = "mnist/minerva.conf"
     correct_output = "mnist-minerva-pruned.out"
@@ -209,7 +209,7 @@ class MinervaAccessMechanismCsrTests(MinervaAccessMechanismTests):
 
   def runAndValidate(self, model_file, correct_output):
     """ Supply the model parameter file as an additional argument. """
-    if ARCH != "smiv":
+    if ARCH != "smiv" or ARCH != "smv":
       return
     super(MinervaAccessMechanismTests, self).runAndValidate(
         model_file, correct_output,
