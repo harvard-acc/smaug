@@ -98,14 +98,14 @@ void smiv_batch_norm_layer_impl(float* activations,
         flush_cache_range(curr_layer_weights, weights_size / sizeof(float));
         end_profiling();
 
+        MAP_ARRAY_TO_ACCEL(g_smiv->kBatchNormHw, "host_activations",
+                           activations, inputs_size);
+        MAP_ARRAY_TO_ACCEL(g_smiv->kBatchNormHw, "host_weights",
+                           curr_layer_weights, weights_size);
         MAP_ARRAY_TO_ACCEL(
-                kSmivBatchNormHw, "host_activations", activations, inputs_size);
-        MAP_ARRAY_TO_ACCEL(
-                kSmivBatchNormHw, "host_weights", curr_layer_weights, weights_size);
-        MAP_ARRAY_TO_ACCEL(
-                kSmivBatchNormHw, "host_result", result, outputs_size);
+                g_smiv->kBatchNormHw, "host_result", result, outputs_size);
         // TODO: For now, always put the input into spad0.
-        INVOKE_KERNEL_PROF(kSmivBatchNormHw, lnum, smiv_batch_norm_layer_hw,
+        INVOKE_KERNEL_PROF(g_smiv->kBatchNormHw, lnum, smiv_batch_norm_layer_hw,
                            activations, curr_layer_weights, result,
                            g_smiv->umem, g_smiv->spad0, g_smiv->spad1, true,
                            &layers[lnum]);

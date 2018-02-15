@@ -384,7 +384,7 @@ void smv_inner_product_layer_hw_dispatch(float* activations,
     io_req_t output_req = layer->output_req;
 
     if (output_req != IO_NONE) {
-        MAP_ARRAY_TO_ACCEL(kSmvInnerProductHw,
+        MAP_ARRAY_TO_ACCEL(g_smv->kInnerProductHw,
                            get_host_results_var_name(output_req),
                            results,
                            result_size * sizeof(float));
@@ -413,7 +413,7 @@ void smv_inner_product_layer_hw_dispatch(float* activations,
     access_config.inputs = io_to_access_mechanism(layer->input_req);
     access_config.weights = io_to_access_mechanism(layer->weights_req);
     access_config.outputs = io_to_access_mechanism(layer->output_req);
-    INVOKE_KERNEL_PROF(kSmvInnerProductHw,
+    INVOKE_KERNEL_PROF(g_smv->kInnerProductHw,
                        layer->num,
                        smv_inner_product_layer_hw,
                        // DMA
@@ -457,7 +457,7 @@ void smv_inner_product_layer_impl_rowwise(float* host_activations,
                                       curr_layer->inputs.cols *
                                       NUM_TEST_CASES * sizeof(float);
 
-    MAP_ARRAY_TO_ACCEL(kSmvInnerProductHw,
+    MAP_ARRAY_TO_ACCEL(g_smv->kInnerProductHw,
                        get_host_inputs_var_name(curr_layer->input_req),
                        host_activations,
                        inputs_size);
@@ -527,7 +527,7 @@ void smv_inner_product_layer_impl_rowwise(float* host_activations,
                     (curr_iter->cols + curr_iter->align_pad) * curr_iter->rows *
                     sizeof(float);
             MAP_ARRAY_TO_ACCEL(
-                    kSmvInnerProductHw,
+                    g_smv->kInnerProductHw,
                     get_host_weights_var_name(partial_layer.weights_req),
                     curr_dense_weights_loc,
                     weights_buffer_size);

@@ -16,10 +16,17 @@ extern unsigned kSmvBatchNormHw;
 extern unsigned kSmvPoolingHw;
 
 typedef struct _smv_global {
-    // This must be IDENTICAL to smiv_global!
+    //----------------------//
+    // This section must be IDENTICAL to smiv_global (smiv/common.h)!
     float* umem;
     float* spad0;
     float* spad1;
+    unsigned kConvolutionHw;
+    unsigned kInnerProductHw;
+    unsigned kReductionHw;
+    unsigned kBatchNormHw;
+    unsigned kPoolingHw;
+    //-----------------------//
 } smv_global;
 
 extern smv_global g_smv;

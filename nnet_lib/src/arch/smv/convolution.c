@@ -309,7 +309,7 @@ void smv_standard_convolution_layer_impl(float* host_activations,
     dims_t activations_nhwc = convert_nchw_to_nhwc(
             host_activations, NUM_TEST_CASES, curr_layer.inputs, DATA_ALIGNMENT,
             &nhwc_activations);
-    MAP_ARRAY_TO_ACCEL(kSmvConvolutionHw,
+    MAP_ARRAY_TO_ACCEL(g_smv->kConvolutionHw,
                        get_host_inputs_var_name(curr_layer.input_req),
                        nhwc_activations,
                        get_dims_size(&curr_layer.inputs) * sizeof(float));
@@ -342,7 +342,7 @@ void smv_standard_convolution_layer_impl(float* host_activations,
             // Set up the results buffer and mappings.
             float* result_loc = &_result[img][kern_start][0][0];
             int result_size = result_2d_size * tile->num_ofmaps * sizeof(float);
-            MAP_ARRAY_TO_ACCEL(kSmvConvolutionHw,
+            MAP_ARRAY_TO_ACCEL(g_smv->kConvolutionHw,
                                get_host_results_var_name(curr_layer.output_req),
                                result_loc, result_size);
 
@@ -352,7 +352,7 @@ void smv_standard_convolution_layer_impl(float* host_activations,
                     &_kernels[kern_start][0][0][0], tile->num_ofmaps,
                     curr_layer.weights, DATA_ALIGNMENT, &nhwc_weights);
             MAP_ARRAY_TO_ACCEL(
-                    kSmvConvolutionHw,
+                    g_smv->kConvolutionHw,
                     get_host_weights_var_name(curr_layer.weights_req),
                     nhwc_weights, num_kerns * single_kernel_size);
 
@@ -413,7 +413,7 @@ void smv_standard_convolution_layer_impl(float* host_activations,
                 access_config access_cfg =
                         layer_to_access_config(&partial_layer);
                 INVOKE_KERNEL_PROF(
-                        kSmvConvolutionHw, lnum, smv_convolution_layer_hw,
+                        g_smv->kConvolutionHw, lnum, smv_convolution_layer_hw,
                         nhwc_activations, nhwc_weights, result_loc,  // DMA
                         nhwc_activations, nhwc_weights, result_loc,  // Cache
                         nhwc_activations, nhwc_weights, result_loc,  // ACP

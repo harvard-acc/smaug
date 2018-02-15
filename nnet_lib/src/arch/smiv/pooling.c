@@ -141,16 +141,16 @@ void smiv_pooling_layer_impl(float* inputs,
             flush_cache_range(current_inputs, partial_input_size);
             end_profiling();
 
-            MAP_ARRAY_TO_ACCEL(kSmivPoolingHw,
+            MAP_ARRAY_TO_ACCEL(g_smiv->kPoolingHw,
                                "host_activations",
                                current_inputs,
                                partial_input_size * sizeof(float));
-            MAP_ARRAY_TO_ACCEL(kSmivPoolingHw,
+            MAP_ARRAY_TO_ACCEL(g_smiv->kPoolingHw,
                                "host_results",
                                current_results,
                                partial_output_size * sizeof(float));
 
-            INVOKE_KERNEL_PROF(kSmivPoolingHw,
+            INVOKE_KERNEL_PROF(g_smiv->kPoolingHw,
                                curr_layer->num,
                                pooling_layer_hw,
                                current_inputs,

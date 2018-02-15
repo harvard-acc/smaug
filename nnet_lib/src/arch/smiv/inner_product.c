@@ -426,7 +426,7 @@ void smiv_inner_product_layer_hw_dispatch(float* activations,
     io_req_t output_req = layer->output_req;
 
     if (output_req != IO_NONE) {
-        MAP_ARRAY_TO_ACCEL(kSmivInnerProductHw,
+        MAP_ARRAY_TO_ACCEL(g_smiv->kInnerProductHw,
                            get_host_results_var_name(output_req),
                            results,
                            result_size * sizeof(float));
@@ -455,7 +455,7 @@ void smiv_inner_product_layer_hw_dispatch(float* activations,
     access_config.inputs = io_to_access_mechanism(layer->input_req);
     access_config.weights = io_to_access_mechanism(layer->weights_req);
     access_config.outputs = io_to_access_mechanism(layer->output_req);
-    INVOKE_KERNEL_PROF(kSmivInnerProductHw,
+    INVOKE_KERNEL_PROF(g_smiv->kInnerProductHw,
                        layer->num,
                        inner_product_layer_hw,
                        // DMA
@@ -518,7 +518,7 @@ void smiv_inner_product_layer_impl_rowwise(float* host_activations,
         host_results_buffer = host_results;
     }
 
-    MAP_ARRAY_TO_ACCEL(kSmivInnerProductHw,
+    MAP_ARRAY_TO_ACCEL(g_smiv->kInnerProductHw,
                        get_host_inputs_var_name(curr_layer->input_req),
                        host_inputs_buffer,
                        inputs_buffer_size);
@@ -596,7 +596,7 @@ void smiv_inner_product_layer_impl_rowwise(float* host_activations,
                     (curr_iter->cols + curr_iter->align_pad) * curr_iter->rows *
                     sizeof(float);
             MAP_ARRAY_TO_ACCEL(
-                    kSmivInnerProductHw,
+                    g_smiv->kInnerProductHw,
                     get_host_weights_var_name(partial_layer.weights_req),
                     curr_dense_weights_loc,
                     weights_buffer_size);
@@ -712,7 +712,7 @@ void smiv_inner_product_layer_impl_colwise(float* host_activations,
     print_smiv_work_cfg(&fc_cfgs);
 
     bool needs_multiple_iter = (fc_cfgs.num_iterations > 1);
-    MAP_ARRAY_TO_ACCEL(kSmivInnerProductHw,
+    MAP_ARRAY_TO_ACCEL(g_smiv->kInnerProductHw,
                        get_host_inputs_var_name(curr_layer->input_req),
                        host_activations,
                        INPUT_BYTES(curr_layer, 0));
@@ -774,7 +774,7 @@ void smiv_inner_product_layer_impl_colwise(float* host_activations,
 
         if (curr_layer->weights_req != IO_NONE) {
             MAP_ARRAY_TO_ACCEL(
-                    kSmivInnerProductHw,
+                    g_smiv->kInnerProductHw,
                     get_host_weights_var_name(curr_layer->weights_req),
                     host_weights_buffer,
                     weights_buffer_size);

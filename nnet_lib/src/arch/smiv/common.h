@@ -27,6 +27,11 @@ typedef struct _smiv_global {
     float* umem;
     float* spad0;
     float* spad1;
+    unsigned kConvolutionHw;
+    unsigned kInnerProductHw;
+    unsigned kReductionHw;
+    unsigned kBatchNormHw;
+    unsigned kPoolingHw;
 } smiv_global;
 
 extern smiv_global g_smiv;
@@ -46,13 +51,6 @@ typedef smiv_work_cfg_t pool_cfg_t;
 void init_smiv_work_cfg(smiv_work_cfg_t* cfg, unsigned num_iterations);
 void free_smiv_work_cfg(smiv_work_cfg_t* cfg);
 void print_smiv_work_cfg(smiv_work_cfg_t* cfg);
-
-// Accelerator id codes.
-extern unsigned kSmivConvolutionHw;
-extern unsigned kSmivInnerProductHw;
-extern unsigned kSmivReductionHw;
-extern unsigned kSmivBatchNormHw;
-extern unsigned kSmivPoolingHw;
 
 // Returns whether the hardware can execute this activation function on this
 // layer type or not.

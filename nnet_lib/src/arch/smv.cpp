@@ -33,19 +33,31 @@
 
 smv_global g_smv;
 
-// Use the same accelerator id for all hardware blocks. This means we will
-// simulate only ONE datapath instead of multiple, which means that the two
-// blocks can share the scratchpads (without any infrastructure
-// changes). The key is that we still trace the functions at the _hw level, so
-// that Aladdin will exit after simulating each block, and we can return
-// control to the CPU at the right places.  In contrast, if we used two
-// different ids, we would have two different datapaths that could not share
-// data directly.
-unsigned kSmvConvolutionHw = 0x0003;
-unsigned kSmvInnerProductHw = 0x0003;
-unsigned kSmvReductionHw = 0x0003;
-unsigned kSmvBatchNormHw = 0x0003;
-unsigned kSmvPoolingHw = 0x0003;
+void init_smv_global() {
+    // Use the same accelerator id for all hardware blocks. This means we will
+    // simulate only ONE datapath instead of multiple, which means that the two
+    // blocks can share the scratchpads (without any infrastructure
+    // changes). The key is that we still trace the functions at the _hw level,
+    // so that Aladdin will exit after simulating each block, and we can return
+    // control to the CPU at the right places.  In contrast, if we used two
+    // different ids, we would have two different datapaths that could not share
+    // data directly.
+    g_smv.kConvolutionHw = 0x0003;
+    g_smv.kInnerProductHw = 0x0003;
+    g_smv.kReductionHw = 0x0003;
+    g_smv.kBatchNormHw = 0x0003;
+    g_smv.kPoolingHw = 0x0003;
+
+    g_smv.umem = (float*)malloc_aligned(SMV_UMEM_SIZE);
+    g_smv.spad0 = (float*)malloc_aligned(SMV_SPAD_SIZE);
+    g_smv.spad1 = (float*)malloc_aligned(SMV_SPAD_SIZE);
+}
+
+void free_smv_global() {
+    free(g_smv.umem);
+    free(g_smv.spad0);
+    free(g_smv.spad1);
+}
 
 result_buf smv_activation_function(float* activations,
                                     layer_t* layer,
@@ -109,7 +121,7 @@ result_buf standard_convolution_layer(float* activations,
                                                            ? "acp_weights"
                                                            : "cache_weights";
     int weights_size = WEIGHT_BYTES(layers, lnum);
-    MAP_ARRAY_TO_ACCEL(kSmvConvolutionHw, weights_var_name,
+    MAP_ARRAY_TO_ACCEL(g_smv.kConvolutionHw, weights_var_name,
                        current_layer_weights, weights_size);
     layer_t curr_layer = layers[lnum];
     if (curr_layer.c_padding > 0) {
@@ -160,7 +172,7 @@ result_buf depthwise_convolution_layer(float* activations,
                                                            ? "acp_weights"
                                                            : "cache_weights";
     int weights_size = WEIGHT_BYTES(layers, lnum);
-    MAP_ARRAY_TO_ACCEL(kSmvConvolutionHw, weights_var_name,
+    MAP_ARRAY_TO_ACCEL(g_smv.kConvolutionHw, weights_var_name,
                        current_layer_weights, weights_size);
     layer_t curr_layer = layers[lnum];
     if (curr_layer.c_padding > 0) {
@@ -457,9 +469,7 @@ void nnet_fwd(farray_t activations,
     int l;
     layer_t curr_layer;
 
-    g_smv.umem = (float*)malloc_aligned(SMV_UMEM_SIZE);
-    g_smv.spad0 = (float*)malloc_aligned(SMV_SPAD_SIZE);
-    g_smv.spad1 = (float*)malloc_aligned(SMV_SPAD_SIZE);
+    init_smv_global();
 
 #ifdef __cplusplus
     nnet_mkl::MklSession* session = new nnet_mkl::MklSession();
@@ -482,7 +492,7 @@ void nnet_fwd(farray_t activations,
 
     set_io_requirements(&network, device);
 
-    MAP_ARRAY_TO_ACCEL(kSmvConvolutionHw, "host_activations", activations.d,
+    MAP_ARRAY_TO_ACCEL(g_smv.kConvolutionHw, "host_activations", activations.d,
                        activations.size);
 
     //******************//
@@ -504,9 +514,7 @@ nnet_fwd_outer:
 
     network.layers[network.depth - 1].result_in_temp = (result_loc == result.d);
 
-    free(g_smv.umem);
-    free(g_smv.spad0);
-    free(g_smv.spad1);
+    free_smv_global();
 }
 
 #endif

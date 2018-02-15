@@ -115,10 +115,10 @@ void smiv_decompress_packed_csr_impl(layer_t* layer,
         dims_t dims = (dims_t){ curr_tile->num_rows, layer->weights.cols,
                                 layer->weights.height,
                                 layer->weights.align_pad };
-        MAP_ARRAY_TO_ACCEL(kSmivInnerProductHw,
+        MAP_ARRAY_TO_ACCEL(g_smiv->kInnerProductHw,
                            get_host_weights_var_name(layer->weights_req),
                            array->vals, array->total_buf_size);
-        INVOKE_KERNEL_PROF(kSmivInnerProductHw,
+        INVOKE_KERNEL_PROF(g_smiv->kInnerProductHw,
                            layer->num,
                            smiv_decompress_packed_csr_hw,
                            array->vals,  // DMA

@@ -446,7 +446,7 @@ void smiv_standard_convolution_layer_impl(float* host_activations,
                                     curr_layer.type, curr_layer.activation);
     bool use_pipelined_dma = device->use_pipelined_dma;
 
-    MAP_ARRAY_TO_ACCEL(kSmivConvolutionHw,
+    MAP_ARRAY_TO_ACCEL(g_smiv->kConvolutionHw,
                        get_host_inputs_var_name(curr_layer.input_req),
                        host_activations,
                        activations_size);
@@ -513,10 +513,10 @@ void smiv_standard_convolution_layer_impl(float* host_activations,
                 access_config access_cfg =
                         layer_to_access_config(&partial_layer);
                 MAP_ARRAY_TO_ACCEL(
-                        kSmivConvolutionHw,
+                        g_smiv->kConvolutionHw,
                         get_host_weights_var_name(partial_layer.weights_req),
                         current_weights_loc, weights_block_size);
-                INVOKE_KERNEL_PROF(kSmivConvolutionHw,
+                INVOKE_KERNEL_PROF(g_smiv->kConvolutionHw,
                                    lnum,
                                    smiv_convolution_layer_hw,
                                    // DMA
@@ -553,7 +553,7 @@ void smiv_standard_convolution_layer_impl(float* host_activations,
                                 ? NO_ACTIVATION
                                 : curr_layer.activation;
                 MAP_ARRAY_TO_ACCEL(
-                        kSmivReductionHw,
+                        g_smiv->kReductionHw,
                         get_host_results_var_name(partial_layer.output_req),
                         result_loc,
                         result_2d_size * sizeof(float));
@@ -563,7 +563,7 @@ void smiv_standard_convolution_layer_impl(float* host_activations,
                 red_options.input_in_spad0 = false;
                 red_options.use_pipelined_dma = device->use_pipelined_dma;
                 access_cfg = layer_to_access_config(&partial_layer);
-                INVOKE_KERNEL_PROF(kSmivReductionHw,
+                INVOKE_KERNEL_PROF(g_smiv->kReductionHw,
                                    lnum,
                                    smiv_reduction_hw,
                                    // DMA
@@ -604,7 +604,7 @@ void smiv_standard_convolution_layer_impl(float* host_activations,
                 PRINT_MSG("Final reduction round\n");
                 if (partial_layer.output_req != IO_NONE) {
                     MAP_ARRAY_TO_ACCEL(
-                            kSmivReductionHw,
+                            g_smiv->kReductionHw,
                             get_host_results_var_name(partial_layer.output_req),
                             result_loc,
                             temp_result_size);
@@ -622,7 +622,7 @@ void smiv_standard_convolution_layer_impl(float* host_activations,
                 red_options.use_pipelined_dma = device->use_pipelined_dma;
                 access_config access_cfg =
                         layer_to_access_config(&partial_layer);
-                INVOKE_KERNEL_PROF(kSmivReductionHw,
+                INVOKE_KERNEL_PROF(g_smiv->kReductionHw,
                                    lnum,
                                    smiv_reduction_hw,
                                    // DMA
@@ -699,7 +699,7 @@ void smiv_depthwise_convolution_layer_impl(float* host_activations,
                                     curr_layer.type, curr_layer.activation);
 
     bool use_pipelined_dma = device->use_pipelined_dma;
-    MAP_ARRAY_TO_ACCEL(kSmivConvolutionHw,
+    MAP_ARRAY_TO_ACCEL(g_smiv->kConvolutionHw,
                        get_host_inputs_var_name(curr_layer.input_req),
                        host_activations,
                        activations_size * sizeof(float));
@@ -744,7 +744,7 @@ void smiv_depthwise_convolution_layer_impl(float* host_activations,
             partial_layer.output_req = curr_layer.output_req;
             if (partial_layer.output_req != IO_NONE) {
                 MAP_ARRAY_TO_ACCEL(
-                        kSmivConvolutionHw,
+                        g_smiv->kConvolutionHw,
                         get_host_results_var_name(partial_layer.output_req),
                         current_result,
                         current_iter_result_size * sizeof(float));
@@ -758,10 +758,10 @@ void smiv_depthwise_convolution_layer_impl(float* host_activations,
             conv_options.use_pipelined_dma = use_pipelined_dma;
             access_config access_cfg = layer_to_access_config(&partial_layer);
             MAP_ARRAY_TO_ACCEL(
-                    kSmivConvolutionHw,
+                    g_smiv->kConvolutionHw,
                     get_host_weights_var_name(partial_layer.weights_req),
                     current_weights_loc, weights_block_size);
-            INVOKE_KERNEL_PROF(kSmivConvolutionHw,
+            INVOKE_KERNEL_PROF(g_smiv->kConvolutionHw,
                                lnum,
                                smiv_convolution_layer_hw,
                                // DMA
