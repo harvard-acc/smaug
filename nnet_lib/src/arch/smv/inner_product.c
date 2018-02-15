@@ -96,6 +96,7 @@ void smv_inner_product_layer_hw_impl(float* dma_activations,
                  (curr_layer->weights.rows + curr_layer->weights.align_pad)) /
                 VECTOR_SIZE;
         const v8fp_t zero = (v8fp_t){ 0, 0, 0, 0, 0, 0, 0, 0 };
+        bias_and_act_func:
         for (int i = 0; i < FRAC_CEIL(output_cols, VECTOR_SIZE); i++) {
             v8fp_t psum = _results[i] +
                           (options->do_bias ? _weights[bias_offset + i] : zero);

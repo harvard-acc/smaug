@@ -52,11 +52,11 @@ void matrix_multiply_transpose_smv_nobatch_vec_fxp(float* a,
 
             wgt_col:
             for (int wgt_col = 0; wgt_col < b_width_vec; wgt_col+=NUM_MACC_INSTS) {
-                v8fp_t activation_reg[NUM_MACC_INSTS];
+                v8fp_t act_reg[NUM_MACC_INSTS];
                 act_reg_load:
                 for (int act_vec = 0; act_vec < NUM_MACC_INSTS; act_vec++) {
                     int act_col = wgt_col + act_vec;
-                    activation_reg[act_vec] =
+                    act_reg[act_vec] =
                             act_col >= b_width_vec ? zero : _a[input_act][act_col];
                 }
 
@@ -78,13 +78,14 @@ void matrix_multiply_transpose_smv_nobatch_vec_fxp(float* a,
                     v8fp_t product_reg[NUM_MACC_INSTS];
                     core_mul:
                     for (int macc_idx = 0; macc_idx < NUM_MACC_INSTS; macc_idx++) {
-                        product_reg[macc_idx] = activation_reg[macc_idx] *
+                        product_reg[macc_idx] = act_reg[macc_idx] *
                                                 weights_reg[macc_idx];
                     }
 
                     float accum_reg = 0;
                     reduce_mu:
                     for (int macc_idx = 0; macc_idx < NUM_MACC_INSTS; macc_idx++) {
+                        reduce_vec:
                         for (int vec_i = 0; vec_i < VECTOR_SIZE; vec_i++) {
                             accum_reg += product_reg[macc_idx][vec_i];
                         }
