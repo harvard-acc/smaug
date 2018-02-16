@@ -18,3 +18,8 @@
 # TYPE int
 5,
 ===LABELS END===
+===COMPRESS TYPE BEGIN===
+# NUM_ELEMS 6
+# TYPE int
+0,0,0,0,2,0,
+===COMPRESS TYPE END===
