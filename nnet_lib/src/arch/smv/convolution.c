@@ -303,8 +303,6 @@ void smv_standard_convolution_layer_impl(float* host_activations,
     const int k_width = curr_layer.weights.cols;
     const int k_pad = curr_layer.weights.align_pad;
     const int result_2d_size = result_rows * (result_cols + result_pad);
-    const int single_kernel_size =
-            get_dims_size(&curr_layer.weights) * sizeof(float);
     float* nhwc_activations = NULL;
     dims_t activations_nhwc = convert_nchw_to_nhwc(
             host_activations, NUM_TEST_CASES, curr_layer.inputs, DATA_ALIGNMENT,
@@ -312,7 +310,7 @@ void smv_standard_convolution_layer_impl(float* host_activations,
     MAP_ARRAY_TO_ACCEL(g_smv->kConvolutionHw,
                        get_host_inputs_var_name(curr_layer.input_req),
                        nhwc_activations,
-                       get_dims_size(&curr_layer.inputs) * sizeof(float));
+                       get_dims_size(&activations_nhwc) * sizeof(float));
 
     ARRAY_4D(float, _result, host_result, result_height, result_rows,
              result_cols + result_pad);
@@ -354,7 +352,8 @@ void smv_standard_convolution_layer_impl(float* host_activations,
             MAP_ARRAY_TO_ACCEL(
                     g_smv->kConvolutionHw,
                     get_host_weights_var_name(curr_layer.weights_req),
-                    nhwc_weights, num_kerns * single_kernel_size);
+                    nhwc_weights,
+                    num_kerns * get_dims_size(&weights_nhwc) * sizeof(float));
 
             int num_hw_iters = ceil((float)tile->num_ofmaps / NUM_PE_INSTS);
             int inner_iters_executed = 0;

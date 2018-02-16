@@ -13,13 +13,13 @@
 #include "gem5_harness.h"
 #endif
 
-static void pooling_layer_hw(float* host_activations,
-                             float* host_results,
-                             float* umem,
-                             float* spad0,
-                             float* spad1,
-                             layer_t partial_layer,
-                             int iteration_offset) {
+static void smiv_pooling_layer_hw(float* host_activations,
+                                  float* host_results,
+                                  float* umem,
+                                  float* spad0,
+                                  float* spad1,
+                                  layer_t partial_layer,
+                                  int iteration_offset) {
     if (partial_layer.input_req == IO_DMA) {
         size_t partial_input_size =
                 partial_layer.inputs.rows * partial_layer.inputs.cols *
@@ -152,7 +152,7 @@ void smiv_pooling_layer_impl(float* inputs,
 
             INVOKE_KERNEL_PROF(g_smiv->kPoolingHw,
                                curr_layer->num,
-                               pooling_layer_hw,
+                               smiv_pooling_layer_hw,
                                current_inputs,
                                current_results,
                                g_smiv->umem,
