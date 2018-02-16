@@ -262,6 +262,10 @@ typedef struct _iarray_t {
 
 #define STRING(arg) #arg
 
+// This is to avoid a ton of spurious unused variable warnings when
+// we're not building for gem5.
+#define UNUSED(x) (void)(x)
+
 // Convenience macros to switch between invoking an accelerator (if building a
 // binary for gem5) or just calling the kernel function in software.
 //
@@ -292,13 +296,13 @@ typedef struct _iarray_t {
 #define MAP_ARRAY_TO_ACCEL(req_code, name, base_addr, size)                    \
     mapArrayToAccelerator(req_code, name, base_addr, size)
 #define INVOKE_KERNEL(req_code, kernel_ptr, args...)                           \
-    invokeAcceleratorAndBlock(req_code)
+    do {                                                                       \
+        UNUSED(kernel_ptr);                                                    \
+        invokeAcceleratorAndBlock(req_code);                                   \
+    } while (0)
 
 #else
 
-// This is to avoid a ton of spurious unused variable warnings when
-// we're not building for gem5.
-#define UNUSED(x) (void)(x)
 #define MAP_ARRAY_TO_ACCEL(req_code, name, base_addr, size)                    \
     do {                                                                       \
         UNUSED(req_code);                                                      \
