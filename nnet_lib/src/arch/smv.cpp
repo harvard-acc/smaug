@@ -63,7 +63,9 @@ result_buf smv_activation_function(float* activations,
                                     layer_t* layer,
                                     float* results,
                                     device_t* device) {
-#ifdef __cplusplus
+    // MKL seems to have particularly poor performing activation function
+    // implementations.
+#if 0
     begin_ignored_profiling(layer->num);
     nnet_mkl::activation_fun(
             activations, NUM_TEST_CASES, layer, results, device);
