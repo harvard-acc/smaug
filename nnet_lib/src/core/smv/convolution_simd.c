@@ -44,6 +44,7 @@ void convolution3d_smv_nhwc_vec_fxp(float* a,
     const int pe_depth = VECTOR_SIZE * NUM_MACC_INSTS;
     // If we have less than four channels, don't run the extra ones.
     const int kEffNumPeInsts = min2(curr_layer.outputs.height, NUM_PE_INSTS);
+    const v8fp_t zero = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
     VEC_ARRAY_3D(v8fp_t, _result, result, result_rows, result_cols + result_pad);
     VEC_ARRAY_4D(v8fp_t, _kernels, kernels, k_rows, k_cols, k_height + k_pad);
@@ -75,7 +76,9 @@ void convolution3d_smv_nhwc_vec_fxp(float* a,
 
                 // Load in all the weights at once before beginning the input
                 // loop.
-                v8fp_t kernel_reg[NUM_PE_INSTS][NUM_MACC_INSTS];
+                v8fp_t kernel_reg[NUM_PE_INSTS][NUM_MACC_INSTS] = {
+                    { zero }, { zero }, { zero }, { zero }
+                };
                 const v8fp_t zero = (v8fp_t){ 0, 0, 0, 0, 0, 0, 0, 0 };
                 load_kern_pe:
                 for (int pe_id = 0; pe_id < kEffNumPeInsts; pe_id++) {
