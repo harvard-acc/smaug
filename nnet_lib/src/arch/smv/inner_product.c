@@ -510,13 +510,37 @@ void smv_inner_product_layer_impl_rowwise(float* host_activations,
         //
         // Although this is implementing CSR, we actually want CSC, logically.
         // We achieve the same effect by transposing the weights matrix prior
+        // to compression. Biases have to be specified separately, because once
+        // we transpose, we lose the property that biases have the same padding
+        // and column widths as the weights. Since biases are usually not sparse,
+        // we don't compress them. Instead, we just directly DMA them into the
+        // accelerator.
         if (curr_layer->host_weights.type[0] == PackedCSR) {
             layer_t temp_layer = partial_layer;
-            if (is_last_iter)
-                temp_layer.weights.rows += temp_layer.biases.rows;
+            int rows = temp_layer.weights.rows;
+            temp_layer.weights.rows = temp_layer.weights.cols;
+            temp_layer.weights.cols = rows;
             smiv_decompress_packed_csr_impl(&temp_layer, 0, current_row,
                                             input_in_spad0, (smiv_global*)g_smv,
                                             device);
+            if (is_last_iter) {
+                assert(curr_layer->host_weights.len == 2 &&
+                       "Inner product HW on SMV must have two sets of "
+                       "weights!");
+                assert(curr_layer->host_weights.type[1] == Uncompressed &&
+                       "The second set of weights (biases) must be "
+                       "uncompressed!");
+                farray_t* biases = curr_layer->host_weights.data[1].dense;
+                dma_options options;
+                options.src_offset = 0;
+                options.dst_offset = get_nhwc_dims_size(&temp_layer.weights);
+                options.use_pipelined_dma = device->use_pipelined_dma;
+                options.length = biases->size * sizeof(float);
+                options.is_load = true;
+                dma_copy_impl(g_smv->umem, biases->d, g_smv->kInnerProductHw,
+                              temp_layer.num, g_smv, &options);
+            }
+
             // Now that we've decompressed the weights, we don't need to DMA
             // them again.
             partial_layer.weights_req = IO_NONE;

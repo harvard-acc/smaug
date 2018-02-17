@@ -235,6 +235,37 @@ weights_list init_weights_list(int len) {
     return list;
 }
 
+weights_list pack_compress_colmajor_weights(float* weights,
+                                            dims_t* orig_dims,
+                                            dims_t* bias_dims) {
+    // Compress the weights without the bias row first.
+    // Swap the rows and columns.
+    dims_t transposed_dims = *orig_dims;
+    int rows = transposed_dims.rows;
+    transposed_dims.rows = transposed_dims.cols;
+    transposed_dims.cols = rows;
+    transposed_dims.align_pad =
+            calc_padding(transposed_dims.rows, DATA_ALIGNMENT);
+    csr_array_t* weights_csr = compress_dense_data_csr(weights, &transposed_dims);
+    packed_csr_array_t* packed_weights_csr =
+            pack_data_vec8_f16(weights_csr, &transposed_dims);
+
+    // Just store biases as an uncompressed buffer.
+    float* bias_loc = weights + get_dims_size(&transposed_dims);
+    farray_t* biases_storage = (farray_t*)malloc(sizeof(farray_t));
+    biases_storage->d = bias_loc;
+    biases_storage->size = bias_dims->cols;
+
+    weights_list list = init_weights_list(2);
+    list.data[0].packed = packed_weights_csr;
+    list.data[1].dense = biases_storage;
+    list.type[0] = PackedCSR;
+    list.type[1] = Uncompressed;
+    free(weights_csr);
+
+    return list;
+}
+
 // If any of the layers in the network can use compressed weights storage, then
 // compress their (currently) dense weights and update the layer's weight
 // storage type accordingly.
@@ -264,6 +295,10 @@ void process_compressed_weights(network_t* network,
             layer->host_weights.data[0].csr = csr;
             layer->host_weights.type[0] = CSR;
         } else if (storage_type == PackedCSR) {
+#if TRANSPOSE_WEIGHTS == 1
+            layer->host_weights = pack_compress_colmajor_weights(
+                    weights_loc, &layer->weights, &layer->biases);
+#else
             dims_t dims_with_bias = layer->weights;
             dims_with_bias.rows += layer->biases.rows;
             csr_array_t* csr =
@@ -274,6 +309,7 @@ void process_compressed_weights(network_t* network,
             layer->host_weights.data[0].packed = packed_csr;
             layer->host_weights.type[0] = PackedCSR;
             free_csr_array_t(csr);
+#endif
         }
     }
 }

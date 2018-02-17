@@ -31,6 +31,14 @@ typedef struct _smv_global {
 
 extern smv_global g_smv;
 
+typedef struct _dma_options {
+    int src_offset;  // in elements.
+    int dst_offset;  // in elements.
+    int length;  // in bytes.
+    bool use_pipelined_dma;
+    bool is_load;
+} dma_options;
+
 bool smv_inner_product_needs_work_division(layer_t* curr_layer);
 
 void smv_standard_convolution_layer_impl(float* host_activations,
@@ -52,13 +60,10 @@ void smv_activation_fun(float* activations,
                         int batch_size,
                         int input_size,
                         activation_type activation);
-void dma_load_hw(float* host_data,
-                 int length,
-                 float* umem,
-                 float* spad0,
-                 float* spad1,
-                 float* dest,
-                 int src_offset,
-                 int dst_offset,
-                 bool use_pipelined_dma);
+void dma_copy_impl(float* dst_base_loc,
+                   float* src_base_loc,
+                   unsigned accel_id,
+                   int layer_num,
+                   smv_global* g_smv,
+                   dma_options* options);
 #endif
