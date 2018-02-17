@@ -83,7 +83,7 @@ class BaseTest(unittest.TestCase):
       if ref == 0:
         return val == 0
       diff_abs = abs(float(val)-ref)
-      diff_per = diff_abs/float(ref) * 100
+      diff_per = diff_abs/abs(float(ref)) * 100
 
       return (diff_per < fp_err_pct or diff_abs < fp_err_abs)
     elif isinstance(val, list) and isinstance(ref, list):
@@ -146,10 +146,7 @@ class MnistTests(BaseTest):
     self.runAndValidate(model_file, correct_output)
 
   def test_pruned_csr_minerva(self):
-    # The model file was generated with SMIV as the backend (the only one that
-    # supports handling sparse data), so it can't be run on the other backends.
-    # But the result should be the same as the uncompressed version.
-    if ARCH != "smiv" and ARCH != "smv":
+    if not ARCH in ["smiv", "smv"]:
       return
     model_file = "mnist/minerva.conf"
     correct_output = "mnist-minerva-pruned.out"
@@ -209,7 +206,7 @@ class MinervaAccessMechanismCsrTests(MinervaAccessMechanismTests):
 
   def runAndValidate(self, model_file, correct_output):
     """ Supply the model parameter file as an additional argument. """
-    if ARCH != "smiv" or ARCH != "smv":
+    if not ARCH in ["smiv", "smv"]:
       return
     super(MinervaAccessMechanismTests, self).runAndValidate(
         model_file, correct_output,

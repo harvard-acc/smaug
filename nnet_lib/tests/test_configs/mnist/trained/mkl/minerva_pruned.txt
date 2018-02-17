@@ -1,0 +1,1 @@
+../../../../../../models/mnist/trained/mkl/minerva_pruned.txt
