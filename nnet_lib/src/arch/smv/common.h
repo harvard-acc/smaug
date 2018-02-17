@@ -52,5 +52,13 @@ void smv_activation_fun(float* activations,
                         int batch_size,
                         int input_size,
                         activation_type activation);
-
+void dma_load_hw(float* host_data,
+                 int length,
+                 float* umem,
+                 float* spad0,
+                 float* spad1,
+                 float* dest,
+                 int src_offset,
+                 int dst_offset,
+                 bool use_pipelined_dma);
 #endif

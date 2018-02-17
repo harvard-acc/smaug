@@ -441,7 +441,6 @@ void smv_inner_product_layer_hw_dispatch(float* activations,
 }
 
 void smv_inner_product_layer_impl_rowwise(float* host_activations,
-                                          float* host_weights,
                                           layer_t* curr_layer,
                                           float* host_results,
                                           smv_global* g_smv,
@@ -464,7 +463,11 @@ void smv_inner_product_layer_impl_rowwise(float* host_activations,
                        inputs_size);
 
     int current_row = 0;
-    float* curr_dense_weights_loc = host_weights;
+    float* curr_dense_weights_loc;
+    if (curr_layer->host_weights.type[0] == Uncompressed)
+        curr_dense_weights_loc = curr_layer->host_weights.data[0].dense->d;
+    else
+        curr_dense_weights_loc = NULL;
     for (unsigned it = 0; it < fc_cfgs.num_iterations; it++) {
         dims_t* curr_iter = &fc_cfgs.iteration[it];
         bool is_last_iter = (it == fc_cfgs.num_iterations - 1);
@@ -503,16 +506,15 @@ void smv_inner_product_layer_impl_rowwise(float* host_activations,
                    partial_layer.weights.rows,
                    partial_layer.weights.cols);
 
-        // First decompress the weights.
+        // Decompress the weights if necessary.
         //
         // Although this is implementing CSR, we actually want CSC, logically.
         // We achieve the same effect by transposing the weights matrix prior
-        // to compression.
-        if (curr_layer->wgt_storage_type == PackedCSR) {
+        if (curr_layer->host_weights.type[0] == PackedCSR) {
             layer_t temp_layer = partial_layer;
             if (is_last_iter)
                 temp_layer.weights.rows += temp_layer.biases.rows;
-            smiv_decompress_packed_csr_impl(&temp_layer, current_row,
+            smiv_decompress_packed_csr_impl(&temp_layer, 0, current_row,
                                             input_in_spad0, (smiv_global*)g_smv,
                                             device);
             // Now that we've decompressed the weights, we don't need to DMA
@@ -583,12 +585,10 @@ void smv_inner_product_layer_impl(float* host_activations,
     }
     bool input_in_spad0 = (current_result_loc == g_smv->spad1);
     layer_t* curr_layer = &layers[lnum];
-    float* host_weights_layer = (float*)curr_layer->host_weights_buffer;
 
-    ASSERT(curr_layer->wgt_storage_type != CSR &&
+    ASSERT(curr_layer->host_weights.type[0] != CSR &&
            "Unpacked CSR weights are not supported!");
     smv_inner_product_layer_impl_rowwise(host_activations,
-                                         host_weights_layer,
                                          curr_layer,
                                          host_results,
                                          g_smv,

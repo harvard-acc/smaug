@@ -435,6 +435,7 @@ void smiv_inner_product_layer_hw_dispatch(float* activations,
     // used compressed weights, then they have already been DMAed and
     // decompressed by the point we reach here.
     if (weights_req == IO_DMA) {
+        assert(weights && "Cannot DMA weights if weights don't exist!");
         begin_ignored_profiling(layer->num);
         int weights_size = get_num_weights_layer(layer, 0);
         flush_cache_range(weights, weights_size);
@@ -495,6 +496,12 @@ void smiv_inner_product_layer_impl_rowwise(float* host_activations,
     bool needs_multiple_iter = (fc_cfgs.num_iterations > 1);
     bool do_bias_in_software =
             fc_cfgs.iteration[fc_cfgs.num_iterations - 1].rows == 1;
+    if (do_bias_in_software) {
+        // A NULL host_weights pointer is only passed if the weights are
+        // compressed.
+        assert(host_weights &&
+               "Host weights cannot be NULL if bias is done in SW!");
+    }
 
     // Holds a contiguous column of inputs and the partial results. If work
     // division is required, then each iteration's chunk of inputs is copied
@@ -571,18 +578,21 @@ void smiv_inner_product_layer_impl_rowwise(float* host_activations,
         }
 
         // First decompress the weights.
-        if (curr_layer->wgt_storage_type == PackedCSR) {
+        if (curr_layer->host_weights.type[0] == PackedCSR) {
             // If this is not the last iteration, then pre-emptively subtract
             // one from the rows to get rid of decompressing an extra row for
             // nothing.
             layer_t temp_layer = partial_layer;
             if (!is_last_iter)
                 temp_layer.weights.rows--;
-            smiv_decompress_packed_csr_impl(
-                    &temp_layer, current_row, input_in_spad0, g_smiv, device);
+            smiv_decompress_packed_csr_impl(&temp_layer, 0, current_row,
+                                            input_in_spad0, g_smiv, device);
             // Now that we've decompressed the weights, we don't need to DMA
             // them again.
             partial_layer.weights_req = IO_NONE;
+            // Make sure we don't try to access host weights, since the
+            // decompressed weights don't exist on the host.
+            curr_dense_weights_loc = NULL;
             PRINT_MSG("Weights:\n");
             PRINT_DEBUG(g_smiv->umem,
                         partial_layer.weights.rows,
@@ -868,9 +878,12 @@ void smiv_inner_product_layer_impl(float* host_activations,
     }
     bool input_in_spad0 = (current_result_loc == g_smiv->spad1);
     layer_t* curr_layer = &layers[lnum];
-    float* host_weights_layer = (float*)curr_layer->host_weights_buffer;
+    assert(curr_layer->host_weights.len == 1 &&
+           "SMIV only requires one set of weights!");
 
-    if (curr_layer->wgt_storage_type == Uncompressed) {
+    if (curr_layer->host_weights.type[0] == Uncompressed) {
+        float* host_weights_layer =
+                (float*)curr_layer->host_weights.data[0].dense->d;
         PRINT_MSG("Weights:\n");
         PRINT_DEBUG(host_weights_layer,
                     curr_layer->weights.rows,
@@ -893,18 +906,18 @@ void smiv_inner_product_layer_impl(float* host_activations,
                         : &smiv_inner_product_layer_impl_rowwise;
         impl(host_activations, host_weights_layer, curr_layer, host_results,
              g_smiv, device, input_in_spad0);
-    } else if (curr_layer->wgt_storage_type == PackedCSR) {
+    } else if (curr_layer->host_weights.type[0] == PackedCSR) {
         // If the weights are stored in CSR format, we can only do row-wise
         // tiling.
         INFO_MSG("Running rowwise inner product for packed CSR weights.\n");
         smiv_inner_product_layer_impl_rowwise(host_activations,
-                                              host_weights_layer,
+                                              NULL,
                                               curr_layer,
                                               host_results,
                                               g_smiv,
                                               device,
                                               input_in_spad0);
-    } else if (curr_layer->wgt_storage_type == CSR) {
+    } else if (curr_layer->host_weights.type[0] == CSR) {
         fprintf(stderr, "Inner product layer for unpacked CSR weights is not "
                         "supported!\n");
         exit(1);

@@ -65,17 +65,17 @@ typedef enum _layer_type {
 } layer_type;
 
 typedef struct _dims_t {
-  int rows;
-  int cols;
-  int height;
-  int align_pad;
+    int rows;
+    int cols;
+    int height;
+    int align_pad;
 } dims_t;
 
 typedef enum _io_req_t {
-  IO_NONE = 0,
-  IO_DMA = 1,
-  IO_ACP = 2,
-  IO_CACHE = 3,
+    IO_NONE = 0,
+    IO_DMA = 1,
+    IO_ACP = 2,
+    IO_CACHE = 3,
 } io_req_t;
 
 typedef enum _bn_weights_idx {
@@ -94,12 +94,40 @@ typedef enum _sigmoid_impl_t {
     NumSigmoidImpls
 } sigmoid_impl_t;
 
+// Wraps a dynamically allocated array (d for data) and its size (number of
+// elements, not bytes).
+typedef struct _farray_t {
+    float* d;
+    size_t size;
+} farray_t;
+
+typedef struct _iarray_t {
+    int* d;
+    size_t size;
+} iarray_t;
+
 typedef enum _data_storage_t {
     Uncompressed = 0,
     CSR = 1,
     PackedCSR = 2,
     NumDataStorageTypes,
 } data_storage_t;
+
+// Valid storage formats for weights data.
+union weights_data {
+    struct _packed_csr_array_t* packed;
+    struct _csr_array_t* csr;
+    farray_t* dense;
+};
+
+typedef struct _weights_list {
+    // A pointer to dynamically allocated storage, holding pointers to
+    // pointers to weights.
+    union weights_data* data;
+    // Indicates the weights storage format.
+    data_storage_t* type;
+    int len;
+} weights_list;
 
 // Description of a layer in a neural network.
 //
@@ -121,8 +149,15 @@ typedef struct _layer_t {
   dims_t biases;
   dims_t outputs;
 
-  void* host_weights_buffer;
-  data_storage_t wgt_storage_type;
+  // A list of sets of weights for this layer.
+  //
+  // Layers can have different types of weights (e.g. FC synapses, CONV
+  // kernels, biases, BN gamma/beta, etc). This list is designed to store each
+  // of these types of weights separately, although it is up to the
+  // implementation whether to do so or not.  Each entry in the list can be of
+  // a different storage type, so some can be compressed and others left
+  // uncompressed.
+  weights_list host_weights;
 
   // Data input/output dimensions on a per iteration basis.
   //
@@ -206,18 +241,6 @@ typedef struct _sampling_param_t {
     // See smv/arch/convolution.c for details.
     int smv_conv_inner_iters;
 } sampling_param_t;
-
-// Wraps a dynamically allocated array (d for data) and its size (number of
-// elements, not bytes).
-typedef struct _farray_t {
-    float* d;
-    size_t size;
-} farray_t;
-
-typedef struct _iarray_t {
-    int* d;
-    size_t size;
-} iarray_t;
 
 // Possible values of ARCHITECTURE.
 //

@@ -98,6 +98,7 @@ void smiv_pooling_layer_impl(float* inputs,
                              smiv_global* g_smiv,
                              float* results);
 void smiv_decompress_packed_csr_impl(layer_t* layer,
+                                     int weights_list_idx,
                                      int start_row,
                                      bool input_in_spad0,
                                      smiv_global* g_smiv,

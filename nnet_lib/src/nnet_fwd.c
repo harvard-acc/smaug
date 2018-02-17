@@ -227,6 +227,14 @@ void set_default_args(arguments* args) {
     }
 }
 
+weights_list init_weights_list(int len) {
+    weights_list list;
+    list.data = (union weights_data*)malloc(sizeof(union weights_data) * len);
+    list.type = (data_storage_t*)malloc(sizeof(data_storage_t) * len);
+    list.len = len;
+    return list;
+}
+
 // If any of the layers in the network can use compressed weights storage, then
 // compress their (currently) dense weights and update the layer's weight
 // storage type accordingly.
@@ -237,44 +245,58 @@ void process_compressed_weights(network_t* network,
         layer_t* layer = &network->layers[i];
         assert(compress_mask->d[i] < NumDataStorageTypes &&
                "Invalid value of compress type found!");
-        layer->wgt_storage_type = (data_storage_t)compress_mask->d[i];
+        data_storage_t storage_type = (data_storage_t)compress_mask->d[i];
         float* weights_loc =
                 (weights->d + get_weights_loc_for_layer(network->layers, i));
-        if (layer->wgt_storage_type == Uncompressed) {
-            layer->host_weights_buffer = (void*)weights_loc;
-        } else if (layer->wgt_storage_type == CSR) {
+        if (storage_type == Uncompressed) {
+            layer->host_weights = init_weights_list(1);
+            farray_t* layer_weights = (farray_t*)malloc(sizeof(farray_t));
+            layer_weights->d = weights_loc;
+            layer_weights->size = get_dims_size(&layer->weights);
+            layer->host_weights.data[0].dense = layer_weights;
+            layer->host_weights.type[0] = Uncompressed;
+        } else if (storage_type == CSR) {
             dims_t dims_with_bias = layer->weights;
             dims_with_bias.rows += layer->biases.rows;
             csr_array_t* csr =
                     compress_dense_data_csr(weights_loc, &dims_with_bias);
-            layer->host_weights_buffer = (void*)csr;
-        } else if (layer->wgt_storage_type == PackedCSR) {
+            layer->host_weights = init_weights_list(1);
+            layer->host_weights.data[0].csr = csr;
+            layer->host_weights.type[0] = CSR;
+        } else if (storage_type == PackedCSR) {
             dims_t dims_with_bias = layer->weights;
             dims_with_bias.rows += layer->biases.rows;
             csr_array_t* csr =
                     compress_dense_data_csr(weights_loc, &dims_with_bias);
             packed_csr_array_t* packed_csr =
                     pack_data_vec8_f16(csr, &dims_with_bias);
-            layer->host_weights_buffer = (void*)packed_csr;
+            layer->host_weights = init_weights_list(1);
+            layer->host_weights.data[0].packed = packed_csr;
+            layer->host_weights.type[0] = PackedCSR;
             free_csr_array_t(csr);
         }
     }
 }
 
 // Free weights used in the network.
-//
-// For now, this only frees the CSR allocated data structures, since the rest
-// of the dense weights are stored as one giant buffer.
 void free_network_weights(network_t* network) {
     for (int i = 0; i < network->depth; i++) {
-        if (network->layers[i].wgt_storage_type == CSR) {
-            csr_array_t* csr =
-                    (csr_array_t*)network->layers[i].host_weights_buffer;
-            free_csr_array_t(csr);
-        } else if (network->layers[i].wgt_storage_type == PackedCSR) {
-            packed_csr_array_t* csr =
-                    (packed_csr_array_t*)network->layers[i].host_weights_buffer;
-            free_packed_csr_array_t(csr);
+        layer_t* layer = &network->layers[i];
+        for (int j = 0; j < layer->host_weights.len; j++) {
+            data_storage_t type = layer->host_weights.type[j];
+            if (type == CSR) {
+                csr_array_t* csr =
+                        layer->host_weights.data[j].csr;
+                free_csr_array_t(csr);
+            } else if (type == PackedCSR) {
+                packed_csr_array_t* csr =
+                        layer->host_weights.data[j].packed;
+                free_packed_csr_array_t(csr);
+            } else if (type == Uncompressed) {
+                farray_t* array = layer->host_weights.data[j].dense;
+                // Don't free the actual data buffer here.
+                free(array);
+            }
         }
     }
 }
