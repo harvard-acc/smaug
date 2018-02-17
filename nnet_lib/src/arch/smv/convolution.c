@@ -368,8 +368,8 @@ void smv_standard_convolution_layer_impl(float* host_activations,
             bool is_sampled = (sampled_inner_iters > 0 &&
                                sampled_inner_iters < tile->num_ofmaps - 2);
             if (is_sampled)
-                set_profiling_type_sampled(
-                        sampled_inner_iters + 2, tile->num_ofmaps);
+                set_profiling_type_sampled(sampled_inner_iters + 2,
+                                           tile->num_ofmaps / NUM_PE_INSTS);
             for (int iter = 0; iter < num_hw_iters; iter++) {
                 bool is_last_iter = (iter == num_hw_iters - 1);
                 int num_kerns_this_iter =
