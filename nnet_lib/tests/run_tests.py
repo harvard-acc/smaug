@@ -251,6 +251,18 @@ class Cifar10CnnAccessMechanismTests(BaseTest):
     model_file = "cifar10/cnn-access-mechs/cnn-dma-cache-no-hw-act-func.conf"
     self.runAndValidate(model_file, self.correct_output)
 
+class Cifar10RealDataCnnAccessMechanismTests(Cifar10CnnAccessMechanismTests):
+  def setUp(self):
+    super(Cifar10RealDataCnnAccessMechanismTests, self).setUp()
+    self.correct_output = "cifar10-keras-example-real-data.out"
+    self.param_file = os.path.join(
+        MODEL_DIR, "cifar10/trained/%s/cnn-pruned.txt" % ARCH)
+
+  def runAndValidate(self, model_file, correct_output):
+    """ Supply the model parameter file as an additional argument. """
+    super(Cifar10RealDataCnnAccessMechanismTests, self).runAndValidate(
+        model_file, correct_output,
+        param_file=self.param_file, data_init_mode="READ_FILE");
 
 class GenericTests(BaseTest):
   def test_1_kernel(self):
