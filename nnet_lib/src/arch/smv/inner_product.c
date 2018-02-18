@@ -26,6 +26,7 @@ typedef struct _inner_product_options {
     bool input_in_spad0;
     bool use_pipelined_dma;
     int result_start;
+    int dma_store_start;
 } smv_inner_product_options;
 
 // Main implementation of inner product HW.
@@ -108,7 +109,8 @@ void smv_inner_product_layer_hw_impl(float* dma_activations,
         ASSERT(dma_results && "DMA results pointer cannot be NULL!");
         size_t result_size =
                 get_output_activations_size(curr_layer) * sizeof(float);
-        dma_store_wrapper(dma_results, local_results, result_size,
+        dma_store_wrapper(dma_results + options->dma_store_start,
+                          local_results + options->dma_store_start, result_size,
                           options->use_pipelined_dma);
     }
 }
@@ -376,7 +378,6 @@ void smv_inner_product_layer_hw_dispatch(float* activations,
                                          float* weights,
                                          float* results,
                                          layer_t* layer,
-                                         int result_size,
                                          smv_global* g_smv,
                                          // Make a copy here.
                                          smv_inner_product_options options) {
@@ -388,7 +389,7 @@ void smv_inner_product_layer_hw_dispatch(float* activations,
         MAP_ARRAY_TO_ACCEL(g_smv->kInnerProductHw,
                            get_host_results_var_name(output_req),
                            results,
-                           result_size * sizeof(float));
+                           get_nhwc_dims_size(&layer->outputs) * sizeof(float));
     }
     // This needs to be handled separately from the inputs IO because if we
     // used compressed weights, then they have already been DMAed and
@@ -440,6 +441,97 @@ void smv_inner_product_layer_hw_dispatch(float* activations,
 
 }
 
+// Decompress the weights if necessary.
+//
+// Although we implement CSR, we actually logically want CSC because the
+// accelerator works on channel-last data.  We achieve the same effect by
+// transposing the weights matrix prior to compression at the very beginning.
+//
+// Biases have to be specified separately, because once we transpose, we lose
+// the property that biases have the same padding and column widths as the
+// weights. Since biases are usually not sparse, we don't compress them.
+// Instead, we just directly DMA them into the accelerator.
+//
+// Finally, decompression will overwrite content stored in one of the
+// scratchpads, so the layer descriptor for the inner product needs to be
+// modified to account for this by doing some extra DMAs.
+layer_t smv_inner_product_run_decompression_and_update_layer(
+        layer_t partial_layer,
+        dims_t* curr_iter,
+        float* host_results,
+        int current_row,
+        bool input_in_spad0,
+        bool is_last_iter,
+        smv_global* g_smv,
+        device_t* device) {
+    layer_t transpose_layer = partial_layer;
+    // Transpose the dimensions of the layer so we decompress the colmajor
+    // weights correctly.
+    int rows = transpose_layer.weights.rows;
+    transpose_layer.weights.rows = transpose_layer.weights.cols;
+    transpose_layer.weights.cols = rows;
+    smiv_decompress_packed_csr_impl(&transpose_layer, 0, current_row,
+                                    input_in_spad0, (smiv_global*)g_smv,
+                                    device);
+    if (is_last_iter) {
+        assert(partial_layer.host_weights.len == 2 &&
+               "Inner product HW on SMV must have two sets of "
+               "weights!");
+        assert(partial_layer.host_weights.type[1] == Uncompressed &&
+               "The second set of weights (biases) must be "
+               "uncompressed!");
+        farray_t* biases = partial_layer.host_weights.data[1].dense;
+        dma_options options;
+        options.src_offset = 0;
+        options.dst_offset = get_nhwc_dims_size(&transpose_layer.weights);
+        options.use_pipelined_dma = device->use_pipelined_dma;
+        options.length = biases->size * sizeof(float);
+        options.is_load = true;
+        dma_copy_impl(g_smv->umem, biases->d, g_smv->kInnerProductHw,
+                      transpose_layer.num, g_smv, &options);
+        // We need to copy the saved partial sums back to the appropriate
+        // scratchpad, but only if we're using DMA and local storage (ACP/cache
+        // will directly update host memory).
+        if (partial_layer.output_req == IO_DMA ||
+            partial_layer.output_req == IO_NONE) {
+            options.src_offset = 0;
+            options.dst_offset = 0;
+            options.use_pipelined_dma = device->use_pipelined_dma;
+            options.length =
+                    next_multiple(current_row * sizeof(float), CACHELINE_SIZE) *
+                    NUM_TEST_CASES;
+            options.is_load = true;
+            dma_copy_impl(input_in_spad0 ? g_smv->spad1 : g_smv->spad0,
+                          host_results, g_smv->kInnerProductHw,
+                          transpose_layer.num, g_smv, &options);
+        }
+
+        // On the last iteration, send the entire output back, because
+        // only the last iteration applies the bias and activation
+        // function, so don't change partial_layer.outputs.cols.
+    } else {
+        // Otherwise, send back only the pixels that were produced
+        // during this iteration.
+        partial_layer.outputs.cols = curr_iter->cols;
+    }
+
+    // Now that we've decompressed the weights, we don't need to DMA
+    // them again.
+    partial_layer.weights_req = IO_NONE;
+
+    // If decompression is needed, we'll also want to send back the
+    // pre-activation function outputs.
+    if (partial_layer.output_req == IO_NONE)
+        partial_layer.output_req = device->cpu_default_offload;
+
+    PRINT_MSG("Weights:\n");
+    PRINT_DEBUG(g_smv->umem,
+                partial_layer.weights.cols,
+                partial_layer.weights.rows,
+                partial_layer.weights.rows + partial_layer.weights.align_pad);
+    return partial_layer;
+}
+
 void smv_inner_product_layer_impl_rowwise(float* host_activations,
                                           layer_t* curr_layer,
                                           float* host_results,
@@ -453,9 +545,10 @@ void smv_inner_product_layer_impl_rowwise(float* host_activations,
     fc_cfg_t fc_cfgs = smv_inner_product_tile_rowwise(curr_layer);
     INFO_MSG("Inner product layer %d work configuration:\n", curr_layer->num);
     print_smiv_work_cfg(&fc_cfgs);
-    const size_t inputs_size = curr_layer->inputs.rows *
-                                      curr_layer->inputs.cols *
-                                      NUM_TEST_CASES * sizeof(float);
+    ARRAY_2D(float, _host_results, host_results,
+             curr_layer->outputs.cols + curr_layer->outputs.align_pad);
+    const size_t inputs_size =
+            get_dims_size(&curr_layer->inputs) * NUM_TEST_CASES * sizeof(float);
 
     MAP_ARRAY_TO_ACCEL(g_smv->kInnerProductHw,
                        get_host_inputs_var_name(curr_layer->input_req),
@@ -463,25 +556,42 @@ void smv_inner_product_layer_impl_rowwise(float* host_activations,
                        inputs_size);
 
     int current_row = 0;
-    float* curr_dense_weights_loc;
-    if (curr_layer->host_weights.type[0] == Uncompressed)
-        curr_dense_weights_loc = curr_layer->host_weights.data[0].dense->d;
-    else
-        curr_dense_weights_loc = NULL;
+    bool requires_decompression =
+            (curr_layer->host_weights.type[0] == PackedCSR);
+    float* curr_dense_weights_loc = curr_layer->host_weights.data[0].dense->d;
+
+    // If decompression is required, and the offload mechanism is DMA, we need
+    // to DMA output data back on every iteration. To ensure we don't corrupt
+    // the host_results buffer due to cacheline alignment requirements, we
+    // buffer the output data in separate place and then copy the correct parts
+    // over.
+    bool use_decomp_result_buf =
+            requires_decompression && (curr_layer->output_req == IO_NONE ||
+                                       curr_layer->output_req == IO_DMA);
+    farray_t decomp_result_buf = { NULL, 0 };
+    if (use_decomp_result_buf) {
+        int max_iter_output_size =
+                next_multiple(fc_cfgs.iteration[0].cols * sizeof(float),
+                              CACHELINE_SIZE) *
+                NUM_TEST_CASES;
+        decomp_result_buf.d = (float*)malloc_aligned(max_iter_output_size);
+        decomp_result_buf.size = max_iter_output_size / sizeof(float);
+    }
+
     for (unsigned it = 0; it < fc_cfgs.num_iterations; it++) {
+        layer_t partial_layer = *curr_layer;
         dims_t* curr_iter = &fc_cfgs.iteration[it];
         bool is_last_iter = (it == fc_cfgs.num_iterations - 1);
         bool do_bias = is_last_iter;
+        // Tell the accelerator to write output to this base address.
+        float* accel_result_loc = host_results;
+        bool use_decomp_result_buf_this_iter =
+                (!is_last_iter && use_decomp_result_buf);
 
-        layer_t partial_layer = *curr_layer;
-        // If this is not the last iteration, we don't want to run the
-        // activation function, and we don't want to DMA the data back until
-        // the end.
-        if (!is_last_iter) {
-            partial_layer.activation = NO_ACTIVATION;
-            if (partial_layer.output_req == IO_DMA)
-                partial_layer.output_req = IO_NONE;
-        } else {
+        // In this tiling strategy, generally, we accumulate all the output
+        // pixels on the scratchpad iteration by iteration, and on the last
+        // iteration we apply the biases and activation functions.
+        if (is_last_iter) {
             // Check if we even support this activation function at all.
             activation_type act_func = partial_layer.activation;
             bool do_hw_activation = device->use_hw_activation_func &&
@@ -489,6 +599,13 @@ void smv_inner_product_layer_impl_rowwise(float* host_activations,
                                             partial_layer.type, act_func);
             if (!do_hw_activation)
                 partial_layer.activation = NO_ACTIVATION;
+            // Don't change the output_req.
+        } else {
+            // Don't run the activation function, and don't DMA back output
+            // pixels.
+            partial_layer.activation = NO_ACTIVATION;
+            if (partial_layer.output_req == IO_DMA)
+                partial_layer.output_req = IO_NONE;
         }
 
         partial_layer.weights = *curr_iter;
@@ -506,51 +623,18 @@ void smv_inner_product_layer_impl_rowwise(float* host_activations,
                    partial_layer.weights.rows,
                    partial_layer.weights.cols);
 
-        // Decompress the weights if necessary.
-        //
-        // Although this is implementing CSR, we actually want CSC, logically.
-        // We achieve the same effect by transposing the weights matrix prior
-        // to compression. Biases have to be specified separately, because once
-        // we transpose, we lose the property that biases have the same padding
-        // and column widths as the weights. Since biases are usually not sparse,
-        // we don't compress them. Instead, we just directly DMA them into the
-        // accelerator.
-        if (curr_layer->host_weights.type[0] == PackedCSR) {
-            layer_t temp_layer = partial_layer;
-            int rows = temp_layer.weights.rows;
-            temp_layer.weights.rows = temp_layer.weights.cols;
-            temp_layer.weights.cols = rows;
-            smiv_decompress_packed_csr_impl(&temp_layer, 0, current_row,
-                                            input_in_spad0, (smiv_global*)g_smv,
-                                            device);
-            if (is_last_iter) {
-                assert(curr_layer->host_weights.len == 2 &&
-                       "Inner product HW on SMV must have two sets of "
-                       "weights!");
-                assert(curr_layer->host_weights.type[1] == Uncompressed &&
-                       "The second set of weights (biases) must be "
-                       "uncompressed!");
-                farray_t* biases = curr_layer->host_weights.data[1].dense;
-                dma_options options;
-                options.src_offset = 0;
-                options.dst_offset = get_nhwc_dims_size(&temp_layer.weights);
-                options.use_pipelined_dma = device->use_pipelined_dma;
-                options.length = biases->size * sizeof(float);
-                options.is_load = true;
-                dma_copy_impl(g_smv->umem, biases->d, g_smv->kInnerProductHw,
-                              temp_layer.num, g_smv, &options);
-            }
-
-            // Now that we've decompressed the weights, we don't need to DMA
-            // them again.
-            partial_layer.weights_req = IO_NONE;
+        if (requires_decompression) {
+            partial_layer =
+                    smv_inner_product_run_decompression_and_update_layer(
+                            partial_layer, curr_iter, host_results, current_row,
+                            input_in_spad0, is_last_iter, g_smv, device);
             curr_dense_weights_loc = NULL;  // To prevent us from DMAing it.
-            PRINT_MSG("Weights:\n");
-            PRINT_DEBUG(g_smv->umem,
-                        partial_layer.weights.rows,
-                        partial_layer.weights.cols,
-                        partial_layer.weights.cols +
-                                partial_layer.weights.align_pad);
+
+            // Optimization: On the last iteration, write directly to the final
+            // host_results buffer, since we know we will copy the full output.
+            accel_result_loc = use_decomp_result_buf_this_iter
+                                       ? decomp_result_buf.d
+                                       : host_results;
         }
 
         if (partial_layer.weights_req != IO_NONE) {
@@ -563,32 +647,48 @@ void smv_inner_product_layer_impl_rowwise(float* host_activations,
                     curr_dense_weights_loc,
                     weights_buffer_size);
         }
-        size_t result_size = NUM_TEST_CASES * partial_layer.inputs.rows *
-                             partial_layer.outputs.cols;
 
         smv_inner_product_options options;
         options.do_bias = do_bias;
         options.input_in_spad0 = input_in_spad0;
         options.use_pipelined_dma = device->use_pipelined_dma;
-        options.result_start = current_row;
-        smv_inner_product_layer_hw_dispatch(host_activations,
-                                            curr_dense_weights_loc,
-                                            host_results,
-                                            &partial_layer,
-                                            result_size,
-                                            g_smv,
-                                            options);
+        // If we need to use the temporary buffer, start storing the outputs of
+        // this tile from the beginning because it's only sized for a single
+        // tile. Otherwise, start from current_row so we don't overwrite the
+        // results of the previous tiles.
+        options.result_start = use_decomp_result_buf_this_iter ? 0 : current_row;
+        // On the last iteration, we want to DMA everything back.
+        options.dma_store_start = is_last_iter ? 0 : options.result_start;
+        smv_inner_product_layer_hw_dispatch(
+                host_activations,
+                curr_dense_weights_loc,
+                accel_result_loc,
+                &partial_layer,
+                g_smv,
+                options);
 
         PRINT_MSG_V("Partial results:\n");
-        PRINT_DEBUG_V(host_results,
+        PRINT_DEBUG_V(input_in_spad0 ? g_smv->spad1 : g_smv->spad0,
                       curr_layer->inputs.rows * NUM_TEST_CASES,
-                      curr_iter->cols,
-                      curr_iter->cols);
+                      curr_layer->outputs.cols,
+                      curr_layer->outputs.cols + curr_layer->outputs.align_pad);
+
+        // Copy the results from result_buf to host_results, unless it is the
+        // last iteration (in which case the data is already there).
+        if (use_decomp_result_buf_this_iter && !is_last_iter) {
+            for (int n = 0; n < NUM_TEST_CASES; n++) {
+                memcpy(&_host_results[n][current_row],
+                       accel_result_loc + options.result_start,
+                       curr_iter->cols * sizeof(float));
+            }
+        }
 
         current_row += curr_iter->cols;
         curr_dense_weights_loc += iter_weights_size;
     }
 
+    if (decomp_result_buf.d)
+        free(decomp_result_buf.d);
     free_smiv_work_cfg(&fc_cfgs);
 }
 
