@@ -104,12 +104,14 @@ void smiv_pooling_layer_impl(float* inputs,
     pool_cfg_t pool_cfgs = pooling_divide_work(curr_layer);
 
     float* nhwc_inputs = NULL;
+    begin_profiling("convert_nchw_to_blocked_nhwc", curr_layer->num);
     convert_nchw_to_blocked_nhwc(inputs,
                                  NUM_TEST_CASES,
                                  VECTOR_SIZE,
                                  curr_layer->inputs,
                                  DATA_ALIGNMENT,
                                  &nhwc_inputs);
+    end_profiling();
 
     // Prepare a temporary buffer for the NHWC-formatted outputs.
     float* nhwc_outputs = (float*)malloc_aligned(
@@ -169,12 +171,14 @@ void smiv_pooling_layer_impl(float* inputs,
 
     dims_t output_dims =
             nchw_to_nhwc_dims(&curr_layer->outputs, DATA_ALIGNMENT);
+    begin_profiling("convert_blocked_nhwc_to_nhwc", curr_layer->num);
     convert_blocked_nhwc_to_nchw(nhwc_outputs,
                                  NUM_TEST_CASES,
                                  VECTOR_SIZE,
                                  output_dims,
                                  DATA_ALIGNMENT,
                                  &results);
+    end_profiling();
     free(nhwc_inputs);
     free(nhwc_outputs);
 }
