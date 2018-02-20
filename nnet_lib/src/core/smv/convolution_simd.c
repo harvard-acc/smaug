@@ -46,9 +46,12 @@ void convolution3d_smv_nhwc_vec_fxp(float* a,
     const int kEffNumPeInsts = min2(curr_layer.outputs.height, NUM_PE_INSTS);
     const v8fp_t zero = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    VEC_ARRAY_3D(v8fp_t, _result, result, result_rows, result_cols + result_pad);
+    // Kernels and input are in NHWC.
     VEC_ARRAY_4D(v8fp_t, _kernels, kernels, k_rows, k_cols, k_height + k_pad);
     VEC_ARRAY_3D(v8fp_t, _a, a, a_cols, a_height + a_pad);
+    // Results in NCHW.
+    VEC_ARRAY_3D(
+            v8fp_t, _result, result, result_rows, result_cols + result_pad);
     int num_chan_blocks = (k_height - 1) / pe_depth;
 
     k_col:
@@ -117,8 +120,10 @@ void convolution3d_smv_nhwc_vec_fxp(float* a,
                                 results_buffer[i] =
                                         start_from_zero
                                                 ? zero
-                                                : _result[kern_start + i][out_i]
-                                                         [out_j / VECTOR_SIZE];
+                                                : _result[kern_start + i]
+                                                               [out_i]
+                                                               [out_j /
+                                                                VECTOR_SIZE];
                             }
                         }
                         in_row = out_row + kern_row;
@@ -166,8 +171,8 @@ void convolution3d_smv_nhwc_vec_fxp(float* a,
                             for (int pe_id = 0; pe_id < kEffNumPeInsts;
                                  pe_id++) {
                                 _result[kern_start + pe_id][out_i]
-                                       [out_j / VECTOR_SIZE] =
-                                               results_buffer[pe_id];
+                                             [out_j / VECTOR_SIZE] =
+                                                     results_buffer[pe_id];
                             }
                         }
                         out_j++;

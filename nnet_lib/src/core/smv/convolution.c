@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 #include "core/nnet_fwd_defs.h"
 #include "core/smv/params.h"
 
@@ -142,8 +144,8 @@ void convolution3d_smv_nhwc_fxp(float* a,
                                 ifmap_iters == 0) {
                                 accum_reg = 0;
                             } else {
-                                accum_reg = _result[kern_start + pe_id][out_i]
-                                                   [out_j];
+                                accum_reg = _result[kern_start + pe_id]
+                                                         [out_i][out_j];
                             }
                             reduction_adders:
                             for (int macc_idx = 0; macc_idx < NUM_MACC_INSTS;

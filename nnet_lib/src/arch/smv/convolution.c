@@ -63,6 +63,7 @@ static void smv_convolution_layer_hw_impl(float* dma_activations,
                                           float* local_activations,
                                           float* local_weights,
                                           float* local_results,
+                                          float* acp_results,
                                           layer_t curr_layer,
                                           smv_convolution_options* options) {
     const int input_height = curr_layer.inputs.height;
@@ -82,14 +83,14 @@ static void smv_convolution_layer_hw_impl(float* dma_activations,
             curr_layer.weights.rows * curr_layer.weights.cols *
             (curr_layer.weights.height + curr_layer.weights.align_pad);
     int num_weights = options->total_tile_ofmaps * single_weights_elems;
-    if (curr_layer.weights_req == IO_DMA) {
+    if (curr_layer.weights_req != IO_NONE) {
         setReadyBits(local_weights, num_weights * sizeof(float), 0);
         dma_load_wrapper(local_weights,
                          &_kernels[options->kern_start][0][0][0],
                          num_weights * sizeof(float),
                          options->use_pipelined_dma);
     }
-    if (curr_layer.input_req == IO_DMA) {
+    if (curr_layer.input_req != IO_NONE) {
         // Read in ALL channels of the input into the UMEM at once, so that we
         // can reuse them on subsequent output channels.
         size_t num_input_pixels =
@@ -113,11 +114,10 @@ static void smv_convolution_layer_hw_impl(float* dma_activations,
             curr_layer.outputs.rows *
             (curr_layer.outputs.cols + curr_layer.outputs.align_pad);
     int num_output_pixels = options->total_tile_ofmaps * ofmap_2d_elems;
-    smv_activation_fun(local_results, NUM_TEST_CASES, num_output_pixels,
-                       curr_layer.activation);
+    smv_activation_fun(local_results, acp_results, NUM_TEST_CASES,
+                       num_output_pixels, curr_layer.activation);
     if (curr_layer.output_req == IO_DMA) {
-        dmaStore(
-                dma_results, local_results, num_output_pixels * sizeof(float));
+        dmaStore(dma_results, local_results, num_output_pixels * sizeof(float));
     }
 }
 
@@ -136,95 +136,15 @@ static void smv_convolution_layer_hw(float* dma_activations,
                                      layer_t curr_layer,
                                      access_config* access_config,
                                      smv_convolution_options* options) {
-//=--------- Convenience macros for invoking the HW impl ---------------=//
-//
-// Because the convolutional block cannot mix the use of scratchpads and the
-// umem, we don't need the macros to help us select which spad to use, which
-// reduces the number of macros greatly.
-
-// No DMA or scratchpads are used at all.
-#define CONV3D_NO_DMA_IMPL(INPUT, WGT, LR)                                     \
-    do {                                                                       \
-        PRINT_MSG(#INPUT "-" #WGT "-" #LR "\n");                               \
-        smv_convolution_layer_hw_impl(NULL, NULL, NULL, INPUT##_activations,   \
-                                      WGT##_weights, LR##_results, curr_layer, \
-                                      options);                                \
-    } while (0)
-
-// Inputs can come from anywhere (dma, cache, or acp), and outputs can go
-// anywhere.
-#define CONV3D_WITH_DMA_IMPL(HA, HW, HR, LA, LW, LR)                           \
-    do {                                                                       \
-        PRINT_MSG(#HA "-" #HW "-" #HR "-" #LA "-" #LW "-" #LR "\n");           \
-        smv_convolution_layer_hw_impl(HA##_activations, HW##_weights,          \
-                                      HR##_results, LA, LW, LR, curr_layer,    \
-                                      options);                                \
-    } while (0)
-
-    // These selections use the same mechanism all across.
-    if (DISPATCH_3(access_config, _DmaOrLocal, _DmaOrLocal, _DmaOrLocal)) {
-        CONV3D_WITH_DMA_IMPL(dma, dma, dma, umem, spad0, spad1);
-    } else if (DISPATCH_3(access_config, _ACP, _ACP, _ACP)) {
-        CONV3D_NO_DMA_IMPL(acp, acp, acp);
-    } else if (DISPATCH_3(access_config, _Cache, _Cache, _Cache)) {
-        CONV3D_NO_DMA_IMPL(cache, cache, cache);
+    if (access_config->outputs == _ACP || access_config->outputs == _Cache) {
+        smv_convolution_layer_hw_impl(dma_activations, dma_weights, dma_results,
+                                      umem, spad0, spad1, acp_results,
+                                      curr_layer, options);
+    } else {
+        smv_convolution_layer_hw_impl(dma_activations, dma_weights, dma_results,
+                                      umem, spad0, spad1, NULL, curr_layer,
+                                      options);
     }
-    // These selections only use _ACP or _Cache for the results.
-    else if (DISPATCH_3(access_config, _DmaOrLocal, _DmaOrLocal, _ACP)) {
-        CONV3D_WITH_DMA_IMPL(dma, dma, acp, umem, spad0, acp_results);
-    } else if (DISPATCH_3(access_config, _DmaOrLocal, _DmaOrLocal, _Cache)) {
-        CONV3D_WITH_DMA_IMPL(dma, dma, cache, umem, spad0, cache_results);
-    }
-    // These selections use DMA/None for the inputs.
-    else if (DISPATCH_3(access_config, _DmaOrLocal, _ACP, _ACP)) {
-        CONV3D_WITH_DMA_IMPL(dma, acp, acp, umem, acp_weights, acp_results);
-    } else if (DISPATCH_3(access_config, _DmaOrLocal, _Cache, _Cache)) {
-        CONV3D_WITH_DMA_IMPL(
-                dma, cache, cache, umem, cache_weights, cache_results);
-    }
-    // These selections use DMA/None for the inputs/outputs.
-    //
-    // NOTE: This scenario is currently not possible to specify via the model
-    // configuration file.
-    else if (DISPATCH_3(access_config, _DmaOrLocal, _ACP, _DmaOrLocal)) {
-        CONV3D_WITH_DMA_IMPL(dma, acp, dma, umem, acp_weights, spad1);
-    } else if (DISPATCH_3(access_config, _DmaOrLocal, _Cache, _DmaOrLocal)) {
-        CONV3D_WITH_DMA_IMPL(dma, cache, dma, umem, cache_weights, spad1);
-    }
-    // These selections use DMA/None for the outputs.
-    else if (DISPATCH_3(access_config, _ACP, _ACP, _DmaOrLocal)) {
-        CONV3D_WITH_DMA_IMPL(
-                acp, acp, dma, acp_activations, acp_weights, spad1);
-    } else if (DISPATCH_3(access_config, _Cache, _Cache, _DmaOrLocal)) {
-        CONV3D_WITH_DMA_IMPL(
-                cache, cache, dma, cache_activations, cache_weights, spad1);
-    }
-    // These selections only use DMA for the weights.
-    else if (DISPATCH_3(access_config, _ACP, _DmaOrLocal, _ACP)) {
-        CONV3D_WITH_DMA_IMPL(
-                acp, dma, acp, acp_activations, spad0, acp_results);
-    } else if (DISPATCH_3(access_config, _Cache, _DmaOrLocal, _Cache)) {
-        CONV3D_WITH_DMA_IMPL(
-                cache, dma, cache, cache_activations, spad0, cache_results);
-    }
-    // These selections use ACP/Cache for the inputs only.
-    // This is usually used if the weights either needed DMA or are already in
-    // the scratchpads.
-    else if (DISPATCH_3(access_config, _ACP, _DmaOrLocal, _DmaOrLocal)) {
-        CONV3D_WITH_DMA_IMPL(
-                acp, dma, dma, acp_activations, spad0, spad1);
-    } else if (DISPATCH_3(access_config, _Cache, _DmaOrLocal, _DmaOrLocal)) {
-        CONV3D_WITH_DMA_IMPL(
-                cache, dma, dma, cache_activations, spad0, spad1);
-    }
-    // Otherwise, give up.
-    else {
-        assert(false &&
-               "This is an unsupported combination of access mechanisms!");
-    }
-
-#undef CONV3D_WITH_DMA_IMPL
-#undef CONV3D_NO_DMA_IMPL
 }
 
 static layer_t create_partial_layer_from_tile(layer_t* full_layer,
@@ -317,7 +237,7 @@ void smv_standard_convolution_layer_impl(float* host_activations,
             &nhwc_activations);
     end_profiling();
     MAP_ARRAY_TO_ACCEL(g_smv->kConvolutionHw,
-                       get_host_inputs_var_name(curr_layer.input_req),
+                       get_host_inputs_var_name(IO_DMA),
                        nhwc_activations,
                        get_dims_size(&activations_nhwc) * sizeof(float));
 
@@ -376,7 +296,7 @@ void smv_standard_convolution_layer_impl(float* host_activations,
             end_profiling();
             MAP_ARRAY_TO_ACCEL(
                     g_smv->kConvolutionHw,
-                    get_host_weights_var_name(curr_layer.weights_req),
+                    get_host_weights_var_name(IO_DMA),
                     nhwc_weights,
                     num_kerns * get_dims_size(&weights_nhwc) * sizeof(float));
 
@@ -417,19 +337,16 @@ void smv_standard_convolution_layer_impl(float* host_activations,
                     continue;
                 }
 
-                // Only DMA inputs on the first iteration.
-                if (iter > 0 && partial_layer.input_req == IO_DMA)
-                    partial_layer.input_req = IO_NONE;
+                // Only DMA weights and inputs on the first iteration.
                 // Only DMA weights on the first iteration.
-                if (iter > 0 && partial_layer.weights_req == IO_DMA)
+                if (iter > 0) {
+                    partial_layer.input_req = IO_NONE;
                     partial_layer.weights_req = IO_NONE;
-                // Only DMA results back on the last.
-                if (curr_layer.output_req == IO_DMA) {
-                    if (!is_last_iter)
-                        partial_layer.output_req = IO_NONE;
-                    else
-                        partial_layer.output_req = IO_DMA;
                 }
+                if (!is_last_iter)
+                    partial_layer.output_req = IO_NONE;
+                else
+                    partial_layer.output_req = curr_layer.output_req;
                 // Only run the activation function on the last iteration.
                 partial_layer.activation = (is_last_iter && do_hw_activation)
                                                    ? curr_layer.activation

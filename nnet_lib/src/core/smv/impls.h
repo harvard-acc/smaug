@@ -9,13 +9,13 @@ void convolution3d_smv_nhwc_fxp(float* a,
                                 float* kernels,
                                 layer_t curr_layer,
                                 int kern_start,
-                                float* result);
+                                float* local_result);
 
 void convolution3d_smv_nhwc_vec_fxp(float* a,
                                     float* kernels,
                                     layer_t curr_layer,
                                     int kern_start,
-                                    float* result);
+                                    float* local_result);
 
 void matrix_multiply_transpose_smv_nobatch_vec_fxp(
         float* a,
