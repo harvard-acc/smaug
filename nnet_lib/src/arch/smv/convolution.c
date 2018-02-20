@@ -29,6 +29,7 @@ typedef struct _smv_convolution_options {
     int kern_start;
     int kern_end;
     int total_tile_ofmaps;
+    bool use_pipelined_dma;
 } smv_convolution_options;
 
 void init_conv_tiling_cfg(conv_tiling_cfg* cfg, int num_tiles) {
@@ -83,8 +84,10 @@ static void smv_convolution_layer_hw_impl(float* dma_activations,
     int num_weights = options->total_tile_ofmaps * single_weights_elems;
     if (curr_layer.weights_req == IO_DMA) {
         setReadyBits(local_weights, num_weights * sizeof(float), 0);
-        dmaLoad(local_weights, &_kernels[options->kern_start][0][0][0],
-                num_weights * sizeof(float));
+        dma_load_wrapper(local_weights,
+                         &_kernels[options->kern_start][0][0][0],
+                         num_weights * sizeof(float),
+                         options->use_pipelined_dma);
     }
     if (curr_layer.input_req == IO_DMA) {
         // Read in ALL channels of the input into the UMEM at once, so that we
@@ -93,8 +96,10 @@ static void smv_convolution_layer_hw_impl(float* dma_activations,
                 curr_layer.inputs.rows * curr_layer.inputs.cols *
                 (curr_layer.inputs.height + curr_layer.inputs.align_pad);
         setReadyBits(local_activations, num_input_pixels * sizeof(float), 0);
-        dmaLoad(local_activations, &_a[options->img][0][0][0],
-                num_input_pixels * sizeof(float));
+        dma_load_wrapper(local_activations,
+                         &_a[options->img][0][0][0],
+                         num_input_pixels * sizeof(float),
+                         options->use_pipelined_dma);
     }
 
     // We will invoke the hardware multiple times, but we don't DMA every time.
@@ -334,7 +339,7 @@ void smv_standard_convolution_layer_impl(float* host_activations,
         flush_cache_range(host_weights, weights_size / sizeof(float));
         end_profiling();
     }
-    if (do_hw_activation || current_layer.output_req == IO_DMA) {
+    if (do_hw_activation || curr_layer.output_req == IO_DMA) {
         // Flush cache lines for temporary results.
         begin_ignored_profiling(lnum);
         flush_cache_range(host_result, result_2d_size * result_height);
