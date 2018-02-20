@@ -303,6 +303,8 @@ void smv_standard_convolution_layer_impl(float* host_activations,
     const int k_width = curr_layer.weights.cols;
     const int k_pad = curr_layer.weights.align_pad;
     const int result_2d_size = result_rows * (result_cols + result_pad);
+    const int activations_size = INPUT_BYTES(layers, lnum);
+    const int weights_size = WEIGHT_BYTES(layers, lnum);
     float* nhwc_activations = NULL;
     begin_profiling("convert_nchw_to_nhwc", lnum);
     dims_t activations_nhwc = convert_nchw_to_nhwc(
@@ -325,6 +327,20 @@ void smv_standard_convolution_layer_impl(float* host_activations,
     bool do_hw_activation = device->use_hw_activation_func &&
                             smiv_is_supported_activation_func(
                                     curr_layer.type, curr_layer.activation);
+    if (curr_layer.input_req == IO_DMA) {
+        // Flush cache lines for activations and weights.
+        begin_ignored_profiling(lnum);
+        flush_cache_range(host_activations, activations_size / sizeof(float));
+        flush_cache_range(host_weights, weights_size / sizeof(float));
+        end_profiling();
+    }
+    if (do_hw_activation || current_layer.output_req == IO_DMA) {
+        // Flush cache lines for temporary results.
+        begin_ignored_profiling(lnum);
+        flush_cache_range(host_result, result_2d_size * result_height);
+        end_profiling();
+    }
+
     int sampled_inner_iters = sampling_param->smv_conv_inner_iters;
     // A value of 0 means do not sample, so set this value to the actual number
     // of inner iterations, if there are any.
