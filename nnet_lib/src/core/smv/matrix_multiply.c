@@ -44,7 +44,6 @@ void matrix_multiply_transpose_smv_nobatch_vec_fxp(float* a,
 
     input_act:
     for (int input_act = 0; input_act < a_height; input_act++) {
-        int psum_offset = 0;
         wgt_row:
         for (int wgt_row = 0; wgt_row < b_height; wgt_row += NUM_PE_INSTS) {
             if (wgt_row % VECTOR_SIZE == 0)
@@ -57,7 +56,9 @@ void matrix_multiply_transpose_smv_nobatch_vec_fxp(float* a,
                 // across unrolled loop iterations, we use a normal scalar
                 // array here instead. Prior to committing the data to the
                 // scratchpad, we'll copy this data back to a vector register.
-                float partial_sums_inner[VECTOR_SIZE / 2] = { 0, 0, 0, 0 };
+                float partial_sums_inner[VECTOR_SIZE] = {
+                    0, 0, 0, 0, 0, 0, 0, 0
+                };
 
                 v8fp_t act_reg[NUM_MACC_INSTS];
                 act_reg_load:
@@ -104,7 +105,7 @@ void matrix_multiply_transpose_smv_nobatch_vec_fxp(float* a,
                 }
                 copy_psums:
                 for (int i = 0; i < NUM_PE_INSTS; i++) {
-                    partial_sums[psum_offset + i] += partial_sums_inner[i];
+                    partial_sums[i] += partial_sums_inner[i];
                 }
             }
 
@@ -112,9 +113,6 @@ void matrix_multiply_transpose_smv_nobatch_vec_fxp(float* a,
             if (next_wgt_row % VECTOR_SIZE ==  0 || next_wgt_row >= b_height) {
                 _result[input_act][(result_start + wgt_row) / VECTOR_SIZE] =
                         partial_sums;
-                psum_offset = 0;
-            } else {
-                psum_offset += NUM_PE_INSTS;
             }
         }
     }

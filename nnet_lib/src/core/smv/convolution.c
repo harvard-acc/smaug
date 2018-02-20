@@ -63,9 +63,8 @@ void convolution3d_smv_nhwc_fxp(float* a,
                 // this is just computing the remaining groups of
                 // channels on the last iteration.
                 if (ifmap_iters == num_chan_blocks) {
-                    max_ch_grp = ((k_height -
-                                   ifmap_iters * NUM_MACC_INSTS * VECTOR_SIZE) /
-                                  VECTOR_SIZE) + 1;
+                    max_ch_grp = FRAC_CEIL(
+                            (k_height - ifmap_iters * pe_depth), VECTOR_SIZE);
                 }
 
                 // Load in all the weights at once before beginning the input
@@ -158,7 +157,6 @@ void convolution3d_smv_nhwc_fxp(float* a,
                             }
                             _result[kern_start + pe_id][out_i][out_j] =
                                     accum_reg;
-
                         }
                         out_j++;
                     }

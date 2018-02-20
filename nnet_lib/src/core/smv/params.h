@@ -8,7 +8,7 @@
 #endif
 
 #define NUM_MACC_INSTS 4
-#define NUM_PE_INSTS 4
+#define NUM_PE_INSTS 8
 
 #define DATA_PE_ALIGNMENT (NUM_MACC_INSTS)*(VECTOR_SIZE)
 
