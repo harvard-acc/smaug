@@ -37,8 +37,12 @@ void convolution3d_smv_nhwc_vec_fxp(float* a,
     int a_height = curr_layer.inputs.height;
     int a_pad = curr_layer.inputs.align_pad;
 
-    int end_row = a_rows - k_rows + 1;
-    int end_col = a_cols - k_cols + 1;
+    int c_pad = curr_layer.c_padding;
+    int end_row = a_rows + 2 * c_pad - k_rows + 1;
+    int end_col = a_cols + 2 * c_pad - k_cols + 1;
+
+    int valid_row_end = a_rows - 1;
+    int valid_col_end = a_cols - 1;
 
     int in_row, in_col;
     const int pe_depth = VECTOR_SIZE * NUM_MACC_INSTS;
@@ -126,16 +130,23 @@ void convolution3d_smv_nhwc_vec_fxp(float* a,
                                                                 VECTOR_SIZE];
                             }
                         }
-                        in_row = out_row + kern_row;
-                        in_col = out_col + kern_col;
+                        in_row = out_row - c_pad + kern_row;
+                        in_col = out_col - c_pad + kern_col;
+                        bool in_padding_row =
+                                in_row < 0 || in_row > valid_row_end;
+                        bool in_padding_col =
+                                in_col < 0 || in_col > valid_col_end;
 
                         // Load in the activations first, then broadcast them
                         // to all the PEs.
                         load_act_mu:
                         for (int macc_idx = 0; macc_idx < NUM_MACC_INSTS;
                              macc_idx++) {
+                            bool is_padding = in_padding_row ||
+                                              in_padding_col ||
+                                              macc_idx >= max_ch_grp;
                             act_reg[macc_idx] =
-                                    (macc_idx >= max_ch_grp)
+                                    (is_padding)
                                             ? zero
                                             : _a[in_row][in_col]
                                                 [ifmap_offset + macc_idx];

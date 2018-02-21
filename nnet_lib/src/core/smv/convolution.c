@@ -27,8 +27,8 @@ void convolution3d_smv_nhwc_fxp(float* a,
 
     int k_cols = curr_layer.weights.cols;
     int k_rows = curr_layer.weights.rows;
-    int k_height = curr_layer.weights.height;
     int k_pad = curr_layer.weights.align_pad;
+    int k_height = curr_layer.weights.height;
     int k_stride = curr_layer.field_stride;
 
     int a_rows = curr_layer.inputs.rows;
@@ -36,8 +36,12 @@ void convolution3d_smv_nhwc_fxp(float* a,
     int a_height = curr_layer.inputs.height;
     int a_pad = curr_layer.inputs.align_pad;
 
-    int end_row = a_rows - k_rows + 1;
-    int end_col = a_cols - k_cols + 1;
+    int c_pad = curr_layer.c_padding;
+    int end_row = a_rows + 2 * c_pad - k_rows + 1;
+    int end_col = a_cols + 2 * c_pad - k_cols + 1;
+
+    int valid_row_end = a_rows - 1;
+    int valid_col_end = a_cols - 1;
 
     int in_row, in_col;
     const int pe_depth = VECTOR_SIZE * NUM_MACC_INSTS;
@@ -104,8 +108,12 @@ void convolution3d_smv_nhwc_fxp(float* a,
                         float product_reg[NUM_PE_INSTS][NUM_MACC_INSTS]
                                          [VECTOR_SIZE];
                         float act_reg[NUM_MACC_INSTS][VECTOR_SIZE];
-                        in_row = out_row + kern_row;
-                        in_col = out_col + kern_col;
+                        in_row = out_row - c_pad + kern_row;
+                        in_col = out_col - c_pad + kern_col;
+                        bool in_padding_row =
+                                in_row < 0 || in_row > valid_row_end;
+                        bool in_padding_col =
+                                in_col < 0 || in_col > valid_col_end;
 
                         // Load in the activations first, then broadcast them
                         // to all the PEs.
@@ -113,11 +121,14 @@ void convolution3d_smv_nhwc_fxp(float* a,
                         for (int macc_idx = 0; macc_idx < NUM_MACC_INSTS;
                              macc_idx++) {
                             int macc_offset = macc_idx * VECTOR_SIZE;
+                            bool is_padding = in_padding_row ||
+                                              in_padding_col ||
+                                              macc_idx >= max_ch_grp;
                             load_act_vector:
                             for (int vec_i = 0; vec_i < VECTOR_SIZE; vec_i++) {
                                 int chan_idx = macc_offset + vec_i;
                                 float value =
-                                        (macc_idx >= max_ch_grp)
+                                        (is_padding)
                                                 ? 0
                                                 : _a[in_row][in_col]
                                                     [ifmap_offset + chan_idx];

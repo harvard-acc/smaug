@@ -307,7 +307,7 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
         layers[l].biases.height = 0;
 
         layers[l].c_padding = cfg_getint(conv_params, "pad");
-#if ARCHITECTURE != EIGEN
+#if ARCHITECTURE != EIGEN && ARCHITECTURE != SMV
         layers[l].inputs.rows += layers[l].c_padding * 2;
         layers[l].inputs.cols += layers[l].c_padding * 2;
         layers[l].outputs.rows =
