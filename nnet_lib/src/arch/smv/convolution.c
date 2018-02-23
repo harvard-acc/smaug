@@ -252,6 +252,7 @@ void smv_standard_convolution_layer_impl(float* host_activations,
     bool do_hw_activation = device->use_hw_activation_func &&
                             smiv_is_supported_activation_func(
                                     curr_layer.type, curr_layer.activation);
+    bool use_pipelined_dma = device->use_pipelined_dma;
     if (curr_layer.input_req == IO_DMA) {
         // Flush cache lines for activations and weights.
         begin_ignored_profiling(lnum);
@@ -328,6 +329,7 @@ void smv_standard_convolution_layer_impl(float* host_activations,
                 // This is required to DMA the correct number of weights and
                 // outputs back from the accelerator at the beginning and end.
                 options.total_tile_ofmaps = tile->num_ofmaps;
+                options.use_pipelined_dma = use_pipelined_dma;
 
                 if (iter != 0 && !is_last_iter &&
                     inner_iters_executed >= sampled_inner_iters) {
