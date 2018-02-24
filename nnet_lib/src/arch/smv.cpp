@@ -445,7 +445,7 @@ void set_io_requirements(network_t* network, device_t* device) {
         if (prev_layer->output_req == IO_NONE) {
             curr_layer->input_req = IO_NONE;
         } else {
-            curr_layer->input_req = device->cpu_default_offload;
+            curr_layer->input_req = prev_layer->output_req;
         }
 #endif
     }

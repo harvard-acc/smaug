@@ -69,13 +69,19 @@ void smv_inner_product_layer_hw_impl(float* dma_activations,
                          options->use_pipelined_dma);
     }
 
-    if (curr_layer->input_req != IO_NONE) {
+    if (curr_layer->input_req == IO_DMA || curr_layer->input_req == IO_ACP ||
+        curr_layer->input_req == IO_CACHE) {
         ASSERT(dma_activations && "DMA inputs pointer cannot be NULL!");
         int activations_size =
                 get_input_activations_size(curr_layer) * sizeof(float);
-        setReadyBits(local_activations, SMV_SPAD_SIZE, 0);
-        dma_load_wrapper(local_activations, dma_activations, activations_size,
-                         options->use_pipelined_dma);
+        if (curr_layer->input_req == IO_DMA) {
+            setReadyBits(local_activations, SMV_SPAD_SIZE, 0);
+            dma_load_wrapper(local_activations, dma_activations,
+                             activations_size, options->use_pipelined_dma);
+        } else {
+            coherentLoad64(
+                    local_activations, dma_activations, activations_size, 0, 0);
+        }
     }
 
     matrix_multiply_transpose_smv(
@@ -141,12 +147,20 @@ void smv_inner_product_layer_hw(float* dma_activations,
                                 smv_inner_product_options* options) {
     bool use_acp_results = (access_config->outputs == _ACP ||
                             access_config->outputs == _Cache);
+    bool use_acp_inputs =
+            (access_config->inputs == _ACP || access_config->inputs == _Cache);
 
     if (options->input_in_spad0) {
         if (use_acp_results) {
-            smv_inner_product_layer_hw_impl(dma_activations, dma_weights,
-                                            dma_results, spad0, umem, spad1,
-                                            acp_results, curr_layer, options);
+            if (use_acp_inputs) {
+                smv_inner_product_layer_hw_impl(
+                        acp_activations, dma_weights, dma_results, spad0, umem,
+                        spad1, acp_results, curr_layer, options);
+            } else {
+                smv_inner_product_layer_hw_impl(
+                        dma_activations, dma_weights, dma_results, spad0, umem,
+                        spad1, acp_results, curr_layer, options);
+            }
         } else {
             smv_inner_product_layer_hw_impl(dma_activations, dma_weights,
                                             dma_results, spad0, umem, spad1,
@@ -154,9 +168,15 @@ void smv_inner_product_layer_hw(float* dma_activations,
         }
     } else {
         if (use_acp_results) {
-            smv_inner_product_layer_hw_impl(dma_activations, dma_weights,
-                                            dma_results, spad1, umem, spad0,
-                                            acp_results, curr_layer, options);
+            if (use_acp_inputs) {
+                smv_inner_product_layer_hw_impl(
+                        acp_activations, dma_weights, dma_results, spad1, umem,
+                        spad0, acp_results, curr_layer, options);
+            } else {
+                smv_inner_product_layer_hw_impl(
+                        dma_activations, dma_weights, dma_results, spad1, umem,
+                        spad0, acp_results, curr_layer, options);
+            }
         } else {
             smv_inner_product_layer_hw_impl(dma_activations, dma_weights,
                                             dma_results, spad1, umem, spad0,

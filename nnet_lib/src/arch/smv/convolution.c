@@ -66,16 +66,12 @@ static void smv_convolution_layer_hw_impl(float* dma_activations,
                                           float* acp_results,
                                           layer_t curr_layer,
                                           smv_convolution_options* options) {
-    const int input_height = curr_layer.inputs.height;
-    const int input_rows = curr_layer.inputs.rows;
-    const int input_cols = curr_layer.inputs.cols;
-    const int input_pad = curr_layer.inputs.align_pad;
-    const int k_width = curr_layer.weights.cols;
-    const int k_height = curr_layer.weights.height;
-    const int k_pad = curr_layer.weights.align_pad;
+    int input_height = curr_layer.inputs.height;
+    int input_rows = curr_layer.inputs.rows;
+    int input_cols = curr_layer.inputs.cols;
+    int input_pad = curr_layer.inputs.align_pad;
     ARRAY_4D(float, _a, dma_activations, input_height + input_pad, input_rows,
              input_cols);
-    ARRAY_4D(float, _kernels, dma_weights, k_width, k_width, k_height + k_pad);
     // DMA all the weights that we can fit in the current tile (which is
     // specified by this tile's outputs.height).
     // We should only DMA part of the weights.
@@ -86,21 +82,28 @@ static void smv_convolution_layer_hw_impl(float* dma_activations,
     if (curr_layer.weights_req != IO_NONE) {
         setReadyBits(local_weights, num_weights * sizeof(float), 0);
         dma_load_wrapper(local_weights,
-                         &_kernels[options->kern_start][0][0][0],
+                         dma_weights,
                          num_weights * sizeof(float),
                          options->use_pipelined_dma);
     }
-    if (curr_layer.input_req != IO_NONE) {
+    if (curr_layer.input_req == IO_DMA || curr_layer.input_req == IO_ACP) {
         // Read in ALL channels of the input into the UMEM at once, so that we
         // can reuse them on subsequent output channels.
         size_t num_input_pixels =
                 curr_layer.inputs.rows * curr_layer.inputs.cols *
                 (curr_layer.inputs.height + curr_layer.inputs.align_pad);
-        setReadyBits(local_activations, num_input_pixels * sizeof(float), 0);
-        dma_load_wrapper(local_activations,
-                         &_a[options->img][0][0][0],
-                         num_input_pixels * sizeof(float),
-                         options->use_pipelined_dma);
+        if (curr_layer.input_req == IO_DMA) {
+            setReadyBits(
+                    local_activations, num_input_pixels * sizeof(float), 0);
+            dma_load_wrapper(local_activations,
+                             &_a[options->img][0][0][0],
+                             num_input_pixels * sizeof(float),
+                             options->use_pipelined_dma);
+        } else {
+            int source_offset = &_a[options->img][0][0][0] - &_a[0][0][0][0];
+            coherentLoad64(local_activations, &_a[options->img][0][0][0],
+                           num_input_pixels * sizeof(float), 0, source_offset);
+        }
     }
 
     // We will invoke the hardware multiple times, but we don't DMA every time.
@@ -147,14 +150,38 @@ static void smv_convolution_layer_hw(float* dma_activations,
                                      layer_t curr_layer,
                                      access_config* access_config,
                                      smv_convolution_options* options) {
+    // We can use ACP or caches for outputs only, or for outputs AND inputs,
+    // but not inputs only. We also do not currently support mixing ACP and
+    // cache for the inputs/outputs.
     if (access_config->outputs == _ACP) {
-        smv_convolution_layer_hw_impl(dma_activations, dma_weights, dma_results,
-                                      umem, spad0, spad1, acp_results,
-                                      curr_layer, options);
+        if (access_config->inputs == _ACP) {
+            smv_convolution_layer_hw_impl(acp_activations, dma_weights,
+                                          dma_results, umem, spad0, spad1,
+                                          acp_results, curr_layer, options);
+        } else {
+            // If the input mechanism is Cache, then it is ignored, and we
+            // fallback to DMA.
+            if (curr_layer.input_req != IO_NONE)
+                curr_layer.input_req = IO_DMA;
+            smv_convolution_layer_hw_impl(dma_activations, dma_weights,
+                                          dma_results, umem, spad0, spad1,
+                                          acp_results, curr_layer, options);
+        }
     } else if (access_config->outputs == _Cache) {
-        smv_convolution_layer_hw_impl(dma_activations, dma_weights, dma_results,
-                                      umem, spad0, cache_results, acp_results,
-                                      curr_layer, options);
+        if (access_config->inputs == _Cache) {
+            smv_convolution_layer_hw_impl(dma_activations, dma_weights,
+                                          dma_results, cache_activations, spad0,
+                                          cache_results, acp_results,
+                                          curr_layer, options);
+        } else {
+            // If the input mechanism is ACP, then it is ignored, and we
+            // fallback to DMA.
+            if (curr_layer.input_req != IO_NONE)
+                curr_layer.input_req = IO_DMA;
+            smv_convolution_layer_hw_impl(
+                    dma_activations, dma_weights, dma_results, umem, spad0,
+                    cache_results, acp_results, curr_layer, options);
+        }
     } else {
         smv_convolution_layer_hw_impl(dma_activations, dma_weights, dma_results,
                                       umem, spad0, spad1, NULL, curr_layer,
@@ -355,11 +382,14 @@ void smv_standard_convolution_layer_impl(float* host_activations,
                     continue;
                 }
 
-                // Only DMA weights and inputs on the first iteration.
-                // Only DMA weights on the first iteration.
+                // Only copy weights and inputs on the first iteration.
                 if (iter > 0) {
-                    partial_layer.input_req = IO_NONE;
-                    partial_layer.weights_req = IO_NONE;
+                    if (partial_layer.input_req == IO_DMA ||
+                        partial_layer.input_req == IO_ACP)
+                        partial_layer.input_req = IO_NONE;
+                    if (partial_layer.weights_req == IO_DMA ||
+                        partial_layer.weights_req == IO_ACP)
+                        partial_layer.weights_req = IO_NONE;
                 }
                 // Only run the activation function on the last iteration.
                 partial_layer.activation = (do_hw_activation)
