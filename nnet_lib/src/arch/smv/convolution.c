@@ -109,15 +109,26 @@ static void smv_convolution_layer_hw_impl(float* dma_activations,
     convolution3d_smv(local_activations, local_weights, curr_layer,
                       options->kern_start, local_results);
 
-    // Run the activation function in-place if applicable.
+    // Run the activation function in-place if applicable on the ofmaps we
+    // generated.
     int ofmap_2d_elems =
             curr_layer.outputs.rows *
             (curr_layer.outputs.cols + curr_layer.outputs.align_pad);
-    int num_output_pixels = options->total_tile_ofmaps * ofmap_2d_elems;
-    smv_activation_fun(local_results, acp_results, NUM_TEST_CASES,
-                       num_output_pixels, curr_layer.activation);
+    int num_output_pixels =
+            (options->kern_end - options->kern_start) * ofmap_2d_elems;
+    int start_output_pixel = options->kern_start * ofmap_2d_elems;
+    smv_activation_fun(local_results, NUM_TEST_CASES, num_output_pixels,
+                       start_output_pixel, curr_layer.activation);
     if (curr_layer.output_req == IO_DMA) {
-        dmaStore(dma_results, local_results, num_output_pixels * sizeof(float));
+        dma_store_wrapper(&dma_results[start_output_pixel],
+                          &local_results[start_output_pixel],
+                          num_output_pixels * sizeof(float),
+                          options->use_pipelined_dma);
+    } else if (curr_layer.output_req == IO_ACP) {
+        int output_offset = start_output_pixel / VECTOR_SIZE / 2;
+        coherentStore64(acp_results, local_results,
+                        num_output_pixels * sizeof(float), output_offset,
+                        output_offset);
     }
 }
 
@@ -136,9 +147,13 @@ static void smv_convolution_layer_hw(float* dma_activations,
                                      layer_t curr_layer,
                                      access_config* access_config,
                                      smv_convolution_options* options) {
-    if (access_config->outputs == _ACP || access_config->outputs == _Cache) {
+    if (access_config->outputs == _ACP) {
         smv_convolution_layer_hw_impl(dma_activations, dma_weights, dma_results,
                                       umem, spad0, spad1, acp_results,
+                                      curr_layer, options);
+    } else if (access_config->outputs == _Cache) {
+        smv_convolution_layer_hw_impl(dma_activations, dma_weights, dma_results,
+                                      umem, spad0, cache_results, acp_results,
                                       curr_layer, options);
     } else {
         smv_convolution_layer_hw_impl(dma_activations, dma_weights, dma_results,
@@ -318,13 +333,14 @@ void smv_standard_convolution_layer_impl(float* host_activations,
                                            tile->num_ofmaps / NUM_PE_INSTS);
             for (int iter = 0; iter < num_hw_iters; iter++) {
                 bool is_last_iter = (iter == num_hw_iters - 1);
-                int num_kerns_this_iter =
-                        min2(tile->num_ofmaps - kern_start, NUM_PE_INSTS);
                 smv_convolution_options options;
                 options.img = img;
                 // This kern_start is with respect to the current set of output
                 // fmaps in the tile.
                 options.kern_start = iter * NUM_PE_INSTS;
+                int num_kerns_this_iter =
+                        min2(tile->num_ofmaps - options.kern_start,
+                             (int)NUM_PE_INSTS);
                 options.kern_end = options.kern_start + num_kerns_this_iter;
                 // This is required to DMA the correct number of weights and
                 // outputs back from the accelerator at the beginning and end.
@@ -345,12 +361,8 @@ void smv_standard_convolution_layer_impl(float* host_activations,
                     partial_layer.input_req = IO_NONE;
                     partial_layer.weights_req = IO_NONE;
                 }
-                if (!is_last_iter)
-                    partial_layer.output_req = IO_NONE;
-                else
-                    partial_layer.output_req = curr_layer.output_req;
                 // Only run the activation function on the last iteration.
-                partial_layer.activation = (is_last_iter && do_hw_activation)
+                partial_layer.activation = (do_hw_activation)
                                                    ? curr_layer.activation
                                                    : NO_ACTIVATION;
                 access_config access_cfg =

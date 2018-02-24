@@ -16,13 +16,19 @@ typedef float fp_t;
 typedef int sfx_t;
 typedef unsigned ufx_t;
 
-// Vector of 8 scalar values.
+// 8 packed 32-bit floating point values.
 typedef fp_t v8fp_t
         __attribute__((__vector_size__(VECTOR_SIZE * sizeof(fp_t))));
+// 16 packed 32-bit floating point values.
+typedef short v16fp_t
+        __attribute__((__vector_size__(VECTOR_SIZE * 2 * sizeof(fp_t))));
+// 16 packed 16-bit floating point values.
 typedef short v16ph_t
         __attribute__((__vector_size__(VECTOR_SIZE * 2 * sizeof(short))));
+// 8 packed 16-bit floating point values.
 typedef short v8ph_t
         __attribute__((__vector_size__(VECTOR_SIZE * sizeof(short))));
+// 8 packed 32-bit integer values.
 typedef sfx_t v8sfx_t
         __attribute__((__vector_size__(VECTOR_SIZE * sizeof(sfx_t))));
 

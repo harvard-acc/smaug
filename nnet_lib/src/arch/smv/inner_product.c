@@ -90,7 +90,6 @@ void smv_inner_product_layer_hw_impl(float* dma_activations,
             local_results);
 
     VEC_ARRAY_1D(v8fp_t, _local_results, local_results);
-    VEC_ARRAY_1D(v8fp_t, _acp_results, acp_results);
     bool do_bias_or_activation =
             options->do_bias || curr_layer->activation != NO_ACTIVATION;
     if (do_bias_or_activation) {
@@ -105,30 +104,20 @@ void smv_inner_product_layer_hw_impl(float* dma_activations,
         for (int i = 0; i < FRAC_CEIL(output_cols, VECTOR_SIZE); i++) {
             v8fp_t psum = _local_results[i] +
                           (options->do_bias ? _weights[bias_offset + i] : zero);
-            if (acp_results) {
-                _acp_results[i] =
-                        activation_fun_simd(psum, curr_layer->activation);
-            } else {
-                _local_results[i] =
-                        activation_fun_simd(psum, curr_layer->activation);
-            }
+            _local_results[i] =
+                    activation_fun_simd(psum, curr_layer->activation);
         }
     }
 
     // If we didn't run the activation function or add the bias, and we expect
     // outputs to go out via ACP, then we need to explicitly store it back.
-    if (acp_results && !do_bias_or_activation) {
-        int output_cols = curr_layer->outputs.cols;
-        int offset = options->dma_store_start / VECTOR_SIZE;
-        acp_store:
-        for (int i = offset; i < FRAC_CEIL(output_cols, VECTOR_SIZE) + offset;
-             i++) {
-            _acp_results[i] = _local_results[i];
-        }
+    size_t result_size =
+            get_output_activations_size(curr_layer) * sizeof(float);
+    if (acp_results) {
+        int offset = options->dma_store_start / VECTOR_SIZE / 2;
+        coherentStore64(acp_results, local_results, result_size, offset, offset);
     } else if (curr_layer->output_req == IO_DMA) {
         ASSERT(dma_results && "DMA results pointer cannot be NULL!");
-        size_t result_size =
-                get_output_activations_size(curr_layer) * sizeof(float);
         dma_store_wrapper(dma_results + options->dma_store_start,
                           local_results + options->dma_store_start, result_size,
                           options->use_pipelined_dma);

@@ -57,9 +57,9 @@ void smv_inner_product_layer_impl(float* host_activations,
                                   smv_global* g_smv,
                                   device_t* device);
 void smv_activation_fun(float* local_activations,
-                        float* acp_activations,
                         int batch_size,
                         int input_size,
+                        int start_pixel,
                         activation_type activation);
 void dma_copy_impl(float* dst_base_loc,
                    float* src_base_loc,
