@@ -448,7 +448,7 @@ void smv_inner_product_layer_impl_rowwise(float* host_activations,
             get_dims_size(&curr_layer->inputs) * NUM_TEST_CASES * sizeof(float);
 
     MAP_ARRAY_TO_ACCEL(g_smv->kInnerProductHw,
-                       get_host_inputs_var_name(IO_DMA),
+                       get_host_inputs_var_name(curr_layer->input_req),
                        host_activations,
                        inputs_size);
 

@@ -279,7 +279,7 @@ void smv_standard_convolution_layer_impl(float* host_activations,
             &nhwc_activations);
     end_profiling();
     MAP_ARRAY_TO_ACCEL(g_smv->kConvolutionHw,
-                       get_host_inputs_var_name(IO_DMA),
+                       get_host_inputs_var_name(curr_layer.input_req),
                        nhwc_activations,
                        get_dims_size(&activations_nhwc) * sizeof(float));
 

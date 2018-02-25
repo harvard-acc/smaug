@@ -117,14 +117,6 @@ result_buf standard_convolution_layer(float* activations,
     // would get us more performance.
     float* current_layer_weights =
             weights + get_weights_loc_for_layer(layers, lnum);
-    io_req_t input_req = layers[lnum].input_req;
-    const char* weights_var_name =
-            input_req == IO_DMA ? "host_weights" : input_req == IO_ACP
-                                                           ? "acp_weights"
-                                                           : "cache_weights";
-    int weights_size = WEIGHT_BYTES(layers, lnum);
-    MAP_ARRAY_TO_ACCEL(g_smv.kConvolutionHw, weights_var_name,
-                       current_layer_weights, weights_size);
     layer_t curr_layer = layers[lnum];
     if (curr_layer.c_padding > 0) {
         // TODO: Replace this with a memcpy implementation.
@@ -168,14 +160,6 @@ result_buf depthwise_convolution_layer(float* activations,
                                        sampling_param_t* sampling_param) {
     float* current_layer_weights =
             weights + get_weights_loc_for_layer(layers, lnum);
-    io_req_t input_req = layers[lnum].input_req;
-    const char* weights_var_name =
-            input_req == IO_DMA ? "host_weights" : input_req == IO_ACP
-                                                           ? "acp_weights"
-                                                           : "cache_weights";
-    int weights_size = WEIGHT_BYTES(layers, lnum);
-    MAP_ARRAY_TO_ACCEL(g_smv.kConvolutionHw, weights_var_name,
-                       current_layer_weights, weights_size);
     layer_t curr_layer = layers[lnum];
     if (curr_layer.c_padding > 0) {
         copy_zeropad(activations, layers, lnum, result);
@@ -493,9 +477,6 @@ void nnet_fwd(farray_t activations,
     l = 0;
 
     set_io_requirements(&network, device);
-
-    MAP_ARRAY_TO_ACCEL(g_smv.kConvolutionHw, "host_activations", activations.d,
-                       activations.size);
 
     //******************//
     //   PRIMARY LOOP   //
