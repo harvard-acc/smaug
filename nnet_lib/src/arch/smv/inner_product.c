@@ -34,53 +34,50 @@ typedef struct _inner_product_options {
 // This function handles DMA operations to load the local memory if required,
 // runs the matrix multiply, and then handles the DMA transfer back to the host
 // if required. In the context of this function, "local memory" is any type of
-// memory that the accelerator can access directly (i.e. no DMA required). In
-// other words, "local_activations" could be pointing to SPAD0, but it could
-// have also been "acp_activations".
-//
-// For this reason, the first three arguments are prefixed with dma_, instead
-// of a more generic prefix (since this wrapper is called with varying
-// arguments), because they are only used if DMA is required.
+// memory that the accelerator can access directly (i.e. no DMA required), so
+// it is either a scratchpad/umem or a private cache. "host memory" refers to
+// either a DMA memory block or an ACP memory block -- for these, we will use
+// either DMA or ACP to copy the data into a local scratchpad first before
+// using the data.
 //
 // Arguments:
-//   dma_activations: The host address of the input activations.
-//   dma_weights: The host address of the input weights.
-//   dma_results: The host address of the input results.
+//   host_activations: The host address of the input activations.
+//   host_weights: The host address of the input weights.
+//   host_results: The host address of the input results.
 //   local_activations: Pointer to inputs that the accelerator reads directly.
 //   local_weights: Pointer to weights that the accelerator reads directly.
 //   local_results: Pointer to results that the accelerator writes directly.
 //   curr_layer: Description of this layer's shape and parameters.
 //   options: Additional options for this execution of inner product.
-void smv_inner_product_layer_hw_impl(float* dma_activations,
-                                     float* dma_weights,
-                                     float* dma_results,
+void smv_inner_product_layer_hw_impl(float* host_activations,
+                                     float* host_weights,
+                                     float* host_results,
                                      float* local_activations,
                                      float* local_weights,
                                      float* local_results,
-                                     float* acp_results,
                                      layer_t* curr_layer,
                                      smv_inner_product_options* options) {
     if (curr_layer->weights_req != IO_NONE) {
-        ASSERT(dma_weights && "DMA weights pointer cannot be NULL!");
+        ASSERT(host_weights && "DMA weights pointer cannot be NULL!");
         // This size includes the biases if options->do_bias is true.
         int weights_size = get_num_weights_layer(curr_layer, 0) * sizeof(float);
         setReadyBits(local_weights, SMV_UMEM_SIZE, 0);
-        dma_load_wrapper(local_weights, dma_weights, weights_size,
+        dma_load_wrapper(local_weights, host_weights, weights_size,
                          options->use_pipelined_dma);
     }
 
     if (curr_layer->input_req == IO_DMA || curr_layer->input_req == IO_ACP ||
         curr_layer->input_req == IO_CACHE) {
-        ASSERT(dma_activations && "DMA inputs pointer cannot be NULL!");
+        ASSERT(host_activations && "DMA inputs pointer cannot be NULL!");
         int activations_size =
                 get_input_activations_size(curr_layer) * sizeof(float);
         if (curr_layer->input_req == IO_DMA) {
             setReadyBits(local_activations, SMV_SPAD_SIZE, 0);
-            dma_load_wrapper(local_activations, dma_activations,
+            dma_load_wrapper(local_activations, host_activations,
                              activations_size, options->use_pipelined_dma);
         } else {
-            coherentLoad64(
-                    local_activations, dma_activations, activations_size, 0, 0);
+            coherentLoad64(local_activations, host_activations,
+                           activations_size, 0, 0);
         }
     }
 
@@ -119,12 +116,14 @@ void smv_inner_product_layer_hw_impl(float* dma_activations,
     // outputs to go out via ACP, then we need to explicitly store it back.
     size_t result_size =
             get_output_activations_size(curr_layer) * sizeof(float);
-    if (acp_results) {
+    if (curr_layer->output_req == IO_ACP ||
+        curr_layer->output_req == IO_CACHE) {
         int offset = options->dma_store_start / VECTOR_SIZE / 2;
-        coherentStore64(acp_results, local_results, result_size, offset, offset);
+        coherentStore64(
+                host_results, local_results, result_size, offset, offset);
     } else if (curr_layer->output_req == IO_DMA) {
-        ASSERT(dma_results && "DMA results pointer cannot be NULL!");
-        dma_store_wrapper(dma_results + options->dma_store_start,
+        ASSERT(host_results && "DMA results pointer cannot be NULL!");
+        dma_store_wrapper(host_results + options->dma_store_start,
                           local_results + options->dma_store_start, result_size,
                           options->use_pipelined_dma);
     }
@@ -153,34 +152,34 @@ void smv_inner_product_layer_hw(float* dma_activations,
     if (options->input_in_spad0) {
         if (use_acp_results) {
             if (use_acp_inputs) {
-                smv_inner_product_layer_hw_impl(
-                        acp_activations, dma_weights, dma_results, spad0, umem,
-                        spad1, acp_results, curr_layer, options);
+                smv_inner_product_layer_hw_impl(acp_activations, dma_weights,
+                                                acp_results, spad0, umem, spad1,
+                                                curr_layer, options);
             } else {
-                smv_inner_product_layer_hw_impl(
-                        dma_activations, dma_weights, dma_results, spad0, umem,
-                        spad1, acp_results, curr_layer, options);
+                smv_inner_product_layer_hw_impl(dma_activations, dma_weights,
+                                                acp_results, spad0, umem, spad1,
+                                                curr_layer, options);
             }
         } else {
             smv_inner_product_layer_hw_impl(dma_activations, dma_weights,
                                             dma_results, spad0, umem, spad1,
-                                            NULL, curr_layer, options);
+                                            curr_layer, options);
         }
     } else {
         if (use_acp_results) {
             if (use_acp_inputs) {
-                smv_inner_product_layer_hw_impl(
-                        acp_activations, dma_weights, dma_results, spad1, umem,
-                        spad0, acp_results, curr_layer, options);
+                smv_inner_product_layer_hw_impl(acp_activations, dma_weights,
+                                                acp_results, spad1, umem, spad0,
+                                                curr_layer, options);
             } else {
-                smv_inner_product_layer_hw_impl(
-                        dma_activations, dma_weights, dma_results, spad1, umem,
-                        spad0, acp_results, curr_layer, options);
+                smv_inner_product_layer_hw_impl(dma_activations, dma_weights,
+                                                acp_results, spad1, umem, spad0,
+                                                curr_layer, options);
             }
         } else {
             smv_inner_product_layer_hw_impl(dma_activations, dma_weights,
                                             dma_results, spad1, umem, spad0,
-                                            NULL, curr_layer, options);
+                                            curr_layer, options);
         }
     }
 }

@@ -57,20 +57,19 @@ void print_conv_tiling_cfg(conv_tiling_cfg* cfg) {
     }
 }
 
-static void smv_convolution_layer_hw_impl(float* dma_activations,
-                                          float* dma_weights,
-                                          float* dma_results,
+static void smv_convolution_layer_hw_impl(float* host_activations,
+                                          float* host_weights,
+                                          float* host_results,
                                           float* local_activations,
                                           float* local_weights,
                                           float* local_results,
-                                          float* acp_results,
                                           layer_t curr_layer,
                                           smv_convolution_options* options) {
     int input_height = curr_layer.inputs.height;
     int input_rows = curr_layer.inputs.rows;
     int input_cols = curr_layer.inputs.cols;
     int input_pad = curr_layer.inputs.align_pad;
-    ARRAY_4D(float, _a, dma_activations, input_height + input_pad, input_rows,
+    ARRAY_4D(float, _a, host_activations, input_height + input_pad, input_rows,
              input_cols);
     // DMA all the weights that we can fit in the current tile (which is
     // specified by this tile's outputs.height).
@@ -82,7 +81,7 @@ static void smv_convolution_layer_hw_impl(float* dma_activations,
     if (curr_layer.weights_req != IO_NONE) {
         setReadyBits(local_weights, num_weights * sizeof(float), 0);
         dma_load_wrapper(local_weights,
-                         dma_weights,
+                         host_weights,
                          num_weights * sizeof(float),
                          options->use_pipelined_dma);
     }
@@ -123,13 +122,13 @@ static void smv_convolution_layer_hw_impl(float* dma_activations,
     smv_activation_fun(local_results, NUM_TEST_CASES, num_output_pixels,
                        start_output_pixel, curr_layer.activation);
     if (curr_layer.output_req == IO_DMA) {
-        dma_store_wrapper(&dma_results[start_output_pixel],
+        dma_store_wrapper(&host_results[start_output_pixel],
                           &local_results[start_output_pixel],
                           num_output_pixels * sizeof(float),
                           options->use_pipelined_dma);
     } else if (curr_layer.output_req == IO_ACP) {
         int output_offset = start_output_pixel / VECTOR_SIZE / 2;
-        coherentStore64(acp_results, local_results,
+        coherentStore64(host_results, local_results,
                         num_output_pixels * sizeof(float), output_offset,
                         output_offset);
     }
@@ -156,23 +155,22 @@ static void smv_convolution_layer_hw(float* dma_activations,
     if (access_config->outputs == _ACP) {
         if (access_config->inputs == _ACP) {
             smv_convolution_layer_hw_impl(acp_activations, dma_weights,
-                                          dma_results, umem, spad0, spad1,
-                                          acp_results, curr_layer, options);
+                                          acp_results, umem, spad0, spad1,
+                                          curr_layer, options);
         } else {
             // If the input mechanism is Cache, then it is ignored, and we
             // fallback to DMA.
             if (curr_layer.input_req != IO_NONE)
                 curr_layer.input_req = IO_DMA;
             smv_convolution_layer_hw_impl(dma_activations, dma_weights,
-                                          dma_results, umem, spad0, spad1,
-                                          acp_results, curr_layer, options);
+                                          acp_results, umem, spad0, spad1,
+                                          curr_layer, options);
         }
     } else if (access_config->outputs == _Cache) {
         if (access_config->inputs == _Cache) {
             smv_convolution_layer_hw_impl(dma_activations, dma_weights,
                                           dma_results, cache_activations, spad0,
-                                          cache_results, acp_results,
-                                          curr_layer, options);
+                                          cache_results, curr_layer, options);
         } else {
             // If the input mechanism is ACP, then it is ignored, and we
             // fallback to DMA.
@@ -180,12 +178,11 @@ static void smv_convolution_layer_hw(float* dma_activations,
                 curr_layer.input_req = IO_DMA;
             smv_convolution_layer_hw_impl(
                     dma_activations, dma_weights, dma_results, umem, spad0,
-                    cache_results, acp_results, curr_layer, options);
+                    cache_results, curr_layer, options);
         }
     } else {
         smv_convolution_layer_hw_impl(dma_activations, dma_weights, dma_results,
-                                      umem, spad0, spad1, NULL, curr_layer,
-                                      options);
+                                      umem, spad0, spad1, curr_layer, options);
     }
 }
 
