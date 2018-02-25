@@ -43,7 +43,7 @@ static void smiv_pooling_layer_hw(float* host_activations,
 }
 
 // Pooling work division.
-pool_cfg_t pooling_divide_work(layer_t* curr_layer) {
+pool_cfg_t smiv_pooling_divide_work(layer_t* curr_layer) {
     pool_cfg_t pool_cfgs;
     dims_t input_nhwc_dims =
             nchw_to_nhwc_dims(&curr_layer->inputs, DATA_ALIGNMENT);
@@ -101,7 +101,7 @@ void smiv_pooling_layer_impl(float* inputs,
                              layer_t* curr_layer,
                              smiv_global* g_smiv,
                              float* results) {
-    pool_cfg_t pool_cfgs = pooling_divide_work(curr_layer);
+    pool_cfg_t pool_cfgs = smiv_pooling_divide_work(curr_layer);
 
     float* nhwc_inputs = NULL;
     begin_profiling("convert_nchw_to_blocked_nhwc", curr_layer->num);

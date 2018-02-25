@@ -255,8 +255,8 @@ result_buf pooling_layer(float* activations,
                          sampling_param_t* sampling_param) {
     layer_t curr_layer = layers[lnum];
     if (device->use_hw_pooling) {
-        smiv_pooling_layer_impl(
-                activations, &layers[lnum], (smiv_global*)&g_smv, result);
+        smv_pooling_layer_impl(
+                activations, &layers[lnum], &g_smv, result, device);
     } else {
 #ifdef __cplusplus
         if (curr_layer.pool == MAX) {
@@ -368,14 +368,8 @@ void set_io_requirements(network_t* network, device_t* device) {
         curr_layer->output_req = device->cpu_default_offload;
 #else
 
-        // We only support DMA for hardware pooling layers.
-        if (curr_layer->type == POOLING) {
-            curr_layer->input_req = IO_DMA;
-            curr_layer->output_req = IO_DMA;
-            continue;
-        }
-
-        // First, determine if we need to dma store the output.
+        // First, determine if we need to send the output back or if we can
+        // cache it in the scratchpads locally.
         if (layer_num == network->depth - 1 ||
             // All these activation functions are unsupported.
             curr_layer->activation == SOFTMAX ||
@@ -392,6 +386,7 @@ void set_io_requirements(network_t* network, device_t* device) {
             // now.
             curr_layer->type == BATCH_NORM ||
             next_layer->type == BATCH_NORM ||
+            curr_layer->type == POOLING ||
             next_layer->type == POOLING ||
             // If the FC block needs work division, we can't locally cache.
             (curr_layer->type == FC && next_layer->type == FC &&

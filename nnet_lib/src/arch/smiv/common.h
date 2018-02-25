@@ -57,6 +57,7 @@ void print_smiv_work_cfg(smiv_work_cfg_t* cfg);
 bool smiv_is_supported_activation_func(layer_type ltype, activation_type func);
 bool smiv_inner_product_needs_work_division(layer_t* curr_layer);
 void smiv_inner_product_check_absolute_size_limits(layer_t* curr_layer);
+pool_cfg_t smiv_pooling_divide_work(layer_t* curr_layer);
 
 result_buf smiv_activation_function(float* activations,
                                     layer_t* layer,
