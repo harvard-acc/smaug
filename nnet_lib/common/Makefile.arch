@@ -21,9 +21,9 @@ CORE_SRCS = core/ref/activation_functions.c \
 						core/smiv/max_pooling_nhwc.c \
 						core/smiv/average_pooling_nhwc.c \
 						core/smiv/decompression.c \
-						core/smv/matrix_multiply.c \
 						core/smv/convolution.c \
 						core/smv/convolution_simd.c \
+						core/smv/matrix_multiply.c \
 						core/smv/smv.c
 
 UTILITY_SRCS = utility/init_data.c \
@@ -65,10 +65,11 @@ SMIV_ARCH_SRCS = arch/smiv/activation_functions.c \
 								 arch/smiv/pooling.c \
 								 arch/smiv/utils.c
 
-SMV_ARCH_SRCS = arch/smv/inner_product.c \
+SMV_ARCH_SRCS = arch/smv/activation_functions.c \
+						    arch/smv/batch_norm.c \
 								arch/smv/convolution.c \
-								arch/smv/activation_functions.c \
-								arch/smv/dma_copy.c
+								arch/smv/dma_copy.c \
+								arch/smv/inner_product.c
 
 NNET_FWD_MAIN = nnet_fwd.c
 CPP_NNET_FWD_MAIN = nnet_fwd.cpp
@@ -87,7 +88,7 @@ export WORKLOAD=smiv_inner_product_layer_hw,smiv_convolution_layer_hw,activation
 SRCS += $(NNET_FWD_MAIN) $(SMIV_ARCH_SRCS)
 else ifeq ($(ARCH), SMV)
 EXEC = nnet-smv
-export WORKLOAD=smv_inner_product_layer_hw,smv_convolution_layer_hw,activation_fun_fxp,smiv_batch_norm_layer_hw,smiv_pooling_layer_hw,smiv_decompress_packed_csr_hw,smv_dma_load_hw,smv_dma_store_hw
+export WORKLOAD=smv_inner_product_layer_hw,smv_convolution_layer_hw,activation_fun_fxp,smv_batch_norm_layer_hw,smiv_pooling_layer_hw,smiv_decompress_packed_csr_hw,smv_dma_load_hw,smv_dma_store_hw
 SRCS += $(NNET_FWD_MAIN) $(SMV_ARCH_SRCS) $(SMIV_ARCH_SRCS)
 else ifeq	($(ARCH), COMPOSABLE)
 EXEC = nnet-composable

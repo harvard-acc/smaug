@@ -56,6 +56,13 @@ void smv_inner_product_layer_impl(float* host_activations,
                                   float* host_results,
                                   smv_global* g_smv,
                                   device_t* device);
+void smv_batch_norm_layer_impl(float* activations,
+                               float* weights,
+                               layer_t* layers,
+                               int lnum,
+                               float* result,
+                               smv_global* g_smv,
+                               device_t* device);
 void smv_activation_fun(float* local_activations,
                         int batch_size,
                         int input_size,

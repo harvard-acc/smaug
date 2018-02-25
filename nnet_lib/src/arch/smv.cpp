@@ -284,7 +284,6 @@ result_buf pooling_layer(float* activations,
     return result;
 }
 
-// TODO: Fallback to SMIV.
 result_buf batch_norm_layer(float* activations,
                             float* weights,
                             layer_t* layers,
@@ -292,8 +291,8 @@ result_buf batch_norm_layer(float* activations,
                             float* result,
                             device_t* device,
                             sampling_param_t* sampling_param) {
-    smiv_batch_norm_layer_impl(activations, weights, layers, lnum, result,
-                               (smiv_global*)&g_smv, device);
+    smv_batch_norm_layer_impl(
+            activations, weights, layers, lnum, result, &g_smv, device);
     return result;
 }
 
@@ -369,8 +368,8 @@ void set_io_requirements(network_t* network, device_t* device) {
         curr_layer->output_req = device->cpu_default_offload;
 #else
 
-        // We only support DMA for hardware batch norm and pooling layers.
-        if (curr_layer->type == BATCH_NORM || curr_layer->type == POOLING) {
+        // We only support DMA for hardware pooling layers.
+        if (curr_layer->type == POOLING) {
             curr_layer->input_req = IO_DMA;
             curr_layer->output_req = IO_DMA;
             continue;
@@ -391,7 +390,9 @@ void set_io_requirements(network_t* network, device_t* device) {
             // We need to do data layout on the CPU before invoking pooling
             // block and we don't support local caching for batch norm right
             // now.
-            next_layer->type == BATCH_NORM || next_layer->type == POOLING ||
+            curr_layer->type == BATCH_NORM ||
+            next_layer->type == BATCH_NORM ||
+            next_layer->type == POOLING ||
             // If the FC block needs work division, we can't locally cache.
             (curr_layer->type == FC && next_layer->type == FC &&
              smv_inner_product_needs_work_division(
@@ -415,13 +416,15 @@ void set_io_requirements(network_t* network, device_t* device) {
             }
         }
         // We only do flattening on the CPU, so if the current layer needs
-        // flattening, it means the previous layer needs to send resutls
+        // flattening, it means the previous layer needs to send results
         // back to the CPU.
         if (curr_layer->input_preprocessing == FLATTEN) {
-            // Since batch norm and pooling blocks only support DMA, so except
-            // them here.
-            if (!(prev_layer->type == BATCH_NORM) &&
-                !(prev_layer->type == POOLING))
+            // This sets the output of the previous layer to the default
+            // offload mechanism; in effect, it simply makes sure it is not
+            // IO_NONE. The only exception is for POOLING; because pooling
+            // layers only support DMA, we can't set it to whatever the CPU
+            // default offload is.
+            if (prev_layer->type != POOLING)
                 prev_layer->output_req = device->cpu_default_offload;
         }
         // If the previous layer doesn't need to send back results (e.g.,
