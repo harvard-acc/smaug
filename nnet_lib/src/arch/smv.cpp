@@ -411,16 +411,11 @@ void set_io_requirements(network_t* network, device_t* device) {
             }
         }
         // We only do flattening on the CPU, so if the current layer needs
-        // flattening, it means the previous layer needs to send results
-        // back to the CPU.
+        // flattening, the previous layer needs to send results back to the
+        // CPU, which means it cannot be locally cached.
         if (curr_layer->input_preprocessing == FLATTEN) {
-            // This sets the output of the previous layer to the default
-            // offload mechanism; in effect, it simply makes sure it is not
-            // IO_NONE. The only exception is for POOLING; because pooling
-            // layers only support DMA, we can't set it to whatever the CPU
-            // default offload is.
-            if (prev_layer->type != POOLING)
-                prev_layer->output_req = device->cpu_default_offload;
+            if (prev_layer->output_req == IO_NONE)
+                prev_layer->output_req = prev_layer->input_req;
         }
         // If the previous layer doesn't need to send back results (e.g.,
         // FC->FC caching), the current layer needs no IO for inputs.

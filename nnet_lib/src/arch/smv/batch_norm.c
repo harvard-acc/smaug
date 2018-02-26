@@ -108,6 +108,8 @@ static void smv_batch_norm_layer_hw(float* dma_activations,
                                          cache_results, curr_layer, options);
         }
     } else {
+        if (curr_layer->input_req != IO_NONE)
+            curr_layer->input_req = IO_DMA;
         smv_batch_norm_layer_hw_impl(dma_activations, dma_weights, dma_results,
                                      umem, spad0, spad1, curr_layer, options);
     }
