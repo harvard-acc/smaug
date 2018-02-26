@@ -490,6 +490,10 @@ nnet_fwd_outer:
 
     network.layers[network.depth - 1].result_in_temp = (result_loc == result.d);
 
+#ifdef __cplusplus
+    delete session;
+#endif
+
     free_smv_global();
 }
 

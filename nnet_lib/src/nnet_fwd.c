@@ -235,6 +235,13 @@ weights_list init_weights_list(int len) {
     return list;
 }
 
+void free_weights_list(weights_list* list) {
+    // This only frees the container structures, not the actual data buffers.
+    free(list->data);
+    free(list->type);
+    // Don't free the pointer! The pointer is not malloc'ed.
+}
+
 weights_list pack_compress_colmajor_weights(float* weights,
                                             dims_t* orig_dims,
                                             dims_t* bias_dims) {
@@ -261,7 +268,7 @@ weights_list pack_compress_colmajor_weights(float* weights,
     list.data[1].dense = biases_storage;
     list.type[0] = PackedCSR;
     list.type[1] = Uncompressed;
-    free(weights_csr);
+    free_csr_array_t(weights_csr);
 
     return list;
 }
@@ -334,6 +341,7 @@ void free_network_weights(network_t* network) {
                 free(array);
             }
         }
+        free_weights_list(&layer->host_weights);
     }
 }
 
@@ -494,6 +502,7 @@ int main(int argc, char* argv[]) {
     free(hid_temp.d);
     free(weights.d);
     free(labels.d);
+    free(compress_type.d);
     free(network.layers);
     free(device);
     free(sampling_param);

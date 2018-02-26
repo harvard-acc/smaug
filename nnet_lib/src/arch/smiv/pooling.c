@@ -179,6 +179,7 @@ void smiv_pooling_layer_impl(float* inputs,
                                  DATA_ALIGNMENT,
                                  &results);
     end_profiling();
+    free_smiv_work_cfg(&pool_cfgs);
     free(nhwc_inputs);
     free(nhwc_outputs);
 }

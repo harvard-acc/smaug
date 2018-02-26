@@ -494,6 +494,7 @@ void free_csr_tile_list(csr_tile_list* list) {
         free(head);
         head = next;
     } while (head);
+    free(list);
 }
 
 // Compute the required bytes to store this store.

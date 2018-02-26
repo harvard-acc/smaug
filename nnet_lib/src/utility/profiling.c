@@ -72,6 +72,11 @@ log_entry_t* new_log_entry(const char* label, int layer_num, log_type type) {
     return entry;
 }
 
+void free_log_entry(log_entry_t* entry) {
+    free(entry->label.str);
+    free(entry);
+}
+
 // Push this new entry onto the stack.
 void push_to_log_entry_stack(log_entry_t* entry, log_entry_t** stack_top) {
     if (stack_top == NULL) {
@@ -169,7 +174,7 @@ void close_profiling_log() {
     log_entry_t* curr_entry = profile_log;
     while (curr_entry) {
         log_entry_t* next = curr_entry->next;
-        free(curr_entry);
+        free_log_entry(curr_entry);
         curr_entry = next;
     }
     profile_log = NULL;
