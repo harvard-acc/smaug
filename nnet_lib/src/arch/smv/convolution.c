@@ -377,8 +377,8 @@ void smv_standard_convolution_layer_impl(float* host_activations,
                 if (iter != 0 && !is_last_iter &&
                     inner_iters_executed >= sampled_inner_iters) {
                     // Skip this iteration and zero out the result.
-                    memset(&_result[img][options.kern_start][0][0], 0,
-                           result_2d_size * num_kerns_this_iter);
+                    memset(&_result[img][kern_start + options.kern_start][0][0],
+                           0, result_2d_size * num_kerns_this_iter);
                     continue;
                 }
 
