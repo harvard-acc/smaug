@@ -204,9 +204,17 @@ static layer_t create_partial_layer_from_tile(layer_t* full_layer,
 }
 
 static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer) {
+    // Ensure that all the tiling is done using NHWC padding on the inputs (not
+    // the outputs - they get written in NCHW!).
+    layer_t curr_layer_nhwc_padded = *curr_layer;
+    curr_layer_nhwc_padded.weights.align_pad =
+            calc_padding(curr_layer->inputs.height, DATA_ALIGNMENT);
+    curr_layer_nhwc_padded.inputs.align_pad =
+            calc_padding(curr_layer->inputs.height, DATA_ALIGNMENT);
+
     conv_tiling_cfg cfg;
     int total_input_bytes =
-            (get_dims_size(&curr_layer->inputs) * sizeof(float)) /
+            (get_dims_size(&curr_layer_nhwc_padded.inputs) * sizeof(float)) /
             NUM_TEST_CASES;
 
     if (total_input_bytes > SMV_UMEM_SIZE) {
@@ -215,10 +223,10 @@ static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer) {
         assert(false);
     }
 
-    const int output_2d_size =
-            curr_layer->outputs.rows *
-            (curr_layer->outputs.cols + curr_layer->outputs.align_pad) *
-            sizeof(float);
+    const int output_2d_size = curr_layer_nhwc_padded.outputs.rows *
+                               (curr_layer_nhwc_padded.outputs.cols +
+                                curr_layer_nhwc_padded.outputs.align_pad) *
+                               sizeof(float);
     if (output_2d_size > SMV_SPAD_SIZE) {
         fprintf(stderr,
                 "A single output channel doesn't fit on the scratchpad! We "
@@ -231,19 +239,19 @@ static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer) {
     // by how many weights and output feature maps can fit into the two
     // scratchpads.
     const int single_kernel_size =
-            get_nhwc_dims_size(&curr_layer->weights) * sizeof(float);
+            get_nhwc_dims_size(&curr_layer_nhwc_padded.weights) * sizeof(float);
     const int max_kernels_per_iter = SMV_SPAD_SIZE / single_kernel_size;
     const int max_ofmaps_per_iter = SMV_SPAD_SIZE / output_2d_size;
     const int num_ofmaps_per_iter =
             min2(max_kernels_per_iter, max_ofmaps_per_iter);
     const int num_iters =
-            ceil(((float)curr_layer->outputs.height) / num_ofmaps_per_iter);
+            ceil(((float)curr_layer_nhwc_padded.outputs.height) / num_ofmaps_per_iter);
     init_conv_tiling_cfg(&cfg, num_iters);
-    int remaining_ofmaps = curr_layer->outputs.height;
+    int remaining_ofmaps = curr_layer_nhwc_padded.outputs.height;
     for (int i = 0; i < num_iters; i++) {
-        cfg.tiles[i].input_dims[0] = curr_layer->inputs.height;
-        cfg.tiles[i].input_dims[1] = curr_layer->inputs.cols;
-        cfg.tiles[i].input_dims[2] = curr_layer->inputs.rows;
+        cfg.tiles[i].input_dims[0] = curr_layer_nhwc_padded.inputs.height;
+        cfg.tiles[i].input_dims[1] = curr_layer_nhwc_padded.inputs.cols;
+        cfg.tiles[i].input_dims[2] = curr_layer_nhwc_padded.inputs.rows;
         cfg.tiles[i].input_dims[3] = NUM_TEST_CASES;
         cfg.tiles[i].input_dims[4] = 1;
         cfg.tiles[i].input_pad =
