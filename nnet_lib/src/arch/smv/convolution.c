@@ -181,6 +181,9 @@ static void smv_convolution_layer_hw(float* dma_activations,
                     cache_results, curr_layer, options);
         }
     } else {
+        ASSERT((access_config->inputs == _DmaOrLocal &&
+                access_config->outputs == _DmaOrLocal) &&
+               "IO requirements are inconsistent with DMA fallback!");
         smv_convolution_layer_hw_impl(dma_activations, dma_weights, dma_results,
                                       umem, spad0, spad1, curr_layer, options);
     }

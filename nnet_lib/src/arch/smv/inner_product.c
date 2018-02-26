@@ -144,6 +144,8 @@ void smv_inner_product_layer_hw(float* dma_activations,
                                 layer_t* curr_layer,
                                 access_config* access_config,
                                 smv_inner_product_options* options) {
+    // We don't currently support using a local cache for inner products.  If
+    // the IO requirement is IO_CACHE, it will be treated as IO_ACP.
     bool use_acp_results = (access_config->outputs == _ACP ||
                             access_config->outputs == _Cache);
     bool use_acp_inputs =
@@ -156,14 +158,26 @@ void smv_inner_product_layer_hw(float* dma_activations,
                                                 acp_results, spad0, umem, spad1,
                                                 curr_layer, options);
             } else {
+                // Not a common scenario but should be supported anyways.
                 smv_inner_product_layer_hw_impl(dma_activations, dma_weights,
                                                 acp_results, spad0, umem, spad1,
                                                 curr_layer, options);
             }
         } else {
-            smv_inner_product_layer_hw_impl(dma_activations, dma_weights,
-                                            dma_results, spad0, umem, spad1,
-                                            curr_layer, options);
+            if (use_acp_inputs) {
+                // Common use case: Use ACP to load input, but leave data in
+                // the spads.
+                smv_inner_product_layer_hw_impl(acp_activations, dma_weights,
+                                                dma_results, spad0, umem, spad1,
+                                                curr_layer, options);
+            } else {
+                ASSERT((access_config->inputs == _DmaOrLocal &&
+                        access_config->outputs == _DmaOrLocal) &&
+                       "IO requirements are inconsistent with DMA fallback!");
+                smv_inner_product_layer_hw_impl(dma_activations, dma_weights,
+                                                dma_results, spad0, umem, spad1,
+                                                curr_layer, options);
+            }
         }
     } else {
         if (use_acp_results) {
@@ -172,14 +186,26 @@ void smv_inner_product_layer_hw(float* dma_activations,
                                                 acp_results, spad1, umem, spad0,
                                                 curr_layer, options);
             } else {
+                // Not a common scenario but should be supported anyways.
                 smv_inner_product_layer_hw_impl(dma_activations, dma_weights,
                                                 acp_results, spad1, umem, spad0,
                                                 curr_layer, options);
             }
         } else {
-            smv_inner_product_layer_hw_impl(dma_activations, dma_weights,
-                                            dma_results, spad1, umem, spad0,
-                                            curr_layer, options);
+            if (use_acp_inputs) {
+                // Common use case: Use ACP to load input, but leave data in
+                // the spads.
+                smv_inner_product_layer_hw_impl(acp_activations, dma_weights,
+                                                dma_results, spad1, umem, spad0,
+                                                curr_layer, options);
+            } else {
+                ASSERT((access_config->inputs == _DmaOrLocal &&
+                        access_config->outputs == _DmaOrLocal) &&
+                       "IO requirements are inconsistent with DMA fallback!");
+                smv_inner_product_layer_hw_impl(dma_activations, dma_weights,
+                                                dma_results, spad1, umem, spad0,
+                                                curr_layer, options);
+            }
         }
     }
 }
