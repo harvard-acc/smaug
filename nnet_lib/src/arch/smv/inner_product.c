@@ -352,8 +352,12 @@ void smv_inner_product_layer_hw_dispatch(float* activations,
 // Finally, decompression will overwrite content stored in one of the
 // scratchpads, so the layer descriptor for the inner product needs to be
 // modified to account for this by doing some extra DMAs.
-layer_t smv_inner_product_run_decompression_and_update_layer(
-        layer_t partial_layer,
+//
+// The modified partial layer descriptor is updated directly via the first
+// function argument.
+void smv_inner_product_run_decompression_and_update_layer(
+        layer_t* partial_layer,
+        const layer_t* full_layer,
         dims_t* curr_iter,
         float* host_results,
         int current_row,
@@ -361,7 +365,7 @@ layer_t smv_inner_product_run_decompression_and_update_layer(
         bool is_last_iter,
         smv_global* g_smv,
         device_t* device) {
-    layer_t transpose_layer = partial_layer;
+    layer_t transpose_layer = *partial_layer;
     // Transpose the dimensions of the layer so we decompress the colmajor
     // weights correctly.
     int rows = transpose_layer.weights.rows;
@@ -371,13 +375,13 @@ layer_t smv_inner_product_run_decompression_and_update_layer(
                                     input_in_spad0, (smiv_global*)g_smv,
                                     device);
     if (is_last_iter) {
-        assert(partial_layer.host_weights.len == 2 &&
+        assert(partial_layer->host_weights.len == 2 &&
                "Inner product HW on SMV must have two sets of "
                "weights!");
-        assert(partial_layer.host_weights.type[1] == Uncompressed &&
+        assert(partial_layer->host_weights.type[1] == Uncompressed &&
                "The second set of weights (biases) must be "
                "uncompressed!");
-        farray_t* biases = partial_layer.host_weights.data[1].dense;
+        farray_t* biases = partial_layer->host_weights.data[1].dense;
         dma_options options;
         options.src_offset = 0;
         options.dst_offset = get_nhwc_dims_size(&transpose_layer.weights);
@@ -404,28 +408,27 @@ layer_t smv_inner_product_run_decompression_and_update_layer(
 
         // On the last iteration, send the entire output back, because
         // only the last iteration applies the bias and activation
-        // function, so don't change partial_layer.outputs.cols.
+        // function, so don't change partial_layer->outputs.cols.
     } else {
         // Otherwise, send back only the pixels that were produced
         // during this iteration.
-        partial_layer.outputs.cols = curr_iter->cols;
+        partial_layer->outputs.cols = curr_iter->cols;
     }
 
     // Now that we've decompressed the weights, we don't need to DMA
     // them again.
-    partial_layer.weights_req = IO_NONE;
+    partial_layer->weights_req = IO_NONE;
 
     // If decompression is needed, we'll also want to send back the
     // pre-activation function outputs.
-    if (partial_layer.output_req == IO_NONE)
-        partial_layer.output_req = device->cpu_default_offload;
+    if (partial_layer->output_req == IO_NONE)
+        partial_layer->output_req = full_layer->output_req;
 
     PRINT_MSG("Weights:\n");
     PRINT_DEBUG(g_smv->umem,
-                partial_layer.weights.cols,
-                partial_layer.weights.rows,
-                partial_layer.weights.rows + partial_layer.weights.align_pad);
-    return partial_layer;
+                partial_layer->weights.cols,
+                partial_layer->weights.rows,
+                partial_layer->weights.rows + partial_layer->weights.align_pad);
 }
 
 void smv_inner_product_layer_impl_rowwise(float* host_activations,
@@ -519,10 +522,9 @@ void smv_inner_product_layer_impl_rowwise(float* host_activations,
                    partial_layer.weights.cols);
 
         if (requires_decompression) {
-            partial_layer =
-                    smv_inner_product_run_decompression_and_update_layer(
-                            partial_layer, curr_iter, host_results, current_row,
-                            input_in_spad0, is_last_iter, g_smv, device);
+            smv_inner_product_run_decompression_and_update_layer(
+                    &partial_layer, curr_layer, curr_iter, host_results,
+                    current_row, input_in_spad0, is_last_iter, g_smv, device);
             curr_dense_weights_loc = NULL;  // To prevent us from DMAing it.
 
             // Optimization: On the last iteration, write directly to the final
