@@ -47,8 +47,10 @@ void free_conv_tiling_cfg(conv_tiling_cfg* cfg) {
 void print_conv_tiling_cfg(conv_tiling_cfg* cfg) {
     for (int i = 0; i < cfg->num_tiles; i++) {
         INFO_MSG("Tile %d:\n"
-                 "  Size: %d, %d, %d, %d, %d\n",
+                 "  OFMaps: %d\n"
+                 "  IFMap size: %d, %d, %d, %d, %d\n",
                  i,
+                 cfg->tiles[i].num_ofmaps,
                  cfg->tiles[i].input_dims[0],
                  cfg->tiles[i].input_dims[1],
                  cfg->tiles[i].input_dims[2],
