@@ -6,6 +6,7 @@
 #include "arch/smv/common.h"
 #include "core/smv/params.h"
 #include "core/smv/smv.h"
+#include "core/ref/activation_functions.h"
 #include "utility/data_layout_conversion.h"
 #include "utility/utility.h"
 
@@ -305,6 +306,7 @@ void smv_standard_convolution_layer_impl(float* host_activations,
                             smiv_is_supported_activation_func(
                                     curr_layer.type, curr_layer.activation);
     bool use_pipelined_dma = device->use_pipelined_dma;
+    bool use_pipelined_activation = device->use_pipelined_activation_func;
     if (curr_layer.input_req == IO_DMA) {
         // Flush cache lines for activations and weights.
         begin_ignored_profiling(lnum);
@@ -324,6 +326,13 @@ void smv_standard_convolution_layer_impl(float* host_activations,
     // of inner iterations, if there are any.
     if (sampled_inner_iters == 0)
         sampled_inner_iters = max2(0, num_kerns - 2);
+
+    volatile int finish_flag;
+#ifdef GEM5_HARNESS
+    finish_flag = NOT_COMPLETED;
+#else
+    finish_flag = 0;
+#endif
     for (int img = 0; img < NUM_TEST_CASES; img++) {
         int kern_start = 0;
         for (int t = 0; t < tiling.num_tiles; t++) {
@@ -369,6 +378,11 @@ void smv_standard_convolution_layer_impl(float* host_activations,
                 set_profiling_type_sampled(
                         sampled_inner_iters + 2, num_hw_iters);
             }
+            // Used for the pipelined activation mechanism. The current iteration
+            // will do activation function on the results produced by previous
+            // iteration.
+            int prev_iter_num_kerns = 0;
+            int prev_kern_start = 0;
             for (int iter = 0; iter < num_hw_iters; iter++) {
                 bool is_last_iter = (iter == num_hw_iters - 1);
                 smv_convolution_options options;
@@ -385,14 +399,6 @@ void smv_standard_convolution_layer_impl(float* host_activations,
                 options.total_tile_ofmaps = tile->num_ofmaps;
                 options.use_pipelined_dma = use_pipelined_dma;
 
-                if (iter != 0 && !is_last_iter &&
-                    inner_iters_executed >= sampled_inner_iters) {
-                    // Skip this iteration and zero out the result.
-                    memset(&_result[img][kern_start + options.kern_start][0][0],
-                           0, result_2d_size * num_kerns_this_iter);
-                    continue;
-                }
-
                 // Only copy weights and inputs on the first iteration.
                 if (iter > 0) {
                     if (partial_layer.input_req == IO_DMA ||
@@ -408,18 +414,66 @@ void smv_standard_convolution_layer_impl(float* host_activations,
                                                    : NO_ACTIVATION;
                 access_config access_cfg =
                         layer_to_access_config(&partial_layer);
-                INVOKE_KERNEL_PROF(
-                        g_smv->kConvolutionHw, lnum, smv_convolution_layer_hw,
-                        nhwc_activations, nhwc_weights, result_loc,  // DMA
-                        nhwc_activations, nhwc_weights, result_loc,  // Cache
-                        nhwc_activations, nhwc_weights, result_loc,  // ACP
-                        g_smv->umem, g_smv->spad0, g_smv->spad1, partial_layer,
-                        &access_cfg, &options);
+                if (!use_pipelined_activation) {
+                    INVOKE_KERNEL_PROF(
+                            g_smv->kConvolutionHw, lnum, smv_convolution_layer_hw,
+                            nhwc_activations, nhwc_weights, result_loc,  // DMA
+                            nhwc_activations, nhwc_weights, result_loc,  // Cache
+                            nhwc_activations, nhwc_weights, result_loc,  // ACP
+                            g_smv->umem, g_smv->spad0, g_smv->spad1, partial_layer,
+                            &access_cfg, &options);
+
+                } else {
+                    // If the previous iteration has finished, start doing
+                    // activation functions and invoke the next iteration
+                    // simultaneously. Otherwise, wait until the previous iteration
+                    // finishes.
+                    while (iter != 0 && finish_flag == NOT_COMPLETED)
+                        ;
+                    if (iter != 0)
+                        end_profiling();
+                    begin_profiling("smv_convolution_layer_hw_activation_func", lnum);
+                    INVOKE_KERNEL_NOBLOCK(
+                            g_smv->kConvolutionHw, &finish_flag,
+                            smv_convolution_layer_hw,
+                            nhwc_activations, nhwc_weights, result_loc,  // DMA
+                            nhwc_activations, nhwc_weights, result_loc,  // Cache
+                            nhwc_activations, nhwc_weights, result_loc,  // ACP
+                            g_smv->umem, g_smv->spad0, g_smv->spad1, partial_layer,
+                            &access_cfg, &options);
+                    if (iter != 0 && !do_hw_activation) {
+                        begin_profiling(ACTIVATION_TYPE_STR(curr_layer.activation), lnum);
+                        activation_fun(
+                                &_result[img][prev_kern_start][0][0],
+                                1,
+                                result_2d_size * prev_iter_num_kerns,
+                                curr_layer.activation);
+                        end_profiling();
+                    }
+                    prev_iter_num_kerns = num_kerns_this_iter;
+                    prev_kern_start = kern_start + options.kern_start;
+                }
 
                 if (iter != 0 && !is_last_iter) {
                     inner_iters_executed++;
                 }
             }
+            // We need to do activation function for the last iteration of the
+            // tile.
+            if (use_pipelined_activation && !do_hw_activation) {
+                while (finish_flag == NOT_COMPLETED)
+                    ;
+                end_profiling();
+                begin_profiling(
+                        ACTIVATION_TYPE_STR(curr_layer.activation), lnum);
+                activation_fun(
+                        &_result[img][prev_kern_start][0][0],
+                        1,
+                        result_2d_size * prev_iter_num_kerns,
+                        curr_layer.activation);
+                end_profiling();
+            }
+
             free(nhwc_weights);
             kern_start += tile->num_ofmaps;
             end_profiling();

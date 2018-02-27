@@ -600,6 +600,8 @@ static void read_device_parameters(cfg_t* all_opts, device_t* device) {
         device->use_hw_pooling = cfg_getbool(device_opts, "use_hw_pooling");
         device->use_pipelined_dma =
                 cfg_getbool(device_opts, "use_pipelined_dma");
+        device->use_pipelined_activation_func =
+                cfg_getbool(device_opts, "use_pipelined_activation_func");
     } else {
         device->cpu_default_offload = IO_DMA;
         device->cpu_pooling_offload = IO_DMA;
@@ -608,6 +610,7 @@ static void read_device_parameters(cfg_t* all_opts, device_t* device) {
         device->use_hw_batch_norm = false;
         device->use_hw_pooling = false;
         device->use_pipelined_dma = false;
+        device->use_pipelined_activation_func = false;
     }
 }
 
@@ -717,14 +720,16 @@ static void print_device_config(device_t* device) {
            "   Use HW activation function: %s\n"
            "   Use HW batch norm: %s\n"
            "   Use HW pooling: %s\n"
-           "   Use pipelined DMA: %s\n",
+           "   Use pipelined DMA: %s\n"
+           "   Use pipelined activation function: %s\n",
            io_req_to_str(device->cpu_default_offload),
            io_req_to_str(device->cpu_pooling_offload),
            io_req_to_str(device->cpu_activation_func_offload),
            bool_to_yesno(device->use_hw_activation_func),
            bool_to_yesno(device->use_hw_batch_norm),
            bool_to_yesno(device->use_hw_pooling),
-           bool_to_yesno(device->use_pipelined_dma));
+           bool_to_yesno(device->use_pipelined_dma),
+           bool_to_yesno(device->use_pipelined_activation_func));
 }
 
 static void print_sampling_param(sampling_param_t* sampling_param) {

@@ -300,7 +300,8 @@ result_buf run_layer(float* activations,
     bool do_hw_activation =
             device->use_hw_activation_func &&
             smiv_is_supported_activation_func(layers[layer_num].type, act_func);
-    if (do_activation && !do_hw_activation) {
+    bool use_pipelined_activation = device->use_pipelined_activation_func;
+    if (do_activation && !do_hw_activation && !use_pipelined_activation) {
         if (result_loc == activations) {
             result_loc = smv_activation_function(
                     activations, &layers[layer_num], result, device);

@@ -216,6 +216,7 @@ typedef struct _device_t {
     bool use_hw_batch_norm;
     bool use_hw_pooling;
     bool use_pipelined_dma;
+    bool use_pipelined_activation_func;
     // An implementation can pass any pointer containing architecture specific
     // state that must be shared.
     void* session;
@@ -323,6 +324,11 @@ typedef struct _sampling_param_t {
         UNUSED(kernel_ptr);                                                    \
         invokeAcceleratorAndBlock(req_code);                                   \
     } while (0)
+#define INVOKE_KERNEL_NOBLOCK(req_code, finish_flag, kernel_ptr, args...)      \
+    do {                                                                       \
+        UNUSED(kernel_ptr);                                                    \
+        invokeAcceleratorAndReturn2(req_code, finish_flag);                    \
+    } while (0)
 
 #else
 
@@ -334,6 +340,8 @@ typedef struct _sampling_param_t {
         UNUSED(size);                                                          \
     } while (0)
 #define INVOKE_KERNEL(req_code, kernel_ptr, args...) kernel_ptr(args)
+#define INVOKE_KERNEL_NOBLOCK(req_code, finish_flag, kernel_ptr, args...)      \
+    kernel_ptr(args)
 
 #endif
 
