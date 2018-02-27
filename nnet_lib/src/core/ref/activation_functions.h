@@ -17,12 +17,12 @@ void elu(float* a, int num_units, float alpha, float* results);
 void selu(float* a, int num_units);
 void tanh_act(float* a, int num_units, float* results);
 void sigmoid_inplace(float* a, int num_units);
-float sigmoid(float a);
+float sigmoid_fxp(float a);
 void sigmoidn(float* a, int num_units);
 void sigmoid_lookup(float* a, int num_units);
 void softmax(float* a, int num_test_cases, int softmax_size);
 
-void elu_lut(float* a, int num_units, float alpha, float* results);
+void elu_lut_fxp(float* a, int num_units, float alpha, float* results);
 void sigmoid_lookup_centered(float* a, int num_units, float* results);
 void sigmoid_lookup_noncentered(float* a, int num_units, float* results);
 

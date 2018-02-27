@@ -27,7 +27,7 @@ void init_sigmoid_table(float** table_ptr) {
     }
 
     for (int i = 0; i < SIG_TABLE_SIZE; i++) {
-        (*table_ptr)[i] = conv_float2fixed(sigmoid(x_sig));
+        (*table_ptr)[i] = conv_float2fixed(sigmoid_fxp(x_sig));
         // printf("%f, %f\n", x_sig, (*table_ptr)[i]);
         x_sig += sig_step;
     }

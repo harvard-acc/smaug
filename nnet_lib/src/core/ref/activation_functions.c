@@ -9,7 +9,7 @@
 //
 // Operates on a single float.
 ALWAYS_INLINE
-float sigmoid(float a) {
+float sigmoid_fxp(float a) {
     return 1.0 / (1.0 + exp(-a));
 }
 
@@ -86,12 +86,12 @@ void elu_expunit(float* a, int num_units, float alpha, float* results) {
 }
 
 ALWAYS_INLINE
-void elu_lut(float* a, int num_units, float alpha, float* results) {
+void elu_lut_fxp(float* a, int num_units, float alpha, float* results) {
     elu_loop:
     for (int i = 0; i < num_units; i++) {
         float value = a[i];
         if (value < 0.0) {
-            results[i] = alpha * (exp_lut(value) - 1);
+            results[i] = alpha * (exp_lut_fxp(value) - 1);
         } else {
             results[i] = value;
         }
@@ -105,7 +105,7 @@ void elu(float* a, int num_units, float alpha, float* results) {
     if (SIGMOID_IMPL == ExpUnit) {
         elu_expunit(a, num_units, alpha, results);
     } else {
-        elu_lut(a, num_units, alpha, results);
+        elu_lut_fxp(a, num_units, alpha, results);
     }
 }
 
@@ -160,7 +160,7 @@ void sigmoidn(float* a, int num_units) {
     float value;
     sigmoidn_loop:
     for (i = 0; i < num_units; i++) {
-        value = sigmoid(a[i]);
+        value = sigmoid_fxp(a[i]);
         a[i] = conv_float2fixed(value);
     }
 }

@@ -49,7 +49,7 @@ static inline v8fp_t elu_lut_simd(v8fp_t a, float alpha) {
     for (int i = 0; i < VECTOR_SIZE; i++) {
         float value = a[i];
         if (value < 0.0) {
-            a[i] = alpha * (exp_lut(value) - 1);
+            a[i] = alpha * (exp_lut_fxp(value) - 1);
         }
     }
     return a;
@@ -72,12 +72,12 @@ ALWAYS_INLINE
 static inline v8fp_t selu_simd(v8fp_t a) {
     int i;
     static const float alpha = 1.6733;
-    static const float lamda = 1.0507;
+    static const float lambda = 1.0507;
 
     a = elu_simd(a, alpha);
     selu_loop:
     for (i = 0; i < VECTOR_SIZE; i++) {
-        a[i] = lamda * a[i];
+        a[i] = lambda * a[i];
     }
     return a;
 }
@@ -90,7 +90,7 @@ static inline v8fp_t sigmoidn_simd(v8fp_t a) {
     float value;
     sigmoidn_loop:
     for (i = 0; i < VECTOR_SIZE; i++) {
-        value = sigmoid(a[i]);
+        value = sigmoid_fxp(a[i]);
         a[i] = conv_float2fixed(value);
     }
     return a;

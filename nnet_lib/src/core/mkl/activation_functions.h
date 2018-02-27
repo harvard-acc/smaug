@@ -366,8 +366,8 @@ class EluActivationFunctionOp
     virtual void create_functor(DType* input_buffer,
                                 DType* output_buffer,
                                 DType alpha) {
-        op = std::bind(
-                &elu_lut, input_buffer, this->input_size, alpha, output_buffer);
+        op = std::bind(&elu_lut_fxp, input_buffer, this->input_size, alpha,
+                       output_buffer);
     }
 
     virtual void init(DType* input_buffer,

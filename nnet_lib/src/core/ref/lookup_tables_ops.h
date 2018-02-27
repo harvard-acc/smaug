@@ -5,7 +5,7 @@
 #include "utility/utility.h"
 
 ALWAYS_INLINE
-static inline float exp_lut(float a) {
+static inline float exp_lut_fxp(float a) {
     float result;
     if (a > EXP_MAX) {
         result = exp_table[EXP_TABLE_SIZE - 1];

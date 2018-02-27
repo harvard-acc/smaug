@@ -108,7 +108,7 @@ void smv_inner_product_layer_hw_impl(float* host_activations,
             v8fp_t psum = _local_results[i] +
                           (options->do_bias ? _weights[bias_offset + i] : zero);
             _local_results[i] =
-                    activation_fun_simd(psum, curr_layer->activation);
+                    activation_fun_simd_fxp(psum, curr_layer->activation);
         }
     }
 

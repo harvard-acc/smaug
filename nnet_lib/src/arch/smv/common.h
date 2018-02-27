@@ -68,11 +68,11 @@ void smv_pooling_layer_impl(float* inputs,
                              smv_global* g_smv,
                              float* results,
                              device_t* device);
-void smv_activation_fun(float* local_activations,
-                        int batch_size,
-                        int input_size,
-                        int start_pixel,
-                        activation_type activation);
+void smv_activation_fun_fxp(float* local_activations,
+                            int batch_size,
+                            int input_size,
+                            int start_pixel,
+                            activation_type activation);
 void dma_copy_impl(float* dst_base_loc,
                    float* src_base_loc,
                    unsigned accel_id,

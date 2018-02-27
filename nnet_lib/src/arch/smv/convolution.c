@@ -121,8 +121,8 @@ static void smv_convolution_layer_hw_impl(float* host_activations,
     int num_output_pixels =
             (options->kern_end - options->kern_start) * ofmap_2d_elems;
     int start_output_pixel = options->kern_start * ofmap_2d_elems;
-    smv_activation_fun(local_results, NUM_TEST_CASES, num_output_pixels,
-                       start_output_pixel, curr_layer.activation);
+    smv_activation_fun_fxp(local_results, NUM_TEST_CASES, num_output_pixels,
+                           start_output_pixel, curr_layer.activation);
     if (curr_layer.output_req == IO_DMA) {
         dma_store_wrapper(&host_results[start_output_pixel],
                           &local_results[start_output_pixel],
