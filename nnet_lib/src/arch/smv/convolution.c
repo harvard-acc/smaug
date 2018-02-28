@@ -4,10 +4,12 @@
 #include "arch/smiv/common.h"
 #include "arch/smiv/dispatch_utils.h"
 #include "arch/smv/common.h"
+#include "arch/smv/load_and_unpack_fp16_data.h"
 #include "core/smv/params.h"
 #include "core/smv/smv.h"
 #include "core/ref/activation_functions.h"
 #include "utility/data_layout_conversion.h"
+#include "utility/fp16_utils.h"
 #include "utility/utility.h"
 
 #ifdef DMA_MODE
@@ -61,7 +63,7 @@ void print_conv_tiling_cfg(conv_tiling_cfg* cfg) {
 }
 
 static void smv_convolution_layer_hw_impl(float* host_activations,
-                                          float* host_weights,
+                                          packed_fp16* host_weights,
                                           float* host_results,
                                           float* local_activations,
                                           float* local_weights,
@@ -83,10 +85,7 @@ static void smv_convolution_layer_hw_impl(float* host_activations,
     int num_weights = options->total_tile_ofmaps * single_weights_elems;
     if (curr_layer.weights_req != IO_NONE) {
         setReadyBits(local_weights, num_weights * sizeof(float), 0);
-        dma_load_wrapper(local_weights,
-                         host_weights,
-                         num_weights * sizeof(float),
-                         options->use_pipelined_dma);
+        dma_load_and_unpack_fp16(local_weights, host_weights, num_weights, 0, 0);
     }
     if (curr_layer.input_req == IO_DMA || curr_layer.input_req == IO_ACP) {
         // Read in ALL channels of the input into the UMEM at once, so that we
@@ -138,13 +137,13 @@ static void smv_convolution_layer_hw_impl(float* host_activations,
 }
 
 static void smv_convolution_layer_hw(float* dma_activations,
-                                     float* dma_weights,
+                                     packed_fp16* dma_weights,
                                      float* dma_results,
                                      float* cache_activations,
-                                     float* cache_weights,
+                                     packed_fp16* cache_weights,
                                      float* cache_results,
                                      float* acp_activations,
-                                     float* acp_weights,
+                                     packed_fp16* acp_weights,
                                      float* acp_results,
                                      float* umem,
                                      float* spad0,
@@ -264,7 +263,7 @@ static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer) {
 }
 
 void smv_standard_convolution_layer_impl(float* host_activations,
-                                         float* host_weights,
+                                         packed_fp16* host_weights,
                                          layer_t* layers,
                                          int lnum,
                                          float* host_result,
@@ -300,8 +299,10 @@ void smv_standard_convolution_layer_impl(float* host_activations,
     // NCHW format.
     dims_t nhwc_weights_dims =
             nchw_to_nhwc_dims(&curr_layer.weights, DATA_ALIGNMENT);
-    ARRAY_4D(float, _kernels, host_weights, k_rows, k_cols,
-             input_height + nhwc_weights_dims.align_pad);
+    // host_weights is half-precision, so it only occupies half the space that
+    // the logical dimensions would indicate.
+    ARRAY_4D(packed_fp16, _kernels, host_weights, k_rows, k_cols,
+             (input_height + nhwc_weights_dims.align_pad) / 2);
 
     conv_tiling_cfg tiling = convolution_divide_work(&curr_layer);
     print_conv_tiling_cfg(&tiling);
@@ -315,7 +316,8 @@ void smv_standard_convolution_layer_impl(float* host_activations,
         // Flush cache lines for activations and weights.
         begin_ignored_profiling(lnum);
         flush_cache_range(host_activations, activations_size / sizeof(float));
-        flush_cache_range(host_weights, weights_size / sizeof(float));
+        // XXX: Hack to get this to compile with a packed_fp16* pointer.
+        flush_cache_range((float*)host_weights, weights_size / sizeof(short));
         end_profiling();
     }
     if (do_hw_activation || curr_layer.output_req == IO_DMA) {
@@ -354,12 +356,12 @@ void smv_standard_convolution_layer_impl(float* host_activations,
                                result_loc, result_size);
 
             // Convert weights to NHWC and set up mappings.
-            float* weights_loc = &_kernels[kern_start][0][0][0];
+            packed_fp16* weights_loc = &_kernels[kern_start][0][0][0];
             MAP_ARRAY_TO_ACCEL(g_smv->kConvolutionHw,
                                get_host_weights_var_name(IO_DMA),
                                weights_loc,
                                num_kerns * get_dims_size(&nhwc_weights_dims) *
-                                       sizeof(float));
+                                       sizeof(short));
 
             int num_hw_iters = ceil((float)tile->num_ofmaps / NUM_PE_INSTS);
             int inner_iters_executed = 0;
@@ -445,10 +447,12 @@ void smv_standard_convolution_layer_impl(float* host_activations,
                             nhwc_activations, weights_loc, result_loc,  // DMA
                             nhwc_activations, weights_loc, result_loc,  // Cache
                             nhwc_activations, weights_loc, result_loc,  // ACP
-                            g_smv->umem, g_smv->spad0, g_smv->spad1, partial_layer,
-                            &access_cfg, &options);
+                            g_smv->umem, g_smv->spad0, g_smv->spad1,
+                            partial_layer, &access_cfg, &options);
                     if (iter != 0 && !do_hw_activation) {
-                        begin_profiling(ACTIVATION_TYPE_STR(curr_layer.activation), lnum);
+                        begin_profiling(
+                                ACTIVATION_TYPE_STR(curr_layer.activation),
+                                lnum);
                         activation_fun(
                                 &_result[img][prev_kern_start][0][0],
                                 1,

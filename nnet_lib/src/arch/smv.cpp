@@ -8,6 +8,7 @@
 #include "core/ref/pooling.h"
 #include "core/ref/zeropad.h"
 #include "core/smv/smv.h"
+#include "utility/compression.h"
 #include "utility/data_layout_conversion.h"
 #include "utility/profiling.h"
 #include "utility/utility.h"
@@ -116,9 +117,10 @@ result_buf standard_convolution_layer(float* activations,
     // of pthreads (and the memory management could get messy too...), but it
     // would get us more performance.
     layer_t curr_layer = layers[lnum];
-    float* current_layer_weights = curr_layer.host_weights.data[0].dense->d;
+    packed_fp16* packed_weights =
+            curr_layer.host_weights.data[0].dense_hp->d;
     smv_standard_convolution_layer_impl(activations,
-                                        current_layer_weights,
+                                        packed_weights,
                                         layers,
                                         lnum,
                                         result,
@@ -420,14 +422,20 @@ void early_convert_weights_data_layout(network_t* network) {
         layer_t* layer = &network->layers[i];
         if (layer->type != CONV_STANDARD)
             continue;
+        assert(layer->host_weights.len == 1 &&
+               "Standard convolutional layer must have exactly one set of "
+               "weights!");
         float* nchw_weights_buf = layer->host_weights.data[0].dense->d;
-        float* nhwc_weights_buf = NULL;
+        farray_t nhwc_weights;
+        nhwc_weights.d = NULL;
         dims_t weights_nhwc = convert_nchw_to_nhwc(
                 nchw_weights_buf, layer->outputs.height,
-                layer->weights, DATA_ALIGNMENT, &nhwc_weights_buf);
-        int len = get_dims_size(&weights_nhwc);
-        layer->host_weights.data[0].dense->d = nhwc_weights_buf;
-        layer->host_weights.data[0].dense->size = len;
+                layer->weights, DATA_ALIGNMENT, &nhwc_weights.d);
+        nhwc_weights.size = layer->outputs.height * get_dims_size(&weights_nhwc);
+        uarray_t packed_weights = pack_data_fp16(&nhwc_weights);
+        *(layer->host_weights.data[0].dense_hp) = packed_weights;
+        layer->host_weights.type[0] = UncompressedHalfPrecision;
+        free(nhwc_weights.d);
     }
 }
 

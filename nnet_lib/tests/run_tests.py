@@ -16,7 +16,10 @@ import shutil
 import re
 
 # Floating point equality comparison tolerance in percent.
-FP_ERR_PCT = 0.05
+# TODO: Different architectures should have different error tolerances. SMV
+# requires the largest tolerance due to the wide use of half-precision floating
+# point values.
+FP_ERR_PCT = 1
 
 # Floating point equality comparison tolerance in absolute magnitude.
 FP_ERR_ABS = 0.5

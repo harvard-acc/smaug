@@ -97,6 +97,7 @@ typedef enum _sigmoid_impl_t {
 
 // Wraps a dynamically allocated array (d for data) and its size (number of
 // elements, not bytes).
+// TODO: Use int for all these sizes, not size_t.
 typedef struct _farray_t {
     float* d;
     size_t size;
@@ -109,10 +110,16 @@ typedef struct _iarray_t {
 
 // We store packed half-precision floating-point in 32-bit chunks.
 typedef uint32_t packed_fp16;
+typedef struct _uarray_t {
+    packed_fp16* d;
+    size_t size;
+} uarray_t;
+
 typedef enum _data_storage_t {
     Uncompressed = 0,
     CSR = 1,
     PackedCSR = 2,
+    UncompressedHalfPrecision = 3,
     NumDataStorageTypes,
 } data_storage_t;
 
@@ -121,6 +128,7 @@ union weights_data {
     struct _packed_csr_array_t* packed;
     struct _csr_array_t* csr;
     farray_t* dense;
+    uarray_t* dense_hp;
 };
 
 typedef struct _weights_list {
