@@ -278,8 +278,8 @@ void smv_standard_convolution_layer_impl(float* host_activations,
     const int result_pad = curr_layer.outputs.align_pad;
     const int num_kerns = curr_layer.outputs.height;
     const int input_height = curr_layer.inputs.height;
-    const int k_width = curr_layer.weights.cols;
-    const int k_pad = curr_layer.weights.align_pad;
+    const int k_rows = curr_layer.weights.rows;
+    const int k_cols = curr_layer.weights.cols;
     const int result_2d_size = result_rows * (result_cols + result_pad);
     const int activations_size = INPUT_BYTES(layers, lnum);
     const int weights_size = WEIGHT_BYTES(layers, lnum);
@@ -296,8 +296,12 @@ void smv_standard_convolution_layer_impl(float* host_activations,
 
     ARRAY_4D(float, _result, host_result, result_height, result_rows,
              result_cols + result_pad);
-    ARRAY_4D(float, _kernels, host_weights, input_height, k_width,
-             k_width + k_pad);
+    // XXX: host_weights arrives in NHWC format, but layer.weights is still in
+    // NCHW format.
+    dims_t nhwc_weights_dims =
+            nchw_to_nhwc_dims(&curr_layer.weights, DATA_ALIGNMENT);
+    ARRAY_4D(float, _kernels, host_weights, k_rows, k_cols,
+             input_height + nhwc_weights_dims.align_pad);
 
     conv_tiling_cfg tiling = convolution_divide_work(&curr_layer);
     print_conv_tiling_cfg(&tiling);
@@ -350,17 +354,12 @@ void smv_standard_convolution_layer_impl(float* host_activations,
                                result_loc, result_size);
 
             // Convert weights to NHWC and set up mappings.
-            float* nhwc_weights = NULL;
-            begin_profiling("convert_nchw_to_nhwc", lnum);
-            dims_t weights_nhwc = convert_nchw_to_nhwc(
-                    &_kernels[kern_start][0][0][0], tile->num_ofmaps,
-                    curr_layer.weights, DATA_ALIGNMENT, &nhwc_weights);
-            end_profiling();
-            MAP_ARRAY_TO_ACCEL(
-                    g_smv->kConvolutionHw,
-                    get_host_weights_var_name(IO_DMA),
-                    nhwc_weights,
-                    num_kerns * get_dims_size(&weights_nhwc) * sizeof(float));
+            float* weights_loc = &_kernels[kern_start][0][0][0];
+            MAP_ARRAY_TO_ACCEL(g_smv->kConvolutionHw,
+                               get_host_weights_var_name(IO_DMA),
+                               weights_loc,
+                               num_kerns * get_dims_size(&nhwc_weights_dims) *
+                                       sizeof(float));
 
             int num_hw_iters = ceil((float)tile->num_ofmaps / NUM_PE_INSTS);
             int inner_iters_executed = 0;
@@ -417,9 +416,9 @@ void smv_standard_convolution_layer_impl(float* host_activations,
                 if (!use_pipelined_activation) {
                     INVOKE_KERNEL_PROF(
                             g_smv->kConvolutionHw, lnum, smv_convolution_layer_hw,
-                            nhwc_activations, nhwc_weights, result_loc,  // DMA
-                            nhwc_activations, nhwc_weights, result_loc,  // Cache
-                            nhwc_activations, nhwc_weights, result_loc,  // ACP
+                            nhwc_activations, weights_loc, result_loc,  // DMA
+                            nhwc_activations, weights_loc, result_loc,  // Cache
+                            nhwc_activations, weights_loc, result_loc,  // ACP
                             g_smv->umem, g_smv->spad0, g_smv->spad1, partial_layer,
                             &access_cfg, &options);
 
@@ -436,9 +435,9 @@ void smv_standard_convolution_layer_impl(float* host_activations,
                     INVOKE_KERNEL_NOBLOCK(
                             g_smv->kConvolutionHw, &finish_flag,
                             smv_convolution_layer_hw,
-                            nhwc_activations, nhwc_weights, result_loc,  // DMA
-                            nhwc_activations, nhwc_weights, result_loc,  // Cache
-                            nhwc_activations, nhwc_weights, result_loc,  // ACP
+                            nhwc_activations, weights_loc, result_loc,  // DMA
+                            nhwc_activations, weights_loc, result_loc,  // Cache
+                            nhwc_activations, weights_loc, result_loc,  // ACP
                             g_smv->umem, g_smv->spad0, g_smv->spad1, partial_layer,
                             &access_cfg, &options);
                     if (iter != 0 && !do_hw_activation) {
@@ -474,7 +473,6 @@ void smv_standard_convolution_layer_impl(float* host_activations,
                 end_profiling();
             }
 
-            free(nhwc_weights);
             kern_start += tile->num_ofmaps;
             end_profiling();
         }

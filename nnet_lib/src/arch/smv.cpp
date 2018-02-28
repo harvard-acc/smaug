@@ -414,6 +414,33 @@ void set_io_requirements(network_t* network, device_t* device) {
 
 }
 
+// Convert all convolution weights to NHWC format immediately.
+void early_convert_weights_data_layout(network_t* network) {
+    for (int i = 1; i < network->depth; i++) {
+        layer_t* layer = &network->layers[i];
+        if (layer->type != CONV_STANDARD)
+            continue;
+        float* nchw_weights_buf = layer->host_weights.data[0].dense->d;
+        float* nhwc_weights_buf = NULL;
+        dims_t weights_nhwc = convert_nchw_to_nhwc(
+                nchw_weights_buf, layer->outputs.height,
+                layer->weights, DATA_ALIGNMENT, &nhwc_weights_buf);
+        int len = get_dims_size(&weights_nhwc);
+        layer->host_weights.data[0].dense->d = nhwc_weights_buf;
+        layer->host_weights.data[0].dense->size = len;
+    }
+}
+
+void free_early_converted_weights(network_t* network) {
+    for (int i = 1; i < network->depth; i++) {
+        layer_t* layer = &network->layers[i];
+        if (layer->type != CONV_STANDARD)
+            continue;
+        float* nhwc_weights_buf = layer->host_weights.data[0].dense->d;
+        free(nhwc_weights_buf);
+    }
+}
+
 // Runs the forward pass of a neural network.
 //
 // This version loads weights on a per layer basis, and activations are
@@ -449,6 +476,7 @@ void nnet_fwd(farray_t activations,
     l = 0;
 
     set_io_requirements(&network, device);
+    early_convert_weights_data_layout(&network);
 
     //******************//
     //   PRIMARY LOOP   //
@@ -474,6 +502,7 @@ nnet_fwd_outer:
 #endif
 
     free_smv_global();
+    free_early_converted_weights(&network);
 }
 
 #endif
