@@ -398,6 +398,11 @@ void smv_standard_convolution_layer_impl(float* host_activations,
                 options.total_tile_ofmaps = tile->num_ofmaps;
                 options.use_pipelined_dma = use_pipelined_dma;
 
+                if (iter != 0 && !is_last_iter &&
+                    inner_iters_executed >= sampled_inner_iters) {
+                    continue;
+                }
+
                 // Only copy weights and inputs on the first iteration.
                 if (iter > 0) {
                     if (partial_layer.input_req == IO_DMA ||
