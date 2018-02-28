@@ -427,8 +427,10 @@ void smv_standard_convolution_layer_impl(float* host_activations,
                     // activation functions and invoke the next iteration
                     // simultaneously. Otherwise, wait until the previous iteration
                     // finishes.
+                    #ifdef GEM5_HARNESS
                     while (iter != 0 && finish_flag == NOT_COMPLETED)
                         ;
+                    #endif
                     if (iter != 0)
                         end_profiling();
                     begin_profiling("smv_convolution_layer_hw_activation_func", lnum);
@@ -460,8 +462,10 @@ void smv_standard_convolution_layer_impl(float* host_activations,
             // We need to do activation function for the last iteration of the
             // tile.
             if (use_pipelined_activation && !do_hw_activation) {
+                #ifdef GEM5_HARNESS
                 while (finish_flag == NOT_COMPLETED)
                     ;
+                #endif
                 end_profiling();
                 begin_profiling(
                         ACTIVATION_TYPE_STR(curr_layer.activation), lnum);
