@@ -18,7 +18,7 @@ mkl:        ARCH=MKLDNN
 # before each test.
 all:
 	@$(MAKE) -C . --no-print-directory monolithic
-	@$(MAKE) -C . --no-print-directory composable
+#	@$(MAKE) -C . --no-print-directory composable
 	@$(MAKE) -C . --no-print-directory smiv
 	@$(MAKE) -C . --no-print-directory smv
 #	@$(MAKE) -C . --no-print-directory eigen

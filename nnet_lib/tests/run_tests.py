@@ -7,6 +7,7 @@
 #   python run_tests.py path/to/executable
 
 import argparse
+import numpy as np
 import sys
 import os
 import subprocess
@@ -78,25 +79,20 @@ class BaseTest(unittest.TestCase):
                   fp_err_abs=FP_ERR_ABS):
     """ Returns true if val and ref are approximately equal.
 
-    Either the value and reference must be within fp_err_pct percent, or they
-    must be within fp_err_abs magnitude of each other.
+    val and ref are list-like objects. Each corresponding element in value and
+    reference must be within fp_err_pct percent or within fp_err_abs magnitude
+    to be considered approximately equal.
     """
-    if ((isinstance(val, float) or isinstance(val, int)) and
-        (isinstance(ref, float) or isinstance(ref, int))):
-      if ref == 0:
-        return val == 0
-      diff_abs = abs(float(val)-ref)
-      diff_per = diff_abs/abs(float(ref)) * 100
-
-      return (diff_per < fp_err_pct or diff_abs < fp_err_abs)
-    elif isinstance(val, list) and isinstance(ref, list):
-      is_equal = True
-      for val_v, ref_v in zip(val, ref):
-        is_equal = is_equal and self.almostEqual(val_v, ref_v)
-      return is_equal
-    else:
-      assert("Unsupported types %s, %s for almostEqual comparison" %
-             (type(val).__name__, type(ref).__name__))
+    val = np.array(val)
+    ref = np.array(ref)
+    abs_err = np.abs(val - ref)
+    pct_err = np.divide(abs_err, np.abs(ref)) * 100
+    if (np.max(pct_err) > fp_err_pct and np.max(abs_err) > fp_err_abs):
+      print ""
+      print "% error   : ", ", ".join(["{:10.4f}".format(e) for e in pct_err])
+      print "abs error : ", ", ".join(["{:10.4f}".format(e) for e in abs_err])
+      return False
+    return True
 
   def createCommand(self, model_file, correct_output,
                     data_init_mode=None, param_file=None):
