@@ -74,7 +74,7 @@ void run_manual_test() {
                 layer.weights.cols);
 
     printf("Testing reference packed CSR decompression.\n");
-    packed_csr_array_t* packed = pack_data_vec8_f16(csr, &layer.weights);
+    packed_csr_array_t* packed = pack_csr_array_vec8_f16(csr, &layer.weights);
     memset(decomp_2, 0, total_size);
     decompress_packed_csr_data(packed->vals,
                                packed->col_idx,
@@ -92,7 +92,7 @@ void run_manual_test() {
     free_packed_csr_array_t(packed);
 
     printf("Testing SMIV packed CSR decompression.\n");
-    packed = pack_data_vec8_f16(csr, &layer.weights);
+    packed = pack_csr_array_vec8_f16(csr, &layer.weights);
     memset(decomp_2, 0, total_size);
     decompress_packed_csr_data_smiv_fxp(packed->vals,
                                         packed->col_idx - packed->vals,
@@ -181,7 +181,7 @@ void run_file_test(const char* filename) {
            compare_farrays(decomp_1, weights.d, layer_wgt_size) ? "PASS"
                                                                 : "FAIL");
 
-    packed_csr_array_t* packed = pack_data_vec8_f16(csr, &weights_dims);
+    packed_csr_array_t* packed = pack_csr_array_vec8_f16(csr, &weights_dims);
     printf("Packed array fields: col offset = %ld, row offset = %ld\n",
            packed->col_idx - packed->vals, packed->row_idx - packed->vals);
 

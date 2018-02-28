@@ -255,7 +255,7 @@ weights_list pack_compress_colmajor_weights(float* weights,
             calc_padding(transposed_dims.rows, DATA_ALIGNMENT);
     csr_array_t* weights_csr = compress_dense_data_csr(weights, &transposed_dims);
     packed_csr_array_t* packed_weights_csr =
-            pack_data_vec8_f16(weights_csr, &transposed_dims);
+            pack_csr_array_vec8_f16(weights_csr, &transposed_dims);
 
     // Just store biases as an uncompressed buffer.
     float* bias_loc = weights + get_dims_size(&transposed_dims);
@@ -311,7 +311,7 @@ void process_compressed_weights(network_t* network,
             csr_array_t* csr =
                     compress_dense_data_csr(weights_loc, &dims_with_bias);
             packed_csr_array_t* packed_csr =
-                    pack_data_vec8_f16(csr, &dims_with_bias);
+                    pack_csr_array_vec8_f16(csr, &dims_with_bias);
             layer->host_weights = init_weights_list(1);
             layer->host_weights.data[0].packed = packed_csr;
             layer->host_weights.type[0] = PackedCSR;

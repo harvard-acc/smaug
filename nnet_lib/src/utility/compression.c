@@ -102,6 +102,29 @@ int compute_num_vectors_in_row(int num_elems_in_row) {
     return FRAC_CEIL(num_elems_in_row, DATA_PACKING_FACTOR);
 }
 
+/* Compress an array of single-precision FP values to half precision.
+ *
+ * This does not perform CSR compression; it only performs precision reduction.
+ * There are no requirements on the size of the FP array. Two FP values are
+ * packed into a 32-bit value, with the first occupying bits 0-15 and the
+ * second from 16-31.
+ *
+ * Returns a uarray_t object, whose size is equal to the minimum number of
+ * 32-bit unsigned values required to store the packed data.
+ */
+uarray_t pack_data_fp16(farray_t* sp_data) {
+   uarray_t hp_data;
+   hp_data.size = (sp_data->size / 2) + (sp_data->size % 2);
+   hp_data.d = (packed_fp16*)malloc_aligned(hp_data.size * sizeof(packed_fp16));
+   memset(hp_data.d, 0, hp_data.size * sizeof(packed_fp16));
+   for (size_t i = 0; i < sp_data->size; i++) {
+      bool use_lo_half = (i % 2 == 0);
+      hp_data.d[i / 2] |= ((int)_CVT_SS_SH(sp_data->d[i], 0))
+                          << (use_lo_half ? 0 : 16);
+   }
+   return hp_data;
+}
+
 /* Compress an uncompressed matrix into the modified CSR format.
  *
  * The modified CSR format is based on the CSC format used in Deep
@@ -187,8 +210,8 @@ csr_array_t* compress_dense_data_csr(float* data, dims_t* data_dims) {
  *      b. Bits 16-31: The vector index in the data array that marks the
  *         beginning of this row.
  */
-packed_csr_array_t* pack_data_vec8_f16(csr_array_t* csr_data,
-                                       dims_t* data_dims) {
+packed_csr_array_t* pack_csr_array_vec8_f16(csr_array_t* csr_data,
+                                            dims_t* data_dims) {
     PRINT_MSG_V("==== COMPRESSING ===== \n");
     // First, compute the overall size of the packed data, accounting for
     // row-alignment requirements.
@@ -354,7 +377,7 @@ void decompress_csr_data(csr_array_t* csr_data,
 //                    address.
 //   values_buffer: Stores up to 16 unpacked values.
 //   index_buffer: Stores up to 16 unpacked indices.
-void unpack_values_at_row(uint32_t* cmp_values,
+void unpack_values_at_row(packed_fp16* cmp_values,
                           uint32_t* cmp_col_idx,
                           int fetch_index_vec,
                           float values_buffer[VECTOR_SIZE * 2],
@@ -408,7 +431,7 @@ void unpack_values_at_row(uint32_t* cmp_values,
 //              nonzero values in this row.
 // data_dims: The dimensions of the uncompressed data.
 // dcmp_data: The base of the uncompressed data buffer.
-void decompress_packed_csr_data(uint32_t* cmp_data,
+void decompress_packed_csr_data(packed_fp16* cmp_data,
                                 uint32_t* cmp_col_idx,
                                 uint32_t* cmp_row_idx,
                                 dims_t* data_dims,

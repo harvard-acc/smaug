@@ -31,7 +31,7 @@ typedef int IndexContainerType;
 // A CSR array that bitpacks its data together. See compression.c
 // (pack_data_vec8_fp16) for a description of the packing methodology.
 typedef struct _packed_csr_array_t {
-    uint32_t* vals;
+    packed_fp16* vals;
     uint32_t* col_idx;
     uint32_t* row_idx;
     size_t num_nonzeros;
@@ -69,14 +69,15 @@ void decompress_csr_data(csr_array_t* csr_data,
                          dims_t* data_dims,
                          float* dcmp_data);
 
-void decompress_packed_csr_data(uint32_t* cmp_data,
+void decompress_packed_csr_data(packed_fp16* cmp_data,
                                 uint32_t* cmp_col_idx,
                                 uint32_t* cmp_row_idx,
                                 dims_t* data_dims,
                                 float* dcmp_data);
 
-packed_csr_array_t* pack_data_vec8_f16(csr_array_t* csr_data,
-                                       dims_t* data_dims);
+uarray_t pack_data_fp16(farray_t* sp_data);
+packed_csr_array_t* pack_csr_array_vec8_f16(csr_array_t* csr_data,
+                                            dims_t* data_dims);
 
 csr_array_t* alloc_csr_array_t(size_t num_nonzeros, size_t num_rows);
 csr_array_t* copy_csr_array_t(csr_array_t* existing_array);

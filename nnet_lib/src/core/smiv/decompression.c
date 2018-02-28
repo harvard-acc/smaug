@@ -6,7 +6,7 @@
 #include "utility/utility.h"
 
 ALWAYS_INLINE
-void unpack_values_at_row_smiv(uint32_t* csr_data,
+void unpack_values_at_row_smiv(packed_fp16* csr_data,
                                int cmp_col_offset,
                                int fetch_index_vec,
                                float values_buffer[VECTOR_SIZE * 2],
@@ -75,7 +75,7 @@ void unpack_values_at_row_smiv(uint32_t* csr_data,
 //   data_dims: The dimensions of the uncompressed data.
 //   dcmp_data: The base of the destination scratchpad to store the
 //     uncompressed data.
-void decompress_packed_csr_data_smiv_fxp(uint32_t* cmp_data,
+void decompress_packed_csr_data_smiv_fxp(packed_fp16* cmp_data,
                                          int cmp_col_offset,
                                          int cmp_row_offset,
                                          int dest_offset,

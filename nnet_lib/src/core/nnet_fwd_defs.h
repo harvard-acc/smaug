@@ -3,6 +3,7 @@
 
 #include <assert.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 // This is the core header of nnet_lib.
@@ -106,6 +107,8 @@ typedef struct _iarray_t {
     size_t size;
 } iarray_t;
 
+// We store packed half-precision floating-point in 32-bit chunks.
+typedef uint32_t packed_fp16;
 typedef enum _data_storage_t {
     Uncompressed = 0,
     CSR = 1,

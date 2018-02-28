@@ -42,7 +42,7 @@ typedef struct _dma_options {
 bool smv_inner_product_needs_work_division(layer_t* curr_layer);
 
 void smv_standard_convolution_layer_impl(float* host_activations,
-                                         float* host_weights,
+                                         packed_fp16* host_weights,
                                          layer_t* layers,
                                          int lnum,
                                          float* host_result,

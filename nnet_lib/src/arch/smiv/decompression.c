@@ -41,9 +41,9 @@
 //   spad0: SPAD0 pointer.
 //   spad1: SPAD1 pointer.
 //   umem: UMEM pointer.
-static void smiv_decompress_packed_csr_hw(uint32_t* dma_weights,
-                                          uint32_t* acp_weights,
-                                          uint32_t* cache_weights,
+static void smiv_decompress_packed_csr_hw(packed_fp16* dma_weights,
+                                          packed_fp16* acp_weights,
+                                          packed_fp16* cache_weights,
                                           int cmp_col_offset,
                                           int cmp_row_offset,
                                           int dest_offset,
@@ -75,7 +75,7 @@ static void smiv_decompress_packed_csr_hw(uint32_t* dma_weights,
                              compressed_size,
                              use_pipelined_dma);
             decompress_packed_csr_data_smiv_fxp(
-                    (uint32_t*)spad0, cmp_col_offset, cmp_row_offset,
+                    (packed_fp16*)spad0, cmp_col_offset, cmp_row_offset,
                     dest_offset, data_dims, umem);
         } else {
             setReadyBits(spad1, compressed_size, 0);
@@ -84,7 +84,7 @@ static void smiv_decompress_packed_csr_hw(uint32_t* dma_weights,
                              compressed_size,
                              use_pipelined_dma);
             decompress_packed_csr_data_smiv_fxp(
-                    (uint32_t*)spad1, cmp_col_offset, cmp_row_offset,
+                    (packed_fp16*)spad1, cmp_col_offset, cmp_row_offset,
                     dest_offset, data_dims, umem);
         }
     } else if (copy_mechanism == IO_ACP) {
