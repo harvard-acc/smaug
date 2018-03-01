@@ -339,6 +339,10 @@ void free_network_weights(network_t* network) {
                 farray_t* array = layer->host_weights.data[j].dense;
                 // Don't free the actual data buffer here.
                 free(array);
+            } else if (type == UncompressedHalfPrecision) {
+                uarray_t* array = layer->host_weights.data[j].dense_hp;
+                free(array->d);
+                free(array);
             }
         }
         free_weights_list(&layer->host_weights);

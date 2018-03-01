@@ -416,7 +416,16 @@ void set_io_requirements(network_t* network, device_t* device) {
 
 }
 
-// Convert all convolution weights to NHWC format immediately.
+// Perform SMV-specific weight conversion tasks before running the network.
+//
+// The specific conversion task depends on the layer type:
+//   1. Convolution: convert NCHW to NHWC, quantize to 16 bits.
+//   2. Batch norm: quantize to 16 bits.
+//   3. Fully connected: quantize to 16 bits.
+//
+// Converted weight descriptors are stored in the host_weights list of the
+// layer descriptor. The existing weights_data structure is replaced by the new
+// one created here, and its memory freed.
 void early_convert_weights_data_layout(network_t* network) {
     for (int i = 1; i < network->depth; i++) {
         layer_t* layer = &network->layers[i];
@@ -424,11 +433,11 @@ void early_convert_weights_data_layout(network_t* network) {
             assert(layer->host_weights.len == 1 &&
                    "Standard convolutional layer must have exactly one set of "
                    "weights!");
-            float* nchw_weights_buf = layer->host_weights.data[0].dense->d;
+            farray_t* nchw_weights = layer->host_weights.data[0].dense;
             farray_t nhwc_weights;
             nhwc_weights.d = NULL;
             dims_t weights_nhwc = convert_nchw_to_nhwc(
-                    nchw_weights_buf, layer->outputs.height, layer->weights,
+                    nchw_weights->d, layer->outputs.height, layer->weights,
                     DATA_ALIGNMENT, &nhwc_weights.d);
             nhwc_weights.size =
                     layer->outputs.height * get_dims_size(&weights_nhwc);
@@ -436,7 +445,10 @@ void early_convert_weights_data_layout(network_t* network) {
             layer->host_weights.data[0].dense_hp = packed_weights;
             layer->host_weights.type[0] = UncompressedHalfPrecision;
             free(nhwc_weights.d);
+            free(nchw_weights);
         } else if (layer->type == BATCH_NORM) {
+            assert(layer->host_weights.len == 1 &&
+                   "Batch norm must have exactly one set of weights!");
             farray_t* bn_weights = layer->host_weights.data[0].dense;
             uarray_t* packed_weights = pack_data_fp16(bn_weights);
             layer->host_weights.data[0].dense_hp = packed_weights;
@@ -451,16 +463,6 @@ void early_convert_weights_data_layout(network_t* network) {
             layer->host_weights.type[0] = UncompressedHalfPrecision;
             free(weights);
         }
-    }
-}
-
-void free_early_converted_weights(network_t* network) {
-    for (int i = 1; i < network->depth; i++) {
-        layer_t* layer = &network->layers[i];
-        if (layer->type != CONV_STANDARD)
-            continue;
-        float* nhwc_weights_buf = layer->host_weights.data[0].dense->d;
-        free(nhwc_weights_buf);
     }
 }
 
@@ -525,7 +527,6 @@ nnet_fwd_outer:
 #endif
 
     free_smv_global();
-    free_early_converted_weights(&network);
 }
 
 #endif
