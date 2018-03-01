@@ -5,6 +5,7 @@
 #include "arch/smiv/common.h"
 #include "arch/smiv/dispatch_utils.h"
 #include "arch/smv/common.h"
+#include "arch/smv/load_and_unpack_fp16_data.h"
 #include "core/nnet_fwd_defs.h"
 #include "core/smiv/activation_functions_simd.h"
 #include "core/smiv/params.h"
@@ -50,7 +51,7 @@ typedef struct _inner_product_options {
 //   curr_layer: Description of this layer's shape and parameters.
 //   options: Additional options for this execution of inner product.
 void smv_inner_product_layer_hw_impl(float* host_activations,
-                                     float* host_weights,
+                                     packed_fp16* host_weights,
                                      float* host_results,
                                      float* local_activations,
                                      float* local_weights,
@@ -60,10 +61,10 @@ void smv_inner_product_layer_hw_impl(float* host_activations,
     if (curr_layer->weights_req != IO_NONE) {
         ASSERT(host_weights && "DMA weights pointer cannot be NULL!");
         // This size includes the biases if options->do_bias is true.
-        int weights_size = get_num_weights_layer(curr_layer, 0) * sizeof(float);
+        int weights_size = get_num_weights_layer(curr_layer, 0);
         setReadyBits(local_weights, SMV_UMEM_SIZE, 0);
-        dma_load_wrapper(local_weights, host_weights, weights_size,
-                         options->use_pipelined_dma);
+        dma_load_and_unpack_fp16(
+                local_weights, host_weights, weights_size, 0, 0);
     }
 
     if (curr_layer->input_req == IO_DMA || curr_layer->input_req == IO_ACP ||
@@ -130,13 +131,13 @@ void smv_inner_product_layer_hw_impl(float* host_activations,
 }
 
 void smv_inner_product_layer_hw(float* dma_activations,
-                                float* dma_weights,
+                                packed_fp16* dma_weights,
                                 float* dma_results,
                                 float* cache_activations,
-                                float* cache_weights,
+                                packed_fp16* cache_weights,
                                 float* cache_results,
                                 float* acp_activations,
-                                float* acp_weights,
+                                packed_fp16* acp_weights,
                                 float* acp_results,
                                 float* umem,
                                 float* spad0,
@@ -298,7 +299,7 @@ fc_cfg_t smv_inner_product_tile_rowwise(layer_t* curr_layer) {
 
 // Call the right HW function based on the device parameters.
 void smv_inner_product_layer_hw_dispatch(float* activations,
-                                         float* weights,
+                                         packed_fp16* weights,
                                          float* results,
                                          layer_t* layer,
                                          smv_global* g_smv,
@@ -319,7 +320,7 @@ void smv_inner_product_layer_hw_dispatch(float* activations,
     // decompressed by the point we reach here.
     begin_ignored_profiling(layer->num);
     if (weights_req == IO_DMA) {
-        int weights_size = get_num_weights_layer(layer, 0) * sizeof(float);
+        int weights_size = get_num_weights_layer(layer, 0) * sizeof(short);
         flush_cache_range(weights, weights_size);
     }
     if (input_req == IO_DMA || input_req == IO_NONE) {
@@ -482,7 +483,8 @@ void smv_inner_product_layer_impl_rowwise(float* host_activations,
     int current_row = 0;
     bool requires_decompression =
             (curr_layer->host_weights.type[0] == PackedCSR);
-    float* curr_dense_weights_loc = curr_layer->host_weights.data[0].dense->d;
+    packed_fp16* curr_dense_weights_loc =
+            curr_layer->host_weights.data[0].dense_hp->d;
 
     // If decompression is required, and the offload mechanism is DMA, we need
     // to DMA output data back on every iteration. To ensure we don't corrupt
@@ -562,7 +564,7 @@ void smv_inner_product_layer_impl_rowwise(float* host_activations,
         if (partial_layer.weights_req != IO_NONE) {
             const size_t weights_buffer_size =
                     (curr_iter->cols + curr_iter->align_pad) * curr_iter->rows *
-                    sizeof(float);
+                    sizeof(short);
             MAP_ARRAY_TO_ACCEL(
                     g_smv->kInnerProductHw,
                     get_host_weights_var_name(IO_DMA),
@@ -606,7 +608,7 @@ void smv_inner_product_layer_impl_rowwise(float* host_activations,
         }
 
         current_row += curr_iter->cols;
-        curr_dense_weights_loc += iter_weights_size;
+        curr_dense_weights_loc += iter_weights_size / 2;
     }
 
     if (decomp_result_buf.d)

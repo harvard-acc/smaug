@@ -290,7 +290,7 @@ void process_compressed_weights(network_t* network,
             layer->host_weights = init_weights_list(1);
             farray_t* layer_weights = (farray_t*)malloc(sizeof(farray_t));
             layer_weights->d = weights_loc;
-            layer_weights->size = get_dims_size(&layer->weights);
+            layer_weights->size = get_num_weights_layer(layer, 0);
             layer->host_weights.data[0].dense = layer_weights;
             layer->host_weights.type[0] = Uncompressed;
         } else if (storage_type == CSR) {

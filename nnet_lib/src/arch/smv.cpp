@@ -432,15 +432,24 @@ void early_convert_weights_data_layout(network_t* network) {
                     DATA_ALIGNMENT, &nhwc_weights.d);
             nhwc_weights.size =
                     layer->outputs.height * get_dims_size(&weights_nhwc);
-            uarray_t packed_weights = pack_data_fp16(&nhwc_weights);
-            *(layer->host_weights.data[0].dense_hp) = packed_weights;
+            uarray_t* packed_weights = pack_data_fp16(&nhwc_weights);
+            layer->host_weights.data[0].dense_hp = packed_weights;
             layer->host_weights.type[0] = UncompressedHalfPrecision;
             free(nhwc_weights.d);
         } else if (layer->type == BATCH_NORM) {
             farray_t* bn_weights = layer->host_weights.data[0].dense;
-            uarray_t packed_weights = pack_data_fp16(bn_weights);
-            *(layer->host_weights.data[0].dense_hp) = packed_weights;
+            uarray_t* packed_weights = pack_data_fp16(bn_weights);
+            layer->host_weights.data[0].dense_hp = packed_weights;
             layer->host_weights.type[0] = UncompressedHalfPrecision;
+            free(bn_weights);
+        } else if (layer->type == FC) {
+            if (layer->host_weights.type[0] != Uncompressed)
+                continue;  // Skip the biases.
+            farray_t* weights = layer->host_weights.data[0].dense;
+            uarray_t* packed_weights = pack_data_fp16(weights);
+            layer->host_weights.data[0].dense_hp = packed_weights;
+            layer->host_weights.type[0] = UncompressedHalfPrecision;
+            free(weights);
         }
     }
 }

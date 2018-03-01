@@ -109,17 +109,17 @@ int compute_num_vectors_in_row(int num_elems_in_row) {
  * packed into a 32-bit value, with the first occupying bits 0-15 and the
  * second from 16-31.
  *
- * Returns a uarray_t object, whose size is equal to the minimum number of
- * 32-bit unsigned values required to store the packed data.
+ * Returns a pointer to a malloc'ed uarray_t object, whose size is equal to the
+ * minimum number of 32-bit unsigned values required to store the packed data.
  */
-uarray_t pack_data_fp16(farray_t* sp_data) {
-   uarray_t hp_data;
-   hp_data.size = (sp_data->size / 2) + (sp_data->size % 2);
-   hp_data.d = (packed_fp16*)malloc_aligned(hp_data.size * sizeof(packed_fp16));
-   memset(hp_data.d, 0, hp_data.size * sizeof(packed_fp16));
+uarray_t* pack_data_fp16(farray_t* sp_data) {
+   uarray_t* hp_data = (uarray_t*)malloc(sizeof(uarray_t));
+   hp_data->size = (sp_data->size / 2) + (sp_data->size % 2);
+   hp_data->d = (packed_fp16*)malloc_aligned(hp_data->size * sizeof(packed_fp16));
+   memset(hp_data->d, 0, hp_data->size * sizeof(packed_fp16));
    for (size_t i = 0; i < sp_data->size; i++) {
       bool use_lo_half = (i % 2 == 0);
-      hp_data.d[i / 2] |= ((int)_CVT_SS_SH(sp_data->d[i], 0))
+      hp_data->d[i / 2] |= ((int)_CVT_SS_SH(sp_data->d[i], 0))
                           << (use_lo_half ? 0 : 16);
    }
    return hp_data;
