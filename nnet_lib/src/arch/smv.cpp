@@ -420,22 +420,28 @@ void set_io_requirements(network_t* network, device_t* device) {
 void early_convert_weights_data_layout(network_t* network) {
     for (int i = 1; i < network->depth; i++) {
         layer_t* layer = &network->layers[i];
-        if (layer->type != CONV_STANDARD)
-            continue;
-        assert(layer->host_weights.len == 1 &&
-               "Standard convolutional layer must have exactly one set of "
-               "weights!");
-        float* nchw_weights_buf = layer->host_weights.data[0].dense->d;
-        farray_t nhwc_weights;
-        nhwc_weights.d = NULL;
-        dims_t weights_nhwc = convert_nchw_to_nhwc(
-                nchw_weights_buf, layer->outputs.height,
-                layer->weights, DATA_ALIGNMENT, &nhwc_weights.d);
-        nhwc_weights.size = layer->outputs.height * get_dims_size(&weights_nhwc);
-        uarray_t packed_weights = pack_data_fp16(&nhwc_weights);
-        *(layer->host_weights.data[0].dense_hp) = packed_weights;
-        layer->host_weights.type[0] = UncompressedHalfPrecision;
-        free(nhwc_weights.d);
+        if (layer->type == CONV_STANDARD) {
+            assert(layer->host_weights.len == 1 &&
+                   "Standard convolutional layer must have exactly one set of "
+                   "weights!");
+            float* nchw_weights_buf = layer->host_weights.data[0].dense->d;
+            farray_t nhwc_weights;
+            nhwc_weights.d = NULL;
+            dims_t weights_nhwc = convert_nchw_to_nhwc(
+                    nchw_weights_buf, layer->outputs.height, layer->weights,
+                    DATA_ALIGNMENT, &nhwc_weights.d);
+            nhwc_weights.size =
+                    layer->outputs.height * get_dims_size(&weights_nhwc);
+            uarray_t packed_weights = pack_data_fp16(&nhwc_weights);
+            *(layer->host_weights.data[0].dense_hp) = packed_weights;
+            layer->host_weights.type[0] = UncompressedHalfPrecision;
+            free(nhwc_weights.d);
+        } else if (layer->type == BATCH_NORM) {
+            farray_t* bn_weights = layer->host_weights.data[0].dense;
+            uarray_t packed_weights = pack_data_fp16(bn_weights);
+            *(layer->host_weights.data[0].dense_hp) = packed_weights;
+            layer->host_weights.type[0] = UncompressedHalfPrecision;
+        }
     }
 }
 
