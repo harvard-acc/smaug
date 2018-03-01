@@ -137,7 +137,7 @@ class MnistTests(BaseTest):
   def test_minerva(self):
     model_file = "mnist/minerva.conf"
     correct_output = "mnist-minerva.out"
-    self.runAndValidate(model_file, correct_output)
+    self.runAndValidate(model_file, correct_output, fp_err_pct=1.8)
 
   def test_lenet5(self):
     model_file = "mnist/lenet5-ish.conf"
@@ -170,6 +170,13 @@ class MinervaAccessMechanismTests(BaseTest):
     """ All these tests should produce the SAME output. """
     super(MinervaAccessMechanismTests, self).setUp()
     self.correct_output = "mnist-minerva.out"
+
+  def runAndValidate(self, model_file, correct_output):
+    kwargs = {}
+    if ARCH == "smv":
+      kwargs["fp_err_pct"] = 1.8
+    super(MinervaAccessMechanismTests, self).runAndValidate(
+        model_file, correct_output, **kwargs)
 
   def test_minerva_all_cache(self):
     model_file = "mnist/minerva-access-mechs/minerva_cache.conf"
@@ -272,7 +279,10 @@ class GenericTests(BaseTest):
   def test_2_kernels(self):
     model_file = "generic/cnn-1c2k-1p-3fc.conf"
     correct_output = "generic-cnn-1c2k.out"
-    self.runAndValidate(model_file, correct_output)
+    kwargs = {}
+    if ARCH == "smv":
+      kwargs["fp_err_pct"] = 9
+    self.runAndValidate(model_file, correct_output, **kwargs)
 
   def test_depthwise_separable(self):
     model_file = "generic/depthwise-separable.conf"
