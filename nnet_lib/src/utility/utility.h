@@ -53,7 +53,7 @@ void copy_data_col_range(float* original_data,
                               int num_cols,
                               float* new_buffer);
 
-static inline void clflush(float* addr) {
+static inline void clflush(void* addr) {
     __asm__ volatile("clflush %0" : : "r"(addr));
 }
 
@@ -63,7 +63,7 @@ static inline void clflush(float* addr) {
 // we end up using raw bytes to make the flush intructions and forcing the input
 // to rax instead of letting the compiler pick any available register.
 
-static inline void clflushopt(float* addr) {
+static inline void clflushopt(void* addr) {
     __asm__ volatile("mov %0, %%rax\n\t"
                      ".byte 0x66, 0x0F, 0xAE, 0x38"
                      :
@@ -72,7 +72,7 @@ static inline void clflushopt(float* addr) {
                      );
 }
 
-static inline void clwb(float* addr) {
+static inline void clwb(void* addr) {
     __asm__ volatile("mov %0, %%rax\n\t"
                      ".byte 0x66, 0x0F, 0xAE, 0x30"
                      :
@@ -81,7 +81,7 @@ static inline void clwb(float* addr) {
                      );
 }
 
-void flush_cache_range(float* src, size_t n);
+void flush_cache_range(void* src, size_t total_bytes);
 
 #endif
 

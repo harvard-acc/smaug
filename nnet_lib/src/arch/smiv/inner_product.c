@@ -437,7 +437,7 @@ void smiv_inner_product_layer_hw_dispatch(float* activations,
     if (weights_req == IO_DMA) {
         assert(weights && "Cannot DMA weights if weights don't exist!");
         begin_ignored_profiling(layer->num);
-        int weights_size = get_num_weights_layer(layer, 0);
+        int weights_size = get_num_weights_layer(layer, 0) * sizeof(float);
         flush_cache_range(weights, weights_size);
         end_profiling();
     }
@@ -445,7 +445,8 @@ void smiv_inner_product_layer_hw_dispatch(float* activations,
         // Use DMA for weights/activations.
         // Flush cache lines for activations and weights.
         begin_ignored_profiling(layer->num);
-        int activations_size = get_input_activations_size(layer);
+        int activations_size =
+                get_input_activations_size(layer) * sizeof(float);
         flush_cache_range(activations, activations_size);
         end_profiling();
     }

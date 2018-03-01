@@ -317,20 +317,19 @@ void smv_inner_product_layer_hw_dispatch(float* activations,
     // This needs to be handled separately from the inputs IO because if we
     // used compressed weights, then they have already been DMAed and
     // decompressed by the point we reach here.
+    begin_ignored_profiling(layer->num);
     if (weights_req == IO_DMA) {
-        begin_ignored_profiling(layer->num);
-        int weights_size = get_num_weights_layer(layer, 0);
+        int weights_size = get_num_weights_layer(layer, 0) * sizeof(float);
         flush_cache_range(weights, weights_size);
-        end_profiling();
     }
     if (input_req == IO_DMA || input_req == IO_NONE) {
         // Use DMA for weights/activations.
         // Flush cache lines for activations and weights.
-        begin_ignored_profiling(layer->num);
-        int activations_size = get_input_activations_size(layer);
+        int activations_size =
+                get_input_activations_size(layer) * sizeof(float);
         flush_cache_range(activations, activations_size);
-        end_profiling();
     }
+    end_profiling();
 
     // This object is an internal structure only for the purposes of
     // simplifying the dispatch mechanism conditional checks!

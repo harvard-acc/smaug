@@ -94,8 +94,8 @@ void smiv_batch_norm_layer_impl(float* activations,
 
         // Flush cache lines for activations and weights.
         begin_ignored_profiling(lnum);
-        flush_cache_range(activations, inputs_size / sizeof(float));
-        flush_cache_range(curr_layer_weights, weights_size / sizeof(float));
+        flush_cache_range(activations, inputs_size);
+        flush_cache_range(curr_layer_weights, weights_size);
         end_profiling();
 
         MAP_ARRAY_TO_ACCEL(g_smiv->kBatchNormHw, "host_activations",

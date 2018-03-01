@@ -142,10 +142,11 @@ size_t store_output_activations_dma(float* host_activations,
     return activations_size;
 }
 
-void flush_cache_range(float* src, size_t n) {
+void flush_cache_range(void* src, size_t total_bytes) {
 #ifdef GEM5_HARNESS
-    for (int i = 0; i < n; i += CACHELINE_SIZE / sizeof(float)) {
-        clflushopt(&src[i]);
+    char* ptr = (char*)src;
+    for (size_t i = 0; i < total_bytes; i += CACHELINE_SIZE) {
+        clflushopt(&ptr[i]);
     }
 #else
 #endif

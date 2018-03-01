@@ -140,7 +140,8 @@ void smiv_pooling_layer_impl(float* inputs,
 
             // Flush cache lines for inputs.
             begin_ignored_profiling(curr_layer->num);
-            flush_cache_range(current_inputs, partial_input_size);
+            flush_cache_range(
+                    current_inputs, partial_input_size * sizeof(float));
             end_profiling();
 
             MAP_ARRAY_TO_ACCEL(g_smiv->kPoolingHw,

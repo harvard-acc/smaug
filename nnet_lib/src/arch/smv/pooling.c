@@ -150,10 +150,12 @@ void smv_pooling_layer_impl(float* inputs,
             // Flush cache lines for inputs.
             begin_ignored_profiling(partial_layer.num);
             if (partial_layer.input_req == IO_DMA) {
-                flush_cache_range(current_inputs, partial_input_size);
+                flush_cache_range(
+                        current_inputs, partial_input_size * sizeof(float));
             }
             if (partial_layer.output_req == IO_DMA) {
-                flush_cache_range(current_results, partial_output_size);
+                flush_cache_range(
+                        current_results, partial_output_size * sizeof(float));
             }
             end_profiling();
 

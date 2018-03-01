@@ -453,8 +453,8 @@ void smiv_standard_convolution_layer_impl(float* host_activations,
     if (curr_layer.input_req == IO_DMA) {
         // Flush cache lines for activations and weights.
         begin_ignored_profiling(lnum);
-        flush_cache_range(host_activations, activations_size / sizeof(float));
-        flush_cache_range(host_weights, weights_size / sizeof(float));
+        flush_cache_range(host_activations, activations_size);
+        flush_cache_range(host_weights, weights_size);
         end_profiling();
     }
 
@@ -612,8 +612,7 @@ void smiv_standard_convolution_layer_impl(float* host_activations,
                 if (do_hw_activation || partial_layer.output_req == IO_DMA) {
                     // Flush cache lines for temporary results.
                     begin_ignored_profiling(lnum);
-                    flush_cache_range(
-                            temp_result, temp_result_size / sizeof(float));
+                    flush_cache_range(temp_result, temp_result_size);
                     end_profiling();
                 }
                 partial_layer.input_req = device->cpu_default_offload;
@@ -706,8 +705,8 @@ void smiv_depthwise_convolution_layer_impl(float* host_activations,
     if (curr_layer.input_req == IO_DMA) {
         // Flush cache lines for activations and weights.
         begin_ignored_profiling(lnum);
-        flush_cache_range(host_activations, activations_size);
-        flush_cache_range(host_weights, weights_size);
+        flush_cache_range(host_activations, activations_size * sizeof(float));
+        flush_cache_range(host_weights, weights_size * sizeof(float));
         end_profiling();
     }
     for (int img = 0; img < NUM_TEST_CASES; img++) {

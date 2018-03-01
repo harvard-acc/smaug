@@ -280,8 +280,6 @@ void smv_standard_convolution_layer_impl(float* host_activations,
     const int k_rows = curr_layer.weights.rows;
     const int k_cols = curr_layer.weights.cols;
     const int result_2d_size = result_rows * (result_cols + result_pad);
-    const int activations_size = INPUT_BYTES(layers, lnum);
-    const int weights_size = WEIGHT_BYTES(layers, lnum);
     float* nhwc_activations = NULL;
     begin_profiling("convert_nchw_to_nhwc", lnum);
     dims_t activations_nhwc = convert_nchw_to_nhwc(
@@ -315,15 +313,18 @@ void smv_standard_convolution_layer_impl(float* host_activations,
     if (curr_layer.input_req == IO_DMA) {
         // Flush cache lines for activations and weights.
         begin_ignored_profiling(lnum);
-        flush_cache_range(host_activations, activations_size / sizeof(float));
-        // XXX: Hack to get this to compile with a packed_fp16* pointer.
-        flush_cache_range((float*)host_weights, weights_size / sizeof(short));
+        // XXX: WEIGHT_BYTES assumes float data type, but weights are 16-bit.
+        int weights_size = WEIGHT_BYTES(layers, lnum) / 2;
+        int activations_size = INPUT_BYTES(layers, lnum);
+        flush_cache_range(host_activations, activations_size);
+        flush_cache_range(host_weights, weights_size);
         end_profiling();
     }
     if (do_hw_activation || curr_layer.output_req == IO_DMA) {
         // Flush cache lines for temporary results.
         begin_ignored_profiling(lnum);
-        flush_cache_range(host_result, result_2d_size * result_height);
+        flush_cache_range(
+                host_result, result_2d_size * result_height * sizeof(float));
         end_profiling();
     }
 

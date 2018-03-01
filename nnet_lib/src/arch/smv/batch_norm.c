@@ -128,7 +128,7 @@ void smv_batch_norm_layer_impl(float* activations,
             weights + get_weights_loc_for_layer(layers, lnum);
 
     if (device->use_hw_batch_norm) {
-        int weights_size = WEIGHT_BYTES(layers, lnum);
+        int weights_size = get_num_weights_layer(&curr_layer, 0) * sizeof(short);
         if (weights_size > SMV_UMEM_SIZE) {
             fprintf(stderr, "[ERROR]: Batch norm weights are larger than the "
                             "UMEM - not currently supported!\n");
@@ -148,10 +148,10 @@ void smv_batch_norm_layer_impl(float* activations,
         // Flush cache lines for activations and weights.
         begin_ignored_profiling(lnum);
         if (curr_layer.input_req == IO_DMA) {
-            flush_cache_range(activations, inputs_size / sizeof(float));
+            flush_cache_range(activations, inputs_size);
         }
         if (curr_layer.weights_req == IO_DMA) {
-            flush_cache_range(curr_layer_weights, weights_size / sizeof(float));
+            flush_cache_range(weights, weights_size);
         }
         end_profiling();
 
