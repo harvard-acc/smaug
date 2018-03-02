@@ -31,7 +31,7 @@ NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smiv.cpp \
 else ifeq ($(ARCH), SMV)
 COMP = $(CXX)
 GEM5_SIMD_CFLAGS = -msse3 -msse2 -mno-ssse3 -mno-sse4.1 -mno-sse4.2
-CFLAGS += -std=gnu++11 $(GEM5_SIMD_CFLAGS)
+CFLAGS += -std=gnu++11 $(GEM5_SIMD_CFLAGS) -mf16c
 CPPFLAGS += -I$(MKLDNNROOT)/include -DTRANSPOSE_WEIGHTS=1
 LFLAGS += -L$(MKLDNNROOT)/lib -lmkldnn
 NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smv.cpp \
