@@ -4,7 +4,7 @@
 # The gem5 dependencies are listed as .cpp files for compatibility with gem5.
 # To compile them with C code, we need to explicitly use gcc.
 
-include common/Makefile.arch 
+include common/Makefile.arch
 .PHONY: gem5 gem5-cpu gem5-accel clean-gem5
 
 ifeq ($(ARCH), EIGEN)
@@ -21,7 +21,7 @@ CFLAGS += -std=gnu99
 else ifeq ($(ARCH), SMIV)
 COMP = $(CXX)
 GEM5_SIMD_CFLAGS = -msse3 -msse2 -mno-ssse3 -mno-sse4.1 -mno-sse4.2
-CFLAGS += -std=gnu++11 $(GEM5_SIMD_FLAGS)
+CFLAGS += -std=gnu++11 $(GEM5_SIMD_CFLAGS)
 CPPFLAGS += -I$(MKLDNNROOT)/include
 LFLAGS += -L$(MKLDNNROOT)/lib -lmkldnn
 NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smiv.cpp \
@@ -31,7 +31,7 @@ NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smiv.cpp \
 else ifeq ($(ARCH), SMV)
 COMP = $(CXX)
 GEM5_SIMD_CFLAGS = -msse3 -msse2 -mno-ssse3 -mno-sse4.1 -mno-sse4.2
-CFLAGS += -std=gnu++11 $(GEM5_SIMD_FLAGS)
+CFLAGS += -std=gnu++11 $(GEM5_SIMD_CFLAGS)
 CPPFLAGS += -I$(MKLDNNROOT)/include -DTRANSPOSE_WEIGHTS=1
 LFLAGS += -L$(MKLDNNROOT)/lib -lmkldnn
 NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smv.cpp \
