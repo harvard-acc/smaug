@@ -40,6 +40,25 @@ void lrelu_simd128(float* inputs, size_t size, float alpha) {
     }
 }
 
+// The hyperbolic tangent activation function
+void tanh_act_simd128(float* inputs, int size, float* results) {
+    int i;
+    v4fp_t* vec_inputs =
+            (v4fp_t*)(__builtin_assume_aligned(inputs, _VECTOR_BYTES));
+    v4fp_t* vec_results =
+            (v4fp_t*)(__builtin_assume_aligned(results, _VECTOR_BYTES));
+    v4fp_t two = { 2, 2, 2, 2 };
+    v4fp_t one = { 1, 1, 1, 1 };
+    for (i = 0; i < size / _VECTOR_WIDTH; i++) {
+        vec_results[i] = vec_inputs[i] * two;
+    }
+    sigmoid_inplace(results, size);
+
+    for (i = 0; i < size / _VECTOR_WIDTH; i++) {
+        vec_results[i] = vec_results[i] * two - one;
+    }
+}
+
 // Dispatch to the appropriate activation function.
 void activation_fun_simd128(packed_fp16* activations,
                             int batch_size,
@@ -67,9 +86,9 @@ void activation_fun_simd128(packed_fp16* activations,
         selu(unpacked_activations->d,
              unpacked_activations->size);
     } else if (function == TANH) {
-        tanh_act(unpacked_activations->d,
-                 unpacked_activations->size,
-                 unpacked_activations->d);
+        tanh_act_simd128(unpacked_activations->d,
+                         unpacked_activations->size,
+                         unpacked_activations->d);
     } else if (function == SIGMOID) {
         sigmoid_inplace(unpacked_activations->d, unpacked_activations->size);
     } else if (function == SOFTMAX) {
