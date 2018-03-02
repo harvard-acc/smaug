@@ -11,11 +11,15 @@
 // These two vectors must be of the same size.
 typedef float v8fp_t __attribute__((__vector_size__(TOTAL_VECTOR_BYTES)));
 typedef uint16_t v16short_t __attribute__((__vector_size__(TOTAL_VECTOR_BYTES)));
-
 // This vector is used to manipulate the packed elements at VECTOR_SIZE
 // granularity.
 typedef uint16_t v8short_t
         __attribute__((__vector_size__(VECTOR_SIZE * PACKED_ELEMENT_SIZE)));
+
+// These are used to pack and unpack half precision data.
+typedef float v4fp_t __attribute__((__vector_size__(TOTAL_VECTOR_BYTES / 2)));
+typedef uint16_t v4short_t
+        __attribute__((__vector_size__(VECTOR_SIZE / 2 * PACKED_ELEMENT_SIZE)));
 
 csr_array_t* alloc_csr_array_t(size_t num_nonzeros, size_t num_rows) {
     csr_array_t* csr = (csr_array_t*)malloc(sizeof(csr_array_t));
@@ -111,18 +115,57 @@ int compute_num_vectors_in_row(int num_elems_in_row) {
  *
  * Returns a pointer to a malloc'ed uarray_t object, whose size is equal to the
  * minimum number of 32-bit unsigned values required to store the packed data.
+ * To use an existing buffer, pass its pointer to the dest_buf argument;
+ * otherwise, pass NULL, and it will be autmoatically allocated.
  */
-uarray_t* pack_data_fp16(farray_t* sp_data) {
-   uarray_t* hp_data = (uarray_t*)malloc(sizeof(uarray_t));
-   hp_data->size = (sp_data->size / 2) + (sp_data->size % 2);
-   hp_data->d = (packed_fp16*)malloc_aligned(hp_data->size * sizeof(packed_fp16));
-   memset(hp_data->d, 0, hp_data->size * sizeof(packed_fp16));
-   for (size_t i = 0; i < sp_data->size; i++) {
-      bool use_lo_half = (i % 2 == 0);
-      hp_data->d[i / 2] |= ((int)_CVT_SS_SH(sp_data->d[i], 0))
-                          << (use_lo_half ? 0 : 16);
-   }
-   return hp_data;
+uarray_t* pack_data_fp16(farray_t* sp_data, packed_fp16* dest_buf) {
+    uarray_t* hp_data = (uarray_t*)malloc(sizeof(uarray_t));
+    hp_data->size = (sp_data->size / 2) + (sp_data->size % 2);
+    if (!dest_buf) {
+        hp_data->d = (packed_fp16*)malloc_aligned(hp_data->size *
+                                                  sizeof(packed_fp16));
+    } else {
+        hp_data->d = dest_buf;
+    }
+    memset(hp_data->d, 0, hp_data->size * sizeof(packed_fp16));
+    for (size_t i = 0; i < sp_data->size; i++) {
+        bool use_lo_half = (i % 2 == 0);
+        hp_data->d[i / 2] |= ((int)_CVT_SS_SH(sp_data->d[i], 0))
+                             << (use_lo_half ? 0 : 16);
+    }
+    return hp_data;
+}
+
+/* Decompress an array of half-precision FP values to single precision.
+ *
+ * This requires that the number of packed elements be a multiple of 4, so that
+ * it can use 128-bit F16C instructions to efficiently unpack 4 values at a
+ * time.
+ *
+ * Returns a pointer to a malloc'ed farray_t object holding the decompressed
+ * data.  To use an existing buffer, pass its pointer to the dest_buf argument;
+ * otherwise, pass NULL, and it will be autmoatically allocated.
+ */
+farray_t* unpack_data_fp16x4(uarray_t* hp_data, float* dest_buf) {
+    assert(hp_data->size % 4 == 0 &&
+           "Half precision data size of must be a multiple of 4!");
+    farray_t* sp_data = (farray_t*)malloc(sizeof(farray_t));
+    sp_data->size = hp_data->size * 2;
+    if (!dest_buf) {
+        sp_data->d = (float*)malloc_aligned(sp_data->size * sizeof(float));
+    } else {
+        sp_data->d = dest_buf;
+    }
+    memset(sp_data->d, 0, sp_data->size * sizeof(packed_fp16));
+    for (size_t i = 0; i < hp_data->size / 4; i++) {
+        v8short_t packed_data = *(v8short_t*)&hp_data->d[4 * i];
+        v8short_t packed_data_hi =
+                (v8short_t)_SHUFFLE_PD(packed_data, packed_data, 0x3);
+        *((v4fp_t*)&sp_data->d[i * 8]) = (v4fp_t)_CVT_PH_PS_128(packed_data);
+        *((v4fp_t*)&sp_data->d[i * 8 + 4]) =
+                (v4fp_t)_CVT_PH_PS_128(packed_data_hi);
+    }
+    return sp_data;
 }
 
 /* Compress an uncompressed matrix into the modified CSR format.
