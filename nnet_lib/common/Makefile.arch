@@ -21,6 +21,7 @@ CORE_SRCS = core/ref/activation_functions.c \
 						core/smiv/max_pooling_nhwc.c \
 						core/smiv/average_pooling_nhwc.c \
 						core/smiv/decompression.c \
+						core/smv/activation_functions.c \
 						core/smv/convolution.c \
 						core/smv/convolution_simd.c \
 						core/smv/matrix_multiply.c \

@@ -9,16 +9,14 @@
 #include "core/nnet_fwd_defs.h"
 
 // The rectified linear activation function
-// ** this function is in-place (modifies a) **
 ALWAYS_INLINE
 static inline v8fp_t relu_simd(v8fp_t a) {
     v8fp_t zero = (v8fp_t){ 0 };
     v8sfx_t mask = (a > zero);
-    return VEC_MASK(a, mask);
+    return VEC256_MASK(a, mask);
 }
 
 // The leaky rectified linear activation function
-// ** this function is in-place (modifies a) **
 ALWAYS_INLINE
 static inline v8fp_t lrelu_simd(v8fp_t a) {
     static const float alpha = 0.1;
@@ -28,7 +26,7 @@ static inline v8fp_t lrelu_simd(v8fp_t a) {
     v8sfx_t neg_mask = a < zero;
     v8sfx_t pos_mask = a >= zero;
     v8fp_t scaled = alpha_vec * a;
-    return VEC_MASK(scaled, neg_mask) + VEC_MASK(a, pos_mask);
+    return VEC256_MASK(scaled, neg_mask) + VEC256_MASK(a, pos_mask);
 }
 
 ALWAYS_INLINE
@@ -56,7 +54,6 @@ static inline v8fp_t elu_lut_simd(v8fp_t a, float alpha) {
 }
 
 // The exponential linear activation function
-// ** this function is in-place (modifies a) **
 ALWAYS_INLINE
 static inline v8fp_t elu_simd(v8fp_t a, float alpha) {
     if (SIGMOID_IMPL == ExpUnit) {
@@ -67,7 +64,6 @@ static inline v8fp_t elu_simd(v8fp_t a, float alpha) {
 }
 
 // The scaled exponential linear activation function
-// ** this function is in-place (modifies a) **
 ALWAYS_INLINE
 static inline v8fp_t selu_simd(v8fp_t a) {
     int i;
@@ -83,7 +79,6 @@ static inline v8fp_t selu_simd(v8fp_t a) {
 }
 
 // The logistic activation function
-// ** this function is in-place (modifies a) **
 ALWAYS_INLINE
 static inline v8fp_t sigmoidn_simd(v8fp_t a) {
     int i;
@@ -128,7 +123,6 @@ static inline v8fp_t sigmoid_inplace_simd(v8fp_t a) {
 }
 
 // The hyberbolic sine activation function
-// ** this function is in-place (modifies a) **
 ALWAYS_INLINE
 static inline v8fp_t tanh_act_simd(v8fp_t a) {
     v8fp_t one = { 1, 1, 1, 1, 1, 1, 1, 1 };

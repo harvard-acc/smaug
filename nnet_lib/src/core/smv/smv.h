@@ -19,4 +19,9 @@ void matrix_multiply_transpose_smv(float* a,
                                    int result_start,
                                    float* result);
 
+void activation_fun_simd128(packed_fp16* activations,
+                            int batch_size,
+                            int input_size,
+                            activation_type function,
+                            packed_fp16* results);
 #endif
