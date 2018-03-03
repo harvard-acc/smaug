@@ -401,13 +401,13 @@ void smv_inner_product_run_decompression_and_update_layer(
                                     input_in_spad0, (smiv_global*)g_smv,
                                     device);
     if (is_last_iter) {
-        assert(partial_layer->host_weights.len == 2 &&
+        assert(partial_layer->host_weights->len == 2 &&
                "Inner product HW on SMV must have two sets of "
                "weights!");
-        assert(partial_layer->host_weights.type[1] == Uncompressed &&
+        assert(partial_layer->host_weights->type[1] == Uncompressed &&
                "The second set of weights (biases) must be "
                "uncompressed!");
-        farray_t* biases = partial_layer->host_weights.data[1].dense;
+        farray_t* biases = partial_layer->host_weights->data[1].dense;
         dma_options options;
         options.src_offset = 0;
         options.dst_offset = get_nhwc_dims_size(&transpose_layer.weights);
@@ -482,9 +482,9 @@ void smv_inner_product_layer_impl_rowwise(float* host_activations,
 
     int current_row = 0;
     bool requires_decompression =
-            (curr_layer->host_weights.type[0] == PackedCSR);
+            (curr_layer->host_weights->type[0] == PackedCSR);
     packed_fp16* curr_dense_weights_loc =
-            curr_layer->host_weights.data[0].dense_hp->d;
+            curr_layer->host_weights->data[0].dense_hp->d;
 
     // If decompression is required, and the offload mechanism is DMA, we need
     // to DMA output data back on every iteration. To ensure we don't corrupt
@@ -634,7 +634,7 @@ void smv_inner_product_layer_impl(float* host_activations,
     bool input_in_spad0 = (current_result_loc == g_smv->spad1);
     layer_t* curr_layer = &layers[lnum];
 
-    ASSERT(curr_layer->host_weights.type[0] != CSR &&
+    ASSERT(curr_layer->host_weights->type[0] != CSR &&
            "Unpacked CSR weights are not supported!");
     smv_inner_product_layer_impl_rowwise(host_activations,
                                          curr_layer,

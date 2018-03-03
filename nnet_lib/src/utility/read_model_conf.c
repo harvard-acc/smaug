@@ -537,9 +537,7 @@ static void read_top_level_config(layer_t* layers, cfg_t* network_opts) {
     layers[0].biases.cols = 0;
     layers[0].biases.height = 0;
     layers[0].num = 0;
-    layers[0].host_weights.data = NULL;
-    layers[0].host_weights.type = NULL;
-    layers[0].host_weights.len = 0;
+    layers[0].host_weights = NULL;
 
     // Set the global variables.
     data_alignment = DATA_ALIGNMENT;
@@ -552,9 +550,7 @@ static void read_layer_config(layer_t* layers, cfg_t* network_opts, int l) {
     cfg_t* current_layer_opts = cfg_getnsec(network_opts, "layer", l - 1);
     set_layer_type(layers, current_layer_opts, l);
     set_layer_dims(layers, current_layer_opts, l);
-    layers[l].host_weights.data = NULL;
-    layers[l].host_weights.type = NULL;
-    layers[l].host_weights.len = 0;
+    layers[l].host_weights = NULL;
 }
 
 io_req_t str_to_io_req(char* value) {

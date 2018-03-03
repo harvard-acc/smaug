@@ -439,11 +439,11 @@ void* malloc_aligned(size_t size) {
     return ptr;
 }
 
-data_list init_data_list(int len) {
-    data_list list;
-    list.data = (union DataFormat*)malloc(sizeof(union DataFormat) * len);
-    list.type = (data_storage_t*)malloc(sizeof(data_storage_t) * len);
-    list.len = len;
+data_list* init_data_list(int len) {
+    data_list* list = (data_list*) malloc(sizeof(data_list));
+    list->data = (union DataFormat*)malloc(sizeof(union DataFormat) * len);
+    list->type = (data_storage_t*)malloc(sizeof(data_storage_t) * len);
+    list->len = len;
     return list;
 }
 
@@ -451,5 +451,5 @@ void free_data_list(data_list* list) {
     // This only frees the container structures, not the actual data buffers.
     free(list->data);
     free(list->type);
-    // Don't free the pointer! The pointer may not necessarily be malloc'ed.
+    free(list);
 }

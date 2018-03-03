@@ -168,7 +168,7 @@ typedef struct _layer_t {
   // implementation whether to do so or not.  Each entry in the list can be of
   // a different storage type, so some can be compressed and others left
   // uncompressed.
-  data_list host_weights;
+  data_list* host_weights;
 
   // Data input/output dimensions on a per iteration basis.
   //

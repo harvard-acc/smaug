@@ -104,9 +104,9 @@ void smiv_decompress_packed_csr_impl(layer_t* layer,
                                      bool input_in_spad0,
                                      smiv_global* g_smiv,
                                      device_t* device) {
-    assert(layer->host_weights.len > weights_list_idx);
+    assert(layer->host_weights->len > weights_list_idx);
     packed_csr_array_t* src_csr =
-            layer->host_weights.data[weights_list_idx].packed;
+            layer->host_weights->data[weights_list_idx].packed;
     csr_tile_list* tile_list = tile_packed_csr_array_t(
             src_csr, &layer->weights, start_row, SMIV_SPAD_SIZE);
     assert(tile_list->len > 0 && "CSR tile list cannot be empty!");

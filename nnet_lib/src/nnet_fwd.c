@@ -227,9 +227,9 @@ void set_default_args(arguments* args) {
     }
 }
 
-data_list pack_compress_colmajor_weights(float* weights,
-                                         dims_t* orig_dims,
-                                         dims_t* bias_dims) {
+data_list* pack_compress_colmajor_weights(float* weights,
+                                          dims_t* orig_dims,
+                                          dims_t* bias_dims) {
     // Compress the weights without the bias row first.
     // Swap the rows and columns.
     dims_t transposed_dims = *orig_dims;
@@ -248,11 +248,11 @@ data_list pack_compress_colmajor_weights(float* weights,
     biases_storage->d = bias_loc;
     biases_storage->size = bias_dims->cols;
 
-    data_list list = init_data_list(2);
-    list.data[0].packed = packed_weights_csr;
-    list.data[1].dense = biases_storage;
-    list.type[0] = PackedCSR;
-    list.type[1] = Uncompressed;
+    data_list* list = init_data_list(2);
+    list->data[0].packed = packed_weights_csr;
+    list->data[1].dense = biases_storage;
+    list->type[0] = PackedCSR;
+    list->type[1] = Uncompressed;
     free_csr_array_t(weights_csr);
 
     return list;
@@ -276,16 +276,16 @@ void process_compressed_weights(network_t* network,
             farray_t* layer_weights = (farray_t*)malloc(sizeof(farray_t));
             layer_weights->d = weights_loc;
             layer_weights->size = get_num_weights_layer(layer, 0);
-            layer->host_weights.data[0].dense = layer_weights;
-            layer->host_weights.type[0] = Uncompressed;
+            layer->host_weights->data[0].dense = layer_weights;
+            layer->host_weights->type[0] = Uncompressed;
         } else if (storage_type == CSR) {
             dims_t dims_with_bias = layer->weights;
             dims_with_bias.rows += layer->biases.rows;
             csr_array_t* csr =
                     compress_dense_data_csr(weights_loc, &dims_with_bias);
             layer->host_weights = init_data_list(1);
-            layer->host_weights.data[0].csr = csr;
-            layer->host_weights.type[0] = CSR;
+            layer->host_weights->data[0].csr = csr;
+            layer->host_weights->type[0] = CSR;
         } else if (storage_type == PackedCSR) {
 #if TRANSPOSE_WEIGHTS == 1
             layer->host_weights = pack_compress_colmajor_weights(
@@ -298,8 +298,8 @@ void process_compressed_weights(network_t* network,
             packed_csr_array_t* packed_csr =
                     pack_csr_array_vec8_f16(csr, &dims_with_bias);
             layer->host_weights = init_data_list(1);
-            layer->host_weights.data[0].packed = packed_csr;
-            layer->host_weights.type[0] = PackedCSR;
+            layer->host_weights->data[0].packed = packed_csr;
+            layer->host_weights->type[0] = PackedCSR;
             free_csr_array_t(csr);
 #endif
         }
@@ -310,27 +310,29 @@ void process_compressed_weights(network_t* network,
 void free_network_weights(network_t* network) {
     for (int i = 0; i < network->depth; i++) {
         layer_t* layer = &network->layers[i];
-        for (int j = 0; j < layer->host_weights.len; j++) {
-            data_storage_t type = layer->host_weights.type[j];
+        if (!layer->host_weights)
+            continue;
+        for (int j = 0; j < layer->host_weights->len; j++) {
+            data_storage_t type = layer->host_weights->type[j];
             if (type == CSR) {
                 csr_array_t* csr =
-                        layer->host_weights.data[j].csr;
+                        layer->host_weights->data[j].csr;
                 free_csr_array_t(csr);
             } else if (type == PackedCSR) {
                 packed_csr_array_t* csr =
-                        layer->host_weights.data[j].packed;
+                        layer->host_weights->data[j].packed;
                 free_packed_csr_array_t(csr);
             } else if (type == Uncompressed) {
-                farray_t* array = layer->host_weights.data[j].dense;
+                farray_t* array = layer->host_weights->data[j].dense;
                 // Don't free the actual data buffer here.
                 free(array);
             } else if (type == UncompressedHalfPrecision) {
-                uarray_t* array = layer->host_weights.data[j].dense_hp;
+                uarray_t* array = layer->host_weights->data[j].dense_hp;
                 free(array->d);
                 free(array);
             }
         }
-        free_data_list(&layer->host_weights);
+        free_data_list(layer->host_weights);
     }
 }
 
