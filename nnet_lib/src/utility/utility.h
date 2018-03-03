@@ -136,6 +136,7 @@ void require_data_type(data_list* list, int index, data_storage_t req_type);
 void* malloc_aligned(size_t size);
 
 void* malloc_aligned(size_t size);
+const char* data_storage_str(data_storage_t type);
 void init_data_list_storage(data_list* list, int len);
 data_list* init_data_list(int len);
 data_list* copy_data_list(data_list* dest, data_list* source);

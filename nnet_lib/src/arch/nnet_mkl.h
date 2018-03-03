@@ -93,6 +93,21 @@ class BaseMklOp {
         return get_output_mem();
     }
 
+    // Returns a data_list object containing the output buffer of this op.
+    //
+    // Be careful when using this! The caller can free the data list but NOT
+    // the underlying buffer pointing to the output memory!
+    data_list* get_output_data_list() const {
+        data_list* results = init_data_list(1);
+        results->data[0].dense = init_farray(0, false);
+        results->data[0].dense->d = (DType*)get_output_mem().get_data_handle();
+        results->data[0].dense->size =
+                get_output_mem().get_primitive_desc().get_size() /
+                sizeof(DType);
+        results->type[0] = Uncompressed;
+        return results;
+    }
+
     const layer_t* get_layer() const {
         return layer;
     }
