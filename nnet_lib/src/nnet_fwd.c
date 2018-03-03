@@ -227,24 +227,9 @@ void set_default_args(arguments* args) {
     }
 }
 
-weights_list init_weights_list(int len) {
-    weights_list list;
-    list.data = (union weights_data*)malloc(sizeof(union weights_data) * len);
-    list.type = (data_storage_t*)malloc(sizeof(data_storage_t) * len);
-    list.len = len;
-    return list;
-}
-
-void free_weights_list(weights_list* list) {
-    // This only frees the container structures, not the actual data buffers.
-    free(list->data);
-    free(list->type);
-    // Don't free the pointer! The pointer is not malloc'ed.
-}
-
-weights_list pack_compress_colmajor_weights(float* weights,
-                                            dims_t* orig_dims,
-                                            dims_t* bias_dims) {
+data_list pack_compress_colmajor_weights(float* weights,
+                                         dims_t* orig_dims,
+                                         dims_t* bias_dims) {
     // Compress the weights without the bias row first.
     // Swap the rows and columns.
     dims_t transposed_dims = *orig_dims;
@@ -263,7 +248,7 @@ weights_list pack_compress_colmajor_weights(float* weights,
     biases_storage->d = bias_loc;
     biases_storage->size = bias_dims->cols;
 
-    weights_list list = init_weights_list(2);
+    data_list list = init_data_list(2);
     list.data[0].packed = packed_weights_csr;
     list.data[1].dense = biases_storage;
     list.type[0] = PackedCSR;
@@ -287,7 +272,7 @@ void process_compressed_weights(network_t* network,
         float* weights_loc =
                 (weights->d + get_weights_loc_for_layer(network->layers, i));
         if (storage_type == Uncompressed) {
-            layer->host_weights = init_weights_list(1);
+            layer->host_weights = init_data_list(1);
             farray_t* layer_weights = (farray_t*)malloc(sizeof(farray_t));
             layer_weights->d = weights_loc;
             layer_weights->size = get_num_weights_layer(layer, 0);
@@ -298,7 +283,7 @@ void process_compressed_weights(network_t* network,
             dims_with_bias.rows += layer->biases.rows;
             csr_array_t* csr =
                     compress_dense_data_csr(weights_loc, &dims_with_bias);
-            layer->host_weights = init_weights_list(1);
+            layer->host_weights = init_data_list(1);
             layer->host_weights.data[0].csr = csr;
             layer->host_weights.type[0] = CSR;
         } else if (storage_type == PackedCSR) {
@@ -312,7 +297,7 @@ void process_compressed_weights(network_t* network,
                     compress_dense_data_csr(weights_loc, &dims_with_bias);
             packed_csr_array_t* packed_csr =
                     pack_csr_array_vec8_f16(csr, &dims_with_bias);
-            layer->host_weights = init_weights_list(1);
+            layer->host_weights = init_data_list(1);
             layer->host_weights.data[0].packed = packed_csr;
             layer->host_weights.type[0] = PackedCSR;
             free_csr_array_t(csr);
@@ -345,7 +330,7 @@ void free_network_weights(network_t* network) {
                 free(array);
             }
         }
-        free_weights_list(&layer->host_weights);
+        free_data_list(&layer->host_weights);
     }
 }
 

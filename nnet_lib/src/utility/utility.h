@@ -130,6 +130,8 @@ void print_debug4d(float* array, int rows, int cols, int height);
 void print_data_and_weights(float* data, float* weights, layer_t first_layer);
 
 void* malloc_aligned(size_t size);
+data_list init_data_list(int len);
+void free_data_list(data_list* list);
 
 #ifdef BITWIDTH_REDUCTION
 // Don't add this function unless we want to model bit width quantization

@@ -424,8 +424,8 @@ void set_io_requirements(network_t* network, device_t* device) {
 //   3. Fully connected: quantize to 16 bits.
 //
 // Converted weight descriptors are stored in the host_weights list of the
-// layer descriptor. The existing weights_data structure is replaced by the new
-// one created here, and its memory freed.
+// layer descriptor. The existing structure holding the weights is replaced by
+// the new one created here, and its memory freed.
 void early_convert_weights_data_layout(network_t* network) {
     for (int i = 1; i < network->depth; i++) {
         layer_t* layer = &network->layers[i];

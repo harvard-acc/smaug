@@ -123,22 +123,22 @@ typedef enum _data_storage_t {
     NumDataStorageTypes,
 } data_storage_t;
 
-// Valid storage formats for weights data.
-union weights_data {
+// Valid storage formats for any kind of data (weights or activations):
+union DataFormat {
     struct _packed_csr_array_t* packed;
     struct _csr_array_t* csr;
     farray_t* dense;
     uarray_t* dense_hp;
 };
 
-typedef struct _weights_list {
+typedef struct _data_list {
     // A pointer to dynamically allocated storage, holding pointers to
     // pointers to weights.
-    union weights_data* data;
+    union DataFormat* data;
     // Indicates the weights storage format.
     data_storage_t* type;
     int len;
-} weights_list;
+} data_list;
 
 // Description of a layer in a neural network.
 //
@@ -168,7 +168,7 @@ typedef struct _layer_t {
   // implementation whether to do so or not.  Each entry in the list can be of
   // a different storage type, so some can be compressed and others left
   // uncompressed.
-  weights_list host_weights;
+  data_list host_weights;
 
   // Data input/output dimensions on a per iteration basis.
   //
