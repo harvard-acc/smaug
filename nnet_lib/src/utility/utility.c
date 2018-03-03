@@ -597,32 +597,87 @@ void free_data_list(data_list* list) {
     free(list);
 }
 
+data_list* copy_data_list(data_list* dest, data_list* source) {
+    if (dest == NULL) {
+        dest = init_data_list(source->len);
+    } else if (dest == source) {
+        return dest;
+    } else {
+        init_data_list_storage(dest, source->len);
+    }
+    for (int i = 0; i < source->len; i++) {
+        dest->type[i] = source->type[i];
+        switch (dest->type[i]) {
+          case Uncompressed:
+              dest->data[i].dense = copy_farray(source->data[i].dense);
+              break;
+          case UncompressedHalfPrecision:
+              dest->data[i].dense_hp = copy_uarray(source->data[i].dense_hp);
+              break;
+          case CSR:
+              dest->data[i].csr = copy_csr_array_t(source->data[i].csr);
+              break;
+          case PackedCSR:
+              dest->data[i].packed =
+                      copy_packed_csr_array_t(source->data[i].packed);
+              break;
+          default:
+              assert(false && "Invalid data storage format!");
+        }
+    }
+    return dest;
+}
+
 farray_t* init_farray(int len, bool zero) {
     farray_t* array = (farray_t*) malloc(sizeof(farray_t));
-    array->d = (float*)malloc(len * sizeof(float));
-    array->size = len;
-    if (zero)
+    if (len > 0) {
+        array->d = (float*)malloc_aligned(len * sizeof(float));
+        array->size = len;
+    } else {
+        array->d = NULL;
+        array->size = 0;
+    }
+    if (zero && len > 0)
         memset(array->d, 0, array->size * sizeof(float));
     return array;
 }
 
 uarray_t* init_uarray(int len, bool zero) {
     uarray_t* array = (uarray_t*) malloc(sizeof(uarray_t));
-    array->d = (packed_fp16*)malloc(len * sizeof(packed_fp16));
-    array->size = len;
-    if (zero)
+    if (len > 0) {
+        array->d = (packed_fp16*)malloc_aligned(len * sizeof(packed_fp16));
+        array->size = len;
+    } else {
+        array->d = NULL;
+        array->size = 0;
+    }
+    if (zero && len > 0)
         memset(array->d, 0, array->size * sizeof(packed_fp16));
     return array;
 }
 
 void free_farray(farray_t* array) {
-    free(array->d);
+    if (array->size > 0)
+        free(array->d);
     free(array);
 }
 
 void free_uarray(uarray_t* array) {
-    free(array->d);
+    if (array->size > 0)
+        free(array->d);
     free(array);
+}
+
+farray_t* copy_farray(farray_t* existing) {
+    farray_t* copy = init_farray(existing->size, false);
+    memcpy(copy->d, existing->d, existing->size * sizeof(float));
+    return copy;
+}
+
+uarray_t* copy_uarray(uarray_t* existing) {
+    uarray_t* copy = init_uarray(existing->size, false);
+    memcpy(copy->d, existing->d, existing->size * sizeof(float));
+    return copy;
 }
 
 // Swap the pointers stored in ptr1 and ptr2.

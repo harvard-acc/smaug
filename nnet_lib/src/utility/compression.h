@@ -35,6 +35,7 @@ typedef struct _packed_csr_array_t {
     uint32_t* col_idx;
     uint32_t* row_idx;
     size_t num_nonzeros;
+    size_t num_total_vectors;
     size_t num_rows;
     size_t total_buf_size;  // in bytes.
 } packed_csr_array_t;
@@ -87,6 +88,7 @@ void free_csr_array_t(csr_array_t* ptr);
 packed_csr_array_t* alloc_packed_csr_array_t(size_t num_total_vectors,
                                             size_t num_nonzeros,
                                             size_t num_rows);
+packed_csr_array_t* copy_packed_csr_array_t(packed_csr_array_t* existing_array);
 void free_packed_csr_array_t(packed_csr_array_t* ptr);
 
 // CSR decompression tiling functions.

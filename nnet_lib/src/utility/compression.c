@@ -91,8 +91,22 @@ packed_csr_array_t* alloc_packed_csr_array_t(size_t num_total_vectors,
     csr->col_idx = csr->vals + values_size / sizeof(uint32_t);
     csr->row_idx = csr->col_idx + col_idx_size / sizeof(uint32_t);
     csr->num_nonzeros = num_nonzeros;
+    csr->num_total_vectors = num_total_vectors;
     csr->num_rows = num_rows;
     csr->total_buf_size = total_buf_size;  // Used for setting TLB mappings.
+    return csr;
+}
+
+/* Copy an existing packed CSR array into a new array.
+ *
+ * This fully duplicates the data and all the pointers and metadata.
+ */
+packed_csr_array_t* copy_packed_csr_array_t(packed_csr_array_t* existing_array) {
+    packed_csr_array_t* csr = alloc_packed_csr_array_t(
+            existing_array->num_total_vectors, existing_array->num_nonzeros,
+            existing_array->num_rows);
+    memcpy((void*)csr->vals, (void*)existing_array->vals,
+           existing_array->total_buf_size);
     return csr;
 }
 

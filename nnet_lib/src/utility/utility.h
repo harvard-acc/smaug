@@ -138,11 +138,14 @@ void* malloc_aligned(size_t size);
 void* malloc_aligned(size_t size);
 void init_data_list_storage(data_list* list, int len);
 data_list* init_data_list(int len);
+data_list* copy_data_list(data_list* dest, data_list* source);
 void free_data_list(data_list* list);
 farray_t* init_farray(int len, bool zero);
 uarray_t* init_uarray(int len, bool zero);
 void free_farray(farray_t* array);
 void free_uarray(uarray_t* array);
+farray_t* copy_farray(farray_t* existing);
+uarray_t* copy_uarray(uarray_t* existing);
 
 void swap_pointers(void** ptr1, void** ptr2);
 #define SWAP_PTRS(a_ptr, b_ptr)                                                \
