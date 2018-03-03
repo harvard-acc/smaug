@@ -11,11 +11,11 @@
         end_profiling();                                                       \
     } while (0)
 
-result_buf layer_dispatcher(float* activations,
-                            float* weights,
+result_buf layer_dispatcher(data_list* activations,
+                            data_list* weights,
                             layer_t* layers,
                             int layer_num,
-                            float* result,
+                            data_list* result,
                             device_t* device,
                             sampling_param_t* sampling_param);
 #endif

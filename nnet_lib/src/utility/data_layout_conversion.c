@@ -9,17 +9,42 @@
 
 #include <string.h>
 
+#include "core/nnet_fwd_defs.h"
 #include "utility/data_layout_conversion.h"
 #include "utility/utility.h"
 
-void im2row_impl(float* input,
-                 int input_rows,
-                 int input_cols,
-                 int input_height,
-                 int input_pad,
-                 int output_pad,
-                 float* result) {
+// Returns the number of elements required to store the flattened image.
+//
+// Args:
+//   layers: The global array of layer descriptors, starting from zero.
+//   lnum: The layer that expects a flattened input image. The input dimensions
+//     of the flattening routine is the output dims of the previous layer.
+int im2row_size(layer_t* layers, int lnum) {
+    // The "input" to im2row is the output of the previous layer.
+    int input_rows = layers[lnum - 1].outputs.rows;
+    int input_cols = layers[lnum - 1].outputs.cols;
+    int input_height = layers[lnum - 1].outputs.height;
+    int input_pad = layers[lnum - 1].outputs.align_pad;
+    // The "output" padding of im2row is the padding required for the input to
+    // the current layer.
+    int output_pad = layers[lnum].inputs.align_pad;
+
+    return NUM_TEST_CASES *
+           ((input_height * input_rows * (input_cols + input_pad)) +
+            output_pad);
+}
+
+void im2row_impl(float* input, layer_t* layers, int lnum, float* result) {
     int img, hgt, row;
+
+    // The "input" to im2row is the output of the previous layer.
+    int input_rows = layers[lnum - 1].outputs.rows;
+    int input_cols = layers[lnum - 1].outputs.cols;
+    int input_height = layers[lnum - 1].outputs.height;
+    int input_pad = layers[lnum - 1].outputs.align_pad;
+    // The "output" padding of im2row is the padding required for the input to
+    // the current layer.
+    int output_pad = layers[lnum].inputs.align_pad;
 
     ARRAY_4D(float, _input, input, input_height, input_rows,
              input_cols + input_pad);
@@ -37,23 +62,41 @@ void im2row_impl(float* input,
     }
 }
 
-result_buf im2row(float* input, layer_t* layers, int lnum, float* result) {
+// Flatten the input image.
+//
+// This function only supports the Uncompressed data format.
+//
+// Args:
+//   input: the data list object storing the input, which is assumed to be the
+//      first entry in the list.
+//   layers: The global layers descriptor.
+//   lnum: The number of the layer that needs to have the outputs from the
+//      previous layer flattened.
+//   result: a data list object that **may** be used to store the flattened
+//      output. If this function determines that nothing actually needs to be
+//      done (this image can directly be reshaped into the flattened view),
+//      this object is not used. Alternatively, if the flattened size exceeds
+//      the size of the current results data list object, then it frees the
+//      existing buffer and allocates new storage.
+//
+// Returns:
+//   A data list object containing the flattened object. If no flattening needs
+//   to be done, then this returns the @input data list; otherwise, it flattens
+//   the input image and returns @result.
+result_buf im2row(data_list* input,
+                  layer_t* layers,
+                  int lnum,
+                  data_list* result) {
     // Check if we actually need to do anything.
     if (layers[lnum - 1].outputs.align_pad == 0 &&
         layers[lnum].inputs.align_pad == 0)
         return input;
 
-    // The "input" to im2row is the output of the previous layer.
-    int input_rows = layers[lnum - 1].outputs.rows;
-    int input_cols = layers[lnum - 1].outputs.cols;
-    int input_height = layers[lnum - 1].outputs.height;
-    int input_pad = layers[lnum - 1].outputs.align_pad;
-    // The "output" padding of im2row is the padding required for the input to
-    // the current layer.
-    int output_pad = layers[lnum].inputs.align_pad;
-
-    im2row_impl(input, input_rows, input_cols, input_height, input_pad,
-                output_pad, result);
+    int result_bytes = im2row_size(layers, lnum) * sizeof(float);
+    result = create_new_data_list_if_necessary(
+            result, result_bytes, Uncompressed);
+    im2row_impl(
+            input->data[0].dense->d, layers, lnum, result->data[0].dense->d);
 
     return result;
 }

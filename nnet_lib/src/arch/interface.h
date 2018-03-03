@@ -18,63 +18,57 @@
 // consistent throughout (the "activations" array is never called "input" or
 // some other name, and so on).
 
-result_buf inner_product_layer(float* activations,
-                               float* weights,
+result_buf inner_product_layer(data_list* activations,
+                               data_list* weights,
                                layer_t* layers,
                                int lnum,
-                               float* result,
+                               data_list* result,
                                device_t* device,
                                sampling_param_t* sampling_param);
 
-result_buf standard_convolution_layer(float* activations,
-                                      float* weights,
+result_buf standard_convolution_layer(data_list* activations,
+                                      data_list* weights,
                                       layer_t* layers,
                                       int lnum,
-                                      float* result,
+                                      data_list* result,
                                       device_t* device,
                                       sampling_param_t* sampling_param);
 
-result_buf depthwise_convolution_layer(float* activations,
-                                       float* weights,
+result_buf depthwise_convolution_layer(data_list* activations,
+                                       data_list* weights,
                                        layer_t* layers,
                                        int lnum,
-                                       float* result,
+                                       data_list* result,
                                        device_t* device,
                                        sampling_param_t* sampling_param);
 
-result_buf pointwise_convolution_layer(float* activations,
-                                       float* weights,
+result_buf pointwise_convolution_layer(data_list* activations,
+                                       data_list* weights,
                                        layer_t* layers,
                                        int lnum,
-                                       float* result,
+                                       data_list* result,
                                        device_t* device,
                                        sampling_param_t* sampling_param);
 
-result_buf pooling_layer(float* activations,
+result_buf pooling_layer(data_list* activations,
                          layer_t* layers,
                          int lnum,
-                         float* result,
+                         data_list* result,
                          device_t* device,
                          sampling_param_t* sampling_param);
 
-result_buf batch_norm_layer(float* activations,
-                            float* weights,
+result_buf batch_norm_layer(data_list* activations,
+                            data_list* weights,
                             layer_t* layers,
                             int lnum,
-                            float* result,
+                            data_list* result,
                             device_t* device,
                             sampling_param_t* sampling_param);
 
-result_buf flatten_input(float* activations,
+result_buf flatten_input(data_list* activations,
                          layer_t* layers,
                          int lnum,
-                         float* result);
-
-/*
-result_buf activation_sublayer(float* activations,
-                               layer_t* layers,
-                               int lnum);
-                               */
+                         data_list* result);
 
 // Does the forward predictive pass of a neural net.
 //
@@ -84,10 +78,10 @@ result_buf activation_sublayer(float* activations,
 //
 // A bool indicating where the final result is stored into the layers
 // structure. If it is in @hid, then false, if in @hid_temp, true.
-void nnet_fwd(farray_t activations,
-              farray_t weights,
-              farray_t result,
-              network_t network,
+void nnet_fwd(data_list* activations,
+              data_list* weights,
+              data_list* result,
+              network_t* network,
               device_t* device,
               sampling_param_t* sampling_param);
 

@@ -14,10 +14,6 @@ typedef enum _data_init_mode {
     READ_FILE  // Read data and weights from files.
 } data_init_mode;
 
-// When ping-ponging data between two buffers, use this to indicate which one
-// stores the last output (and the next input).
-typedef float* result_buf;
-
 typedef enum _pool_type {
     MAX,
     AVG,
@@ -112,6 +108,8 @@ typedef struct _iarray_t {
 typedef uint32_t packed_fp16;
 typedef struct _uarray_t {
     packed_fp16* d;
+    // The number of 32-bit elements required to store all the packed elements
+    // (so, half the number of packed elements).
     size_t size;
 } uarray_t;
 
@@ -139,6 +137,10 @@ typedef struct _data_list {
     data_storage_t* type;
     int len;
 } data_list;
+
+// When ping-ponging data between two buffers, use this to indicate which one
+// stores the last output (and the next input).
+typedef data_list* result_buf;
 
 // Description of a layer in a neural network.
 //

@@ -125,6 +125,7 @@ DLEVEL ?= 0
 
 CFLAGS += -g \
 					-Wall \
+					-Wno-psabi \
 					-Wno-unused-label \
 					-Wno-unused-but-set-variable \
 					-DDEBUG_LEVEL=$(DLEVEL)

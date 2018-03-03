@@ -3,7 +3,8 @@
 
 #include "nnet_fwd.h"
 
-result_buf im2row(float* input, layer_t* layers, int lnum, float* result);
+int im2row_size(layer_t* layers, int lnum);
+data_list* im2row(data_list* input, layer_t* layers, int lnum, data_list* result);
 
 dims_t nchw_to_nhwc_dims(dims_t* input_dims, unsigned data_alignment);
 dims_t nhwc_to_nchw_dims(dims_t* input_dims, unsigned data_alignment);

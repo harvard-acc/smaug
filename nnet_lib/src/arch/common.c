@@ -10,11 +10,11 @@
 //
 // A result_buf value is returned indicating the final location of the output of
 // this layer. It is either equal to the pointers @activations or @result.
-result_buf layer_dispatcher(float* activations,
-                            float* weights,
+result_buf layer_dispatcher(data_list* activations,
+                            data_list* weights,
                             layer_t* layers,
                             int layer_num,
-                            float* result,
+                            data_list* result,
                             device_t* device,
                             sampling_param_t* sampling_param) {
     layer_t curr_layer = layers[layer_num];
@@ -29,7 +29,7 @@ result_buf layer_dispatcher(float* activations,
         }
         if (curr_layer.input_preprocessing == FLATTEN && result_loc == result) {
             PRINT_MSG("After flattening:\n");
-            PRINT_DEBUG(result_loc, NUM_TEST_CASES,
+            PRINT_DEBUG(result_loc->data[0].dense->d, NUM_TEST_CASES,
                         layers[layer_num].inputs.cols,
                         layers[layer_num].inputs.cols);
             result_loc = inner_product_layer(result,
@@ -95,7 +95,7 @@ result_buf layer_dispatcher(float* activations,
     }
 
     PRINT_MSG("Result of layer %d:\n", layer_num);
-    PRINT_DEBUG4D(result_loc, curr_layer.outputs.rows,
+    PRINT_DEBUG4D(result_loc->data[0].dense->d, curr_layer.outputs.rows,
                   curr_layer.outputs.cols + curr_layer.outputs.align_pad,
                   curr_layer.outputs.height);
 

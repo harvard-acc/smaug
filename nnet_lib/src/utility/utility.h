@@ -129,9 +129,24 @@ void print_debug(float* array,
 void print_debug4d(float* array, int rows, int cols, int height);
 void print_data_and_weights(float* data, float* weights, layer_t first_layer);
 
+data_list* create_new_data_list_if_necessary(data_list* curr_data,
+                                             int size_in_bytes,
+                                             data_storage_t tgt_storage_fmt);
+void require_data_type(data_list* list, int index, data_storage_t req_type);
 void* malloc_aligned(size_t size);
+
+void* malloc_aligned(size_t size);
+void init_data_list_storage(data_list* list, int len);
 data_list* init_data_list(int len);
 void free_data_list(data_list* list);
+farray_t* init_farray(int len, bool zero);
+uarray_t* init_uarray(int len, bool zero);
+void free_farray(farray_t* array);
+void free_uarray(uarray_t* array);
+
+void swap_pointers(void** ptr1, void** ptr2);
+#define SWAP_PTRS(a_ptr, b_ptr)                                                \
+    swap_pointers((void**)&(a_ptr), (void**)&(b_ptr))
 
 #ifdef BITWIDTH_REDUCTION
 // Don't add this function unless we want to model bit width quantization

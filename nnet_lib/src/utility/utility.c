@@ -1,12 +1,12 @@
 #include <assert.h>
 #include <string.h>
 #include "nnet_fwd.h"
+#include "utility/compression.h"
+#include "utility/utility.h"
 
 #ifdef DMA_MODE
 #include "gem5_harness.h"
 #endif
-
-#include "utility.h"
 
 static float RAND_MAX_RECIPROCAL = (1.0/RAND_MAX);
 
@@ -431,6 +431,121 @@ void print_data_and_weights(float* data, float* weights, layer_t first_layer) {
     printf("\nEND WEIGHTS\n");
 }
 
+const char* data_storage_str(data_storage_t type) {
+    switch (type) {
+        case Uncompressed:
+            return "Uncompressed";
+        case CSR:
+            return "CSR (unpacked)";
+        case PackedCSR:
+            return "PackedCSR";
+        case UncompressedHalfPrecision:
+            return "UncompressedHalfPrecision";
+        default:
+            return "Unknown";
+    }
+}
+
+void require_data_type(data_list* list, int index, data_storage_t req_type) {
+    data_storage_t d_type = list->type[index];
+    if (d_type != req_type)
+        printf("[ERROR]: Expected data type %s, got %s!\n",
+               data_storage_str(d_type),
+               data_storage_str(req_type));
+    assert(d_type == req_type && "Invalid data storage type!");
+}
+
+// Allocates new storage for a data list if the current list is too small.
+//
+// This function examines the data list @curr_data. If the list is NULL, empty,
+// or the current storage buffer is smaller than @num_elems, then it frees
+// the existing storage buffer, allocates new storage, and assigns it to the
+// provided data list @curr_data.
+//
+// The function will never modify the @curr_data pointer itself, unless
+// curr_data was NULL, in which case it will return a pointer to the new data
+// list object.
+//
+// Args:
+//   curr_data: The existing data list.
+//   num_elems: The number of elements needed to be stored.
+//   tgt_storage_fmt: The intended storage format for the new list. This also
+//     implicitly defines the type of each element : Uncompressed = float32,
+//     UncompressedHalfPrecision = float16.
+//
+// Returns:
+//   A data list object with storage large enough to hold @num_elems elements.
+data_list* create_new_data_list_if_necessary(data_list* curr_data,
+                                             int num_elems,
+                                             data_storage_t tgt_storage_fmt) {
+    assert(tgt_storage_fmt < NumDataStorageTypes &&
+           "Invalid target data storage format!");
+    assert((tgt_storage_fmt == Uncompressed ||
+            tgt_storage_fmt == UncompressedHalfPrecision) &&
+           "Cannot call this function with compressed target formats.");
+
+    data_list* new_data = curr_data;
+    if (!new_data) {
+        new_data = init_data_list(1);
+    } else if (new_data->len == 0) {
+        init_data_list_storage(new_data, 1);
+    }
+
+    union DataFormat data = new_data->data[0];
+    data_storage_t curr_storage_fmt = new_data->type[0];
+    int curr_data_buffer_size = 0;
+    bool has_existing_buffer = false;
+    switch (curr_storage_fmt) {
+        case Uncompressed:
+            has_existing_buffer = true;
+            curr_data_buffer_size = data.dense->size * sizeof(float);
+            break;
+        case UncompressedHalfPrecision:
+            has_existing_buffer = true;
+            curr_data_buffer_size = data.dense_hp->size * sizeof(packed_fp16);
+            break;
+        case NumDataStorageTypes:
+            // The current data list is empty.
+            curr_data_buffer_size = 0;
+            break;
+        default:
+            assert(false && "Unrecognized data storage format!");
+    }
+
+    int size_in_bytes = 0;
+    switch (tgt_storage_fmt) {
+        case Uncompressed:
+            size_in_bytes = num_elems * sizeof(float);
+            break;
+        case UncompressedHalfPrecision:
+            size_in_bytes = num_elems * sizeof(uint16_t);
+            break;
+        default:
+            assert(false && "Unrecognized target data storage format!");
+    }
+    bool needs_new_data_buffer = (curr_storage_fmt != tgt_storage_fmt) ||
+                                 (size_in_bytes > curr_data_buffer_size);
+    if (needs_new_data_buffer) {
+        switch (tgt_storage_fmt) {
+            case Uncompressed:
+                if (has_existing_buffer)
+                    free_farray(data.dense);
+                data.dense = init_farray(num_elems, true);
+                break;
+            case UncompressedHalfPrecision:
+                if (has_existing_buffer)
+                    free_uarray(data.dense_hp);
+                data.dense_hp = init_uarray(FRAC_CEIL(num_elems, 2), true);
+                break;
+            default:
+                assert(false && "Unrecognized data storage format!");
+        }
+        new_data->data[0] = data;
+        new_data->type[0] = tgt_storage_fmt;
+    }
+    return new_data;
+}
+
 void* malloc_aligned(size_t size) {
     void* ptr = NULL;
     int err = posix_memalign(
@@ -439,17 +554,80 @@ void* malloc_aligned(size_t size) {
     return ptr;
 }
 
+void init_data_list_storage(data_list* list, int len) {
+    if (len > 0) {
+        list->data = (union DataFormat*)malloc(sizeof(union DataFormat) * len);
+        list->type = (data_storage_t*)malloc(sizeof(data_storage_t) * len);
+    } else {
+        list->data = NULL;
+        list->type = NULL;
+    }
+    for (int i = 0; i < len; i++) {
+        list->data[i].dense = NULL;
+        list->type[i] = NumDataStorageTypes;
+    }
+    list->len = len;
+}
+
 data_list* init_data_list(int len) {
     data_list* list = (data_list*) malloc(sizeof(data_list));
-    list->data = (union DataFormat*)malloc(sizeof(union DataFormat) * len);
-    list->type = (data_storage_t*)malloc(sizeof(data_storage_t) * len);
-    list->len = len;
+    init_data_list_storage(list, len);
     return list;
 }
 
 void free_data_list(data_list* list) {
-    // This only frees the container structures, not the actual data buffers.
+    for (int j = 0; j < list->len; j++) {
+        data_storage_t type = list->type[j];
+        if (type == CSR) {
+            csr_array_t* csr = list->data[j].csr;
+            free_csr_array_t(csr);
+        } else if (type == PackedCSR) {
+            packed_csr_array_t* csr = list->data[j].packed;
+            free_packed_csr_array_t(csr);
+        } else if (type == Uncompressed) {
+            farray_t* array = list->data[j].dense;
+            free_farray(array);
+        } else if (type == UncompressedHalfPrecision) {
+            uarray_t* array = list->data[j].dense_hp;
+            free_uarray(array);
+        }
+    }
     free(list->data);
     free(list->type);
     free(list);
+}
+
+farray_t* init_farray(int len, bool zero) {
+    farray_t* array = (farray_t*) malloc(sizeof(farray_t));
+    array->d = (float*)malloc(len * sizeof(float));
+    array->size = len;
+    if (zero)
+        memset(array->d, 0, array->size * sizeof(float));
+    return array;
+}
+
+uarray_t* init_uarray(int len, bool zero) {
+    uarray_t* array = (uarray_t*) malloc(sizeof(uarray_t));
+    array->d = (packed_fp16*)malloc(len * sizeof(packed_fp16));
+    array->size = len;
+    if (zero)
+        memset(array->d, 0, array->size * sizeof(packed_fp16));
+    return array;
+}
+
+void free_farray(farray_t* array) {
+    free(array->d);
+    free(array);
+}
+
+void free_uarray(uarray_t* array) {
+    free(array->d);
+    free(array);
+}
+
+// Swap the pointers stored in ptr1 and ptr2.
+void swap_pointers(void** ptr1, void** ptr2) {
+    void* temp = *ptr1;
+    *ptr1 = *ptr2;
+    *ptr2 = temp;
 }
