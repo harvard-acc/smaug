@@ -106,6 +106,7 @@ typedef struct _iarray_t {
 
 // We store packed half-precision floating-point in 32-bit chunks.
 typedef uint32_t packed_fp16;
+typedef uint16_t float16;
 typedef struct _fp16array_t {
     packed_fp16* d;
     size_t size;

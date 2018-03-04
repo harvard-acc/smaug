@@ -63,11 +63,11 @@ void smv_batch_norm_layer_impl(float* activations,
                                float* result,
                                smv_global* g_smv,
                                device_t* device);
-void smv_pooling_layer_impl(float* inputs,
-                             layer_t* curr_layer,
-                             smv_global* g_smv,
-                             float* results,
-                             device_t* device);
+void smv_pooling_layer_impl(data_list* inputs,
+                            layer_t* curr_layer,
+                            smv_global* g_smv,
+                            data_list* results,
+                            device_t* device);
 void smv_activation_fun_fxp(float* local_activations,
                             int batch_size,
                             int input_size,

@@ -108,11 +108,11 @@ static void smv_pooling_layer_hw(float* dma_activations,
 
 }
 
-void smv_pooling_layer_impl(float* inputs,
-                             layer_t* curr_layer,
-                             smv_global* g_smv,
-                             float* results,
-                             device_t* device) {
+void smv_pooling_layer_impl(data_list* inputs,
+                            layer_t* curr_layer,
+                            smv_global* g_smv,
+                            data_list* results,
+                            device_t* device) {
     pool_cfg_t pool_cfgs = smiv_pooling_divide_work(curr_layer);
 
     float* nhwc_inputs = NULL;

@@ -192,9 +192,9 @@ result_buf pointwise_convolution_layer(data_list* activations,
 
     // Allocate memory to store the transformed input.
     float* nhwc_inputs = NULL;
-    dims_t nhwc = convert_nchw_to_nhwc(activations->data[0].dense->d,
-                                       NUM_TEST_CASES, layers[lnum].inputs,
-                                       DATA_ALIGNMENT, &nhwc_inputs);
+    dims_t nhwc = convert_nchw_to_nhwc_fp32(activations->data[0].dense->d,
+                                            NUM_TEST_CASES, layers[lnum].inputs,
+                                            DATA_ALIGNMENT, &nhwc_inputs);
 
     // HACK: We need to modify the layer[lnum] descriptor to reflect the fact
     // that we're doing a matrix multiply, but these changes can't be seen
@@ -238,8 +238,8 @@ result_buf pointwise_convolution_layer(data_list* activations,
             results,
             NUM_TEST_CASES * get_dims_size(&layers[lnum].outputs),
             Uncompressed);
-    convert_nhwc_to_nchw(nhwc_outputs, NUM_TEST_CASES, output_dims,
-                         DATA_ALIGNMENT, &results->data[0].dense->d);
+    convert_nhwc_to_nchw_fp32(nhwc_outputs, NUM_TEST_CASES, output_dims,
+                              DATA_ALIGNMENT, &results->data[0].dense->d);
 
     // Restore the original layer descriptor.
     layers[lnum] = old_layer;
@@ -259,12 +259,13 @@ result_buf pooling_layer(data_list* activations,
     results = create_new_data_list_if_necessary(
             results,
             NUM_TEST_CASES * get_dims_size(&layers[lnum].outputs),
-            Uncompressed);
-    float* act_buf = activations->data[0].dense->d;
-    float* out_buf = results->data[0].dense->d;
+            activations->type[0]);
     if (device->use_hw_pooling) {
-        smv_pooling_layer_impl(act_buf, &layers[lnum], &g_smv, out_buf, device);
+        smv_pooling_layer_impl(
+                activations, &layers[lnum], &g_smv, results, device);
     } else {
+        float* act_buf = activations->data[0].dense->d;
+        float* out_buf = results->data[0].dense->d;
 #ifdef __cplusplus
         if (curr_layer.pool == MAX) {
             nnet_mkl::max_pooling_3d(act_buf, &layers[lnum], out_buf, device);

@@ -660,6 +660,37 @@ fp16array_t* init_fp16array(int num_elems, bool zero) {
     return array;
 }
 
+// Allocate a new farray_t structure if the provided one is not big enough to
+// fit num_elems elements. num_elems specifies the number of 32-bit elements.
+farray_t* create_new_farray_if_necessary(farray_t* array, size_t num_elems) {
+    if (!array) {
+        array = init_farray(num_elems, false);
+    } else if (array->d && array->size < num_elems) {
+        free(array->d);
+        array = init_farray(num_elems, false);
+    } else if (array->d == NULL) {
+        array->d = (float*)malloc_aligned(num_elems * sizeof(float));
+        array->size = num_elems;
+    }
+    return array;
+}
+
+// Allocate a new fp16array_t structure if the provided one is not big enough to
+// fit num_elems elements. num_elems specifies the number of 16-bit elements.
+fp16array_t* create_new_fp16array_if_necessary(fp16array_t* array,
+                                               size_t num_elems) {
+    if (!array) {
+        array = init_fp16array(num_elems, false);
+    } else if (array->d && array->size < num_elems) {
+        free(array->d);
+        array = init_fp16array(num_elems, false);
+    } else if (array->d == NULL) {
+        array->d = (packed_fp16*)malloc_aligned(num_elems * sizeof(float16));
+        array->size = num_elems;
+    }
+    return array;
+}
+
 void free_farray(farray_t* array) {
     if (array->size > 0)
         free(array->d);
