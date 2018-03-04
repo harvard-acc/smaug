@@ -180,7 +180,7 @@ void smv_batch_norm_layer_impl(float* activations,
         // precompute some of the weights. We have an optimized MKL version,
         // but it just calls this same function, so there's no point going
         // through that overhead.
-        float* bn_weights = weights + get_weights_loc_for_layer(layers, lnum);
+        float* bn_weights = weights;
         batch_norm_fxp(activations,
                        bn_weights,
                        &curr_layer,
