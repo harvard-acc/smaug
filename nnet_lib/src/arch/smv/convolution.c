@@ -282,7 +282,7 @@ void smv_standard_convolution_layer_impl(float* host_activations,
     const int result_2d_size = result_rows * (result_cols + result_pad);
     float* nhwc_activations = NULL;
     begin_profiling("convert_nchw_to_nhwc", lnum);
-    dims_t activations_nhwc = convert_nchw_to_nhwc(
+    dims_t activations_nhwc = convert_nchw_to_nhwc_fp32(
             host_activations, NUM_TEST_CASES, curr_layer.inputs, DATA_ALIGNMENT,
             &nhwc_activations);
     end_profiling();

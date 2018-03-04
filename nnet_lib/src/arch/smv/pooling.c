@@ -115,25 +115,24 @@ void smv_pooling_layer_impl(data_list* inputs,
                             device_t* device) {
     pool_cfg_t pool_cfgs = smiv_pooling_divide_work(curr_layer);
 
-    float* nhwc_inputs = NULL;
+    data_list* nhwc_inputs = init_data_list(1);
     begin_profiling("convert_nchw_to_blocked_nhwc", curr_layer->num);
-    convert_nchw_to_blocked_nhwc(inputs,
-                                 NUM_TEST_CASES,
-                                 VECTOR_SIZE,
-                                 curr_layer->inputs,
-                                 DATA_ALIGNMENT,
-                                 &nhwc_inputs);
+    convert_nchw_to_blocked_nhwc(inputs, 0, NUM_TEST_CASES, VECTOR_SIZE,
+                                 curr_layer->inputs, DATA_ALIGNMENT,
+                                 nhwc_inputs);
     end_profiling();
 
     // Prepare a temporary buffer for the NHWC-formatted outputs.
-    float* nhwc_outputs = (float*)malloc_aligned(
-            compute_blocked_nhwc_size(
-                    &curr_layer->outputs, VECTOR_SIZE, DATA_ALIGNMENT) *
-            sizeof(float));
+    data_list* nhwc_outputs = init_data_list(1);
+    nhwc_outputs->type[0] = inputs->type[0];
+    nhwc_outputs->data[0].dense =
+            init_farray(compute_blocked_nhwc_size(&curr_layer->outputs,
+                                                  VECTOR_SIZE, DATA_ALIGNMENT),
+                        true);
 
     for (int img = 0; img < NUM_TEST_CASES; img++) {
-        float* current_inputs = nhwc_inputs;
-        float* current_results = nhwc_outputs;
+        float* current_inputs = nhwc_inputs->data[0].dense->d;
+        float* current_results = nhwc_outputs->data[0].dense->d;
         for (unsigned iter = 0; iter < pool_cfgs.num_iterations; iter++) {
             PRINT_MSG("Iteration %d\n", iter);
             dims_t iter_cfg = pool_cfgs.iteration[iter];
@@ -193,13 +192,10 @@ void smv_pooling_layer_impl(data_list* inputs,
     dims_t output_dims =
             nchw_to_nhwc_dims(&curr_layer->outputs, DATA_ALIGNMENT);
     begin_profiling("convert_blocked_nhwc_to_nhwc", curr_layer->num);
-    convert_blocked_nhwc_to_nchw(nhwc_outputs,
-                                 NUM_TEST_CASES,
-                                 VECTOR_SIZE,
-                                 output_dims,
-                                 DATA_ALIGNMENT,
-                                 &results);
+    convert_blocked_nhwc_to_nchw(nhwc_outputs, 0, NUM_TEST_CASES, VECTOR_SIZE,
+                                 output_dims, DATA_ALIGNMENT, results);
     end_profiling();
-    free(nhwc_inputs);
-    free(nhwc_outputs);
+    free_data_list(nhwc_inputs);
+    free_data_list(nhwc_outputs);
+    free_smiv_work_cfg(&pool_cfgs);
 }

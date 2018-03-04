@@ -466,7 +466,7 @@ void early_convert_weights_data_layout(network_t* network, device_t* device) {
             farray_t* nchw_weights = layer->host_weights->data[0].dense;
             farray_t nhwc_weights;
             nhwc_weights.d = NULL;
-            dims_t weights_nhwc = convert_nchw_to_nhwc(
+            dims_t weights_nhwc = convert_nchw_to_nhwc_fp32(
                     nchw_weights->d, layer->outputs.height, layer->weights,
                     DATA_ALIGNMENT, &nhwc_weights.d);
             nhwc_weights.size =

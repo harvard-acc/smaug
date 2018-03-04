@@ -94,10 +94,10 @@ void smiv_batch_norm_layer_impl(float* activations,
                                 float* result,
                                 smiv_global* g_smiv,
                                 device_t* device);
-void smiv_pooling_layer_impl(float* inputs,
+void smiv_pooling_layer_impl(data_list* inputs,
                              layer_t* curr_layer,
                              smiv_global* g_smiv,
-                             float* results);
+                             data_list* results);
 void smiv_decompress_packed_csr_impl(layer_t* layer,
                                      int weights_list_idx,
                                      int start_row,
