@@ -7,14 +7,14 @@
 #include "core/mkl/activation_functions.h"
 #endif
 
-result_buf smiv_activation_function(float* activations,
-                                    layer_t* layer,
-                                    float* results,
-                                    device_t* device) {
-    // MKL is giving unexpectedly worse performance than our reference
-    // implementation. So use the reference implementation for activation
-    // functions for now.
-#if 0
+float* smiv_activation_function_impl(float* activations,
+                                     layer_t* layer,
+                                     float* results,
+                                     device_t* device) {
+    // MKL's activation functions are very poor performing, possibly due to it
+    // not being vectorized within the constraints of gem5. So use the
+    // reference implementation for activation functions for now.
+#ifdef SMIV_USE_MKL_ACTIVATION_FUNCTION_IMPL
     begin_ignored_profiling(layer->num);
     nnet_mkl::activation_fun(
             activations, NUM_TEST_CASES, layer, results, device);
@@ -25,9 +25,11 @@ result_buf smiv_activation_function(float* activations,
 #else
     int output_size = get_dims_size(&layer->outputs);
     begin_profiling(ACTIVATION_TYPE_STR(layer->activation), layer->num);
-    activation_fun(activations, NUM_TEST_CASES, output_size, layer->activation);
+    activation_fun(activations,
+                   NUM_TEST_CASES,
+                   output_size,
+                   layer->activation);
     end_profiling();
     return activations;
 #endif
 }
-

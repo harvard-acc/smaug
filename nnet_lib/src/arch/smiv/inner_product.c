@@ -548,6 +548,7 @@ void smiv_inner_product_layer_impl_rowwise(float* host_activations,
         partial_layer.inputs.cols = curr_iter->rows - 1;
         partial_layer.weights = *curr_iter;
         partial_layer.outputs.cols = curr_iter->cols;
+        partial_layer.biases = (dims_t){ 0, 0, 0, 0 };
         activation_type act_func = curr_layer->activation;
         bool do_hw_activation =
                 device->use_hw_activation_func &&
@@ -695,7 +696,7 @@ void smiv_inner_product_layer_impl_rowwise(float* host_activations,
         if (do_activation_here) {
             // TODO: This means it will be harder to separate the MKL primitive
             // construction time from the actual activation function runtime.
-            smiv_activation_function(
+            smiv_activation_function_impl(
                     host_results_buffer, curr_layer, host_results, device);
         }
     }

@@ -71,9 +71,6 @@ void smiv_batch_norm_layer_impl(float* activations,
                                 smiv_global* g_smiv,
                                 device_t* device) {
     layer_t curr_layer = layers[lnum];
-    float* curr_layer_weights =
-            weights + get_weights_loc_for_layer(layers, lnum);
-
     if (device->use_hw_batch_norm) {
         int weights_size = WEIGHT_BYTES(layers, lnum);
         if (weights_size > SMIV_UMEM_SIZE) {
@@ -95,31 +92,27 @@ void smiv_batch_norm_layer_impl(float* activations,
         // Flush cache lines for activations and weights.
         begin_ignored_profiling(lnum);
         flush_cache_range(activations, inputs_size);
-        flush_cache_range(curr_layer_weights, weights_size);
+        flush_cache_range(weights, weights_size);
         end_profiling();
 
         MAP_ARRAY_TO_ACCEL(g_smiv->kBatchNormHw, "host_activations",
                            activations, inputs_size);
         MAP_ARRAY_TO_ACCEL(g_smiv->kBatchNormHw, "host_weights",
-                           curr_layer_weights, weights_size);
+                           weights, weights_size);
         MAP_ARRAY_TO_ACCEL(
                 g_smiv->kBatchNormHw, "host_result", result, outputs_size);
         // TODO: For now, always put the input into spad0.
         INVOKE_KERNEL_PROF(g_smiv->kBatchNormHw, lnum, smiv_batch_norm_layer_hw,
-                           activations, curr_layer_weights, result,
-                           g_smiv->umem, g_smiv->spad0, g_smiv->spad1, true,
-                           &layers[lnum]);
+                           activations, weights, result, g_smiv->umem,
+                           g_smiv->spad0, g_smiv->spad1, true, &layers[lnum]);
     } else {
         begin_profiling(__func__, lnum);
         // The reference implementation is faster than MKL since we can
         // precompute some of the weights. We have an optimized MKL version,
         // but it just calls this same function, so there's no point going
         // through that overhead.
-        batch_norm_fxp(activations,
-                       curr_layer_weights,
-                       &curr_layer,
-                       NUM_TEST_CASES,
-                       result);
+        batch_norm_fxp(
+                activations, weights, &curr_layer, NUM_TEST_CASES, result);
         if (device->use_hw_activation_func) {
             int input_size = get_dims_size(&curr_layer.inputs);
             activation_fun(

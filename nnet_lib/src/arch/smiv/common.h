@@ -59,10 +59,10 @@ bool smiv_inner_product_needs_work_division(layer_t* curr_layer);
 void smiv_inner_product_check_absolute_size_limits(layer_t* curr_layer);
 pool_cfg_t smiv_pooling_divide_work(layer_t* curr_layer);
 
-result_buf smiv_activation_function(float* activations,
-                                    layer_t* layer,
-                                    float* results,
-                                    device_t* device);
+float* smiv_activation_function_impl(float* activations,
+                                     layer_t* layer,
+                                     float* results,
+                                     device_t* device);
 
 // These functions tile an input to fit on the accelerator's local memory.
 void smiv_standard_convolution_layer_impl(float* host_activations,
