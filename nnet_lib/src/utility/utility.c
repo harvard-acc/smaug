@@ -534,8 +534,8 @@ data_list* create_new_data_list_if_necessary(data_list* curr_data,
                 break;
             case UncompressedHalfPrecision:
                 if (has_existing_buffer)
-                    free_uarray(data.dense_hp);
-                data.dense_hp = init_uarray(FRAC_CEIL(num_elems, 2), true);
+                    free_fp16array(data.dense_hp);
+                data.dense_hp = init_fp16array(num_elems, true);
                 break;
             default:
                 assert(false && "Unrecognized data storage format!");
@@ -588,8 +588,8 @@ void free_data_list(data_list* list) {
             farray_t* array = list->data[j].dense;
             free_farray(array);
         } else if (type == UncompressedHalfPrecision) {
-            uarray_t* array = list->data[j].dense_hp;
-            free_uarray(array);
+            fp16array_t* array = list->data[j].dense_hp;
+            free_fp16array(array);
         }
     }
     free(list->data);
@@ -612,7 +612,7 @@ data_list* copy_data_list(data_list* dest, data_list* source) {
               dest->data[i].dense = copy_farray(source->data[i].dense);
               break;
           case UncompressedHalfPrecision:
-              dest->data[i].dense_hp = copy_uarray(source->data[i].dense_hp);
+              dest->data[i].dense_hp = copy_fp16array(source->data[i].dense_hp);
               break;
           case CSR:
               dest->data[i].csr = copy_csr_array_t(source->data[i].csr);
@@ -642,16 +642,20 @@ farray_t* init_farray(int len, bool zero) {
     return array;
 }
 
-uarray_t* init_uarray(int len, bool zero) {
-    uarray_t* array = (uarray_t*) malloc(sizeof(uarray_t));
-    if (len > 0) {
-        array->d = (packed_fp16*)malloc_aligned(len * sizeof(packed_fp16));
-        array->size = len;
+fp16array_t* init_fp16array(int num_elems, bool zero) {
+    fp16array_t* array = (fp16array_t*) malloc(sizeof(fp16array_t));
+    if (num_elems > 0) {
+        // The size parameter of the fp16array struct is actually the number of
+        // packed_fp16 elements (32-bits each) required to store all the data,
+        // which is half the total number of 16-bit values.
+        array->size = FRAC_CEIL(num_elems, 2);
+        array->d =
+                (packed_fp16*)malloc_aligned(array->size * sizeof(packed_fp16));
     } else {
         array->d = NULL;
         array->size = 0;
     }
-    if (zero && len > 0)
+    if (zero && array->size > 0)
         memset(array->d, 0, array->size * sizeof(packed_fp16));
     return array;
 }
@@ -662,7 +666,7 @@ void free_farray(farray_t* array) {
     free(array);
 }
 
-void free_uarray(uarray_t* array) {
+void free_fp16array(fp16array_t* array) {
     if (array->size > 0)
         free(array->d);
     free(array);
@@ -674,8 +678,8 @@ farray_t* copy_farray(farray_t* existing) {
     return copy;
 }
 
-uarray_t* copy_uarray(uarray_t* existing) {
-    uarray_t* copy = init_uarray(existing->size, false);
+fp16array_t* copy_fp16array(fp16array_t* existing) {
+    fp16array_t* copy = init_fp16array(existing->size, false);
     memcpy(copy->d, existing->d, existing->size * sizeof(float));
     return copy;
 }

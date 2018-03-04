@@ -66,7 +66,7 @@ void free_intermediate_results() {
                 farray_t* array = data_list->data[i].dense;
                 free(array);
             } else if (type == UncompressedHalfPrecision) {
-                uarray_t* array = data_list->data[i].dense_hp;
+                fp16array_t* array = data_list->data[i].dense_hp;
                 free(array);
             } else {
                 std::cerr << "[WARNING]: Tried to free intermediate results in "

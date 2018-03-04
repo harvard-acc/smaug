@@ -106,12 +106,10 @@ typedef struct _iarray_t {
 
 // We store packed half-precision floating-point in 32-bit chunks.
 typedef uint32_t packed_fp16;
-typedef struct _uarray_t {
+typedef struct _fp16array_t {
     packed_fp16* d;
-    // The number of 32-bit elements required to store all the packed elements
-    // (so, half the number of packed elements).
     size_t size;
-} uarray_t;
+} fp16array_t;
 
 typedef enum _data_storage_t {
     Uncompressed = 0,
@@ -126,7 +124,7 @@ union DataFormat {
     struct _packed_csr_array_t* packed;
     struct _csr_array_t* csr;
     farray_t* dense;
-    uarray_t* dense_hp;
+    fp16array_t* dense_hp;
 };
 
 typedef struct _data_list {

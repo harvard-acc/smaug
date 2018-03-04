@@ -127,7 +127,7 @@ void smv_batch_norm_layer_impl(float* activations,
 
     if (device->use_hw_batch_norm) {
         assert(curr_layer.host_weights->type[0] == UncompressedHalfPrecision);
-        uarray_t* bn_weights = curr_layer.host_weights->data[0].dense_hp;
+        fp16array_t* bn_weights = curr_layer.host_weights->data[0].dense_hp;
         int weights_size = bn_weights->size * sizeof(short);
         if (weights_size > SMV_UMEM_SIZE) {
             fprintf(stderr, "[ERROR]: Batch norm weights are larger than the "

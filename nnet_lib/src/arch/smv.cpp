@@ -470,7 +470,7 @@ void early_convert_weights_data_layout(network_t* network, device_t* device) {
                     DATA_ALIGNMENT, &nhwc_weights.d);
             nhwc_weights.size =
                     layer->outputs.height * get_dims_size(&weights_nhwc);
-            uarray_t* packed_weights = pack_data_fp16(&nhwc_weights, NULL);
+            fp16array_t* packed_weights = pack_data_fp16(&nhwc_weights, NULL);
             layer->host_weights->data[0].dense_hp = packed_weights;
             layer->host_weights->type[0] = UncompressedHalfPrecision;
             free_farray(nchw_weights);
@@ -481,7 +481,7 @@ void early_convert_weights_data_layout(network_t* network, device_t* device) {
             assert(layer->host_weights->len == 1 &&
                    "Batch norm must have exactly one set of weights!");
             farray_t* bn_weights = layer->host_weights->data[0].dense;
-            uarray_t* packed_weights = pack_data_fp16(bn_weights, NULL);
+            fp16array_t* packed_weights = pack_data_fp16(bn_weights, NULL);
             layer->host_weights->data[0].dense_hp = packed_weights;
             layer->host_weights->type[0] = UncompressedHalfPrecision;
             free_farray(bn_weights);
@@ -489,7 +489,7 @@ void early_convert_weights_data_layout(network_t* network, device_t* device) {
             if (layer->host_weights->type[0] != Uncompressed)
                 continue;  // Skip the biases.
             farray_t* weights = layer->host_weights->data[0].dense;
-            uarray_t* packed_weights = pack_data_fp16(weights, NULL);
+            fp16array_t* packed_weights = pack_data_fp16(weights, NULL);
             layer->host_weights->data[0].dense_hp = packed_weights;
             layer->host_weights->type[0] = UncompressedHalfPrecision;
             free_farray(weights);

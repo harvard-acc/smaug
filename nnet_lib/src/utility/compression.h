@@ -76,8 +76,8 @@ void decompress_packed_csr_data(packed_fp16* cmp_data,
                                 dims_t* data_dims,
                                 float* dcmp_data);
 
-uarray_t* pack_data_fp16(farray_t* sp_data, packed_fp16* dest_buf);
-farray_t* unpack_data_fp16x4(uarray_t* hp_data, float* dest_buf);
+fp16array_t* pack_data_fp16(farray_t* sp_data, packed_fp16* dest_buf);
+farray_t* unpack_data_fp16x4(fp16array_t* hp_data, float* dest_buf);
 packed_csr_array_t* pack_csr_array_vec8_f16(csr_array_t* csr_data,
                                             dims_t* data_dims);
 

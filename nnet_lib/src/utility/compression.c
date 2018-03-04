@@ -127,13 +127,13 @@ int compute_num_vectors_in_row(int num_elems_in_row) {
  * packed into a 32-bit value, with the first occupying bits 0-15 and the
  * second from 16-31.
  *
- * Returns a pointer to a malloc'ed uarray_t object, whose size is equal to the
+ * Returns a pointer to a malloc'ed fp16array_t object, whose size is equal to the
  * minimum number of 32-bit unsigned values required to store the packed data.
  * To use an existing buffer, pass its pointer to the dest_buf argument;
  * otherwise, pass NULL, and it will be autmoatically allocated.
  */
-uarray_t* pack_data_fp16(farray_t* sp_data, packed_fp16* dest_buf) {
-    uarray_t* hp_data = (uarray_t*)malloc(sizeof(uarray_t));
+fp16array_t* pack_data_fp16(farray_t* sp_data, packed_fp16* dest_buf) {
+    fp16array_t* hp_data = (fp16array_t*)malloc(sizeof(fp16array_t));
     hp_data->size = (sp_data->size / 2) + (sp_data->size % 2);
     if (!dest_buf) {
         hp_data->d = (packed_fp16*)malloc_aligned(hp_data->size *
@@ -160,7 +160,7 @@ uarray_t* pack_data_fp16(farray_t* sp_data, packed_fp16* dest_buf) {
  * data.  To use an existing buffer, pass its pointer to the dest_buf argument;
  * otherwise, pass NULL, and it will be autmoatically allocated.
  */
-farray_t* unpack_data_fp16x4(uarray_t* hp_data, float* dest_buf) {
+farray_t* unpack_data_fp16x4(fp16array_t* hp_data, float* dest_buf) {
     assert(hp_data->size % 4 == 0 &&
            "Half precision data size of must be a multiple of 4!");
     farray_t* sp_data = (farray_t*)malloc(sizeof(farray_t));
