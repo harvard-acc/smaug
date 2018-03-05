@@ -2,28 +2,31 @@
 #include "core/smiv/params.h"
 #include "utility/fp16_utils.h"
 
-/* Use DMA to load half-precision data and unpack it into a local scratchpad.
+/* Use DMA or ACP to load FP16 data and unpack it into a local scratchpad.
  *
  * The DMA operation is pipelined so it can be overlapped with the unpacking
  * operation. Each DMA transfer is at most one page in size (4KB), which is
- * unpacked into 8KB of data. The unpacking is done in-place, so no additional
- * SRAM is required to buffer the packed data.
+ * unpacked into 8KB of data. ACP also copies data at 4KB granualarity. The
+ * unpacking is done in-place, so no additional SRAM is required to buffer the
+ * packed data.
  *
  * Args:
  *   local_data: The local buffer in which the results should be stored.
- *   remote_data: The host buffer to DMA from.
+ *   remote_data: The host buffer to load from.
  *   num_elems: The number of elements to load. For the initial DMA load, each
  *     element is assumed to be 16 bits in size.
  *   local_offset: Start from this offset in the local buffer. This offset is
  *     an element-wise offset.
- *   remote_offset: Start from this offser in the remote buffer.
+ *   remote_offset: Start from this offset in the remote buffer.
+ *   use_dma: Use DMA if true, ACP if false.
  */
 ALWAYS_INLINE
-static inline void dma_load_and_unpack_fp16(float* local_data,
-                                            packed_fp16* remote_data,
-                                            int num_elems,
-                                            int local_offset,
-                                            int remote_offset) {
+static inline void load_and_unpack_fp16(float* local_data,
+                                        packed_fp16* remote_data,
+                                        int num_elems,
+                                        int local_offset,
+                                        int remote_offset,
+                                        bool use_dma) {
     VEC_ARRAY_1D(v16ph_t, _local_data_hp, local_data);
     VEC_ARRAY_1D(v8fp_t, _local_data_sp, local_data);
     const int page_size = (1 << LOG_PAGE_SIZE);
@@ -36,9 +39,18 @@ static inline void dma_load_and_unpack_fp16(float* local_data,
         int transfer_size = min2(num_bytes_remaining, max_transfer_size);
         int curr_local_offset = (i * page_size * 2) / sizeof(float);
         int curr_remote_offset = curr_local_offset / 2;
-        dmaLoad(local_data + local_offset + curr_local_offset,
-                remote_data + remote_offset + curr_remote_offset,
-                transfer_size);
+        if (use_dma) {
+            dmaLoad(local_data + local_offset + curr_local_offset,
+                    remote_data + remote_offset + curr_remote_offset,
+                    transfer_size);
+        } else {
+            coherentLoad64(
+                    local_data,
+                    (float*)remote_data,
+                    transfer_size,
+                    (local_offset + curr_local_offset) / VECTOR_SIZE / 2,
+                    (remote_offset + curr_remote_offset) / VECTOR_SIZE / 2);
+        }
 
         // This loads N bytes of packed data into local_data. We now expand
         // N bytes of half precision to 2*N bytes of single precision, in
@@ -66,3 +78,30 @@ static inline void dma_load_and_unpack_fp16(float* local_data,
     }
 }
 
+ALWAYS_INLINE
+static inline void dma_load_and_unpack_fp16(float* local_data,
+                                            packed_fp16* remote_data,
+                                            int num_elems,
+                                            int local_offset,
+                                            int remote_offset) {
+    load_and_unpack_fp16(local_data,
+                         remote_data,
+                         num_elems,
+                         local_offset,
+                         remote_offset,
+                         true);
+}
+
+ALWAYS_INLINE
+static inline void acp_load_and_unpack_fp16(float* local_data,
+                                            packed_fp16* remote_data,
+                                            int num_elems,
+                                            int local_offset,
+                                            int remote_offset) {
+    load_and_unpack_fp16(local_data,
+                         remote_data,
+                         num_elems,
+                         local_offset,
+                         remote_offset,
+                         false);
+}
