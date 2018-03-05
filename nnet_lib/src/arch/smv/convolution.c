@@ -62,9 +62,9 @@ void print_conv_tiling_cfg(conv_tiling_cfg* cfg) {
     }
 }
 
-static void smv_convolution_layer_hw_impl(float* host_activations,
+static void smv_convolution_layer_hw_impl(packed_fp16* host_activations,
                                           packed_fp16* host_weights,
-                                          float* host_results,
+                                          packed_fp16* host_results,
                                           float* local_activations,
                                           float* local_weights,
                                           float* local_results,
@@ -74,8 +74,8 @@ static void smv_convolution_layer_hw_impl(float* host_activations,
     int input_rows = curr_layer.inputs.rows;
     int input_cols = curr_layer.inputs.cols;
     int input_pad = curr_layer.inputs.align_pad;
-    ARRAY_4D(float, _a, host_activations, input_height + input_pad, input_rows,
-             input_cols);
+    ARRAY_4D(packed_fp16, _a, host_activations, input_rows, input_cols,
+             input_height + input_pad);
     // DMA all the weights that we can fit in the current tile (which is
     // specified by this tile's outputs.height).
     // We should only DMA part of the weights.
@@ -84,7 +84,7 @@ static void smv_convolution_layer_hw_impl(float* host_activations,
             (curr_layer.weights.height + curr_layer.weights.align_pad);
     int num_weights = options->total_tile_ofmaps * single_weights_elems;
     if (curr_layer.weights_req != IO_NONE) {
-        setReadyBits(local_weights, num_weights * sizeof(float), 0);
+        setReadyBits(local_weights, num_weights * sizeof(*local_results), 0);
         dma_load_and_unpack_fp16(local_weights, host_weights, num_weights, 0, 0);
     }
     if (curr_layer.input_req == IO_DMA || curr_layer.input_req == IO_ACP) {
@@ -94,16 +94,16 @@ static void smv_convolution_layer_hw_impl(float* host_activations,
                 curr_layer.inputs.rows * curr_layer.inputs.cols *
                 (curr_layer.inputs.height + curr_layer.inputs.align_pad);
         if (curr_layer.input_req == IO_DMA) {
-            setReadyBits(
-                    local_activations, num_input_pixels * sizeof(float), 0);
-            dma_load_wrapper(local_activations,
-                             &_a[options->img][0][0][0],
-                             num_input_pixels * sizeof(float),
-                             options->use_pipelined_dma);
+            setReadyBits(local_activations,
+                         num_input_pixels * sizeof(*local_activations), 0);
+            dma_load_and_unpack_fp16(local_activations,
+                                     &_a[options->img][0][0][0],
+                                     num_input_pixels, 0, 0);
         } else {
             int source_offset = &_a[options->img][0][0][0] - &_a[0][0][0][0];
-            coherentLoad64(local_activations, &_a[options->img][0][0][0],
-                           num_input_pixels * sizeof(float), 0, source_offset);
+            acp_load_and_unpack_fp16(local_activations,
+                                     &_a[options->img][0][0][0],
+                                     num_input_pixels, 0, source_offset);
         }
     }
 
@@ -124,63 +124,56 @@ static void smv_convolution_layer_hw_impl(float* host_activations,
     smv_activation_fun_fxp(local_results, NUM_TEST_CASES, num_output_pixels,
                            start_output_pixel, curr_layer.activation);
     if (curr_layer.output_req == IO_DMA) {
-        dma_store_wrapper(&host_results[start_output_pixel],
-                          &local_results[start_output_pixel],
-                          num_output_pixels * sizeof(float),
-                          options->use_pipelined_dma);
+        dma_pack_and_store_fp16(host_results,
+                                local_results,
+                                num_output_pixels,
+                                start_output_pixel,
+                                start_output_pixel);
     } else if (curr_layer.output_req == IO_ACP) {
-        int output_offset = start_output_pixel / VECTOR_SIZE / 2;
-        coherentStore64(host_results, local_results,
-                        num_output_pixels * sizeof(float), output_offset,
-                        output_offset);
+        acp_pack_and_store_fp16(host_results,
+                                local_results,
+                                num_output_pixels,
+                                start_output_pixel,
+                                start_output_pixel);
     }
 }
 
-static void smv_convolution_layer_hw(float* dma_activations,
+static void smv_convolution_layer_hw(packed_fp16* dma_activations,
                                      packed_fp16* dma_weights,
-                                     float* dma_results,
-                                     float* cache_activations,
+                                     packed_fp16* dma_results,
+                                     packed_fp16* cache_activations,
                                      packed_fp16* cache_weights,
-                                     float* cache_results,
-                                     float* acp_activations,
+                                     packed_fp16* cache_results,
+                                     packed_fp16* acp_activations,
                                      packed_fp16* acp_weights,
-                                     float* acp_results,
+                                     packed_fp16* acp_results,
                                      float* umem,
                                      float* spad0,
                                      float* spad1,
                                      layer_t curr_layer,
                                      access_config* access_config,
                                      smv_convolution_options* options) {
-    // We can use ACP or caches for outputs only, or for outputs AND inputs,
-    // but not inputs only. We also do not currently support mixing ACP and
-    // cache for the inputs/outputs.
-    if (access_config->outputs == _ACP) {
-        if (access_config->inputs == _ACP) {
+    // XXX: With half-precision data storage, we can't directly access an L1
+    // cache, since we can't compute on half precision data without calling the
+    // conversion functions on every access. So to prevent such a situation
+    // from arising, just disable use of local caches.
+    bool use_acp_outputs =
+            access_config->outputs == _ACP || access_config->outputs == _Cache;
+    bool use_acp_inputs =
+            access_config->inputs == _ACP || access_config->inputs == _Cache;
+    if (use_acp_outputs) {
+        curr_layer.output_req = IO_ACP;
+        if (use_acp_inputs) {
+            curr_layer.input_req = IO_ACP;
             smv_convolution_layer_hw_impl(acp_activations, dma_weights,
                                           acp_results, umem, spad0, spad1,
                                           curr_layer, options);
         } else {
-            // If the input mechanism is Cache, then it is ignored, and we
-            // fallback to DMA.
             if (curr_layer.input_req != IO_NONE)
                 curr_layer.input_req = IO_DMA;
             smv_convolution_layer_hw_impl(dma_activations, dma_weights,
                                           acp_results, umem, spad0, spad1,
                                           curr_layer, options);
-        }
-    } else if (access_config->outputs == _Cache) {
-        if (access_config->inputs == _Cache) {
-            smv_convolution_layer_hw_impl(dma_activations, dma_weights,
-                                          dma_results, cache_activations, spad0,
-                                          cache_results, curr_layer, options);
-        } else {
-            // If the input mechanism is ACP, then it is ignored, and we
-            // fallback to DMA.
-            if (curr_layer.input_req != IO_NONE)
-                curr_layer.input_req = IO_DMA;
-            smv_convolution_layer_hw_impl(
-                    dma_activations, dma_weights, dma_results, umem, spad0,
-                    cache_results, curr_layer, options);
         }
     } else {
         ASSERT((access_config->inputs == _DmaOrLocal &&
@@ -262,14 +255,17 @@ static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer) {
     return cfg;
 }
 
-void smv_standard_convolution_layer_impl(float* host_activations,
-                                         packed_fp16* host_weights,
+void smv_standard_convolution_layer_impl(data_list* host_activations,
+                                         data_list* host_weights,
                                          layer_t* layers,
                                          int lnum,
-                                         float* host_result,
+                                         data_list* host_results,
                                          smv_global* g_smv,
                                          device_t* device,
                                          sampling_param_t* sampling_param) {
+    require_data_type(host_weights, 0, UncompressedHalfPrecision);
+    require_data_type(host_activations, 0, UncompressedHalfPrecision);
+
     layer_t curr_layer = layers[lnum];
     const int result_height = curr_layer.outputs.height;
     const int result_rows = curr_layer.outputs.rows;
@@ -280,27 +276,31 @@ void smv_standard_convolution_layer_impl(float* host_activations,
     const int k_rows = curr_layer.weights.rows;
     const int k_cols = curr_layer.weights.cols;
     const int result_2d_size = result_rows * (result_cols + result_pad);
-    float* nhwc_activations = NULL;
+
+    data_list* nhwc_activations = init_data_list(1);
     begin_profiling("convert_nchw_to_nhwc", lnum);
-    dims_t activations_nhwc = convert_nchw_to_nhwc_fp32(
-            host_activations, NUM_TEST_CASES, curr_layer.inputs, DATA_ALIGNMENT,
-            &nhwc_activations);
+    dims_t activations_nhwc = convert_nchw_to_nhwc(
+            host_activations, 0, NUM_TEST_CASES, curr_layer.inputs,
+            DATA_ALIGNMENT, nhwc_activations);
     end_profiling();
+    packed_fp16* activations_loc = nhwc_activations->data[0].dense_hp->d;
+    // TODO: Add metadata to indicate the size of elements contained inside
+    // DataFormat.
     MAP_ARRAY_TO_ACCEL(g_smv->kConvolutionHw,
                        get_host_inputs_var_name(curr_layer.input_req),
-                       nhwc_activations,
-                       get_dims_size(&activations_nhwc) * sizeof(float));
+                       activations_loc,
+                       get_dims_size(&activations_nhwc) * sizeof(float16));
 
-    ARRAY_4D(float, _result, host_result, result_height, result_rows,
-             result_cols + result_pad);
     // XXX: host_weights arrives in NHWC format, but layer.weights is still in
-    // NCHW format.
+    // NCHW dimension format.
     dims_t nhwc_weights_dims =
             nchw_to_nhwc_dims(&curr_layer.weights, DATA_ALIGNMENT);
     // host_weights is half-precision, so it only occupies half the space that
     // the logical dimensions would indicate.
-    ARRAY_4D(packed_fp16, _kernels, host_weights, k_rows, k_cols,
-             (input_height + nhwc_weights_dims.align_pad) / 2);
+    ARRAY_4D(packed_fp16, _kernels, host_weights->data[0].dense_hp->d, k_rows,
+             k_cols, (input_height + nhwc_weights_dims.align_pad) / 2);
+    ARRAY_4D(packed_fp16, _result, host_results->data[0].dense_hp->d,
+             result_height, result_rows, (result_cols + result_pad) / 2);
 
     conv_tiling_cfg tiling = convolution_divide_work(&curr_layer);
     print_conv_tiling_cfg(&tiling);
@@ -311,20 +311,20 @@ void smv_standard_convolution_layer_impl(float* host_activations,
     bool use_pipelined_dma = device->use_pipelined_dma;
     bool use_pipelined_activation = device->use_pipelined_activation_func;
     if (curr_layer.input_req == IO_DMA) {
-        // Flush cache lines for activations and weights.
         begin_ignored_profiling(lnum);
-        // XXX: WEIGHT_BYTES assumes float data type, but weights are 16-bit.
-        int weights_size = WEIGHT_BYTES(layers, lnum) / 2;
-        int activations_size = INPUT_BYTES(layers, lnum);
-        flush_cache_range(host_activations, activations_size);
-        flush_cache_range(host_weights, weights_size);
+        flush_cache_range(
+                host_activations->data[0].dense_hp->d,
+                host_activations->data[0].dense_hp->size * sizeof(float16));
+        flush_cache_range(
+                host_weights->data[0].dense_hp->d,
+                host_weights->data[0].dense_hp->size * sizeof(float16));
         end_profiling();
     }
     if (do_hw_activation || curr_layer.output_req == IO_DMA) {
-        // Flush cache lines for temporary results.
         begin_ignored_profiling(lnum);
         flush_cache_range(
-                host_result, result_2d_size * result_height * sizeof(float));
+                host_results->data[0].dense_hp->d,
+                host_results->data[0].dense_hp->size * sizeof(float16));
         end_profiling();
     }
 
@@ -350,8 +350,8 @@ void smv_standard_convolution_layer_impl(float* host_activations,
                 partial_layer.input_req = IO_NONE;
 
             // Set up the results buffer and mappings.
-            float* result_loc = &_result[img][kern_start][0][0];
-            int result_size = result_2d_size * tile->num_ofmaps * sizeof(float);
+            packed_fp16* result_loc = &_result[img][kern_start][0][0];
+            int result_size = result_2d_size * tile->num_ofmaps * sizeof(float16);
             MAP_ARRAY_TO_ACCEL(g_smv->kConvolutionHw,
                                get_host_results_var_name(curr_layer.output_req),
                                result_loc, result_size);
@@ -362,7 +362,7 @@ void smv_standard_convolution_layer_impl(float* host_activations,
                                get_host_weights_var_name(IO_DMA),
                                weights_loc,
                                num_kerns * get_dims_size(&nhwc_weights_dims) *
-                                       sizeof(short));
+                                       sizeof(float16));
 
             int num_hw_iters = ceil((float)tile->num_ofmaps / NUM_PE_INSTS);
             int inner_iters_executed = 0;
@@ -423,12 +423,13 @@ void smv_standard_convolution_layer_impl(float* host_activations,
                         layer_to_access_config(&partial_layer);
                 if (!use_pipelined_activation) {
                     INVOKE_KERNEL_PROF(
-                            g_smv->kConvolutionHw, lnum, smv_convolution_layer_hw,
-                            nhwc_activations, weights_loc, result_loc,  // DMA
-                            nhwc_activations, weights_loc, result_loc,  // Cache
-                            nhwc_activations, weights_loc, result_loc,  // ACP
-                            g_smv->umem, g_smv->spad0, g_smv->spad1, partial_layer,
-                            &access_cfg, &options);
+                            g_smv->kConvolutionHw, lnum,
+                            smv_convolution_layer_hw,
+                            activations_loc, weights_loc, result_loc,  // DMA
+                            activations_loc, weights_loc, result_loc,  // Cache
+                            activations_loc, weights_loc, result_loc,  // ACP
+                            g_smv->umem, g_smv->spad0, g_smv->spad1,
+                            partial_layer, &access_cfg, &options);
 
                 } else {
                     // If the previous iteration has finished, start doing
@@ -445,20 +446,21 @@ void smv_standard_convolution_layer_impl(float* host_activations,
                     INVOKE_KERNEL_NOBLOCK(
                             g_smv->kConvolutionHw, &finish_flag,
                             smv_convolution_layer_hw,
-                            nhwc_activations, weights_loc, result_loc,  // DMA
-                            nhwc_activations, weights_loc, result_loc,  // Cache
-                            nhwc_activations, weights_loc, result_loc,  // ACP
+                            activations_loc, weights_loc, result_loc,  // DMA
+                            activations_loc, weights_loc, result_loc,  // Cache
+                            activations_loc, weights_loc, result_loc,  // ACP
                             g_smv->umem, g_smv->spad0, g_smv->spad1,
                             partial_layer, &access_cfg, &options);
                     if (iter != 0 && !do_hw_activation) {
                         begin_profiling(
                                 ACTIVATION_TYPE_STR(curr_layer.activation),
                                 lnum);
-                        activation_fun(
+                        activation_fun_simd128(
                                 &_result[img][prev_kern_start][0][0],
                                 1,
                                 result_2d_size * prev_iter_num_kerns,
-                                curr_layer.activation);
+                                curr_layer.activation,
+                                &_result[img][prev_kern_start][0][0]);
                         end_profiling();
                     }
                     prev_iter_num_kerns = num_kerns_this_iter;
@@ -479,11 +481,11 @@ void smv_standard_convolution_layer_impl(float* host_activations,
                 end_profiling();
                 begin_profiling(
                         ACTIVATION_TYPE_STR(curr_layer.activation), lnum);
-                activation_fun(
-                        &_result[img][prev_kern_start][0][0],
-                        1,
-                        result_2d_size * prev_iter_num_kerns,
-                        curr_layer.activation);
+                activation_fun_simd128(&_result[img][prev_kern_start][0][0],
+                                       1,
+                                       result_2d_size * prev_iter_num_kerns,
+                                       curr_layer.activation,
+                                       &_result[img][prev_kern_start][0][0]);
                 end_profiling();
             }
 
@@ -491,6 +493,6 @@ void smv_standard_convolution_layer_impl(float* host_activations,
             end_profiling();
         }
     }
-    free(nhwc_activations);
+    free_data_list(nhwc_activations);
     free_conv_tiling_cfg(&tiling);
 }

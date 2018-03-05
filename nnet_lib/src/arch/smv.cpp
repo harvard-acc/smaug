@@ -125,17 +125,15 @@ result_buf standard_convolution_layer(data_list* activations,
     // of pthreads (and the memory management could get messy too...), but it
     // would get us more performance.
     layer_t curr_layer = layers[lnum];
-    packed_fp16* packed_weights =
-            curr_layer.host_weights->data[0].dense_hp->d;
     results = create_new_data_list_if_necessary(
             results,
             NUM_TEST_CASES * get_dims_size(&curr_layer.outputs),
-            Uncompressed);
-    smv_standard_convolution_layer_impl(activations->data[0].dense->d,
-                                        packed_weights,
+            UncompressedHalfPrecision);
+    smv_standard_convolution_layer_impl(activations,
+                                        weights,
                                         layers,
                                         lnum,
-                                        results->data[0].dense->d,
+                                        results,
                                         &g_smv,
                                         device,
                                         sampling_param);
@@ -508,7 +506,6 @@ void nnet_fwd(data_list* activations,
               network_t* network,
               device_t* device,
               sampling_param_t* sampling_param) {
-
     init_smv_global();
 
 #ifdef __cplusplus
@@ -518,6 +515,11 @@ void nnet_fwd(data_list* activations,
 
     set_io_requirements(network, device);
     early_convert_weights_data_layout(network, device);
+    fp16array_t* fp16_activations =
+            pack_data_fp16(activations->data[0].dense, NULL);
+    free_farray(activations->data[0].dense);
+    activations->data[0].dense_hp = fp16_activations;
+    activations->type[0] = UncompressedHalfPrecision;
 
     //******************//
     //   PRIMARY LOOP   //
@@ -544,7 +546,15 @@ void nnet_fwd(data_list* activations,
                                l, results_internal, device, sampling_param);
     }
 
-    results = copy_data_list(results, result_loc);
+    if (results->type[0] == UncompressedHalfPrecision) {
+        farray_t* fp32_results =
+                unpack_data_fp16x4(results->data[0].dense_hp, NULL);
+        free_fp16array(results->data[0].dense_hp);
+        results->data[0].dense = fp32_results;
+        results->type[0] = Uncompressed;
+    } else {
+        results = copy_data_list(results, result_loc);
+    }
     network->layers[network->depth - 1].result_in_temp = true;
 
 #ifdef __cplusplus

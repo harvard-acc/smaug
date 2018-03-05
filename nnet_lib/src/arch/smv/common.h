@@ -41,11 +41,11 @@ typedef struct _dma_options {
 
 bool smv_inner_product_needs_work_division(layer_t* curr_layer);
 
-void smv_standard_convolution_layer_impl(float* host_activations,
-                                         packed_fp16* host_weights,
+void smv_standard_convolution_layer_impl(data_list* host_activations,
+                                         data_list* host_weights,
                                          layer_t* layers,
                                          int lnum,
-                                         float* host_result,
+                                         data_list* host_result,
                                          smv_global* g_smv,
                                          device_t* device,
                                          sampling_param_t* sampling_param);
