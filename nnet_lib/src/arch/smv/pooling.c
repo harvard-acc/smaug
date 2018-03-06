@@ -4,6 +4,7 @@
 #include "arch/smiv/common.h"
 #include "arch/smiv/dispatch_utils.h"
 #include "arch/smv/common.h"
+#include "arch/smv/load_and_unpack_fp16_data.h"
 #include "core/nnet_fwd_defs.h"
 #include "core/smiv/smiv.h"
 #include "core/smv/params.h"
@@ -19,29 +20,26 @@ typedef struct _smv_pooling_options {
     bool use_pipelined_dma;
 } smv_pooling_options;
 
-static void smv_pooling_layer_hw_impl(float* host_activations,
-                                      float* host_results,
+static void smv_pooling_layer_hw_impl(packed_fp16* host_activations,
+                                      packed_fp16* host_results,
                                       float* local_activations,
                                       float* local_results,
                                       layer_t curr_layer,
                                       smv_pooling_options* options) {
     size_t partial_input_size =
             curr_layer.inputs.rows * curr_layer.inputs.cols *
-            (curr_layer.inputs.height + curr_layer.inputs.align_pad) *
-            sizeof(float);
+            (curr_layer.inputs.height + curr_layer.inputs.align_pad);
     if (curr_layer.input_req == IO_DMA) {
-        setReadyBits(local_activations, partial_input_size, 0);
-        dma_load_wrapper(local_activations,
-                         host_activations,
-                         partial_input_size,
-                         options->use_pipelined_dma);
+        setReadyBits(local_activations, partial_input_size * sizeof(float), 0);
+        dma_load_and_unpack_fp16(
+                local_activations, host_activations, partial_input_size, 0, 0);
     } else if (curr_layer.input_req == IO_ACP) {
-        coherentLoad64(
+        acp_load_and_unpack_fp16(
                 local_activations, host_activations, partial_input_size, 0, 0);
     }
 
-    // TODO: Use the existing SMIV pooling implementation, which only has an
-    // 8-way SIMD datapath.
+    // TODO: This uses the existing SMIV pooling implementation, which only has
+    // an 8-way SIMD datapath.
     if (curr_layer.pool == MAX)
         maxpooling_nhwc_smiv(local_activations, curr_layer, local_results);
     else
@@ -49,63 +47,49 @@ static void smv_pooling_layer_hw_impl(float* host_activations,
 
     size_t partial_output_size =
             curr_layer.outputs.rows * curr_layer.outputs.cols *
-            (curr_layer.outputs.height + curr_layer.outputs.align_pad) *
-            sizeof(float);
+            (curr_layer.outputs.height + curr_layer.outputs.align_pad);
     if (curr_layer.output_req == IO_DMA) {
-        dma_store_wrapper(host_results,
-                          local_results,
-                          partial_output_size,
-                          options->use_pipelined_dma);
+        dma_pack_and_store_fp16(
+                host_results, local_results, partial_output_size, 0, 0);
     } else if (curr_layer.output_req == IO_ACP) {
-        coherentStore64(host_results, local_results, partial_output_size, 0, 0);
+        acp_pack_and_store_fp16(
+                host_results, local_results, partial_output_size, 0, 0);
     }
 }
 
-static void smv_pooling_layer_hw(float* dma_activations,
-                                 float* dma_results,
-                                 float* cache_activations,
-                                 float* cache_results,
-                                 float* acp_activations,
-                                 float* acp_results,
+static void smv_pooling_layer_hw(packed_fp16* dma_activations,
+                                 packed_fp16* dma_results,
+                                 packed_fp16* cache_activations,
+                                 packed_fp16* cache_results,
+                                 packed_fp16* acp_activations,
+                                 packed_fp16* acp_results,
                                  float* umem,
                                  float* spad0,
                                  float* spad1,
                                  layer_t curr_layer,
                                  smv_pooling_options* options) {
-    // We can use ACP or caches for outputs only, or for outputs AND inputs,
-    // but not inputs only. We also do not currently support mixing ACP and
-    // cache for the inputs/outputs.
-    if (curr_layer.output_req == IO_ACP) {
-        if (curr_layer.input_req == IO_ACP) {
+    // We don't currently support using a local cache for inner products.  If
+    // the IO requirement is IO_CACHE, it will be treated as IO_ACP.
+    bool use_acp_results = (curr_layer.output_req == IO_ACP ||
+                            curr_layer.output_req == IO_CACHE);
+    bool use_acp_inputs = (curr_layer.input_req == IO_ACP ||
+                           curr_layer.input_req == IO_CACHE);
+    if (use_acp_results) {
+        curr_layer.output_req = IO_ACP;
+        if (use_acp_inputs) {
+            curr_layer.input_req = IO_ACP;
             smv_pooling_layer_hw_impl(acp_activations, acp_results, spad0,
                                       spad1, curr_layer, options);
         } else {
-            // If the input mechanism is Cache, then it is ignored, and we
-            // fallback to DMA.
             if (curr_layer.input_req != IO_NONE)
                 curr_layer.input_req = IO_DMA;
             smv_pooling_layer_hw_impl(dma_activations, acp_results, spad0,
                                       spad1, curr_layer, options);
         }
-    } else if (curr_layer.output_req == IO_CACHE) {
-        if (curr_layer.input_req == IO_CACHE) {
-            smv_pooling_layer_hw_impl(dma_activations, dma_results,
-                                      cache_activations, cache_results,
-                                      curr_layer, options);
-        } else {
-            // If the input mechanism is ACP, then it is ignored, and we
-            // fallback to DMA.
-            if (curr_layer.input_req != IO_NONE)
-                curr_layer.input_req = IO_DMA;
-            smv_pooling_layer_hw_impl(dma_activations, dma_results,
-                                      cache_activations, spad0, curr_layer,
-                                      options);
-        }
     } else {
         smv_pooling_layer_hw_impl(dma_activations, dma_results, spad0, spad1,
                                   curr_layer, options);
     }
-
 }
 
 void smv_pooling_layer_impl(data_list* inputs,
@@ -113,6 +97,7 @@ void smv_pooling_layer_impl(data_list* inputs,
                             smv_global* g_smv,
                             data_list* results,
                             device_t* device) {
+    require_data_type(inputs, 0, UncompressedHalfPrecision);
     pool_cfg_t pool_cfgs = smiv_pooling_divide_work(curr_layer);
 
     data_list* nhwc_inputs = init_data_list(1);
@@ -125,14 +110,14 @@ void smv_pooling_layer_impl(data_list* inputs,
     // Prepare a temporary buffer for the NHWC-formatted outputs.
     data_list* nhwc_outputs = init_data_list(1);
     nhwc_outputs->type[0] = inputs->type[0];
-    nhwc_outputs->data[0].dense =
-            init_farray(compute_blocked_nhwc_size(&curr_layer->outputs,
-                                                  VECTOR_SIZE, DATA_ALIGNMENT),
-                        true);
+    nhwc_outputs->data[0].dense_hp = init_fp16array(
+            compute_blocked_nhwc_size(
+                    &curr_layer->outputs, VECTOR_SIZE, DATA_ALIGNMENT),
+            true);
 
     for (int img = 0; img < NUM_TEST_CASES; img++) {
-        float* current_inputs = nhwc_inputs->data[0].dense->d;
-        float* current_results = nhwc_outputs->data[0].dense->d;
+        packed_fp16* current_inputs = nhwc_inputs->data[0].dense_hp->d;
+        packed_fp16* current_results = nhwc_outputs->data[0].dense_hp->d;
         for (unsigned iter = 0; iter < pool_cfgs.num_iterations; iter++) {
             PRINT_MSG("Iteration %d\n", iter);
             dims_t iter_cfg = pool_cfgs.iteration[iter];
@@ -150,22 +135,24 @@ void smv_pooling_layer_impl(data_list* inputs,
             begin_ignored_profiling(partial_layer.num);
             if (partial_layer.input_req == IO_DMA) {
                 flush_cache_range(
-                        current_inputs, partial_input_size * sizeof(float));
+                        current_inputs, partial_input_size * sizeof(float16));
             }
             if (partial_layer.output_req == IO_DMA) {
                 flush_cache_range(
-                        current_results, partial_output_size * sizeof(float));
+                        current_results, partial_output_size * sizeof(float16));
             }
             end_profiling();
 
-            MAP_ARRAY_TO_ACCEL(g_smv->kPoolingHw,
-                               get_host_inputs_var_name(partial_layer.input_req),
-                               current_inputs,
-                               partial_input_size * sizeof(float));
-            MAP_ARRAY_TO_ACCEL(g_smv->kPoolingHw,
-                               get_host_results_var_name(partial_layer.output_req),
-                               current_results,
-                               partial_output_size * sizeof(float));
+            MAP_ARRAY_TO_ACCEL(
+                    g_smv->kPoolingHw,
+                    get_host_inputs_var_name(partial_layer.input_req),
+                    current_inputs,
+                    partial_input_size * sizeof(float16));
+            MAP_ARRAY_TO_ACCEL(
+                    g_smv->kPoolingHw,
+                    get_host_results_var_name(partial_layer.output_req),
+                    current_results,
+                    partial_output_size * sizeof(float16));
 
             smv_pooling_options options;
             options.use_pipelined_dma = device->use_pipelined_dma;
@@ -184,8 +171,8 @@ void smv_pooling_layer_impl(data_list* inputs,
                                partial_layer,
                                &options);
 
-            current_inputs += partial_input_size;
-            current_results += partial_output_size;
+            current_inputs += partial_input_size / 2;
+            current_results += partial_output_size / 2;
         }
     }
 

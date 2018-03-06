@@ -261,13 +261,25 @@ result_buf pooling_layer(data_list* activations,
         smv_pooling_layer_impl(
                 activations, &layers[lnum], &g_smv, results, device);
     } else {
-        float* act_buf = activations->data[0].dense->d;
-        float* out_buf = results->data[0].dense->d;
+        farray_t* fp32_activations = NULL;
+        farray_t* fp32_results = NULL;
+        if (activations->type[0] == UncompressedHalfPrecision) {
+            fp32_activations =
+                    unpack_data_fp16x4(activations->data[0].dense_hp, NULL);
+            fp32_results = init_farray(
+                    NUM_TEST_CASES * get_dims_size(&layers[lnum].outputs),
+                    false);
+        } else {
+            fp32_activations = activations->data[0].dense;
+            fp32_results = results->data[0].dense;
+        }
 #ifdef __cplusplus
         if (curr_layer.pool == MAX) {
-            nnet_mkl::max_pooling_3d(act_buf, &layers[lnum], out_buf, device);
+            nnet_mkl::max_pooling_3d(fp32_activations->d, &layers[lnum],
+                                     fp32_results->d, device);
         } else if (curr_layer.pool == AVG) {
-            nnet_mkl::avg_pooling_3d(act_buf, &layers[lnum], out_buf, device);
+            nnet_mkl::avg_pooling_3d(fp32_activations->d, &layers[lnum],
+                                     fp32_results->d, device);
         } else {
             assert(false && "Unsupported pooling layer type!");
         }
@@ -276,13 +288,23 @@ result_buf pooling_layer(data_list* activations,
 #else
         // This code should only get run by the tracer.
         if (curr_layer.pool == MAX) {
-            max_pooling(act_buf, out_buf, layers[lnum]);
+            max_pooling(fp32_activations->d, fp32_results->d, layers[lnum]);
         } else if (curr_layer.pool == AVG) {
-            avg_pooling(act_buf, out_buf, layers[lnum]);
+            avg_pooling(fp32_activations->d, fp32_results->d, layers[lnum]);
         } else {
             assert(false && "Unsupported pooling layer type!");
         }
 #endif
+        if (activations->type[0] == UncompressedHalfPrecision) {
+            // Ugly - need to free the farray_t* container without freeing the
+            // buffer it wraps.
+            packed_fp16* results_buf = results->data[0].dense_hp->d;
+            free(results->data[0].dense_hp);
+            results->data[0].dense_hp =
+                    pack_data_fp16(fp32_results, results_buf);
+            free_farray(fp32_activations);
+            free_farray(fp32_results);
+        }
     }
     return results;
 }
@@ -297,10 +319,9 @@ result_buf batch_norm_layer(data_list* activations,
     results = create_new_data_list_if_necessary(
             results,
             NUM_TEST_CASES * get_dims_size(&layers[lnum].outputs),
-            Uncompressed);
-    smv_batch_norm_layer_impl(activations->data[0].dense->d,
-                              weights->data[0].dense->d, layers, lnum,
-                              results->data[0].dense->d, &g_smv, device);
+            activations->type[0]);
+    smv_batch_norm_layer_impl(
+            activations, layers, lnum, results, &g_smv, device);
     return results;
 }
 
