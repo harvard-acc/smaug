@@ -50,9 +50,9 @@ typedef struct _inner_product_options {
 //   local_results: Pointer to results that the accelerator writes directly.
 //   curr_layer: Description of this layer's shape and parameters.
 //   options: Additional options for this execution of inner product.
-void smv_inner_product_layer_hw_impl(float* host_activations,
+void smv_inner_product_layer_hw_impl(packed_fp16* host_activations,
                                      packed_fp16* host_weights,
-                                     float* host_results,
+                                     packed_fp16* host_results,
                                      float* local_activations,
                                      float* local_weights,
                                      float* local_results,
@@ -70,15 +70,15 @@ void smv_inner_product_layer_hw_impl(float* host_activations,
     if (curr_layer->input_req == IO_DMA || curr_layer->input_req == IO_ACP ||
         curr_layer->input_req == IO_CACHE) {
         ASSERT(host_activations && "DMA inputs pointer cannot be NULL!");
-        int activations_size =
-                get_input_activations_size(curr_layer) * sizeof(float);
+        int activations_size = get_input_activations_size(curr_layer);
         if (curr_layer->input_req == IO_DMA) {
             setReadyBits(local_activations, SMV_SPAD_SIZE, 0);
-            dma_load_wrapper(local_activations, host_activations,
-                             activations_size, options->use_pipelined_dma);
+            dma_load_and_unpack_fp16(local_activations,
+                                     host_activations,
+                                     activations_size, 0, 0);
         } else {
-            coherentLoad64(local_activations, host_activations,
-                           activations_size, 0, 0);
+            acp_load_and_unpack_fp16(local_activations, host_activations,
+                                     activations_size, 0, 0);
         }
     }
 
@@ -115,30 +115,33 @@ void smv_inner_product_layer_hw_impl(float* host_activations,
 
     // If we didn't run the activation function or add the bias, and we expect
     // outputs to go out via ACP, then we need to explicitly store it back.
-    size_t result_size =
-            get_output_activations_size(curr_layer) * sizeof(float);
+    size_t result_size = get_output_activations_size(curr_layer);
     if (curr_layer->output_req == IO_ACP ||
         curr_layer->output_req == IO_CACHE) {
-        int offset = options->dma_store_start / VECTOR_SIZE / 2;
-        coherentStore64(
-                host_results, local_results, result_size, offset, offset);
+        acp_pack_and_store_fp16(host_results,
+                                local_results,
+                                result_size,
+                                options->dma_store_start,
+                                options->dma_store_start);
     } else if (curr_layer->output_req == IO_DMA) {
         ASSERT(host_results && "DMA results pointer cannot be NULL!");
-        dma_store_wrapper(host_results + options->dma_store_start,
-                          local_results + options->dma_store_start, result_size,
-                          options->use_pipelined_dma);
+        dma_pack_and_store_fp16(host_results,
+                                local_results,
+                                result_size,
+                                options->dma_store_start,
+                                options->dma_store_start);
     }
 }
 
-void smv_inner_product_layer_hw(float* dma_activations,
+void smv_inner_product_layer_hw(packed_fp16* dma_activations,
                                 packed_fp16* dma_weights,
-                                float* dma_results,
-                                float* cache_activations,
+                                packed_fp16* dma_results,
+                                packed_fp16* cache_activations,
                                 packed_fp16* cache_weights,
-                                float* cache_results,
-                                float* acp_activations,
+                                packed_fp16* cache_results,
+                                packed_fp16* acp_activations,
                                 packed_fp16* acp_weights,
-                                float* acp_results,
+                                packed_fp16* acp_results,
                                 float* umem,
                                 float* spad0,
                                 float* spad1,
@@ -298,9 +301,9 @@ fc_cfg_t smv_inner_product_tile_rowwise(layer_t* curr_layer) {
 }
 
 // Call the right HW function based on the device parameters.
-void smv_inner_product_layer_hw_dispatch(float* activations,
+void smv_inner_product_layer_hw_dispatch(packed_fp16* activations,
                                          packed_fp16* weights,
-                                         float* results,
+                                         packed_fp16* results,
                                          layer_t* layer,
                                          smv_global* g_smv,
                                          // Make a copy here.
@@ -310,24 +313,25 @@ void smv_inner_product_layer_hw_dispatch(float* activations,
     io_req_t output_req = layer->output_req;
 
     if (output_req != IO_NONE) {
-        MAP_ARRAY_TO_ACCEL(g_smv->kInnerProductHw,
-                           get_host_results_var_name(output_req),
-                           results,
-                           get_nhwc_dims_size(&layer->outputs) * sizeof(float));
+        MAP_ARRAY_TO_ACCEL(
+                g_smv->kInnerProductHw,
+                get_host_results_var_name(output_req),
+                results,
+                get_nhwc_dims_size(&layer->outputs) * sizeof(float16));
     }
     // This needs to be handled separately from the inputs IO because if we
     // used compressed weights, then they have already been DMAed and
     // decompressed by the point we reach here.
     begin_ignored_profiling(layer->num);
     if (weights_req == IO_DMA) {
-        int weights_size = get_num_weights_layer(layer, 0) * sizeof(short);
+        int weights_size = get_num_weights_layer(layer, 0) * sizeof(float16);
         flush_cache_range(weights, weights_size);
     }
     if (input_req == IO_DMA || input_req == IO_NONE) {
         // Use DMA for weights/activations.
         // Flush cache lines for activations and weights.
         int activations_size =
-                get_input_activations_size(layer) * sizeof(float);
+                get_input_activations_size(layer) * sizeof(float16);
         flush_cache_range(activations, activations_size);
     }
     end_profiling();
@@ -385,7 +389,7 @@ void smv_inner_product_run_decompression_and_update_layer(
         layer_t* partial_layer,
         const layer_t* full_layer,
         dims_t* curr_iter,
-        float* host_results,
+        packed_fp16* host_results,
         int current_row,
         bool input_in_spad0,
         bool is_last_iter,
@@ -425,11 +429,13 @@ void smv_inner_product_run_decompression_and_update_layer(
         options.dst_offset = 0;
         options.use_pipelined_dma = device->use_pipelined_dma;
         options.length =
-                next_multiple(current_row * sizeof(float), CACHELINE_SIZE) *
+                next_multiple(current_row * sizeof(float16), CACHELINE_SIZE) *
                 NUM_TEST_CASES;
         options.is_load = true;
+        // TODO: THIS IS BROKEN - we can't just cast to float and call it a day
+        // because DMA copy doesn't unpack from FP16 to FP32!
         dma_copy_impl(input_in_spad0 ? g_smv->spad1 : g_smv->spad0,
-                      host_results, g_smv->kInnerProductHw,
+                      (float*)host_results, g_smv->kInnerProductHw,
                       transpose_layer.num, g_smv, &options);
 
         // On the last iteration, send the entire output back, because
@@ -457,12 +463,13 @@ void smv_inner_product_run_decompression_and_update_layer(
                 partial_layer->weights.rows + partial_layer->weights.align_pad);
 }
 
-void smv_inner_product_layer_impl_rowwise(float* host_activations,
+void smv_inner_product_layer_impl_rowwise(data_list* host_activations,
                                           layer_t* curr_layer,
-                                          float* host_results,
+                                          data_list* host_results,
                                           smv_global* g_smv,
                                           device_t* device,
                                           bool input_in_spad0) {
+    require_data_type(host_activations, 0, UncompressedHalfPrecision);
     assert(TRANSPOSE_WEIGHTS &&
            "SMV inner product requires transposed weights!");
 
@@ -470,14 +477,11 @@ void smv_inner_product_layer_impl_rowwise(float* host_activations,
     fc_cfg_t fc_cfgs = smv_inner_product_tile_rowwise(curr_layer);
     INFO_MSG("Inner product layer %d work configuration:\n", curr_layer->num);
     print_smiv_work_cfg(&fc_cfgs);
-    ARRAY_2D(float, _host_results, host_results,
-             curr_layer->outputs.cols + curr_layer->outputs.align_pad);
-    const size_t inputs_size =
-            get_dims_size(&curr_layer->inputs) * NUM_TEST_CASES * sizeof(float);
-
+    const size_t inputs_size = get_dims_size(&curr_layer->inputs) *
+                               NUM_TEST_CASES * sizeof(float16);
     MAP_ARRAY_TO_ACCEL(g_smv->kInnerProductHw,
                        get_host_inputs_var_name(curr_layer->input_req),
-                       host_activations,
+                       host_activations->data[0].dense_hp->d,
                        inputs_size);
 
     int current_row = 0;
@@ -494,14 +498,9 @@ void smv_inner_product_layer_impl_rowwise(float* host_activations,
     bool use_decomp_result_buf =
             requires_decompression && (curr_layer->output_req == IO_NONE ||
                                        curr_layer->output_req == IO_DMA);
-    farray_t decomp_result_buf = { NULL, 0 };
+    fp16array_t* decomp_result_buf = NULL;
     if (use_decomp_result_buf) {
-        int max_iter_output_size =
-                next_multiple(fc_cfgs.iteration[0].cols * sizeof(float),
-                              CACHELINE_SIZE) *
-                NUM_TEST_CASES;
-        decomp_result_buf.d = (float*)malloc_aligned(max_iter_output_size);
-        decomp_result_buf.size = max_iter_output_size / sizeof(float);
+        decomp_result_buf = init_fp16array(fc_cfgs.iteration[0].cols, true);
     }
 
     for (unsigned it = 0; it < fc_cfgs.num_iterations; it++) {
@@ -509,10 +508,16 @@ void smv_inner_product_layer_impl_rowwise(float* host_activations,
         dims_t* curr_iter = &fc_cfgs.iteration[it];
         bool is_last_iter = (it == fc_cfgs.num_iterations - 1);
         bool do_bias = is_last_iter;
-        // Tell the accelerator to write output to this base address.
-        float* accel_result_loc = host_results;
+
+        // Optimization: On the last iteration, write directly to the final
+        // host_results buffer, since we know we will copy the full output.
         bool use_decomp_result_buf_this_iter =
                 (!is_last_iter && use_decomp_result_buf);
+        // This buffer is where the accelerator will store its data.
+        packed_fp16* accel_result_loc =
+                use_decomp_result_buf_this_iter
+                        ? decomp_result_buf->d
+                        : host_results->data[0].dense_hp->d;
 
         // In this tiling strategy, generally, we accumulate all the output
         // pixels on the scratchpad iteration by iteration, and on the last
@@ -550,15 +555,10 @@ void smv_inner_product_layer_impl_rowwise(float* host_activations,
 
         if (requires_decompression) {
             smv_inner_product_run_decompression_and_update_layer(
-                    &partial_layer, curr_layer, curr_iter, host_results,
-                    current_row, input_in_spad0, is_last_iter, g_smv, device);
+                    &partial_layer, curr_layer, curr_iter,
+                    host_results->data[0].dense_hp->d, current_row,
+                    input_in_spad0, is_last_iter, g_smv, device);
             curr_dense_weights_loc = NULL;  // To prevent us from DMAing it.
-
-            // Optimization: On the last iteration, write directly to the final
-            // host_results buffer, since we know we will copy the full output.
-            accel_result_loc = use_decomp_result_buf_this_iter
-                                       ? decomp_result_buf.d
-                                       : host_results;
         }
 
         if (partial_layer.weights_req != IO_NONE) {
@@ -580,11 +580,12 @@ void smv_inner_product_layer_impl_rowwise(float* host_activations,
         // this tile from the beginning because it's only sized for a single
         // tile. Otherwise, start from current_row so we don't overwrite the
         // results of the previous tiles.
-        options.result_start = use_decomp_result_buf_this_iter ? 0 : current_row;
+        options.result_start =
+                use_decomp_result_buf_this_iter ? 0 : current_row;
         // On the last iteration, we want to DMA everything back.
         options.dma_store_start = is_last_iter ? 0 : options.result_start;
         smv_inner_product_layer_hw_dispatch(
-                host_activations,
+                host_activations->data[0].dense_hp->d,
                 curr_dense_weights_loc,
                 accel_result_loc,
                 &partial_layer,
@@ -600,10 +601,12 @@ void smv_inner_product_layer_impl_rowwise(float* host_activations,
         // Copy the results from result_buf to host_results, unless it is the
         // last iteration (in which case the data is already there).
         if (use_decomp_result_buf_this_iter && !is_last_iter) {
+            ARRAY_2D(float16, _host_results, host_results->data[0].dense_hp->d,
+                     curr_layer->outputs.cols + curr_layer->outputs.align_pad);
             for (int n = 0; n < NUM_TEST_CASES; n++) {
                 memcpy(&_host_results[n][current_row],
-                       accel_result_loc + options.result_start,
-                       curr_iter->cols * sizeof(float));
+                       accel_result_loc + options.dma_store_start,
+                       curr_iter->cols * sizeof(float16));
             }
         }
 
@@ -611,16 +614,15 @@ void smv_inner_product_layer_impl_rowwise(float* host_activations,
         curr_dense_weights_loc += iter_weights_size / 2;
     }
 
-    if (decomp_result_buf.d)
-        free(decomp_result_buf.d);
+    if (decomp_result_buf)
+        free_fp16array(decomp_result_buf);
     free_smiv_work_cfg(&fc_cfgs);
 }
 
-void smv_inner_product_layer_impl(float* host_activations,
-                                  float* host_weights,
+void smv_inner_product_layer_impl(data_list* host_activations,
                                   layer_t* layers,
                                   int lnum,
-                                  float* host_results,
+                                  data_list* host_results,
                                   smv_global* g_smv,
                                   device_t* device) {
     static float* current_result_loc = NULL;

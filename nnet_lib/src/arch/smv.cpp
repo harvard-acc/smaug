@@ -102,14 +102,12 @@ result_buf inner_product_layer(data_list* host_activations,
                                data_list* host_results,
                                device_t* device,
                                sampling_param_t* sampling_param) {
-    require_data_type(host_activations, 0, Uncompressed);
     host_results = create_new_data_list_if_necessary(
             host_results,
             NUM_TEST_CASES * get_dims_size(&layers[lnum].outputs),
-            Uncompressed);
+            UncompressedHalfPrecision);
     smv_inner_product_layer_impl(
-            host_activations->data[0].dense->d, host_weights->data[0].dense->d,
-            layers, lnum, host_results->data[0].dense->d, &g_smv, device);
+            host_activations, layers, lnum, host_results, &g_smv, device);
     return host_results;
 }
 
