@@ -160,8 +160,6 @@ static inline void coherentLoad64(float* local_dest,
            "Transfer size must be a multiple of VECTOR_SIZE!");
     VEC_ARRAY_1D(v16fp_t, _local_dest_64, local_dest);
     VEC_ARRAY_1D(v16fp_t, _host_src_64, host_src);
-    VEC_ARRAY_1D(v8fp_t, _local_dest_32, local_dest);
-    VEC_ARRAY_1D(v8fp_t, _host_src_32, host_src);
 
     int elems_64 = transfer_size / CACHELINE_SIZE;
     bool has_remaining = transfer_size % CACHELINE_SIZE != 0;
@@ -171,11 +169,18 @@ static inline void coherentLoad64(float* local_dest,
         _local_dest_64[i + local_offset_64b] =
                 _host_src_64[i + host_offset_64b];
     }
-    // Then finish up the last remaining one with a 32-byte load.
+    // Finish off the remainder with a RMW operation. This is slow since we
+    // need to first read the host data, update the elements we want, and then
+    // send it back.
     if (has_remaining) {
-        int index = elems_64 * 2;
-        _local_dest_32[index + local_offset_64b] =
-                _host_src_32[index + host_offset_64b];
+        v16fp_t host_cacheline = _host_src_64[elems_64 + host_offset_64b];
+        v16fp_t local_cacheline = _local_dest_64[elems_64 + host_offset_64b];
+        int remaining_qwords = transfer_size % CACHELINE_SIZE;
+        rmw:
+        for (int i = 0; i < remaining_qwords; i++) {
+            local_cacheline[i] = host_cacheline[i];
+        }
+        _local_dest_64[elems_64] = local_cacheline;
     }
 }
 
@@ -189,21 +194,26 @@ static inline void coherentStore64(float* host_dest,
            "Transfer size must be a multiple of VECTOR_SIZE!");
     VEC_ARRAY_1D(v16fp_t, _host_dest_64, host_dest);
     VEC_ARRAY_1D(v16fp_t, _local_src_64, local_src);
-    VEC_ARRAY_1D(v8fp_t, _host_dest_32, host_dest);
-    VEC_ARRAY_1D(v8fp_t, _local_src_32, local_src);
     int elems_64 = transfer_size / CACHELINE_SIZE;
-    bool has_remaining = transfer_size % CACHELINE_SIZE != 0;
+    int remainder = transfer_size % CACHELINE_SIZE;
     // First copy as much of the data via full cacheline stores.
     loop:
     for (int i = 0; i < elems_64; i++) {
         _host_dest_64[i + host_offset_64b] =
                 _local_src_64[i + local_offset_64b];
     }
-    // Then finish up the last remaining one with a 32-byte store.
-    if (has_remaining) {
-        int index = elems_64 * 2;
-        _host_dest_32[index + host_offset_64b] =
-                _local_src_32[index + local_offset_64b];
+    // Finish off the remainder with a RMW operation. This is slow since we
+    // need to first read the host data, update the elements we want, and then
+    // send it back.
+    if (remainder > 0) {
+        v16fp_t host_cacheline = _host_dest_64[elems_64 + host_offset_64b];
+        v16fp_t local_cacheline = _local_src_64[elems_64 + host_offset_64b];
+        int remaining_qwords = transfer_size % CACHELINE_SIZE;
+        rmw:
+        for (int i = 0; i < remaining_qwords; i++) {
+            host_cacheline[i] = local_cacheline[i];
+        }
+        _host_dest_64[elems_64] = host_cacheline;
     }
 }
 
