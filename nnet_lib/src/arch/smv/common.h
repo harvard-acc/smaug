@@ -56,11 +56,10 @@ void smv_inner_product_layer_impl(data_list* host_activations,
                                   data_list* host_results,
                                   smv_global* g_smv,
                                   device_t* device);
-void smv_batch_norm_layer_impl(float* activations,
-                               float* weights,
+void smv_batch_norm_layer_impl(data_list* activations,
                                layer_t* layers,
                                int lnum,
-                               float* result,
+                               data_list* result,
                                smv_global* g_smv,
                                device_t* device);
 void smv_pooling_layer_impl(data_list* inputs,
