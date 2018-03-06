@@ -37,6 +37,7 @@ typedef struct _dma_options {
     int length;  // in bytes.
     bool use_pipelined_dma;
     bool is_load;
+    bool fp16_input;
 } dma_options;
 
 bool smv_inner_product_needs_work_division(layer_t* curr_layer);

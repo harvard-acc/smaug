@@ -419,6 +419,7 @@ void smv_inner_product_run_decompression_and_update_layer(
         options.use_pipelined_dma = device->use_pipelined_dma;
         options.length = biases->size * sizeof(float);
         options.is_load = true;
+        options.fp16_input = false;
         dma_copy_impl(g_smv->umem, biases->d, g_smv->kInnerProductHw,
                       transpose_layer.num, g_smv, &options);
         // We need to copy the saved partial sums back to the appropriate
@@ -433,8 +434,7 @@ void smv_inner_product_run_decompression_and_update_layer(
                 next_multiple(current_row * sizeof(float16), CACHELINE_SIZE) *
                 NUM_TEST_CASES;
         options.is_load = true;
-        // TODO: THIS IS BROKEN - we can't just cast to float and call it a day
-        // because DMA copy doesn't unpack from FP16 to FP32!
+        options.fp16_input = true;
         dma_copy_impl(input_in_spad0 ? g_smv->spad1 : g_smv->spad0,
                       (float*)host_results, g_smv->kInnerProductHw,
                       transpose_layer.num, g_smv, &options);

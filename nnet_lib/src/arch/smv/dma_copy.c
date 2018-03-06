@@ -4,6 +4,7 @@
 #include "arch/common.h"
 #include "arch/smv/common.h"
 #include "arch/smiv/dispatch_utils.h"
+#include "arch/smv/load_and_unpack_fp16_data.h"
 
 #ifdef DMA_MODE
 #include "gem5_harness.h"
@@ -17,13 +18,28 @@ void smv_dma_load_hw(float* local_dest,
                      float* host_src,
                      int host_offset,
                      int local_offset,
-                     bool use_pipelined_dma) {
-    if (local_dest == umem) {
-        dmaLoad(&umem[local_offset], &host_src[host_offset], length);
-    } else if (local_dest == spad0) {
-        dmaLoad(&spad0[local_offset], &host_src[host_offset], length);
-    } else if (local_dest == spad1) {
-        dmaLoad(&spad1[local_offset], &host_src[host_offset], length);
+                     bool use_pipelined_dma,
+                     bool fp16_input) {
+    if (fp16_input) {
+        length /= sizeof(float16);
+        if (local_dest == umem) {
+            dma_load_and_unpack_fp16(umem, (packed_fp16*)host_src, length,
+                                local_offset, host_offset);
+        } else if (local_dest == spad0) {
+            dma_load_and_unpack_fp16(spad0, (packed_fp16*)host_src, length,
+                                local_offset, host_offset);
+        } else if (local_dest == spad1) {
+            dma_load_and_unpack_fp16(spad1, (packed_fp16*)host_src, length,
+                                local_offset, host_offset);
+        }
+    } else {
+        if (local_dest == umem) {
+            dmaLoad(&umem[local_offset], &host_src[host_offset], length);
+        } else if (local_dest == spad0) {
+            dmaLoad(&spad0[local_offset], &host_src[host_offset], length);
+        } else if (local_dest == spad1) {
+            dmaLoad(&spad1[local_offset], &host_src[host_offset], length);
+        }
     }
 }
 
@@ -35,13 +51,28 @@ void smv_dma_store_hw(float* host_dest,
                       float* local_src,
                       int host_offset,
                       int local_offset,
-                      bool use_pipelined_dma) {
-    if (local_src == umem) {
-        dmaStore(&host_dest[host_offset], &umem[local_offset], length);
-    } else if (local_src == spad0) {
-        dmaStore(&host_dest[host_offset], &spad0[local_offset], length);
-    } else if (local_src == spad1) {
-        dmaStore(&host_dest[host_offset], &spad1[local_offset], length);
+                      bool use_pipelined_dma,
+                      bool fp16_input) {
+    if (fp16_input) {
+        length /= sizeof(float16);
+        if (local_src == umem) {
+            dma_pack_and_store_fp16((packed_fp16*)host_dest, umem, length,
+                                    local_offset, host_offset);
+        } else if (local_src == spad0) {
+            dma_pack_and_store_fp16((packed_fp16*)host_dest, spad0, length,
+                                    local_offset, host_offset);
+        } else if (local_src == spad1) {
+            dma_pack_and_store_fp16((packed_fp16*)host_dest,  spad1,length,
+                                     local_offset, host_offset);
+        }
+    } else {
+        if (local_src == umem) {
+            dmaStore(&host_dest[host_offset], &umem[local_offset], length);
+        } else if (local_src == spad0) {
+            dmaStore(&host_dest[host_offset], &spad0[local_offset], length);
+        } else if (local_src == spad1) {
+            dmaStore(&host_dest[host_offset], &spad1[local_offset], length);
+        }
     }
 }
 
@@ -71,7 +102,8 @@ void dma_copy_impl(float* dst_base_loc,
         INVOKE_KERNEL_PROF(accel_id, layer_num, smv_dma_load_hw, dst_base_loc,
                            options->length, g_smv->umem, g_smv->spad0,
                            g_smv->spad1, src_base_loc, options->src_offset,
-                           options->dst_offset, options->use_pipelined_dma);
+                           options->dst_offset, options->use_pipelined_dma,
+                           options->fp16_input);
     } else {
         MAP_ARRAY_TO_ACCEL(accel_id,
                            "host_dest",
@@ -88,6 +120,7 @@ void dma_copy_impl(float* dst_base_loc,
                            src_base_loc,
                            options->src_offset,
                            options->dst_offset,
-                           options->use_pipelined_dma);
+                           options->use_pipelined_dma,
+                           options->fp16_input);
     }
 }
