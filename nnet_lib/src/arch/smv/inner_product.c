@@ -224,15 +224,16 @@ bool smv_inner_product_needs_work_division(layer_t* curr_layer) {
 //
 // Same as SMIV, but it might change.
 void smv_inner_product_check_absolute_size_limits(layer_t* curr_layer) {
-    const unsigned total_input_bytes =
-            get_input_activations_size(curr_layer) / NUM_TEST_CASES;
+    const unsigned total_input_bytes = get_input_activations_size(curr_layer) /
+                                       NUM_TEST_CASES * sizeof(float);
     if (total_input_bytes > SMIV_SPAD_SIZE) {
         printf("A single input does not fit in the SPAD, which is not "
                "supported!\n");
         assert(false);
     }
     const unsigned total_output_bytes =
-            get_output_activations_size(curr_layer) / NUM_TEST_CASES;
+            get_output_activations_size(curr_layer) / NUM_TEST_CASES *
+            sizeof(float);
     if (total_output_bytes > SMIV_SPAD_SIZE) {
         printf("A single output does not fit in the SPAD, which is not "
                "supported!\n");
