@@ -143,11 +143,12 @@ static inline __smaug256 __smaug_vcvtph2ps256(__smaug256 a) {
 
 //=----------------- Scalar conversion instructions -----------------=//
 
-// Scalar 32-bit to 16-bit conversion.
-// Although ISA support exists for this instruction in F16C, LLVM did not add
+// Scalar 32-bit to 16-bit conversion and back.
+// Although ISA support exists for these instructions in F16C, LLVM did not add
 // support for this intrinsic until 3.8, so we need to fallback to the lowest
 // common denominator.
 #define _CVT_SS_SH(val, rounding_mode) fp16_ieee_from_fp32_value(val)
+#define _CVT_SH_SS(val) fp16_ieee_to_fp32_value(val)
 
 //=----------------- Miscellaneous vector instructions -----------------=//
 

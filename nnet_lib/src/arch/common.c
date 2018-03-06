@@ -95,9 +95,18 @@ result_buf layer_dispatcher(data_list* activations,
     }
 
     PRINT_MSG("Result of layer %d:\n", layer_num);
-    PRINT_DEBUG4D(result_loc->data[0].dense->d, curr_layer.outputs.rows,
-                  curr_layer.outputs.cols + curr_layer.outputs.align_pad,
-                  curr_layer.outputs.height);
+    if (result_loc->type[0] == Uncompressed) {
+        PRINT_DEBUG4D(result_loc->data[0].dense->d, curr_layer.outputs.rows,
+                      curr_layer.outputs.cols + curr_layer.outputs.align_pad,
+                      curr_layer.outputs.height);
+    } else if (result_loc->type[0] == UncompressedHalfPrecision) {
+        PRINT_DEBUG4D_FP16(
+                result_loc->data[0].dense_hp->d, NUM_TEST_CASES,
+                curr_layer.outputs.height, curr_layer.outputs.rows,
+                curr_layer.outputs.cols + curr_layer.outputs.align_pad);
+    } else {
+        PRINT_MSG("Unable to print results in compressed form.\n");
+    }
 
     return result_loc;
 }

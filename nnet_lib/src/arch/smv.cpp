@@ -341,11 +341,11 @@ result_buf run_layer(data_list* activations,
         result_loc = smv_activation_function(
                 activations, &layers[layer_num], results, device);
         PRINT_MSG("\nactivation function\n");
-        PRINT_DEBUG4D(result_loc->data[0].dense->d,
-                      layers[layer_num].outputs.rows,
-                      layers[layer_num].outputs.cols +
-                              layers[layer_num].outputs.align_pad,
-                      layers[layer_num].outputs.height);
+        PRINT_DEBUG4D_FP16(result_loc->data[0].dense_hp->d, NUM_TEST_CASES,
+                           layers[layer_num].outputs.height,
+                           layers[layer_num].outputs.rows,
+                           layers[layer_num].outputs.cols +
+                                   layers[layer_num].outputs.align_pad);
     }
     end_profiling();
     return result_loc;

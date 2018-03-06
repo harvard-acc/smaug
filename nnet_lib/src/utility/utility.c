@@ -411,6 +411,25 @@ void print_debug4d(float* array, int rows, int cols, int height) {
     }
 }
 
+void print_debug4d_fp16(
+        packed_fp16* array, int num, int height, int rows, int cols) {
+    int img, i, j, h;
+    ARRAY_4D(float16, _array, array, height, rows, cols);
+
+    for (img = 0; img < num; img++) {
+        printf("Input image: %d\n", img);
+        for (h = 0; h < height; h++) {
+            printf("Depth %d\n", h);
+            for (i = 0; i < rows; i++) {
+                for (j = 0; j < cols; j++) {
+                    printf("%f, ", _CVT_SH_SS(_array[img][h][i][j]));
+                }
+                printf("\n");
+            }
+        }
+    }
+}
+
 // Print data and weights of the first layer.
 void print_data_and_weights(float* data, float* weights, layer_t first_layer) {
     int i, j;

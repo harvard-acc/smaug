@@ -1,8 +1,7 @@
 #ifndef _UTILITY_H_
 #define _UTILITY_H_
 
-#include <stdbool.h>
-
+#include <stdbool.h> 
 #include "nnet_fwd.h"
 
 float* grab_matrix(float* w, int n, int* n_rows, int* n_columns);
@@ -127,6 +126,8 @@ void print_debug(float* array,
                  int cols_to_print,
                  int num_columns);
 void print_debug4d(float* array, int rows, int cols, int height);
+void print_debug4d_fp16(
+        packed_fp16* array, int num, int height, int rows, int cols);
 void print_data_and_weights(float* data, float* weights, layer_t first_layer);
 
 data_list* create_new_data_list_if_necessary(data_list* curr_data,

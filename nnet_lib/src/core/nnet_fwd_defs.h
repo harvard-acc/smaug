@@ -482,6 +482,8 @@ typedef struct _sampling_param_t {
         print_debug(hid, rows, cols, num_cols)
     #define PRINT_DEBUG4D(hid, rows, cols, height)                                 \
         print_debug4d(hid, rows, cols, height)
+    #define PRINT_DEBUG4D_FP16(hid, num, height, rows, cols)                       \
+        print_debug4d_fp16(hid, num, height, rows, cols)
 
     #if DEBUG_LEVEL >= 3
       #define PRINT_DEBUG_V(hid, rows, cols, num_cols)                               \
@@ -498,6 +500,7 @@ typedef struct _sampling_param_t {
     #define PRINT_MSG(args...)
     #define PRINT_DEBUG(hid, rows, cols, num_cols)
     #define PRINT_DEBUG4D(hid, rows, cols, height)
+    #define PRINT_DEBUG4D_FP16(hid, num, height, rows, cols)
     #define PRINT_DEBUG_V(hid, rows, cols, height)
     #define PRINT_DEBUG4D_V(hid, rows, cols, height)
     #define PRINT_MSG_V(args...)
@@ -506,6 +509,7 @@ typedef struct _sampling_param_t {
   #define INFO_MSG(args...)
   #define PRINT_DEBUG(hid, rows, cols, num_cols)
   #define PRINT_DEBUG4D(hid, rows, cols, height)
+  #define PRINT_DEBUG4D_FP16(hid, num, height, rows, cols)
   #define PRINT_MSG(args...)
   #define PRINT_DEBUG_V(hid, rows, cols, height)
   #define PRINT_DEBUG4D_V(hid, rows, cols, height)
