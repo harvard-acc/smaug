@@ -65,7 +65,7 @@ void activation_fun_simd128(packed_fp16* activations,
                             packed_fp16* results) {
     fp16array_t packed_array;
     packed_array.d = activations;
-    packed_array.size = input_size * batch_size;
+    packed_array.size = input_size * batch_size / 2;
     farray_t* unpacked_activations = unpack_data_fp16x4(&packed_array, NULL);
 
     if (function == RELU) {
@@ -96,5 +96,6 @@ void activation_fun_simd128(packed_fp16* activations,
     // This frees the malloc'ed pointer to the fp16array_t without freeing the
     // buffer itself.
     free(packed_results);
+    free_farray(unpacked_activations);
 }
 
