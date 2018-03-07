@@ -455,10 +455,16 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                         begin_profiling(
                                 ACTIVATION_TYPE_STR(curr_layer.activation),
                                 lnum);
+                        dims_t last_iter_dims = (dims_t){
+                            partial_layer.outputs.rows,
+                            partial_layer.outputs.cols,
+                            prev_iter_num_kerns,
+                            calc_padding(prev_iter_num_kerns, DATA_ALIGNMENT),
+                        };
                         activation_fun_simd128(
                                 &_result[img][prev_kern_start][0][0],
                                 1,
-                                result_2d_size * prev_iter_num_kerns,
+                                &last_iter_dims,
                                 curr_layer.activation,
                                 &_result[img][prev_kern_start][0][0]);
                         end_profiling();
@@ -481,9 +487,15 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                 end_profiling();
                 begin_profiling(
                         ACTIVATION_TYPE_STR(curr_layer.activation), lnum);
+                dims_t last_iter_dims = (dims_t){
+                    partial_layer.outputs.rows,
+                    partial_layer.outputs.cols,
+                    prev_iter_num_kerns,
+                    calc_padding(prev_iter_num_kerns, DATA_ALIGNMENT),
+                };
                 activation_fun_simd128(&_result[img][prev_kern_start][0][0],
                                        1,
-                                       result_2d_size * prev_iter_num_kerns,
+                                       &last_iter_dims,
                                        curr_layer.activation,
                                        &_result[img][prev_kern_start][0][0]);
                 end_profiling();

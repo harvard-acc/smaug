@@ -60,12 +60,12 @@ void tanh_act_simd128(float* inputs, int size, float* results) {
 // Dispatch to the appropriate activation function.
 void activation_fun_simd128(packed_fp16* activations,
                             int batch_size,
-                            int input_size,
+                            dims_t* input_dims,
                             activation_type function,
                             packed_fp16* results) {
     fp16array_t packed_array;
     packed_array.d = activations;
-    packed_array.size = input_size * batch_size / 2;
+    packed_array.size = get_dims_size(input_dims) * batch_size / 2;
     farray_t* unpacked_activations = unpack_data_fp16x4(&packed_array, NULL);
 
     if (function == RELU) {
@@ -90,7 +90,10 @@ void activation_fun_simd128(packed_fp16* activations,
     } else if (function == SIGMOID) {
         sigmoid_inplace(unpacked_activations->d, unpacked_activations->size);
     } else if (function == SOFTMAX) {
-        assert(false && "Softmax SIMD not supported!");
+        // This size must be the flattened size wih all padding removed.
+        int input_size =
+                input_dims->rows * input_dims->cols * input_dims->height;
+        softmax(unpacked_activations->d, batch_size, input_size);
     }
     fp16array_t* packed_results = pack_data_fp16(unpacked_activations, results);
     // This frees the malloc'ed pointer to the fp16array_t without freeing the
