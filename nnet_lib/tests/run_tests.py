@@ -4,10 +4,10 @@
 #
 # Usage:
 #
-#   python run_tests.py path/to/executable
+#   python run_tests.py arch path/to/executable
 
 import argparse
-import numpy as np
+import math
 import sys
 import os
 import subprocess
@@ -16,14 +16,18 @@ import tempfile
 import shutil
 import re
 
-# Floating point equality comparison tolerance in percent.
-# TODO: Different architectures should have different error tolerances. SMV
-# requires the largest tolerance due to the wide use of half-precision floating
-# point values.
-FP_ERR_PCT = 1
-
-# Floating point equality comparison tolerance in absolute magnitude.
-FP_ERR_ABS = 0.5
+# FP equality checker parameters.
+# In theory, each architecture has a different error threshold, due to the
+# differences in how they compute the kernels. However, with the low variance of
+# the randomly generated weights, the magnitude of the soft targets of the
+# output label labels makes custom error thresholds unnecessary.
+CHECKERS = {
+    "monolithic": {"mode": "fp32", "abs": 0.05, "pct": 0.05},
+    "composable": {"mode": "fp32", "abs": 0.05, "pct": 0.05},
+    "mkl":        {"mode": "fp32", "abs": 0.05, "pct": 0.05},
+    "smiv":       {"mode": "fp32", "abs": 0.05, "pct": 0.05},
+    "smv":        {"mode": "fp16", "abs": 0.05, "pct": 0.05},
+}
 
 # These get set by the command line argument.
 BINARY = ""
@@ -33,10 +37,136 @@ MODEL_DIR = "test_configs"
 CORRECT_OUTPUT_DIR = "correct"
 OUTPUT_LABELS = "output_labels.out"
 
+sign = lambda x : math.copysign(1, x)
+inf = float("inf")
+nan = float("nan")
+
+class FP16:
+  # One past the largest magnitude in FP16. This value and all others are
+  # rounded to infinity.
+  MAX = 65520
+
+  # Represents the maximum integral resolution for a range of values.  Values in
+  # the range [0, N) are rounded to the nearest of K, the key.
+  ranges = {
+      1: (1024, 2048),
+      2: (2048, 4096),
+      4: (4096, 8192),
+      8: (8192, 16384),
+      16: (16384, 32768),
+      32: (32768, 65520),
+  }
+
+  @staticmethod
+  def isInRange(value, range_min, range_max):
+    return value >= range_min and value < range_max
+
+  @staticmethod
+  def getIntegerResolution(value):
+    value = abs(value)
+    for res, value_range in FP16.ranges.iteritems():
+      if FP16.isInRange(value, value_range[0], value_range[1]):
+        return res
+    return 0
+
+class CheckResult():
+  """ Stores the result of an FP comparison. """
+  def __init__(self, result, pct_diff, abs_diff):
+    """
+    Args:
+      result: A boolean, indicating whether the check was successful or not.
+      pct_diff: The percent difference between the two values being compared.
+      abs_diff: The absolute difference between the two values being compared.
+    """
+    self.result = result
+    self.pct_diff = pct_diff
+    self.abs_diff = abs_diff
+
+class EqualityChecker():
+  """ A functor to compare if two FP values are approximately equal. """
+  def __init__(self, mode, fp_err_abs, fp_err_pct):
+    """ Construct a EqualityChecker object.
+
+    Two values are considered approximately equal if either of the two error
+    distances is within their respective margins. For FP16 values, we also
+    consider the integer representation resolution limit for large values.
+
+    Args:
+      mode: fp16 or fp32. fp32 has more strict thresholds than fp16.
+      fp_err_abs: The absolute error threshold.
+      fp_err_pct: The percent error threshold.
+    """
+    self.mode = mode
+    self.fp_err_abs = fp_err_abs
+    self.fp_err_pct = fp_err_pct
+
+  def __call__(self, values, reference):
+    compare_func = (self.compareFP32Scalar if self.mode == "fp32"
+                    else self.compareFP16Scalar)
+    return self.almostEqual(values, reference, compare_func)
+
+  def getAbsErr(self, value, reference):
+    return abs(reference - value)
+
+  def getPctErr(self, value, reference):
+    if reference == 0:
+      return 0 if value == 0 else inf
+    return self.getAbsErr(value, reference) / abs(reference) * 100
+
+  def compareFP32Scalar(self, value, reference):
+    abs_diff = self.getAbsErr(value, reference)
+    pct_diff = self.getPctErr(value, reference)
+    if sign(value) != sign(reference):
+      return CheckResult(False, abs_diff, pct_diff)
+    result = (pct_diff < self.fp_err_pct or
+              abs_diff < self.fp_err_abs)
+    return CheckResult(result, pct_diff, abs_diff)
+
+  def compareFP16Scalar(self, value, reference):
+    """ Compare two values with the FP16 standard.
+
+    In addition to comparing if the values are within their error margins, we
+    also define approximately equal if:
+      1) @value is inf and @reference is greater than FP16.MAX (abs value).
+      2) the absolute difference is within the range of the integral
+         representation resolution.
+    """
+    abs_diff = self.getAbsErr(value, reference)
+    pct_diff = self.getPctErr(value, reference)
+    if sign(value) != sign(reference):
+      return CheckResult(False, 0, 0)
+    if abs(value) == inf and abs(reference) >= FP16.MAX:
+      return CheckResult(True, 0, 0)
+    int_res = FP16.getIntegerResolution(value)
+    result = (pct_diff < self.fp_err_pct or
+              abs_diff < max(self.fp_err_abs, int_res))
+    return CheckResult(result, pct_diff, abs_diff)
+
+  def almostEqual(self, values, references, compare_func):
+    """ Returns true if val and ref are approximately equal.
+
+    val and ref are list-like objects.
+    """
+    results = [compare_func(v, r) for v, r in zip(values, references)]
+    all_pass = all(res.result for res in results)
+    if all_pass:
+      return True
+    failing_tests = [res for res in results if not res]
+
+    print ""
+    print "% error   : ", ", ".join(
+        ["{:10.4f}".format(res.pct_diff) for res in results])
+    print "abs error : ", ", ".join(
+        ["{:10.4f}".format(res.abs_diff) for res in results])
+    return False
+
 class BaseTest(unittest.TestCase):
   def setUp(self):
     self.run_dir = tempfile.mkdtemp()
     self.output_filename = os.path.join(self.run_dir, "stdout")
+    checker_args = CHECKERS[ARCH]
+    self.checker = EqualityChecker(
+        checker_args["mode"], checker_args["abs"], checker_args["pct"])
 
   def tearDown(self):
     shutil.rmtree(self.run_dir)
@@ -54,8 +184,9 @@ class BaseTest(unittest.TestCase):
           m = re.findall("\d+", line)
           test_pred.append(int(m[1]))
         else:
-          m = re.findall("-?\d+(?:.\d+)", line)
-          test_soft.append([float(v) for v in m])
+          values = [float(v.strip()) for v in
+                    line.replace("[", "").replace("]", "").split()]
+          test_soft.append(values)
     return test_pred, test_soft
 
   def launchSubprocess(self, cmd):
@@ -74,26 +205,6 @@ class BaseTest(unittest.TestCase):
 
     return returncode
 
-  def almostEqual(self, val, ref,
-                  fp_err_pct=FP_ERR_PCT,
-                  fp_err_abs=FP_ERR_ABS):
-    """ Returns true if val and ref are approximately equal.
-
-    val and ref are list-like objects. Each corresponding element in value and
-    reference must be within fp_err_pct percent or within fp_err_abs magnitude
-    to be considered approximately equal.
-    """
-    val = np.array(val)
-    ref = np.array(ref)
-    abs_err = np.abs(val - ref)
-    pct_err = np.divide(abs_err, np.abs(ref)) * 100
-    if (np.max(pct_err) > fp_err_pct and np.max(abs_err) > fp_err_abs):
-      print ""
-      print "% error   : ", ", ".join(["{:10.4f}".format(e) for e in pct_err])
-      print "abs error : ", ", ".join(["{:10.4f}".format(e) for e in abs_err])
-      return False
-    return True
-
   def createCommand(self, model_file, correct_output,
                     data_init_mode=None, param_file=None):
     cmd = "%s %s " % (BINARY, os.path.join(MODEL_DIR, model_file))
@@ -103,9 +214,7 @@ class BaseTest(unittest.TestCase):
       cmd += "-f %s " % param_file
     return cmd
 
-  def runAndValidate(self, model_file, correct_output,
-                     fp_err_pct=FP_ERR_PCT, fp_err_abs=FP_ERR_ABS,
-                     **kwargs):
+  def runAndValidate(self, model_file, correct_output, **kwargs):
     returncode = self.launchSubprocess(
         self.createCommand(model_file, correct_output, **kwargs));
 
@@ -122,8 +231,7 @@ class BaseTest(unittest.TestCase):
       self.assertEqual(this, correct,
                        msg="Test output label does not match!")
     for i, (this, correct) in enumerate(zip(test_soft, correct_soft)):
-      is_equal = self.almostEqual(
-          this, correct, fp_err_pct=fp_err_pct, fp_err_abs=fp_err_abs)
+      is_equal = self.checker(this, correct)
       if not is_equal:
         print "\nFAILURE ON TEST %d" % i
         print "  Got:      %s" % this
@@ -137,7 +245,7 @@ class MnistTests(BaseTest):
   def test_minerva(self):
     model_file = "mnist/minerva.conf"
     correct_output = "mnist-minerva.out"
-    self.runAndValidate(model_file, correct_output, fp_err_pct=1.8)
+    self.runAndValidate(model_file, correct_output)
 
   def test_lenet5(self):
     model_file = "mnist/lenet5-ish.conf"
@@ -172,11 +280,8 @@ class MinervaAccessMechanismTests(BaseTest):
     self.correct_output = "mnist-minerva.out"
 
   def runAndValidate(self, model_file, correct_output):
-    kwargs = {}
-    if ARCH == "smv":
-      kwargs["fp_err_pct"] = 1.8
     super(MinervaAccessMechanismTests, self).runAndValidate(
-        model_file, correct_output, **kwargs)
+        model_file, correct_output)
 
   def test_minerva_all_cache(self):
     model_file = "mnist/minerva-access-mechs/minerva_cache.conf"
@@ -279,10 +384,7 @@ class GenericTests(BaseTest):
   def test_2_kernels(self):
     model_file = "generic/cnn-1c2k-1p-3fc.conf"
     correct_output = "generic-cnn-1c2k.out"
-    kwargs = {}
-    if ARCH == "smv":
-      kwargs["fp_err_pct"] = 9
-    self.runAndValidate(model_file, correct_output, **kwargs)
+    self.runAndValidate(model_file, correct_output)
 
   def test_depthwise_separable(self):
     model_file = "generic/depthwise-separable.conf"
@@ -361,7 +463,7 @@ class BatchNormTests(BaseTest):
     self.runAndValidate(model_file, correct_output)
 
 class ActivationFuncTests(BaseTest):
-  def test_activation_func(self):
+  def test_mnist_minerva_activation_func(self):
     model_file = "mnist/minerva_act_func.conf"
     correct_output = "mnist-minerva-act-func.out"
     self.runAndValidate(model_file, correct_output)
