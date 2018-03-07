@@ -602,9 +602,9 @@ void nnet_fwd(data_list* activations,
                                l, results_internal, device, sampling_param);
     }
 
-    if (results->type[0] == UncompressedHalfPrecision) {
+    if (result_loc->type[0] == UncompressedHalfPrecision) {
         farray_t* fp32_results =
-                unpack_data_fp16x4(results->data[0].dense_hp, NULL);
+                unpack_data_fp16x4(result_loc->data[0].dense_hp, NULL);
         free_fp16array(results->data[0].dense_hp);
         results->data[0].dense = fp32_results;
         results->type[0] = Uncompressed;
