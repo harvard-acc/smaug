@@ -14,13 +14,13 @@ inline float gen_uniform() {
 
 // Returns an approximately normally distributed random value, using the
 // Box-Muller method.
-float gen_gaussian() {
+float gen_gaussian(float mu, float sigma) {
     static bool return_saved = false;
     static float saved = 0;
 
     if (return_saved) {
         return_saved = false;
-        return saved;
+        return saved * sigma + mu;
     } else {
         float u = gen_uniform();
         float v = gen_uniform();
@@ -29,14 +29,16 @@ float gen_gaussian() {
         float y = scale * sin(2 * 3.1415926535 * v);
         saved = y;
         return_saved = true;
-        return x;
+        return x * sigma + mu;
     }
 }
 
 float get_rand_weight(data_init_mode mode, int depth) {
     if (mode == RANDOM) {
-        // Question: does nan output take longer in simulation?
-        return conv_float2fixed(gen_gaussian());
+        // A standard distribution can still result in large numbers
+        // unrepresentable in FP16, so in order to reduce this likelihood, just
+        // shrink the variance.
+        return conv_float2fixed(gen_gaussian(0, 0.1));
     } else {
         // Give each depth slice a different weight so we don't get all the
         // same value in the output.
@@ -244,7 +246,7 @@ void init_data(float* data,
             for (k = 0; k < input_rows; k++) {
                 for (l = 0; l < input_cols; l++) {
                     if (mode == RANDOM) {
-                        _data[i][j][k][l] = conv_float2fixed(gen_gaussian());
+                        _data[i][j][k][l] = conv_float2fixed(gen_gaussian(0, 1));
                     } else {
                         // Make each input image distinguishable.
                         _data[i][j][k][l] = 1.0 * i + (float)offset / input_dim;
