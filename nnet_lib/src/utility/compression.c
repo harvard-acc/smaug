@@ -131,6 +131,9 @@ int compute_num_vectors_in_row(int num_elems_in_row) {
  * minimum number of 32-bit unsigned values required to store the packed data.
  * To use an existing buffer, pass its pointer to the dest_buf argument;
  * otherwise, pass NULL, and it will be autmoatically allocated.
+ *
+ * TODO: Make dest_buf a fp16array_t* pointer instead, so we don't have to
+ * worry about memory leaks when we replace an existing fp16array_t object.
  */
 fp16array_t* pack_data_fp16(farray_t* sp_data, packed_fp16* dest_buf) {
     fp16array_t* hp_data = (fp16array_t*)malloc(sizeof(fp16array_t));
@@ -170,7 +173,8 @@ farray_t* unpack_data_fp16x4(fp16array_t* hp_data, float* dest_buf) {
     } else {
         sp_data->d = dest_buf;
     }
-    memset(sp_data->d, 0, sp_data->size * sizeof(packed_fp16));
+    memset(sp_data->d, 0, sp_data->size * sizeof(float));
+
     for (size_t i = 0; i < hp_data->size / 4; i++) {
         v8short_t packed_data = *(v8short_t*)&hp_data->d[4 * i];
         v8short_t packed_data_hi =
