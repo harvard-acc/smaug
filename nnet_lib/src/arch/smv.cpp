@@ -147,6 +147,17 @@ result_buf depthwise_convolution_layer(data_list* activations,
                                        data_list* results,
                                        device_t* device,
                                        sampling_param_t* sampling_param) {
+    farray_t* fp32_activations = NULL;
+    farray_t* fp32_results = NULL;
+    if (activations->type[0] == UncompressedHalfPrecision) {
+        fp32_activations =
+                unpack_data_fp16x4(activations->data[0].dense_hp, NULL);
+        fp32_results = init_farray(
+                NUM_TEST_CASES * get_dims_size(&layers[lnum].outputs), false);
+    } else {
+        fp32_activations = activations->data[0].dense;
+        fp32_results = results->data[0].dense;
+    }
     layer_t curr_layer = layers[lnum];
     float* current_layer_weights = weights->data[0].dense->d;
     if (curr_layer.c_padding > 0) {
@@ -154,8 +165,8 @@ result_buf depthwise_convolution_layer(data_list* activations,
                 results,
                 NUM_TEST_CASES * get_dims_size(&curr_layer.inputs),
                 Uncompressed);
-        copy_zeropad(activations->data[0].dense->d, layers, lnum,
-                     results->data[0].dense->d);
+        copy_zeropad(
+                fp32_activations->d, layers, lnum, results->data[0].dense->d);
         PRINT_MSG("After zeropadding:\n");
         PRINT_DEBUG4D(results->data[0].dense->d,
                       curr_layer.inputs.rows,
@@ -169,11 +180,18 @@ result_buf depthwise_convolution_layer(data_list* activations,
     results = create_new_data_list_if_necessary(
             results,
             NUM_TEST_CASES * get_dims_size(&curr_layer.outputs),
-            Uncompressed);
+            UncompressedHalfPrecision);
     smiv_depthwise_convolution_layer_impl(
             activations->data[0].dense->d, current_layer_weights, layers, lnum,
-            results->data[0].dense->d, (smiv_global*)&g_smv, device);
+            fp32_results->d, (smiv_global*)&g_smv, device);
 
+    // TODO: Ugly - have to free the array container but not the buffer inside
+    // before we call pack_data_fp16!
+    packed_fp16* dest_buf = results->data[0].dense_hp->d;
+    free(results->data[0].dense_hp);
+    results->data[0].dense_hp = pack_data_fp16(fp32_results, dest_buf);
+    free_farray(fp32_activations);
+    free_farray(fp32_results);
     return results;
 }
 
@@ -186,12 +204,23 @@ result_buf pointwise_convolution_layer(data_list* activations,
                                        data_list* results,
                                        device_t* device,
                                        sampling_param_t* sampling_param) {
+    farray_t* fp32_activations = NULL;
+    farray_t* fp32_results = NULL;
+    if (activations->type[0] == UncompressedHalfPrecision) {
+        fp32_activations =
+                unpack_data_fp16x4(activations->data[0].dense_hp, NULL);
+        fp32_results = init_farray(
+                NUM_TEST_CASES * get_dims_size(&layers[lnum].outputs), false);
+    } else {
+        fp32_activations = activations->data[0].dense;
+        fp32_results = results->data[0].dense;
+    }
 
     // Allocate memory to store the transformed input.
     float* nhwc_inputs = NULL;
-    dims_t nhwc = convert_nchw_to_nhwc_fp32(activations->data[0].dense->d,
-                                            NUM_TEST_CASES, layers[lnum].inputs,
-                                            DATA_ALIGNMENT, &nhwc_inputs);
+    dims_t nhwc = convert_nchw_to_nhwc_fp32(fp32_activations->d, NUM_TEST_CASES,
+                                            layers[lnum].inputs, DATA_ALIGNMENT,
+                                            &nhwc_inputs);
 
     // HACK: We need to modify the layer[lnum] descriptor to reflect the fact
     // that we're doing a matrix multiply, but these changes can't be seen
@@ -234,9 +263,16 @@ result_buf pointwise_convolution_layer(data_list* activations,
     results = create_new_data_list_if_necessary(
             results,
             NUM_TEST_CASES * get_dims_size(&layers[lnum].outputs),
-            Uncompressed);
+            UncompressedHalfPrecision);
     convert_nhwc_to_nchw_fp32(nhwc_outputs, NUM_TEST_CASES, output_dims,
-                              DATA_ALIGNMENT, &results->data[0].dense->d);
+                              DATA_ALIGNMENT, &fp32_results->d);
+    // TODO: Ugly - have to free the array container but not the buffer inside
+    // before we call pack_data_fp16!
+    packed_fp16* dest_buf = results->data[0].dense_hp->d;
+    free(results->data[0].dense_hp);
+    results->data[0].dense_hp = pack_data_fp16(fp32_results, dest_buf);
+    free_farray(fp32_activations);
+    free_farray(fp32_results);
 
     // Restore the original layer descriptor.
     layers[lnum] = old_layer;
@@ -507,11 +543,11 @@ void early_convert_weights_data_layout(network_t* network, device_t* device) {
         } else if (layer->type == FC) {
             if (layer->host_weights->type[0] != Uncompressed)
                 continue;  // Skip the biases.
-            farray_t* weights = layer->host_weights->data[0].dense;
-            fp16array_t* packed_weights = pack_data_fp16(weights, NULL);
+            farray_t* fp32_weights = layer->host_weights->data[0].dense;
+            fp16array_t* packed_weights = pack_data_fp16(fp32_weights, NULL);
             layer->host_weights->data[0].dense_hp = packed_weights;
             layer->host_weights->type[0] = UncompressedHalfPrecision;
-            free_farray(weights);
+            free_farray(fp32_weights);
         }
     }
 }

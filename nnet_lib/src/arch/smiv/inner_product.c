@@ -756,6 +756,7 @@ void smiv_inner_product_layer_impl_colwise(float* host_activations,
         layer_t partial_layer = *curr_layer;
         dims_t* curr_iter = &fc_cfgs.iteration[it];
         partial_layer.weights = *curr_iter;
+        partial_layer.biases = (dims_t){ 0, 0, 0, 0 };
         partial_layer.outputs.cols = curr_iter->cols;
 
         activation_type act_func = curr_layer->activation;
