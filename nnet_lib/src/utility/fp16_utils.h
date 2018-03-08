@@ -59,7 +59,7 @@ static inline __m128i __smaug_vcvtps2ph(__m128i a, int imm8) {
 
 static inline __m128i __smaug_vcvtph2ps(__m128i a) {
     __m128i res = (__m128i){ 0 };
-    __asm__ volatile("vcvtph2ps %2, %1" : "+xm"(res) : "x"(a) :);
+    __asm__ volatile("vcvtph2ps %1, %0" : "+x"(res) : "xm"(a) :);
     return res;
 }
 
@@ -70,9 +70,9 @@ static inline __m128i __smaug_vcvtps2ph256(__smaug256 a, int imm8) {
     return res;
 }
 
-static inline __smaug256 __smaug_vcvtph2ps256(__smaug256 a) {
+static inline __smaug256 __smaug_vcvtph2ps256(__m128i a) {
     __smaug256 res = (__smaug256){ 0 };
-    __asm__ volatile("vcvtph2ps %2, %1" : "+xm"(res) : "xm"(a) :);
+    __asm__ volatile("vcvtph2ps %1, %0" : "+x"(res) : "xm"(a) :);
     return res;
 }
 
@@ -109,7 +109,7 @@ static inline __smaug256 __smaug_vcvtph2ps256(__smaug256 a) {
 
 // gem5 doesn't support the 256-bit iforms, due to lack of support for YMM
 // registers, so fallback to the SW.
-#ifdef GEM5_HARNESS
+#if defined(GEM5)
 
 #define _CVT_PS_PH_256(p8_fp32_data, rounding_mode)                    \
     _SW_CVT_PS_PH_256(p8_fp32_data, rounding_mode)
@@ -125,8 +125,7 @@ static inline __smaug256 __smaug_vcvtph2ps256(__smaug256 a) {
 
 #define _CVT_PS_PH_256(p8_fp32_data, rounding_mode)                    \
     __smaug_vcvtps2ph256(p8_fp32_data, rounding_mode)
-#define _CVT_PH_PS_256(p8_fp16_data) \
-    __smaug_vcvtph2ps256(p8_fp32_data, rounding_mode)
+#define _CVT_PH_PS_256(p8_fp16_data) __smaug_vcvtph2ps256(p8_fp16_data)
 
 #else
 

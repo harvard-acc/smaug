@@ -7,6 +7,9 @@
 include common/Makefile.arch
 .PHONY: gem5 gem5-cpu gem5-accel clean-gem5
 
+# Signifies this binary is to be run under gem5.
+CPPFLAGS += -DGEM5
+
 ifeq ($(ARCH), EIGEN)
 $(error Please use 'make eigen' to build the Eigen implementation for gem5)
 endif
@@ -31,8 +34,8 @@ NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smiv.cpp \
 else ifeq ($(ARCH), SMV)
 COMP = $(CXX)
 GEM5_SIMD_CFLAGS = -msse3 -msse2 -mno-ssse3 -mno-sse4.1 -mno-sse4.2
-CFLAGS += -Wno-psabi -std=gnu++11 $(GEM5_SIMD_CFLAGS) -D__USE_F16C_ANYWAYS__
-CPPFLAGS += -I$(MKLDNNROOT)/include -DTRANSPOSE_WEIGHTS=1
+CFLAGS += -Wno-psabi -std=gnu++11 $(GEM5_SIMD_CFLAGS)
+CPPFLAGS += -I$(MKLDNNROOT)/include -DTRANSPOSE_WEIGHTS=1 -D__USE_F16C_ANYWAYS__
 LFLAGS += -L$(MKLDNNROOT)/lib -lmkldnn
 NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smv.cpp \
 												 $(SRC_DIR)/core/mkl/activation_functions.cpp \
