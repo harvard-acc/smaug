@@ -46,7 +46,7 @@ void convolution3d_smv_nhwc_fxp(float* a,
     int in_row, in_col;
     const int pe_depth = VECTOR_SIZE * NUM_MACC_INSTS;
     // If we have less than four channels, don't run the extra ones.
-    const int kEffNumPeInsts = min2(curr_layer.outputs.height, NUM_PE_INSTS);
+    const int kEffNumPeInsts = min2(curr_layer.outputs.height - kern_start, NUM_PE_INSTS);
 
     ARRAY_3D(float, _result, result, result_rows, result_cols + result_pad);
     ARRAY_4D(float, _kernels, kernels, k_rows, k_cols, k_height + k_pad);

@@ -143,12 +143,12 @@ static inline void pack_and_store_fp16(float* local_data,
                      local_data + local_offset + curr_local_offset,
                      transfer_size);
         } else {
-            coherentStore64(
+            coherentStore32(
                     (float*)remote_data,
                     local_data,
                     transfer_size,
-                    (remote_offset + curr_remote_offset) / VECTOR_SIZE / 2,
-                    (local_offset + curr_local_offset) / VECTOR_SIZE / 2);
+                    (remote_offset + curr_remote_offset) / VECTOR_SIZE,
+                    (local_offset + curr_local_offset) / VECTOR_SIZE);
         }
 
         num_bytes_remaining -= transfer_size;

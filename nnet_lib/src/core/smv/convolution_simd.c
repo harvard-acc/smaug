@@ -47,7 +47,8 @@ void convolution3d_smv_nhwc_vec_fxp(float* a,
     int in_row, in_col;
     const int pe_depth = VECTOR_SIZE * NUM_MACC_INSTS;
     // If we have less than four channels, don't run the extra ones.
-    const int kEffNumPeInsts = min2(curr_layer.outputs.height, NUM_PE_INSTS);
+    const int kEffNumPeInsts =
+            min2(curr_layer.outputs.height - kern_start, NUM_PE_INSTS);
     const v8fp_t zero = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
     // Kernels and input are in NHWC.
