@@ -51,7 +51,8 @@ static void smv_batch_norm_layer_hw_impl(packed_fp16* host_activations,
     activation_type activation = curr_layer->activation;
     batch_norm_fxp(local_activations, local_weights, curr_layer, NUM_TEST_CASES,
                    local_results);
-    activation_fun(local_results, NUM_TEST_CASES, input_size, activation);
+    activation_fun(local_results, NUM_TEST_CASES, input_size,
+                   curr_layer.outputs.align_pad, activation);
 #endif
 
     // DMA out the result (from SPAD1)
@@ -193,8 +194,8 @@ void smv_batch_norm_layer_impl(data_list* activations,
                        NUM_TEST_CASES, fp32_results->d);
         if (device->use_hw_activation_func) {
             int input_size = get_dims_size(&curr_layer.inputs);
-            activation_fun(fp32_results->d, NUM_TEST_CASES,
-                           input_size, curr_layer.activation);
+            activation_fun(fp32_results->d, NUM_TEST_CASES, input_size,
+                           curr_layer.outputs.align_pad, curr_layer.activation);
         }
 
         if (activations->type[0] == UncompressedHalfPrecision) {

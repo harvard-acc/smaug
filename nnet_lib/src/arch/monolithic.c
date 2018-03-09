@@ -193,7 +193,7 @@ result_buf activation_sublayer(data_list* activations,
     require_data_type(activations, 0, Uncompressed);
     int input_size = get_dims_size(&layers[lnum].outputs);
     activation_fun(activations->data[0].dense->d, NUM_TEST_CASES, input_size,
-                   layers[lnum].activation, layers[lnum].outputs.align_pad);
+                   layers[lnum].outputs.align_pad, layers[lnum].activation);
     return activations;
 }
 
