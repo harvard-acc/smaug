@@ -57,7 +57,7 @@ class PoolingOp : public BaseMklOp<DType> {
         return compute_output_size(
                 this->layer->inputs.cols + this->layer->inputs.align_pad,
                 this->layer->weights.cols,
-                this->layer->field_stride);
+                this->layer->stride.cols);
     }
 
     // Return a mem_dims object for the output, assuming nchw format.
@@ -79,7 +79,7 @@ class PoolingOp : public BaseMklOp<DType> {
 
     // Return a mem_dims object for the pooling strides.
     mem_dims get_pool_strides() {
-        return { this->layer->field_stride, this->layer->field_stride };
+        return { this->layer->stride.rows, this->layer->stride.cols };
     }
 
     // Return a mem_dims object for the pooling padding.
@@ -109,7 +109,7 @@ class PoolingOp : public BaseMklOp<DType> {
         // Calculate how many more input pixels would be needed to produce
         // add_output_pad more output pixels. That is the additional input
         // padding.
-        int add_input_pad = (add_output_pad - 1) * this->layer->field_stride +
+        int add_input_pad = (add_output_pad - 1) * this->layer->stride.cols +
                             this->layer->weights.cols;
         return {0, add_input_pad};
     }

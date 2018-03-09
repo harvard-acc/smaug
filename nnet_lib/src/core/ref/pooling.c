@@ -46,7 +46,8 @@ void max_pooling_image3d(float* input,
     int cols = curr_layer.inputs.cols;
     int in_pad = curr_layer.inputs.align_pad;
     int hgt = curr_layer.inputs.height;
-    int stride = curr_layer.field_stride;
+    int row_stride = curr_layer.stride.rows;
+    int col_stride = curr_layer.stride.cols;
     int size = curr_layer.weights.cols;
 
 #if TREE_MAX == 1
@@ -64,9 +65,9 @@ void max_pooling_image3d(float* input,
           oi = 0;
           oj = 0;
         maxpool_input_rows:
-        for (i = 0; i < rows; i += stride) {
+        for (i = 0; i < rows; i += row_stride) {
             maxpool_input_cols:
-            for (j = 0; j < cols; j += stride) {
+            for (j = 0; j < cols; j += col_stride) {
 #if TREE_MAX == 1
                 elem_idx = 0;
                 maxpool_tree_outer:
@@ -117,7 +118,8 @@ void avg_pooling_image3d(float* input,
     int cols = curr_layer.inputs.cols;
     int in_pad = curr_layer.inputs.align_pad;
     int hgt = curr_layer.inputs.height;
-    int stride = curr_layer.field_stride;
+    int row_stride = curr_layer.stride.rows;
+    int col_stride = curr_layer.stride.cols;
     int size = curr_layer.weights.cols;
     float recip_total_size = 1.0 / (size * size);
 
@@ -130,9 +132,9 @@ void avg_pooling_image3d(float* input,
         int oi = 0;
         int oj = 0;
         avgpool_input_rows:
-        for (int i = 0; i < rows; i += stride) {
+        for (int i = 0; i < rows; i += row_stride) {
             avgpool_input_cols:
-            for (int j = 0; j < cols; j += stride) {
+            for (int j = 0; j < cols; j += col_stride) {
                 float curr_sum = 0;
                 avgpool_iter_outer:
                 for (int k = 0; k < size; k++) {

@@ -129,29 +129,29 @@ void convolution3d_smiv_1kernel_noreduce_fxp(float* a,
     const int k_rows = curr_layer.weights.rows;
     const int k_cols = curr_layer.weights.cols;
     const int k_pad = curr_layer.weights.align_pad;
-    const int k_stride = curr_layer.field_stride;
 
     // Convolution control parameters.
     // TODO: Refactor this into a scheduling pass.
-    const int row_stride = k_stride;
-    const int col_stride = VECTOR_SIZE;
+    const int row_stride = curr_layer.stride.rows;
+    const int in_col_stride = VECTOR_SIZE;
+    const int k_col_stride = curr_layer.stride.cols;
     const int chan_stride = 1;
     const bool double_tp = k_cols < DATAPATH_WIDTH;
-    const unsigned init_shamt = double_tp ? k_stride : DATAPATH_WIDTH;
-    const unsigned dp_shamt = double_tp ? k_stride * 2 : k_stride;
+    const unsigned init_shamt = double_tp ? k_col_stride : DATAPATH_WIDTH;
+    const unsigned dp_shamt = double_tp ? k_col_stride * 2 : k_col_stride;
     const unsigned input_fetches_per_row = FRAC_CEIL(a_width, VECTOR_SIZE);
-    const unsigned last_input_pixel_start_col = result_width * k_stride;
+    const unsigned last_input_pixel_start_col = result_width * k_col_stride;
     const bool has_boundary_case = last_input_pixel_start_col >
                              (input_fetches_per_row - 1) * VECTOR_SIZE;
 
     // Calculate max number of psums produced per VECTOR_SIZE activations per
     // datapath.
     unsigned max_psums_per_act;
-    if (k_stride == 1)
+    if (k_col_stride == 1)
         max_psums_per_act = double_tp ? DATAPATH_WIDTH : DATAPATH_WIDTH * 2;
-    else if (k_stride == 2)
+    else if (k_col_stride == 2)
         max_psums_per_act = double_tp ? DATAPATH_WIDTH / 2: DATAPATH_WIDTH;
-    else if (k_stride == 4)
+    else if (k_col_stride == 4)
         max_psums_per_act = DATAPATH_WIDTH / 2;
     else
         max_psums_per_act = 0;
@@ -177,7 +177,7 @@ void convolution3d_smiv_1kernel_noreduce_fxp(float* a,
         for (in_row = 0; in_row < end_row; in_row += row_stride) {
             out_col = 0;
             conv2d_col:
-            for (in_col = 0; in_col < end_col; in_col += col_stride) {
+            for (in_col = 0; in_col < end_col; in_col += in_col_stride) {
                 // Compute schedule.
                 // TODO: Refactor this...
                 unsigned remaining_cols = result_width - out_col;

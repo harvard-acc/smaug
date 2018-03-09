@@ -7,7 +7,10 @@ cfg_opt_t convolution_param_cfg[] = {
     CFG_INT("kernel_size", 0, CFGF_NODEFAULT),
     CFG_INT("kernel_rows", 0, CFGF_NODEFAULT),
     CFG_INT("kernel_cols", 0, CFGF_NODEFAULT),
-    CFG_INT("stride", 1, CFGF_NODEFAULT), CFG_END()
+    CFG_INT("stride", -1, CFGF_NODEFAULT),
+    CFG_INT("row_stride", -1, CFGF_NODEFAULT),
+    CFG_INT("col_stride", -1, CFGF_NODEFAULT),
+    CFG_END()
 };
 
 cfg_opt_t inner_product_param_cfg[] = {
@@ -18,6 +21,8 @@ cfg_opt_t pooling_param_cfg[] = {
     CFG_STR("pool", "", CFGF_NODEFAULT),
     CFG_INT("size", -1, CFGF_NODEFAULT),
     CFG_INT("stride", -1, CFGF_NODEFAULT),
+    CFG_INT("row_stride", -1, CFGF_NODEFAULT),
+    CFG_INT("col_stride", -1, CFGF_NODEFAULT),
     CFG_END()
 };
 

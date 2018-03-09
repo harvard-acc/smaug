@@ -101,8 +101,8 @@ class Convolution3dOp : public BaseMklOp<DType> {
         auto conv_bias_md = mem_d({ get_bias_dims() }, dtype, mem_fmt::any);
         auto conv_output_md = mem_d({ get_output_dims() }, dtype, mem_fmt::any);
 
-        mem_dims conv_stride = { this->layer->field_stride,
-                                 this->layer->field_stride };
+        mem_dims conv_stride = { this->layer->stride.rows,
+                                 this->layer->stride.cols };
         // We pass this twice...?
         mem_dims conv_padding = { this->layer->pad.top,
                                   this->layer->pad.bottom };

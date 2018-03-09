@@ -43,7 +43,8 @@ void avgpooling_nhwc_smiv_fxp(float* inputs, layer_t curr_layer, float* results)
     const int result_cols = curr_layer.outputs.cols;
 
     const int pool_size = curr_layer.weights.cols;
-    const int stride = curr_layer.field_stride;
+    const int row_stride = curr_layer.stride.rows;
+    const int col_stride = curr_layer.stride.cols;
 
     const int end_row = a_rows - pool_size + 1;
     const int end_col = a_cols - pool_size + 1;
@@ -57,10 +58,10 @@ void avgpooling_nhwc_smiv_fxp(float* inputs, layer_t curr_layer, float* results)
     for (int chan_grp = 0; chan_grp < a_chan_groups; chan_grp++) {
         int out_row = 0;
         avgpool_chan_input_row:
-        for (int row = 0; row < end_row; row+=stride) {
+        for (int row = 0; row < end_row; row += row_stride) {
             int out_col = 0;
             avgpool_chan_input_col:
-            for (int col = 0; col < end_col; col+=stride) {
+            for (int col = 0; col < end_col; col += col_stride) {
                 float curr_results[VECTOR_SIZE] = {0, 0, 0, 0, 0, 0, 0, 0};
                 avgpool_pool_row:
                 for (int pool_i = 0; pool_i < pool_size; pool_i++) {
@@ -96,7 +97,8 @@ void avgpooling_nhwc_smiv_simd_fxp(float* inputs,
     const int result_cols = curr_layer.outputs.cols;
 
     const int pool_size = curr_layer.weights.cols;
-    const int stride = curr_layer.field_stride;
+    const int row_stride = curr_layer.stride.rows;
+    const int col_stride = curr_layer.stride.cols;
 
     const int end_row = a_rows - pool_size + 1;
     const int end_col = a_cols - pool_size + 1;
@@ -114,10 +116,10 @@ void avgpooling_nhwc_smiv_simd_fxp(float* inputs,
     for (int chan_grp = 0; chan_grp < a_chan_groups; chan_grp++) {
         int out_row = 0;
         avgpool_chan_input_row:
-        for (int row = 0; row < end_row; row+=stride) {
+        for (int row = 0; row < end_row; row += row_stride) {
             int out_col = 0;
             avgpool_chan_input_col:
-            for (int col = 0; col < end_col; col+=stride) {
+            for (int col = 0; col < end_col; col += col_stride) {
                 v8fp_t curr_results = {0, 0, 0, 0, 0, 0, 0, 0};
                 // Optimization: precompute the results location.
                 // Aladdin doesn't do well with optimizations that move across

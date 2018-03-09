@@ -119,9 +119,10 @@ void convolution3d_kernel_no_padding(float* a,
     const int k_rows = curr_layer.weights.rows;
     const int k_cols = curr_layer.weights.cols;
     const int k_height =  curr_layer.inputs.height;
-    const int k_stride = curr_layer.field_stride;
     const int k_pad = curr_layer.weights.align_pad;
     const int num_kerns = curr_layer.outputs.height;
+    const int row_stride = curr_layer.stride.rows;
+    const int col_stride = curr_layer.stride.cols;
 
     // Convolution borders.
     const int start_i = 0;
@@ -138,10 +139,10 @@ void convolution3d_kernel_no_padding(float* a,
     int out_i = 0;
     conv2d_input_rows:
     // Convolution loop over the output pixels in this depth slice (kern).
-    for (i = start_i; i < end_i; i+= k_stride) {
+    for (i = start_i; i < end_i; i+= row_stride) {
         int out_j = 0;
         conv2d_input_cols:
-        for (j = start_j; j < end_j; j+= k_stride) {
+        for (j = start_j; j < end_j; j+= col_stride) {
             partial_sum = 0;
             conv2d_kernel_height:
             // Convolution loop over the kernel.
@@ -182,8 +183,9 @@ void convolution2d_depthwise_single_kernel(float* a,
     // Filter is k_rows x k_cols x k_height.
     const int k_rows = curr_layer.weights.rows;
     const int k_cols = curr_layer.weights.cols;
-    const int k_stride = curr_layer.field_stride;
     const int k_pad = curr_layer.weights.align_pad;
+    const int row_stride = curr_layer.stride.rows;
+    const int col_stride = curr_layer.stride.cols;
 
     // Convolution borders.
     const int start_i = 0;
@@ -202,10 +204,10 @@ void convolution2d_depthwise_single_kernel(float* a,
 
     int out_i = 0;
     conv2d_input_rows:
-    for (int i = start_i; i < end_i; i+= k_stride) {
+    for (int i = start_i; i < end_i; i += row_stride) {
         int out_j = 0;
         conv2d_input_cols:
-        for (int j = start_j; j < end_j; j+= k_stride) {
+        for (int j = start_j; j < end_j; j += col_stride) {
             partial_sum = 0;
             conv2d_kernel_rows:
             for (int k = 0; k < k_rows; k++) {
@@ -241,9 +243,10 @@ void convolution3d_pointwise_direct(float* a,
 
     // Filter is 1 x 1 x k_cols.
     const int k_cols = curr_layer.inputs.height;
-    const int k_stride = curr_layer.field_stride;
     const int k_pad = curr_layer.weights.align_pad;
     const int num_kerns = curr_layer.outputs.height;
+    const int row_stride = curr_layer.stride.rows;
+    const int col_stride = curr_layer.stride.cols;
 
     // Convolution borders.
     const int start_i = 0;
@@ -261,10 +264,10 @@ void convolution3d_pointwise_direct(float* a,
 
     int out_i = 0;
     conv_pw_input_rows:
-    for (int i = start_i; i < end_i; i+= k_stride) {
+    for (int i = start_i; i < end_i; i += row_stride) {
         int out_j = 0;
         conv_pw_input_cols:
-        for (int j = start_j; j < end_j; j+= k_stride) {
+        for (int j = start_j; j < end_j; j += col_stride) {
             // Preload the bias.
             partial_sum = _kernels[k_cols][kern];
             conv_pw_kernel_rows:

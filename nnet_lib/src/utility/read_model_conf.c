@@ -106,6 +106,30 @@ int validate_layer_type(cfg_t* cfg, cfg_opt_t* opt) {
     return 0;
 }
 
+int validate_stride_params(cfg_t* cfg, cfg_opt_t* opt) {
+    cfg_t* conv_params = cfg_opt_getnsec(opt, cfg_opt_size(opt) - 1);
+    bool has_stride_set = cfg_size(conv_params, "stride");
+    bool has_stride_rows_set = cfg_size(conv_params, "row_stride");
+    bool has_stride_cols_set = cfg_size(conv_params, "col_stride");
+    if (has_stride_set && (has_stride_rows_set || has_stride_cols_set)) {
+        cfg_error(conv_params,
+                  "If the stride parameter is set, then you cannot also set "
+                  "the row and column strides independently!",
+                  opt->name);
+        return -1;
+    } else if (!has_stride_set && (!has_stride_rows_set || !has_stride_cols_set)) {
+        cfg_error(
+                conv_params, "You must set both row and column strides!\n", opt->name);
+        return -1;
+    }
+    if (has_stride_set) {
+        int stride = cfg_getint(conv_params, "stride");
+        cfg_setint(conv_params, "row_stride", stride);
+        cfg_setint(conv_params, "col_stride", stride);
+    }
+    return 0;
+}
+
 int validate_pool_params(cfg_t* cfg, cfg_opt_t* opt) {
     cfg_t* layer = cfg_opt_getnsec(opt, cfg_opt_size(opt) - 1);
     if (!cfg_size(layer, "pool")) {
@@ -116,11 +140,7 @@ int validate_pool_params(cfg_t* cfg, cfg_opt_t* opt) {
         cfg_error(cfg, "Missing required option 'size'!", opt->name);
         return -1;
     }
-    if (!cfg_size(layer, "stride")) {
-        cfg_error(cfg, "Missing required option 'stride'!", opt->name);
-        return -1;
-    }
-    return 0;
+    return validate_stride_params(cfg, opt);
 }
 
 int validate_inner_product_params(cfg_t* cfg, cfg_opt_t* opt) {
@@ -131,6 +151,7 @@ int validate_inner_product_params(cfg_t* cfg, cfg_opt_t* opt) {
     }
     return 0;
 }
+
 int validate_conv_params(cfg_t* cfg, cfg_opt_t* opt) {
     cfg_t* conv_params = cfg_opt_getnsec(opt, cfg_opt_size(opt) - 1);
     const char* conv_type = cfg_getstr(cfg, "type");
@@ -147,10 +168,6 @@ int validate_conv_params(cfg_t* cfg, cfg_opt_t* opt) {
                 "Depthwise convolution layers do not need 'num_output' "
                 "specified, as it is implied by the number of input channels!",
                 opt->name);
-        return -1;
-    }
-    if (!cfg_size(conv_params, "stride")) {
-        cfg_error(conv_params, "Missing required option 'stride'!", opt->name);
         return -1;
     }
     bool is_pointwise_conv = (strcmp(conv_type, CONV_POINTWISE_TYPE) == 0);
@@ -185,12 +202,11 @@ int validate_conv_params(cfg_t* cfg, cfg_opt_t* opt) {
         return -1;
     }
     if (has_kernel_size_set) {
-        cfg_setint(conv_params, "kernel_cols",
-                   cfg_getint(conv_params, "kernel_size"));
-        cfg_setint(conv_params, "kernel_rows",
-                   cfg_getint(conv_params, "kernel_size"));
+        int kernel_size = cfg_getint(conv_params, "kernel_size");
+        cfg_setint(conv_params, "kernel_cols", kernel_size);
+        cfg_setint(conv_params, "kernel_rows", kernel_size);
     }
-    return 0;
+    return validate_stride_params(cfg, opt);
 }
 
 int validate_pool_layer(cfg_t* cfg, cfg_opt_t* opt) {
@@ -320,7 +336,8 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
         layers[l].weights.rows = cfg_getint(conv_params, "kernel_rows");
         layers[l].weights.cols = cfg_getint(conv_params, "kernel_cols");
         layers[l].weights.height = layers[l].inputs.height;
-        layers[l].field_stride = cfg_getint(conv_params, "stride");
+        layers[l].stride.rows = cfg_getint(conv_params, "row_stride");
+        layers[l].stride.cols = cfg_getint(conv_params, "col_stride");
         layers[l].biases.rows = 0;
         layers[l].biases.cols = 0;
         layers[l].biases.height = 0;
@@ -354,7 +371,8 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
         layers[l].weights.rows = cfg_getint(conv_params, "kernel_rows");
         layers[l].weights.cols = cfg_getint(conv_params, "kernel_cols");
         layers[l].weights.height = 1;
-        layers[l].field_stride = cfg_getint(conv_params, "stride");
+        layers[l].stride.rows = cfg_getint(conv_params, "row_stride");
+        layers[l].stride.cols = cfg_getint(conv_params, "col_stride");
         layers[l].biases.rows = 0;
         layers[l].biases.cols = 0;
         layers[l].biases.height = 0;
@@ -386,7 +404,8 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
         layers[l].biases.rows = 1;
         layers[l].biases.cols = cfg_getint(conv_params, "num_output");
         layers[l].biases.height = 1;
-        layers[l].field_stride = cfg_getint(conv_params, "stride");
+        layers[l].stride.rows = cfg_getint(conv_params, "row_stride");
+        layers[l].stride.cols = cfg_getint(conv_params, "col_stride");
 
         layers[l].pad = (padding){ 0, 0, 0, 0 };
         layers[l].outputs.rows = layers[l].inputs.rows;
@@ -436,18 +455,18 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
       layers[l].biases.rows = 0;
       layers[l].biases.cols = 0;
       layers[l].biases.height = 0;
-      layers[l].field_stride = cfg_getint(pool_params, "stride");
+      layers[l].stride.rows = cfg_getint(pool_params, "row_stride");
+      layers[l].stride.cols = cfg_getint(pool_params, "col_stride");
 
       layers[l].outputs.rows = (layers[l].inputs.rows - layers[l].weights.cols) /
-                                       layers[l].field_stride +
+                                       layers[l].stride.rows +
                                1;
       layers[l].outputs.cols = (layers[l].inputs.cols - layers[l].weights.cols) /
-                                       layers[l].field_stride +
+                                       layers[l].stride.cols +
                                1;
       layers[l].outputs.height = layers[l].inputs.height;
       layers[l].pad = (padding){ 0, 0, 0, 0 };
       assert(layers[l].weights.rows != -1);
-      assert(layers[l].field_stride != -1);
       return;
     }
 
@@ -657,7 +676,8 @@ static void print_layer_config(layer_t* layers, int num_layers) {
                    layers[i].weights.cols, layers[i].weights.height);
             printf("    Num kernels: %d\n", layers[i].outputs.height);
             printf("    Padding: %d\n", layers[i].pad.top);
-            printf("    Stride: %d\n", layers[i].field_stride);
+            printf("    Row stride: %d\n", layers[i].stride.rows);
+            printf("    Col stride: %d\n", layers[i].stride.cols);
         } else if (type == CONV_POINTWISE) {
             printf("  Pointwise convolution\n");
             printf("    Input size: %d x %d x %d (after padding)\n",
@@ -668,7 +688,8 @@ static void print_layer_config(layer_t* layers, int num_layers) {
             printf("    Kernel size: 1 x 1 x %d\n", layers[i].inputs.height);
             printf("    Num kernels: %d\n", layers[i].outputs.height);
             printf("    Padding: 0\n");
-            printf("    Stride: %d\n", layers[i].field_stride);
+            printf("    Row stride: %d\n", layers[i].stride.rows);
+            printf("    Col stride: %d\n", layers[i].stride.cols);
         } else if (type == FC) {
             printf("  Fully connected\n");
             printf("    Input size: %d x %d\n", layers[i].inputs.rows,
@@ -687,7 +708,8 @@ static void print_layer_config(layer_t* layers, int num_layers) {
             printf("    Output size: %d x %d x %d\n", layers[i].outputs.rows,
                    layers[i].outputs.cols, layers[i].outputs.height);
             printf("    Field size: %d\n", layers[i].weights.cols);
-            printf("    Stride: %d\n", layers[i].field_stride);
+            printf("    Row stride: %d\n", layers[i].stride.rows);
+            printf("    Col stride: %d\n", layers[i].stride.cols);
             printf("    Height: %d\n", layers[i].outputs.height);
         } else if (type == BATCH_NORM) {
             printf("  Batch normalization\n");
@@ -769,6 +791,10 @@ static void install_validation_callbacks(cfg_t* cfg) {
     cfg_set_validate_func(cfg, "network|layer|convolution_param|num_output",
                           validate_unsigned_int);
     cfg_set_validate_func(cfg, "network|layer|convolution_param|stride",
+                          validate_unsigned_int);
+    cfg_set_validate_func(cfg, "network|layer|convolution_param|row_stride",
+                          validate_unsigned_int);
+    cfg_set_validate_func(cfg, "network|layer|convolution_param|col_stride",
                           validate_unsigned_int);
     cfg_set_validate_func(cfg, "network|layer|convolution_param|kernel_size",
                           validate_unsigned_int);

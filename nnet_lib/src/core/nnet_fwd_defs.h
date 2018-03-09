@@ -144,6 +144,11 @@ typedef struct _padding {
     int left;
 } padding;
 
+typedef struct _stride_dims {
+    int rows;
+    int cols;
+} stride_dims;
+
 // When ping-ponging data between two buffers, use this to indicate which one
 // stores the last output (and the next input).
 typedef data_list* result_buf;
@@ -203,7 +208,7 @@ typedef struct _layer_t {
   //    All other layers: 1.
 
   // For CONV and POOL layers
-  int field_stride;
+  stride_dims stride;
 
   // CONV layers only.
   padding pad;

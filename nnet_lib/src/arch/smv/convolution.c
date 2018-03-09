@@ -276,7 +276,7 @@ static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer) {
         // Divide up the work over input strips.
         const int max_strip_per_iter = SMV_UMEM_SIZE / single_strip_size;
         halo_rows = curr_layer_nhwc_padded.weights.rows -
-                    curr_layer_nhwc_padded.field_stride;
+                    curr_layer_nhwc_padded.stride.rows;
         num_rows_per_iter =
                 max_strip_per_iter * curr_layer_nhwc_padded.weights.rows;
         num_input_iters =
@@ -288,7 +288,7 @@ static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer) {
                 (num_rows_per_iter - halo_rows) * (num_input_iters - 1);
         output_2d_rows =
                 (num_rows_per_iter - curr_layer_nhwc_padded.weights.rows) /
-                        curr_layer_nhwc_padded.field_stride +
+                        curr_layer_nhwc_padded.stride.rows+
                 1;
         output_2d_size =
                 output_2d_rows *
@@ -298,7 +298,7 @@ static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer) {
         first_output_2d_rows =
                 (num_rows_per_iter - curr_layer_nhwc_padded.weights.rows +
                  curr_layer_nhwc_padded.pad.top) /
-                        curr_layer_nhwc_padded.field_stride +
+                        curr_layer_nhwc_padded.stride.rows +
                 1;
         first_output_2d_size = first_output_2d_rows *
                                (curr_layer_nhwc_padded.outputs.cols +
@@ -307,7 +307,7 @@ static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer) {
         last_output_2d_rows =
                 (num_rows_last_iter - curr_layer_nhwc_padded.weights.rows +
                  curr_layer_nhwc_padded.pad.bottom) /
-                        curr_layer_nhwc_padded.field_stride +
+                        curr_layer_nhwc_padded.stride.rows +
                 1;
         last_output_2d_size =
                 last_output_2d_rows *
@@ -523,7 +523,7 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
     finish_flag = 0;
 #endif
     // Outermost loop for batching.
-    int halo_rows = curr_layer.weights.rows - curr_layer.field_stride;
+    int halo_rows = curr_layer.weights.rows - curr_layer.stride.rows;
     for (int img = 0; img < NUM_TEST_CASES; img++) {
         // Outer loop for input tiling. The input is tiled along rows, and the
         // output of an input tile is furtur tiled along output channels.

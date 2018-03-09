@@ -316,7 +316,7 @@ int calc_conv_rows(layer_t* layer, bool account_for_padding) {
             account_for_padding ? layer->pad.top + layer->pad.bottom : 0;
     int unstrided_rows =
             (layer->inputs.rows - layer->weights.rows + total_padding);
-    return unstrided_rows / layer->field_stride + 1;
+    return unstrided_rows / layer->stride.rows + 1;
 }
 
 // Compute the number of output columns of a convolutional layer.
@@ -325,7 +325,7 @@ int calc_conv_cols(layer_t* layer, bool account_for_padding) {
             account_for_padding ? layer->pad.left + layer->pad.right : 0;
     int unstrided_cols =
             (layer->inputs.cols - layer->weights.cols + total_padding);
-    return unstrided_cols / layer->field_stride + 1;
+    return unstrided_cols / layer->stride.cols + 1;
 }
 
 // Returns true if any one of the padding fields is positive.

@@ -30,7 +30,8 @@ void convolution3d_smv_nhwc_vec_fxp(float* a,
     int k_cols = curr_layer.weights.cols;
     int k_height = curr_layer.weights.height;
     int k_pad = curr_layer.weights.align_pad;
-    int k_stride = curr_layer.field_stride;
+    int row_stride = curr_layer.stride.rows;
+    int col_stride = curr_layer.stride.cols;
 
     int a_rows = curr_layer.inputs.rows;
     int a_cols = curr_layer.inputs.cols;
@@ -103,7 +104,7 @@ void convolution3d_smv_nhwc_vec_fxp(float* a,
                 }
 
                 conv3d_row:
-                for (int out_row = 0; out_row < end_row; out_row += k_stride) {
+                for (int out_row = 0; out_row < end_row; out_row += row_stride) {
                     int out_j = 0;  // The result col.
 
                     // We buffer all the partial sums into a vector register
@@ -113,7 +114,7 @@ void convolution3d_smv_nhwc_vec_fxp(float* a,
 
                     conv3d_col:
                     for (int out_col = 0; out_col < end_col;
-                         out_col += k_stride) {
+                         out_col += col_stride) {
                         // Local Regs. These should always be sized the same (so
                         // NUM_PE_INSTS, rather than kNumEffPeInsts).
                         v8fp_t product_reg[NUM_PE_INSTS][NUM_MACC_INSTS];
