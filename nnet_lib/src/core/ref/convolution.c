@@ -115,8 +115,9 @@ void convolution3d_kernel_no_padding(float* a,
     const int result_width =
             curr_layer.outputs.cols + curr_layer.outputs.align_pad;
 
-    // Filter is k_width x k_width x k_height.
-    const int k_width = curr_layer.weights.cols;
+    // Filter is k_rows x k_cols x k_height.
+    const int k_rows = curr_layer.weights.rows;
+    const int k_cols = curr_layer.weights.cols;
     const int k_height =  curr_layer.inputs.height;
     const int k_stride = curr_layer.field_stride;
     const int k_pad = curr_layer.weights.align_pad;
@@ -125,13 +126,13 @@ void convolution3d_kernel_no_padding(float* a,
     // Convolution borders.
     const int start_i = 0;
     const int start_j = 0;
-    const int end_i = curr_layer.inputs.rows - k_width + 1;
-    const int end_j = curr_layer.inputs.cols - k_width + 1;
+    const int end_i = curr_layer.inputs.rows - k_rows + 1;
+    const int end_j = curr_layer.inputs.cols - k_cols + 1;
 
     float partial_sum, a_val, kern_val;
 
     ARRAY_4D(float, _a, a, k_height, a_height, a_width);
-    ARRAY_4D(float, _kernels, kernels, k_height, k_width, k_width + k_pad);
+    ARRAY_4D(float, _kernels, kernels, k_height, k_rows, k_cols + k_pad);
     ARRAY_4D(float, _result, result, num_kerns, result_height, result_width);
 
     int out_i = 0;
@@ -146,9 +147,9 @@ void convolution3d_kernel_no_padding(float* a,
             // Convolution loop over the kernel.
             for (d = 0; d < k_height; d++) {
                 conv2d_kernel_rows:
-                for (k = 0; k < k_width; k++) {
+                for (k = 0; k < k_rows; k++) {
                     conv2d_kernel_cols:
-                    for (l = 0; l < k_width; l++) {
+                    for (l = 0; l < k_cols; l++) {
                         a_val = conv_float2fixed(_a[img][d][i+k][j+l]);
                         kern_val = conv_float2fixed(_kernels[kern][d][k][l]);
                         partial_sum += conv_float2fixed(a_val * kern_val);
@@ -178,7 +179,8 @@ void convolution2d_depthwise_single_kernel(float* a,
     const int result_cols =
             curr_layer.outputs.cols + curr_layer.outputs.align_pad;
 
-    // Filter is k_cols x k_cols x k_height.
+    // Filter is k_rows x k_cols x k_height.
+    const int k_rows = curr_layer.weights.rows;
     const int k_cols = curr_layer.weights.cols;
     const int k_stride = curr_layer.field_stride;
     const int k_pad = curr_layer.weights.align_pad;
@@ -194,7 +196,7 @@ void convolution2d_depthwise_single_kernel(float* a,
     ARRAY_4D(float, _a, a, a_height, a_rows, a_cols);
     // For depthwise conv, each filter has height 1, so there are only 3
     // dimensions.
-    ARRAY_3D(float, _kernels, kernels, k_cols, k_cols + k_pad);
+    ARRAY_3D(float, _kernels, kernels, k_rows, k_cols + k_pad);
     // Each result has the same height as the input.
     ARRAY_4D(float, _result, result, a_height, result_rows, result_cols);
 
@@ -206,7 +208,7 @@ void convolution2d_depthwise_single_kernel(float* a,
         for (int j = start_j; j < end_j; j+= k_stride) {
             partial_sum = 0;
             conv2d_kernel_rows:
-            for (int k = 0; k < k_cols; k++) {
+            for (int k = 0; k < k_rows; k++) {
                 conv2d_kernel_cols:
                 for (int l = 0; l < k_cols; l++) {
                     a_val = conv_float2fixed(_a[img][chan][i+k][j+l]);

@@ -25,8 +25,8 @@ void convolution3d_smv_nhwc_fxp(float* a,
     int result_cols = curr_layer.outputs.cols;
     int result_pad = curr_layer.outputs.align_pad;
 
-    int k_cols = curr_layer.weights.cols;
     int k_rows = curr_layer.weights.rows;
+    int k_cols = curr_layer.weights.cols;
     int k_pad = curr_layer.weights.align_pad;
     int k_height = curr_layer.weights.height;
     int k_stride = curr_layer.field_stride;

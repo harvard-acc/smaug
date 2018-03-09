@@ -125,8 +125,9 @@ void convolution3d_smiv_1kernel_noreduce_fxp(float* a,
     const int result_width = curr_layer.outputs.cols;
     const int result_pad = curr_layer.outputs.align_pad;
 
-    // Filter is k_width x k_width x k_height.
-    const int k_width = curr_layer.weights.cols;
+    // Filter is k_rows x k_cols x k_height.
+    const int k_rows = curr_layer.weights.rows;
+    const int k_cols = curr_layer.weights.cols;
     const int k_pad = curr_layer.weights.align_pad;
     const int k_stride = curr_layer.field_stride;
 
@@ -135,7 +136,7 @@ void convolution3d_smiv_1kernel_noreduce_fxp(float* a,
     const int row_stride = k_stride;
     const int col_stride = VECTOR_SIZE;
     const int chan_stride = 1;
-    const bool double_tp = k_width < DATAPATH_WIDTH;
+    const bool double_tp = k_cols < DATAPATH_WIDTH;
     const unsigned init_shamt = double_tp ? k_stride : DATAPATH_WIDTH;
     const unsigned dp_shamt = double_tp ? k_stride * 2 : k_stride;
     const unsigned input_fetches_per_row = FRAC_CEIL(a_width, VECTOR_SIZE);
@@ -155,15 +156,15 @@ void convolution3d_smiv_1kernel_noreduce_fxp(float* a,
     else
         max_psums_per_act = 0;
 
-    const int end_row = a_height - k_width + 1;
+    const int end_row = a_height - k_rows + 1;
     const int end_col = (has_boundary_case ? input_fetches_per_row
                                            : input_fetches_per_row - 1) *
                         VECTOR_SIZE;
-    const int end_kern = k_width;
+    const int end_kern = k_rows;
     const int end_chan = curr_layer.inputs.height;
 
     ARRAY_3D(float, _a, a, a_height, a_width + a_pad);
-    ARRAY_3D(float, _kernels, kernels, k_width, k_width + k_pad);
+    ARRAY_3D(float, _kernels, kernels, k_rows, k_cols + k_pad);
     ARRAY_3D(float, _result, result, result_height, result_width + result_pad);
 
     int end_col_marker = (input_fetches_per_row - 1) * VECTOR_SIZE;
@@ -239,13 +240,13 @@ void convolution3d_smiv_1kernel_noreduce_fxp(float* a,
                     // mode.
                     if (double_tp) {
                       conv2d_load_wgts_double_tp:
-                      for (int w = 0; w < k_width; w++) {
+                      for (int w = 0; w < k_cols; w++) {
                           float weight = _kernels[in_chan][kern_row][w];
                           weights_buffer[w] = weight;
                           weights_buffer[DATAPATH_WIDTH + w] = weight;
                       }
                     } else {
-                      int bound = min2(k_width, VECTOR_SIZE);
+                      int bound = min2(k_cols, VECTOR_SIZE);
                       conv2d_load_wgts_single_tp:
                       for (int w = 0; w < bound; w++) {
                           weights_buffer[w] = _kernels[in_chan][kern_row][w];

@@ -9,6 +9,7 @@
 #include "core/ref/pooling.h"
 #include "core/ref/zeropad.h"
 #include "core/smiv/smiv.h"
+#include "core/smiv/params.h"
 #include "utility/data_layout_conversion.h"
 #include "utility/profiling.h"
 #include "utility/utility.h"
@@ -121,6 +122,16 @@ result_buf standard_convolution_layer(data_list* activations,
                                       data_list* results,
                                       device_t* device,
                                       sampling_param_t* sampling_param) {
+    layer_t curr_layer = layers[lnum];
+    if (curr_layer.weights.rows > VECTOR_SIZE ||
+        curr_layer.weights.cols > VECTOR_SIZE) {
+        fprintf(stderr,
+                "[ERROR]: In layer %d: SMIV does not support "
+                "convolutional weights with rows or cols > %d!\n",
+                curr_layer.num, VECTOR_SIZE);
+    }
+    assert(curr_layer.weights.rows <= VECTOR_SIZE &&
+           curr_layer.weights.cols <= VECTOR_SIZE);
     io_req_t input_req = layers[lnum].input_req;
     const char* weights_var_name =
             input_req == IO_DMA ? "host_weights" : input_req == IO_ACP
@@ -129,7 +140,6 @@ result_buf standard_convolution_layer(data_list* activations,
     int weights_size = WEIGHT_BYTES(layers, lnum);
     MAP_ARRAY_TO_ACCEL(g_smiv.kConvolutionHw, weights_var_name,
                        weights->data[0].dense->d, weights_size);
-    layer_t curr_layer = layers[lnum];
     if (has_padding(&curr_layer.pad)) {
         results = create_new_data_list_if_necessary(
                 results ,
