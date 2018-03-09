@@ -26,7 +26,7 @@ CHECKERS = {
     "composable": {"mode": "fp32", "abs": 0.05, "pct": 0.05},
     "mkl":        {"mode": "fp32", "abs": 0.05, "pct": 0.05},
     "smiv":       {"mode": "fp32", "abs": 0.05, "pct": 0.05},
-    "smv":        {"mode": "fp16", "abs": 0.05, "pct": 0.05},
+    "smv":        {"mode": "fp16", "abs": 0.30, "pct": 0.50},
 }
 
 # These get set by the command line argument.
@@ -37,7 +37,6 @@ MODEL_DIR = "test_configs"
 CORRECT_OUTPUT_DIR = "correct"
 OUTPUT_LABELS = "output_labels.out"
 
-sign = lambda x : math.copysign(1, x)
 inf = float("inf")
 nan = float("nan")
 
@@ -116,8 +115,6 @@ class EqualityChecker():
   def compareFP32Scalar(self, value, reference):
     abs_diff = self.getAbsErr(value, reference)
     pct_diff = self.getPctErr(value, reference)
-    if sign(value) != sign(reference):
-      return CheckResult(False, abs_diff, pct_diff)
     result = (pct_diff < self.fp_err_pct or
               abs_diff < self.fp_err_abs)
     return CheckResult(result, pct_diff, abs_diff)
@@ -133,8 +130,6 @@ class EqualityChecker():
     """
     abs_diff = self.getAbsErr(value, reference)
     pct_diff = self.getPctErr(value, reference)
-    if sign(value) != sign(reference):
-      return CheckResult(False, 0, 0)
     if abs(value) == inf and abs(reference) >= FP16.MAX:
       return CheckResult(True, 0, 0)
     int_res = FP16.getIntegerResolution(value)
@@ -151,13 +146,12 @@ class EqualityChecker():
     all_pass = all(res.result for res in results)
     if all_pass:
       return True
-    failing_tests = [res for res in results if not res]
-
     print ""
-    print "% error   : ", ", ".join(
-        ["{:10.4f}".format(res.pct_diff) for res in results])
-    print "abs error : ", ", ".join(
-        ["{:10.4f}".format(res.abs_diff) for res in results])
+    for i, res in enumerate(results):
+      if not res.result:
+        print ("Entry %d: got %3.5f, expected %3.5f. "
+               "abs diff = %3.5f, pct diff = %3.5f" %
+              (i, values[i], references[i], res.abs_diff, res.pct_diff))
     return False
 
 class BaseTest(unittest.TestCase):
@@ -474,6 +468,15 @@ class ActivationFuncTests(BaseTest):
   def test_mnist_minerva_activation_func(self):
     model_file = "mnist/minerva_act_func.conf"
     correct_output = "mnist-minerva-act-func.out"
+    self.runAndValidate(model_file, correct_output)
+
+class NLPTests(BaseTest):
+  def test_deepspeech2(self):
+    if ARCH == "smiv":
+      # SMIV does not support kernels bigger than 8x8.
+      return
+    model_file = "nlp/deepspeech2.conf"
+    correct_output = "nlp-deepspeech2.out"
     self.runAndValidate(model_file, correct_output)
 
 def run_tests():
