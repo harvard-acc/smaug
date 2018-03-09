@@ -74,7 +74,7 @@ result_buf standard_convolution_layer(data_list* activations,
                                       sampling_param_t* sampling_param) {
     require_data_type(activations, 0, Uncompressed);
     require_data_type(kernels, 0, Uncompressed);
-    if (layers[lnum].c_padding > 0) {
+    if (has_padding(&layers[lnum].pad)) {
         // TODO: Get rid of all this manual zeropadding!
         //
         // @results will contain the zeropadded image. The convolution routine
@@ -107,7 +107,7 @@ result_buf depthwise_convolution_layer(data_list* activations,
                                        sampling_param_t* sampling_param) {
     require_data_type(activations, 0, Uncompressed);
     require_data_type(kernels, 0, Uncompressed);
-    if (layers[lnum].c_padding > 0) {
+    if (has_padding(&layers[lnum].pad)) {
         results = create_new_data_list_if_necessary(
                 results,
                 NUM_TEST_CASES * get_dims_size(&layers[lnum].inputs),

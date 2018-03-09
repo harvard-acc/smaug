@@ -118,7 +118,7 @@ result_buf standard_convolution_layer(data_list* activations,
                                       device_t* device,
                                       sampling_param_t* sampling_param) {
     layer_t curr_layer = layers[lnum];
-    if (curr_layer.c_padding > 0) {
+    if (has_padding(&curr_layer.pad)) {
         results = create_new_data_list_if_necessary(
                 results,
                 NUM_TEST_CASES * get_dims_size(&layers[lnum].inputs),
@@ -152,7 +152,7 @@ result_buf depthwise_convolution_layer(data_list* activations,
                                        device_t* device,
                                        sampling_param_t* sampling_param) {
     layer_t curr_layer = layers[lnum];
-    if (curr_layer.c_padding > 0) {
+    if (has_padding(&curr_layer.pad)) {
         results = create_new_data_list_if_necessary(
                 results,
                 NUM_TEST_CASES * get_dims_size(&layers[lnum].inputs),

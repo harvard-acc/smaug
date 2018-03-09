@@ -306,26 +306,16 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
         layers[l].biases.cols = 0;
         layers[l].biases.height = 0;
 
-        layers[l].c_padding = cfg_getint(conv_params, "pad");
+        int pad = cfg_getint(conv_params, "pad");
+        layers[l].pad = (padding){ pad, pad, pad, pad };
 #if ARCHITECTURE != EIGEN && ARCHITECTURE != SMV
-        layers[l].inputs.rows += layers[l].c_padding * 2;
-        layers[l].inputs.cols += layers[l].c_padding * 2;
-        layers[l].outputs.rows =
-                (layers[l].inputs.rows - layers[l].weights.cols) /
-                        layers[l].field_stride + 1;
-        layers[l].outputs.cols =
-                (layers[l].inputs.cols - layers[l].weights.cols) /
-                        layers[l].field_stride + 1;
+        layers[l].inputs.rows += layers[l].pad.top + layers[l].pad.bottom;
+        layers[l].inputs.cols += layers[l].pad.left + layers[l].pad.right;
+        layers[l].outputs.rows = calc_conv_rows(&layers[l], false);
+        layers[l].outputs.cols = calc_conv_cols(&layers[l], false);
 #else
-        layers[l].outputs.rows =
-                (layers[l].inputs.rows - layers[l].weights.cols +
-                 2 * layers[l].c_padding) /
-                        layers[l].field_stride + 1;
-        layers[l].outputs.cols =
-                (layers[l].inputs.cols - layers[l].weights.cols +
-                 2 * layers[l].c_padding) /
-                        layers[l].field_stride + 1;
-
+        layers[l].outputs.rows = calc_conv_rows(&layers[l], true);
+        layers[l].outputs.cols = calc_conv_cols(&layers[l], true);
 #endif
 
         // Number of kernels is the third dimension of the output.
@@ -350,15 +340,12 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
         layers[l].biases.cols = 0;
         layers[l].biases.height = 0;
 
-        layers[l].c_padding = cfg_getint(conv_params, "pad");
-        layers[l].inputs.rows += layers[l].c_padding * 2;
-        layers[l].inputs.cols += layers[l].c_padding * 2;
-        layers[l].outputs.rows =
-                (layers[l].inputs.rows - layers[l].weights.cols) /
-                        layers[l].field_stride + 1;
-        layers[l].outputs.cols =
-                (layers[l].inputs.cols - layers[l].weights.cols) /
-                        layers[l].field_stride + 1;
+        int pad = cfg_getint(conv_params, "pad");
+        layers[l].pad = (padding){ pad, pad, pad, pad };
+        layers[l].inputs.rows += layers[l].pad.top + layers[l].pad.bottom;
+        layers[l].inputs.cols += layers[l].pad.left + layers[l].pad.right;
+        layers[l].outputs.rows = calc_conv_rows(&layers[l], false);
+        layers[l].outputs.cols = calc_conv_cols(&layers[l], false);
         layers[l].outputs.height = layers[l].inputs.height;
 
         assert(layers[l].outputs.rows > 0);
@@ -382,7 +369,7 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
         layers[l].biases.height = 1;
         layers[l].field_stride = cfg_getint(conv_params, "stride");
 
-        layers[l].c_padding = 0;
+        layers[l].pad = (padding){ 0, 0, 0, 0 };
         layers[l].outputs.rows = layers[l].inputs.rows;
         layers[l].outputs.cols = layers[l].inputs.cols;
         layers[l].outputs.height = cfg_getint(conv_params, "num_output");
@@ -439,7 +426,7 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
                                        layers[l].field_stride +
                                1;
       layers[l].outputs.height = layers[l].inputs.height;
-      layers[l].c_padding = 0;
+      layers[l].pad = (padding){ 0, 0, 0, 0 };
       assert(layers[l].weights.rows != -1);
       assert(layers[l].field_stride != -1);
       return;
@@ -647,7 +634,7 @@ static void print_layer_config(layer_t* layers, int num_layers) {
             printf("    Kernel size: %d x %d x %d\n", layers[i].weights.cols,
                    layers[i].weights.cols, layers[i].inputs.height);
             printf("    Num kernels: %d\n", layers[i].outputs.height);
-            printf("    Padding: %d\n", layers[i].c_padding);
+            printf("    Padding: %d\n", layers[i].pad.top);
             printf("    Stride: %d\n", layers[i].field_stride);
         } else if (type == CONV_POINTWISE) {
             printf("  Pointwise convolution\n");

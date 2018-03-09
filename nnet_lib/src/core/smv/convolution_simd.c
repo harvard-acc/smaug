@@ -37,9 +37,9 @@ void convolution3d_smv_nhwc_vec_fxp(float* a,
     int a_height = curr_layer.inputs.height;
     int a_pad = curr_layer.inputs.align_pad;
 
-    int c_pad = curr_layer.c_padding;
-    int end_row = a_rows + 2 * c_pad - k_rows + 1;
-    int end_col = a_cols + 2 * c_pad - k_cols + 1;
+    padding pad = curr_layer.pad;
+    int end_row = a_rows + pad.top + pad.bottom - k_rows + 1;
+    int end_col = a_cols + pad.left + pad.right - k_cols + 1;
 
     int valid_row_end = a_rows - 1;
     int valid_col_end = a_cols - 1;
@@ -130,8 +130,8 @@ void convolution3d_smv_nhwc_vec_fxp(float* a,
                                                                 VECTOR_SIZE];
                             }
                         }
-                        in_row = out_row - c_pad + kern_row;
-                        in_col = out_col - c_pad + kern_col;
+                        in_row = out_row - pad.top + kern_row;
+                        in_col = out_col - pad.left + kern_col;
                         bool in_padding_row =
                                 in_row < 0 || in_row > valid_row_end;
                         bool in_padding_col =

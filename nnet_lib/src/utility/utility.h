@@ -1,7 +1,7 @@
 #ifndef _UTILITY_H_
 #define _UTILITY_H_
 
-#include <stdbool.h> 
+#include <stdbool.h>
 #include "nnet_fwd.h"
 
 float* grab_matrix(float* w, int n, int* n_rows, int* n_columns);
@@ -46,6 +46,8 @@ size_t store_output_activations_dma(float* host_activations,
                                     float* accel_activations,
                                     layer_t* layer);
 
+#endif
+
 void copy_data_col_range(float* original_data,
                               dims_t* original_dims,
                               int start_col,
@@ -80,9 +82,11 @@ static inline void clwb(void* addr) {
                      );
 }
 
-void flush_cache_range(void* src, size_t total_bytes);
+bool has_padding(padding* pad);
+int calc_conv_rows(layer_t* layer, bool account_for_padding);
+int calc_conv_cols(layer_t* layer, bool account_for_padding);
 
-#endif
+void flush_cache_range(void* src, size_t total_bytes);
 
 float randfloat();
 void clear_matrix(float* input, int size);

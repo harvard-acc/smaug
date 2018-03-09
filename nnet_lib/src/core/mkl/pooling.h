@@ -85,7 +85,7 @@ class PoolingOp : public BaseMklOp<DType> {
     // Return a mem_dims object for the pooling padding.
     // Use the right padding to accomplish output alignment padding.
     mem_dims get_pool_left_padding() {
-        if (this->layer->c_padding != 0) {
+        if (this->layer->pad.left != 0) {
             fprintf(stderr,
                     "Warning: The MKL pooling operation ignores padding!\n");
         }

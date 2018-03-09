@@ -137,6 +137,13 @@ typedef struct _data_list {
     int len;
 } data_list;
 
+typedef struct _padding {
+    int top;
+    int bottom;
+    int right;
+    int left;
+} padding;
+
 // When ping-ponging data between two buffers, use this to indicate which one
 // stores the last output (and the next input).
 typedef data_list* result_buf;
@@ -199,7 +206,7 @@ typedef struct _layer_t {
   int field_stride;
 
   // CONV layers only.
-  int c_padding;
+  padding pad;
 
   // POOL layers only.
   pool_type pool;

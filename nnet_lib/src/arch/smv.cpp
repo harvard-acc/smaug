@@ -159,7 +159,7 @@ result_buf depthwise_convolution_layer(data_list* activations,
     }
     layer_t curr_layer = layers[lnum];
     float* current_layer_weights = weights->data[0].dense->d;
-    if (curr_layer.c_padding > 0) {
+    if (has_padding(&curr_layer.pad)) {
         results = create_new_data_list_if_necessary(
                 results,
                 NUM_TEST_CASES * get_dims_size(&curr_layer.inputs),

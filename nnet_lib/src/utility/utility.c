@@ -310,6 +310,30 @@ size_t get_nhwc_dims_size(dims_t* dims) {
     return dims->rows * dims->cols * (dims->height + dims->align_pad);
 }
 
+// Compute the number of output rows of a convolutional layer.
+int calc_conv_rows(layer_t* layer, bool account_for_padding) {
+    int total_padding =
+            account_for_padding ? layer->pad.top + layer->pad.bottom : 0;
+    int unstrided_rows =
+            (layer->inputs.rows - layer->weights.rows + total_padding);
+    return unstrided_rows / layer->field_stride + 1;
+}
+
+// Compute the number of output columns of a convolutional layer.
+int calc_conv_cols(layer_t* layer, bool account_for_padding) {
+    int total_padding =
+            account_for_padding ? layer->pad.left + layer->pad.right : 0;
+    int unstrided_cols =
+            (layer->inputs.cols - layer->weights.cols + total_padding);
+    return unstrided_cols / layer->field_stride + 1;
+}
+
+// Returns true if any one of the padding fields is positive.
+bool has_padding(padding* pad) {
+    return (pad->top > 0 || pad->bottom > 0 || pad->right > 0 || pad->left > 0);
+}
+
+
 // Copy a range of columns from a 2D array data buffer to a new buffer.
 //
 // The data from section starting at (row, col) = (0, start_col) to (num_rows,

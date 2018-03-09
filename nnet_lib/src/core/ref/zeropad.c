@@ -16,7 +16,7 @@ void copy_zeropad(float* a, layer_t* layers, int lnum, float* result) {
     // "input_rows" and "input_cols" are the dimensions of the data AFTER
     // zeropadding because this is considered as the "input" to the convolution
     // itself.
-    int pad = curr_layer.c_padding;
+    padding pad = curr_layer.pad;
     int a_rows = prev_layer.outputs.rows;
     int a_cols = prev_layer.outputs.cols;
     int a_height = prev_layer.outputs.height;
@@ -25,15 +25,15 @@ void copy_zeropad(float* a, layer_t* layers, int lnum, float* result) {
     int r_cols = curr_layer.inputs.cols;
     int r_data_pad = curr_layer.inputs.align_pad;
 
-copy_zeropad_per_image:
+    copy_zeropad_per_image:
     for (ni = 0; ni < NUM_TEST_CASES; ni++) {
-        copy_zeropad_image3d(a, pad, ni, a_rows, a_cols, a_height, a_data_pad,
+        copy_zeropad_image3d(a, &pad, ni, a_rows, a_cols, a_height, a_data_pad,
                              result, r_rows, r_cols, r_data_pad);
     }
 }
 
 void copy_zeropad_image3d(float* a,
-                          int pad,
+                          padding* pad,
                           int img,
                           int a_rows,
                           int a_cols,
@@ -51,7 +51,7 @@ void copy_zeropad_image3d(float* a,
     copy_zeropad_height:
     for (h = 0; h < a_hgt; h++) {
         copy_zeropad_first_rows:
-        for (i = 0; i < pad; i++) {
+        for (i = 0; i < pad->top; i++) {
             copy_zeropad_first_cols:
             for (j = 0; j < r_cols + r_data_pad; j++) {
                 _result[img][h][i][j] = 0;
@@ -59,18 +59,19 @@ void copy_zeropad_image3d(float* a,
         }
 
         copy_zeropad_left:
-        for (i = pad; i < a_rows + pad; i++) {
+        for (i = pad->top; i < a_rows + pad->top; i++) {
             copy_zeropad_left_cols:
-            for (j = 0; j < pad; j++) {
+            for (j = 0; j < pad->left; j++) {
                 _result[img][h][i][j] = 0;
             }
             // Copy the original array.
             copy_zeropad_copy_cols:
-            for (j = pad; j < a_cols + pad; j++) {
-                _result[img][h][i][j] = _a[img][h][i-pad][j-pad];
+            for (j = pad->left; j < a_cols + pad->left; j++) {
+                _result[img][h][i][j] =
+                        _a[img][h][i - pad->left][j - pad->left];
             }
             copy_zeropad_right_cols:
-            for (j = a_cols + pad; j < r_cols; j++) {
+            for (j = a_cols + pad->left; j < r_cols; j++) {
                 _result[img][h][i][j] = 0;
             }
             copy_zeropad_data_pad:
@@ -80,7 +81,7 @@ void copy_zeropad_image3d(float* a,
         }
 
         copy_zeropad_last:
-        for (i = a_rows + pad; i < r_rows; i++) {
+        for (i = a_rows + pad->top; i < r_rows; i++) {
             copy_zeropad_last_cols:
             for (j = 0; j < r_cols + r_data_pad; j++) {
                 _result[img][h][i][j] = 0;

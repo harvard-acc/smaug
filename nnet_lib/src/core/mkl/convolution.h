@@ -38,10 +38,10 @@ class Convolution3dOp : public BaseMklOp<DType> {
    protected:
     // Return a mem_dims object for the input, assuming nchw format.
     virtual mem_dims get_input_dims() {
-        int c_padding = this->layer->c_padding;
+        padding pad = this->layer->pad;
         return { this->batch_size, this->layer->inputs.height,
-                 this->layer->inputs.rows - 2 * c_padding,
-                 this->layer->inputs.cols - 2 * c_padding };
+                 this->layer->inputs.rows - pad.top - pad.bottom,
+                 this->layer->inputs.cols - pad.left - pad.right };
     }
 
     // Return a mem_dims object for the output, assuming nchw format.
@@ -104,8 +104,8 @@ class Convolution3dOp : public BaseMklOp<DType> {
         mem_dims conv_stride = { this->layer->field_stride,
                                  this->layer->field_stride };
         // We pass this twice...?
-        mem_dims conv_padding = { this->layer->c_padding,
-                                  this->layer->c_padding };
+        mem_dims conv_padding = { this->layer->pad.top,
+                                  this->layer->pad.bottom };
 
         auto conv_desc = mkldnn::convolution_forward::desc(
                 mkldnn::prop_kind::forward,
