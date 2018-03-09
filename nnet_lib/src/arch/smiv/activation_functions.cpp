@@ -23,11 +23,13 @@ float* smiv_activation_function_impl(float* activations,
     session->run_and_clear();
     return results;
 #else
-    int output_size = get_dims_size(&layer->outputs);
+    int output_size =
+            layer->outputs.rows * layer->outputs.cols * layer->outputs.height;
     begin_profiling(ACTIVATION_TYPE_STR(layer->activation), layer->num);
     activation_fun(activations,
                    NUM_TEST_CASES,
                    output_size,
+                   layer->outputs.align_pad,
                    layer->activation);
     end_profiling();
     return activations;

@@ -93,7 +93,10 @@ void activation_fun_simd128(packed_fp16* activations,
         // This size must be the flattened size wih all padding removed.
         int input_size =
                 input_dims->rows * input_dims->cols * input_dims->height;
-        softmax(unpacked_activations->d, batch_size, input_size);
+        softmax(unpacked_activations->d,
+                batch_size,
+                input_size,
+                input_dims->align_pad);
     }
     fp16array_t* packed_results = pack_data_fp16(unpacked_activations, results);
     // This frees the malloc'ed pointer to the fp16array_t without freeing the

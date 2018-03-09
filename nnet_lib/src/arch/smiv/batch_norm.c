@@ -47,10 +47,12 @@ static void smiv_batch_norm_layer_hw(float* host_activations,
     activation_type activation = curr_layer->activation;
     if (input_in_spad0) {
         batch_norm_fxp(spad0, umem, curr_layer, NUM_TEST_CASES, spad1);
-        activation_fun(spad1, NUM_TEST_CASES, input_size, activation);
+        activation_fun(spad1, NUM_TEST_CASES, input_size,
+                       curr_layer->outputs.align_pad, activation);
     } else {
         batch_norm_fxp(spad1, umem, curr_layer, NUM_TEST_CASES, spad0);
-        activation_fun(spad0, NUM_TEST_CASES, input_size, activation);
+        activation_fun(spad0, NUM_TEST_CASES, input_size,
+                       curr_layer->outputs.align_pad, activation);
     }
 #endif
 
@@ -115,8 +117,8 @@ void smiv_batch_norm_layer_impl(float* activations,
                 activations, weights, &curr_layer, NUM_TEST_CASES, result);
         if (device->use_hw_activation_func) {
             int input_size = get_dims_size(&curr_layer.inputs);
-            activation_fun(
-                    result, NUM_TEST_CASES, input_size, curr_layer.activation);
+            activation_fun(result, NUM_TEST_CASES, input_size,
+                           curr_layer.outputs.align_pad, curr_layer.activation);
         }
         end_profiling();
     }

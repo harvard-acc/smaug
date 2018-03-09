@@ -51,6 +51,7 @@ void reduction_smiv_fxp(float* a, layer_t curr_layer, float* result) {
                 activation_fun(&partial_sums[0],
                                1,
                                VECTOR_SIZE,
+                               result_pad,
                                curr_layer.activation);
             }
 

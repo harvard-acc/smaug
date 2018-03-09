@@ -279,8 +279,11 @@ void convolution3d_smiv_1kernel_noreduce_fxp(float* a,
                 // originate from a named variable. A simple workaround is to just
                 // explicitly cast here and use the casted variable's name.
                 float* actfunc_temp = (float*)final_psums;
-                activation_fun_fxp(
-                        actfunc_temp, 1, VECTOR_SIZE, curr_layer.activation);
+                activation_fun_fxp(actfunc_temp,
+                                   1,
+                                   VECTOR_SIZE,
+                                   result_pad,
+                                   curr_layer.activation);
 
                 // This is the unreduced data!
                 conv2d_commit:

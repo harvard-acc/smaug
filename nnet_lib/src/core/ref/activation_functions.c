@@ -17,6 +17,7 @@ ALWAYS_INLINE
 void activation_fun_fxp(float* activations,
                         int batch_size,
                         int input_size,
+                        int input_pad,
                         activation_type function) {
     int total_size = input_size * batch_size;
     if (function == RELU) {
@@ -34,7 +35,7 @@ void activation_fun_fxp(float* activations,
     } else if (function == SIGMOID) {
         sigmoid_inplace(activations, total_size);
     } else if (function == SOFTMAX) {
-        softmax(activations, batch_size, input_size);
+        softmax(activations, batch_size, input_size, input_pad);
     }
 }
 
@@ -43,8 +44,10 @@ ALWAYS_INLINE
 void activation_fun(float* activations,
                     int batch_size,
                     int input_size,
+                    int input_pad,
                     activation_type function) {
-    activation_fun_fxp(activations, batch_size, input_size, function);
+    activation_fun_fxp(
+            activations, batch_size, input_size, input_pad, function);
 }
 
 // The rectified linear activation function
@@ -199,8 +202,9 @@ void sigmoid_lookup_noncentered(float* a, int num_units, float* results) {
 // This function is in-place (modifies a).
 void softmax(float* a,
              int num_test_cases,
-             int softmax_size) {
-    ARRAY_2D(float, _a, a, softmax_size);
+             int softmax_size,
+             int input_pad) {
+    ARRAY_2D(float, _a, a, softmax_size + input_pad);
 
     // Compute the maximum of the elements in groups of 8 and the remainder one
     // by one.
