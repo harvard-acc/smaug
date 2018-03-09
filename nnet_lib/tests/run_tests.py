@@ -451,6 +451,14 @@ class Cifar10Tests(BaseTest):
     correct_output = "cifar10-mobilenet.out"
     self.runAndValidate(model_file, correct_output)
 
+  def test_vgg_real_data(self):
+    model_file = "cifar10/vgg.conf"
+    correct_output = "cifar10-vgg-real-data.out"
+    param_file = os.path.join(
+        MODEL_DIR, "cifar10/trained/%s/vgg-pruned.bin" % ARCH)
+    self.runAndValidate(model_file, correct_output,
+          data_init_mode="READ_FILE", param_file=param_file)
+
 class BatchNormTests(BaseTest):
   def test_minerva_bn(self):
     model_file = "mnist/minerva_bn.conf"
