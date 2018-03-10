@@ -32,6 +32,11 @@ void activation_fun_fxp(float* activations,
         selu(activations, total_size);
     } else if (function == TANH) {
         tanh_act(activations, total_size, activations);
+    } else if (function == HARD_TANH) {
+        // TODO: Make these parameterizable via the model configuration file.
+        static const float min = -1;
+        static const float max = 1;
+        hard_tanh(activations, total_size, min, max, activations);
     } else if (function == SIGMOID) {
         sigmoid_inplace(activations, total_size);
     } else if (function == SOFTMAX) {
@@ -143,6 +148,14 @@ void tanh_act(float* a, int num_units, float* results) {
     }
 }
 
+ALWAYS_INLINE
+void hard_tanh(float* a, int num_units, float min, float max, float* results) {
+    hard_tanh_loop:
+    for (int i = 0; i < num_units; i++) {
+        float value = a[i];
+        results[i] = (value < min) ? min : (value > max) ? max : value;
+    }
+}
 
 ALWAYS_INLINE
 void sigmoid_inplace(float* a, int num_units) {

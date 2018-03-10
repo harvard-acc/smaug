@@ -28,6 +28,7 @@ typedef enum _activation_type {
     ELU,
     SELU,
     TANH,
+    HARD_TANH,
     SIGMOID,
     SOFTMAX
 } activation_type;

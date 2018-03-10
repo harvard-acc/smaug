@@ -57,6 +57,20 @@ void tanh_act_simd128(float* inputs, int size, float* results) {
     }
 }
 
+void hard_tanh_simd128(
+        float* inputs, int size, float min, float max, float* results) {
+    v4fp_t* vec_inputs = (v4fp_t*)(ASSUME_ALIGNED(inputs, _VECTOR_BYTES));
+    v4fp_t* vec_results = (v4fp_t*)(ASSUME_ALIGNED(results, _VECTOR_BYTES));
+    for (int i = 0; i < size / _VECTOR_WIDTH; i++) {
+        v4fp_t a = vec_inputs[i];
+        for (int v = 0; v < _VECTOR_WIDTH; v++) {
+            float val = a[v];
+            a[v] = val < min ? min : val > max ? max : val;
+        }
+        vec_results[i] = a;
+    }
+}
+
 // Dispatch to the appropriate activation function.
 void activation_fun_simd128(packed_fp16* activations,
                             int batch_size,
@@ -87,6 +101,11 @@ void activation_fun_simd128(packed_fp16* activations,
         tanh_act_simd128(unpacked_activations->d,
                          unpacked_activations->size,
                          unpacked_activations->d);
+    } else if (function == HARD_TANH) {
+        static const float min = -1;
+        static const float max = 1;
+        hard_tanh_simd128(unpacked_activations->d, unpacked_activations->size,
+                          min, max, unpacked_activations->d);
     } else if (function == SIGMOID) {
         sigmoid_inplace(unpacked_activations->d, unpacked_activations->size);
     } else if (function == SOFTMAX) {

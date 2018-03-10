@@ -30,6 +30,7 @@ const char LRELU_TYPE[] = "LRELU";
 const char ELU_TYPE[] = "ELU";
 const char SELU_TYPE[] = "SELU";
 const char TANH_TYPE[] = "TANH";
+const char HARD_TANH_TYPE[] = "HARD_TANH";
 const char SIGMOID_TYPE[] = "SIGMOID";
 const char SOFTMAX_TYPE[] = "SOFTMAX";
 const char OFFLOAD_DMA[] = "DMA";
@@ -254,7 +255,8 @@ int validate_activation_func(cfg_t* cfg, cfg_opt_t* opt) {
     if (strcmp(value, NONE_TYPE) != 0 && strcmp(value, RELU_TYPE) != 0 &&
         strcmp(value, LRELU_TYPE) != 0 && strcmp(value, ELU_TYPE) != 0 &&
         strcmp(value, SELU_TYPE) != 0 && strcmp(value, TANH_TYPE) != 0 &&
-        strcmp(value, SIGMOID_TYPE) != 0 && strcmp(value, SOFTMAX_TYPE) != 0) {
+        strcmp(value, SIGMOID_TYPE) != 0 && strcmp(value, SOFTMAX_TYPE) != 0 &&
+        strcmp(value, HARD_TANH_TYPE) != 0) {
         cfg_error(cfg, "Invalid activation function '%s' for layer '%s'!",
                   value, cfg_title(cfg));
         return -1;
@@ -310,6 +312,8 @@ static void set_layer_type(layer_t* layers, cfg_t* layer_opts, int l) {
         layers[l].activation = SELU;
     } else if (strcmp(activation, TANH_TYPE) == 0) {
         layers[l].activation = TANH;
+    } else if (strcmp(activation, HARD_TANH_TYPE) == 0) {
+        layers[l].activation = HARD_TANH;
     } else if (strcmp(activation, SIGMOID_TYPE) == 0) {
         layers[l].activation = SIGMOID;
     } else if (strcmp(activation, SOFTMAX_TYPE) == 0) {
@@ -731,7 +735,8 @@ static void print_layer_config(layer_t* layers, int num_layers) {
                act == RELU ? "RELU" : act == SIGMOID ? "SIGMOID" :
                act == LRELU ? "LRELU" : act == ELU ? "ELU" :
                act == SELU ? "SELU" : act == TANH ? "TANH" :
-               act == SOFTMAX ? "SOFTMAX" : "NONE");
+               act == SOFTMAX ? "SOFTMAX" :
+               act == HARD_TANH ? "HARD TANH ": "NONE");
     }
 }
 

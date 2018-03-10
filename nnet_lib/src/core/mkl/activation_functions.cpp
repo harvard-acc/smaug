@@ -101,6 +101,23 @@ void tanh(float* activations,
     session->push_back(std::move(op));
 }
 
+void hard_tanh(float* activations,
+               int batch_size,
+               float min,
+               float max,
+               layer_t* layer,
+               MklSession* session,
+               float* results) {
+    auto op = std::make_unique<ref::HardTanhActivationFunctionOp<dtype>>(
+            layer, batch_size, session->cpu());
+    if (session->empty()) {
+        op->init(activations, results, min, max);
+    } else {
+        op->init(*session->last_op(), results, min, max);
+    }
+    session->push_back(std::move(op));
+}
+
 void softmax(float* activations,
              int batch_size,
              layer_t* layer,
@@ -136,6 +153,11 @@ void activation_fun(float* activations,
         selu(activations, batch_size, curr_layer, session, results);
     } else if (function == TANH) {
         tanh(activations, batch_size, curr_layer, session, results);
+    } else if (function == HARD_TANH) {
+        static const float min = -1;
+        static const float max = 1;
+        hard_tanh(activations, batch_size, min, max, curr_layer, session,
+                  results);
     } else if (function == SOFTMAX) {
         softmax(activations, batch_size, curr_layer, session, results);
     } else {

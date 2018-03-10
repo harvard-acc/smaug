@@ -2,6 +2,7 @@
 #define _CORE_SMV_H_
 
 #include "core/nnet_fwd_defs.h"
+#include "core/smv/activation_functions.h"
 
 void convolution3d_smv(float* a,
                        float* kernels,
@@ -19,9 +20,4 @@ void matrix_multiply_transpose_smv(float* a,
                                    int result_start,
                                    float* result);
 
-void activation_fun_simd128(packed_fp16* activations,
-                            int batch_size,
-                            dims_t* input_dims,
-                            activation_type function,
-                            packed_fp16* results);
 #endif

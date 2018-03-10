@@ -133,6 +133,16 @@ static inline v8fp_t tanh_act_simd(v8fp_t a) {
 }
 
 ALWAYS_INLINE
+static inline v8fp_t hard_tanh_simd(v8fp_t a, float min, float max) {
+    hard_tanh_loop:
+    for (int i = 0; i < VECTOR_SIZE; i++) {
+        float value = a[i];
+        a[i] = value < min ? min : value > max ? max : value;
+    }
+    return a;
+}
+
+ALWAYS_INLINE
 static inline v8fp_t activation_fun_simd_fxp(v8fp_t activations,
                                              activation_type function) {
     if (function == RELU) {
@@ -145,6 +155,8 @@ static inline v8fp_t activation_fun_simd_fxp(v8fp_t activations,
         return selu_simd(activations);
     } else if (function == TANH) {
         return tanh_act_simd(activations);
+    } else if (function == HARD_TANH) {
+        return hard_tanh_simd(activations, -1, 1);
     } else if (function == SIGMOID) {
         return sigmoid_inplace_simd(activations);
     } else if (function == SOFTMAX) {

@@ -17,6 +17,7 @@ void relu(float* a, int num_units);
 void lrelu(float* a, int num_units, float alpha);
 void elu(float* a, int num_units, float alpha, float* results);
 void selu(float* a, int num_units);
+void hard_tanh(float* a, int num_units, float min, float max, float* results);
 void tanh_act(float* a, int num_units, float* results);
 void sigmoid_inplace(float* a, int num_units);
 float sigmoid_fxp(float a);

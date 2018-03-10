@@ -2,6 +2,7 @@
 #define _MKL_ACTIVATION_FUNCTIONS_H_
 
 #include <functional>
+#include <iostream>
 
 #include "mkldnn.hpp"
 
@@ -306,17 +307,17 @@ class SoftmaxActivationFunctionOp : public ActivationFunctionOp<DType> {
 
 }  // namespace mkl_impl
 
-namespace lut {
-
-// Operations defined within this namespace use our reference lookup-table
-// implementations to perform the activation functions involving exponential
-// functions.
-
 // We bind all arguments to the functor at initialization time so no additional
 // arguments are needed. THis is done to ensure that the behavior cannot
 // unexpectedly change based on the value of SIGMOID_IMPL in the middle of
 // execution (if it should change for any reason).
 using RefFunctor = std::function<void()>;
+
+namespace lut {
+
+// Operations defined within this namespace use our reference lookup-table
+// implementations to perform the activation functions involving exponential
+// functions.
 
 template <typename DType>
 class SigmoidActivationFunctionOp
@@ -338,7 +339,9 @@ class SigmoidActivationFunctionOp
         INFO_MSG("Sigmoid LUT\n");
         this->create_memory(input_buffer, this->input_size);
         this->create_memory(output_buffer, this->input_size, true);
-        create_functor(input_buffer, output_buffer);
+        create_functor(input_buffer,
+                       reinterpret_cast<DType*>(
+                               this->get_output_mem().get_data_handle()));
     }
 
     virtual void init(const BaseMklOp<DType>& prev_op, DType* output_buffer) {
@@ -348,7 +351,8 @@ class SigmoidActivationFunctionOp
                 output_buffer,
                 true);
         create_functor((DType*)prev_op.get_output_mem().get_data_handle(),
-                       output_buffer);
+                       reinterpret_cast<DType*>(
+                               this->get_output_mem().get_data_handle()));
     }
 
     virtual void run_work() { op(); }
@@ -376,7 +380,10 @@ class EluActivationFunctionOp
         INFO_MSG("ELU (LUT)\n");
         this->create_memory(input_buffer, this->input_size);
         this->create_memory(output_buffer, this->input_size, true);
-        create_functor(input_buffer, output_buffer, alpha);
+        create_functor(input_buffer,
+                       reinterpret_cast<DType*>(
+                               this->get_output_mem().get_data_handle()),
+                       alpha);
     }
 
     virtual void init(const BaseMklOp<DType>& prev_op,
@@ -388,7 +395,8 @@ class EluActivationFunctionOp
                 output_buffer,
                 true);
         create_functor((DType*)prev_op.get_output_mem().get_data_handle(),
-                       output_buffer,
+                       reinterpret_cast<DType*>(
+                               this->get_output_mem().get_data_handle()),
                        alpha);
     }
     virtual void run_work() { op(); }
@@ -411,7 +419,9 @@ class TanhActivationFunctionOp : public mkl_impl::TanhActivationFunctionOp<DType
         INFO_MSG("Tanh LUT\n");
         this->create_memory(input_buffer, this->input_size);
         this->create_memory(output_buffer, this->input_size, true);
-        create_functor(input_buffer, output_buffer);
+        create_functor(input_buffer,
+                       reinterpret_cast<DType*>(
+                               this->get_output_mem().get_data_handle()));
     }
 
     virtual void init(const BaseMklOp<DType>& prev_op, DType* output_buffer) {
@@ -421,7 +431,8 @@ class TanhActivationFunctionOp : public mkl_impl::TanhActivationFunctionOp<DType
                 output_buffer,
                 true);
         create_functor((DType*)prev_op.get_output_mem().get_data_handle(),
-                       output_buffer);
+                       reinterpret_cast<DType*>(
+                               this->get_output_mem().get_data_handle()));
     }
     virtual void run_work() { op(); }
 
@@ -489,6 +500,70 @@ class SeluActivationFunctionOp
 
 }  // namespace lut
 
+namespace ref {
+
+template <typename DType>
+class HardTanhActivationFunctionOp : public ActivationFunctionOp<DType> {
+   public:
+    using ActivationFunctionOp<DType>::ActivationFunctionOp;
+
+    virtual void create_functor(DType* input_buffer,
+                                DType* output_buffer,
+                                DType min,
+                                DType max) {
+        op = std::bind(&hard_tanh,
+                       input_buffer,
+                       this->input_size,
+                       min,
+                       max,
+                       output_buffer);
+    }
+
+    virtual void init(DType* input_buffer,
+                      DType* output_buffer,
+                      DType min = -1,
+                      DType max = 1) {
+        INFO_MSG("Hard Tanh ref\n");
+        this->create_memory(input_buffer, this->input_size);
+        this->create_memory(output_buffer, this->input_size, true);
+        create_functor(input_buffer,
+                       reinterpret_cast<DType*>(
+                               this->get_output_mem().get_data_handle()),
+                       min, max);
+    }
+
+    virtual void init(const BaseMklOp<DType>& prev_op,
+                      DType* output_buffer,
+                      DType min = -1,
+                      DType max = 1) {
+        INFO_MSG("Hard Tanh ref, chaining\n");
+        BaseMklOp<DType>::create_memory(
+                prev_op.get_output_mem().get_primitive_desc(),
+                output_buffer,
+                true);
+        create_functor((DType*)prev_op.get_output_mem().get_data_handle(),
+                       reinterpret_cast<DType*>(
+                               this->get_output_mem().get_data_handle()),
+                       min, max);
+    }
+
+    virtual void run_work() { op(); }
+
+    virtual ~HardTanhActivationFunctionOp() {}
+    virtual std::string name() const {
+        return "Hard Tanh";
+    }
+
+   protected:
+    RefFunctor op;
+
+    DType min;
+    DType max;
+};
+
+
+}  // namespace ref
+
 void sigmoid(float* activations,
              int batch_size,
              layer_t* layer,
@@ -519,6 +594,14 @@ void tanh(float* activations,
           layer_t* layer,
           MklSession* session,
           float* results);
+
+void hard_tanh(float* activations,
+               int batch_size,
+               float min,
+               float max,
+               layer_t* layer,
+               MklSession* session,
+               float* results);
 
 void softmax(float* a,
              int batch_size,
