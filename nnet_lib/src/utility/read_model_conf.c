@@ -36,6 +36,8 @@ const char SOFTMAX_TYPE[] = "SOFTMAX";
 const char OFFLOAD_DMA[] = "DMA";
 const char OFFLOAD_ACP[] = "ACP";
 const char OFFLOAD_CACHE[] = "CACHE";
+const char PADDING_SAME[] = "SAME";
+const char PADDING_VALID[] = "VALID";
 
 static int input_rows;
 static int input_cols;
@@ -153,6 +155,17 @@ int validate_inner_product_params(cfg_t* cfg, cfg_opt_t* opt) {
     return 0;
 }
 
+int validate_padding_type(cfg_t* cfg, cfg_opt_t* opt) {
+    const char* pad_type = cfg_getstr(cfg, "padding");
+    if (strncmp(pad_type, PADDING_SAME, 5) ||
+        strncmp(pad_type, PADDING_VALID, 6)) {
+        cfg_error(cfg, "Invalid padding type (options are SAME or VALID)!",
+                  opt->name);
+        return -1;
+    }
+    return 0;
+}
+
 int validate_conv_params(cfg_t* cfg, cfg_opt_t* opt) {
     cfg_t* conv_params = cfg_opt_getnsec(opt, cfg_opt_size(opt) - 1);
     const char* conv_type = cfg_getstr(cfg, "type");
@@ -169,19 +182,6 @@ int validate_conv_params(cfg_t* cfg, cfg_opt_t* opt) {
                 "Depthwise convolution layers do not need 'num_output' "
                 "specified, as it is implied by the number of input channels!",
                 opt->name);
-        return -1;
-    }
-    bool is_pointwise_conv = (strcmp(conv_type, CONV_POINTWISE_TYPE) == 0);
-    if (!cfg_size(conv_params, "pad")) {
-        if (!is_pointwise_conv) {
-            cfg_error(conv_params, "Missing required option 'pad'!", opt->name);
-            return -1;
-        }
-    } else if (is_pointwise_conv) {
-        cfg_error(conv_params,
-                  "Pointwise convolution layers do not accept a padding "
-                  "parameter (implied padding is 0)!",
-                  opt->name);
         return -1;
     }
     // We either set kernel_size OR both kernel_cols and kernel_rows, but
@@ -330,6 +330,34 @@ static void set_layer_type(layer_t* layers, cfg_t* layer_opts, int l) {
                 l);
 }
 
+static void set_layer_padding(layer_t* layers, int l, cfg_t* conv_params) {
+    const char* pad_type = cfg_getstr(conv_params, "padding");
+    if (strncmp(pad_type, PADDING_SAME, strlen(PADDING_SAME)) == 0) {
+        int total_row_pad = layers[l].weights.rows - 1;
+        int total_col_pad = layers[l].weights.cols - 1;
+        padding pad;
+        if (total_row_pad % 2 == 0) {
+            pad.top = total_row_pad / 2;
+            pad.bottom = pad.top;
+        } else {
+            pad.top = max2(total_row_pad / 2, 1);
+            pad.bottom = total_row_pad - pad.top;
+        }
+        if (total_col_pad % 2 == 0) {
+            pad.left = total_col_pad / 2;
+            pad.right = pad.left;
+        } else {
+            pad.left = max2(total_col_pad / 2, 1);
+            pad.right = total_col_pad - pad.left;
+        }
+        layers[l].pad = pad;
+    } else if (strncmp(pad_type, PADDING_VALID, strlen(PADDING_SAME)) == 0) {
+        layers[l].pad = (padding){ 0, 0, 0, 0 };
+    } else {
+        assert(false && "Unknown padding type!");
+    }
+}
+
 static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
     if (layers[l].type == CONV_STANDARD) {
         layers[l].inputs.rows = layers[l - 1].outputs.rows;
@@ -346,8 +374,7 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
         layers[l].biases.cols = 0;
         layers[l].biases.height = 0;
 
-        int pad = cfg_getint(conv_params, "pad");
-        layers[l].pad = (padding){ pad, pad, pad, pad };
+        set_layer_padding(layers, l, conv_params);
 #if ARCHITECTURE != EIGEN && ARCHITECTURE != SMV
         layers[l].inputs.rows += layers[l].pad.top + layers[l].pad.bottom;
         layers[l].inputs.cols += layers[l].pad.left + layers[l].pad.right;
@@ -381,8 +408,7 @@ static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
         layers[l].biases.cols = 0;
         layers[l].biases.height = 0;
 
-        int pad = cfg_getint(conv_params, "pad");
-        layers[l].pad = (padding){ pad, pad, pad, pad };
+        set_layer_padding(layers, l, conv_params);
         layers[l].inputs.rows += layers[l].pad.top + layers[l].pad.bottom;
         layers[l].inputs.cols += layers[l].pad.left + layers[l].pad.right;
         layers[l].outputs.rows = calc_conv_rows(&layers[l], false);
@@ -808,7 +834,7 @@ static void install_validation_callbacks(cfg_t* cfg) {
     cfg_set_validate_func(cfg, "network|layer|convolution_param|kernel_cols",
                           validate_unsigned_int);
     cfg_set_validate_func(
-            cfg, "network|layer|convolution_param|pad", validate_unsigned_int);
+            cfg, "network|layer|convolution_param|pad", validate_padding_type);
     cfg_set_validate_func(
             cfg, "network|layer|pooling_param|stride", validate_unsigned_int);
     cfg_set_validate_func(
@@ -913,7 +939,9 @@ int configure_network_from_file(const char* cfg_file,
     read_sampling_param(all_opts, *sampling_ptr);
 
     // Set some global variables.
-    NUM_CLASSES = layers[num_layers-1].outputs.cols;
+    layer_t* last_layer = &layers[num_layers - 1];
+    NUM_CLASSES = last_layer->outputs.rows * last_layer->outputs.cols *
+                  last_layer->outputs.height;
     INPUT_DIM = input_rows * input_cols * input_height;
 
     assert(INPUT_DIM > 0);

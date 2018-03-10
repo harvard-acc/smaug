@@ -3,7 +3,7 @@
 cfg_opt_t convolution_param_cfg[] = {
     CFG_STR("type", "STANDARD", CFGF_NONE),
     CFG_INT("num_output", -1, CFGF_NODEFAULT),
-    CFG_INT("pad", -1, CFGF_NODEFAULT),
+    CFG_STR("padding", "SAME", CFGF_NONE),
     CFG_INT("kernel_size", 0, CFGF_NODEFAULT),
     CFG_INT("kernel_rows", 0, CFGF_NODEFAULT),
     CFG_INT("kernel_cols", 0, CFGF_NODEFAULT),
