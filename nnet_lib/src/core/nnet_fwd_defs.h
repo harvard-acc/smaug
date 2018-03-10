@@ -260,6 +260,9 @@ typedef struct _sampling_param_t {
     // SMV: Run this many iterations of the inner tiling loop.
     // See smv/arch/convolution.c for details.
     int smv_conv_inner_iters;
+
+    // SMV: Run this many output tiles for an input tile.
+    int smv_conv_output_tiles;
 } sampling_param_t;
 
 // Possible values of ARCHITECTURE.

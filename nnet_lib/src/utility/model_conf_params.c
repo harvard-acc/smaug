@@ -55,6 +55,7 @@ cfg_opt_t sampling_cfg[] = {
     CFG_INT("standard_conv_num_filters", 0, CFGF_NONE),
     CFG_INT("fc_num_neurons", 0, CFGF_NONE),
     CFG_INT("smv_conv_inner_iters", 0, CFGF_NONE),
+    CFG_INT("smv_conv_output_tiles", 0, CFGF_NONE),
     CFG_END()
 };
 

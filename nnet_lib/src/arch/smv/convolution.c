@@ -509,6 +509,7 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
         end_profiling();
     }
 
+    int sampled_output_tiles = sampling_param->smv_conv_output_tiles;
     int sampled_inner_iters = sampling_param->smv_conv_inner_iters;
     // A value of 0 means do not sample, so set this value to the actual number
     // of inner iterations, if there are any.
@@ -534,8 +535,28 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
             conv_input_tile* input_tile = &tiling.input_tiles[it];
             layer_t partial_layer;
             int kern_start = 0;
+            int output_tiles_executed = 0;
+            // Output tile sampling operates over the following loop. We always
+            // execute the last output tile, because it has a different number
+            // of output feature maps. We only run up to sampled_output_tiles
+            // iterations.
+            begin_profiling("standard_convolution_layer_smv_input_tile", lnum);
+            bool is_output_tile_sampled =
+                    (sampled_output_tiles > 0 &&
+                     sampled_output_tiles < input_tile->num_output_tiles - 1);
+            if (is_output_tile_sampled) {
+                set_profiling_type_sampled(
+                        sampled_output_tiles + 1, input_tile->num_output_tiles);
+            }
             // Inner loop for output tiling of an input tile.
             for (int ot = 0; ot < input_tile->num_output_tiles; ot++) {
+                bool is_last_output_tile = (ot == input_tile->num_output_tiles - 1);
+                if (is_output_tile_sampled && !is_last_output_tile &&
+                    output_tiles_executed >= sampled_output_tiles) {
+                    continue;
+                }
+                begin_profiling(
+                        "standard_convolution_layer_smv_output_tile", lnum);
                 conv_output_tile* output_tile = &input_tile->output_tiles[ot];
                 // NOTE: partial_layer's inputs are in NHWC format. So use
                 // get_nhwc_dims_size() to get the input size instead of
@@ -592,9 +613,9 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                 // iterations have their outputs set to zero.
                 begin_profiling(
                         "standard_convolution_layer_smv_impl_tile", lnum);
-                bool is_sampled = (sampled_inner_iters > 0 &&
+                bool is_inner_iter_sampled = (sampled_inner_iters > 0 &&
                                    sampled_inner_iters < num_hw_iters - 2);
-                if (is_sampled) {
+                if (is_inner_iter_sampled) {
                     set_profiling_type_sampled(
                             sampled_inner_iters + 2, num_hw_iters);
                 }
@@ -757,6 +778,10 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                 free(temp_result_buf);
 
                 kern_start += output_tile->num_ofmaps;
+                if (!is_last_output_tile) {
+                    output_tiles_executed++;
+                }
+                end_profiling();
             }
             INFO_MSG("Finished an input tile.\n");
             kern_start = 0;
