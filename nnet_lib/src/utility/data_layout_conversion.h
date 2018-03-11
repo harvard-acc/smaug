@@ -117,4 +117,13 @@ int convert_blocked_nhwc_to_nchw_fp32(farray_t* input,
                                       dims_t input_dims,
                                       unsigned data_alignment,
                                       farray_t** result);
+
+//=--------- Unblocked to blocked 2D matrix  ---------=//
+
+void block_matrix_colwise_fp32(farray_t* input,
+                               dims_t* input_dims,
+                               int block_size,
+                               int data_alignment,
+                               data_list** result_ptr);
+
 #endif

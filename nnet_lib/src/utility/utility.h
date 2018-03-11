@@ -115,6 +115,7 @@ bool is_dummy_layer(layer_t* layers, int l);
 size_t next_multiple(size_t request, size_t align);
 size_t get_dims_size(dims_t* dims);
 size_t get_nhwc_dims_size(dims_t* dims);
+dims_t transpose_dims(dims_t* orig_dims, int data_alignment);
 
 float compute_errors(float* network_pred,
                      int* correct_labels,

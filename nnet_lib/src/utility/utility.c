@@ -314,6 +314,16 @@ size_t get_nhwc_dims_size(dims_t* dims) {
     return dims->rows * dims->cols * (dims->height + dims->align_pad);
 }
 
+dims_t transpose_dims(dims_t* orig_dims, int data_alignment) {
+    dims_t transposed_dims;
+    transposed_dims.rows = orig_dims->cols;
+    transposed_dims.cols = orig_dims->rows;
+    transposed_dims.height = orig_dims->height;
+    transposed_dims.align_pad =
+            calc_padding(transposed_dims.cols, data_alignment);
+    return transposed_dims;
+}
+
 // Compute the number of output rows of a convolutional layer.
 int calc_conv_rows(layer_t* layer, bool account_for_padding) {
     int total_padding =

@@ -10,6 +10,7 @@
 #include <string.h>
 
 #include "core/nnet_fwd_defs.h"
+#include "utility/compression.h"
 #include "utility/data_layout_conversion.h"
 #include "utility/utility.h"
 
@@ -592,4 +593,36 @@ int convert_blocked_nhwc_to_nchw_fp32(farray_t* input,
         channels_remaining -= block_size;
     }
     return num_blocks;
+}
+
+void block_matrix_colwise_fp32(farray_t* input,
+                               dims_t* input_dims,
+                               int block_size,
+                               int data_alignment,
+                               data_list** result_ptr) {
+    int num_blocks = FRAC_CEIL(input_dims->cols, block_size);
+    int blocked_cols = min2(block_size, input_dims->cols);
+    if (*result_ptr == NULL) {
+        *result_ptr = init_data_list(num_blocks);
+    }
+
+    ARRAY_2D(float, _input, input->d, input_dims->cols + input_dims->align_pad);
+    data_list* result = *result_ptr;
+    int columns_remaining = input_dims->cols;
+    for (int block = 0; block < num_blocks; block++) {
+        int curr_block_cols = min2(columns_remaining, blocked_cols);
+        int padding = calc_padding(curr_block_cols, data_alignment);
+        int block_size = input_dims->rows * (curr_block_cols + padding);
+        result->data[block].dense = create_new_farray_if_necessary(
+                result->data[block].dense, block_size);
+        result->type[block] = Uncompressed;
+
+        ARRAY_2D(float, _result, result->data[block].dense->d,
+                 curr_block_cols + padding);
+        for (int r = 0; r < input_dims->rows; r++) {
+            memcpy(&_result[r][0], &_input[r][block * blocked_cols],
+                   curr_block_cols * sizeof(float));
+        }
+        columns_remaining -= curr_block_cols;
+    }
 }
