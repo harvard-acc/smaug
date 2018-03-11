@@ -126,4 +126,14 @@ void block_matrix_colwise_fp32(farray_t* input,
                                int data_alignment,
                                data_list** result_ptr);
 
+data_list* blocked_pack_compress_colmajor_fc_weights(farray_t* weights,
+                                                     farray_t* biases,
+                                                     int max_block_size,
+                                                     dims_t* orig_dims,
+                                                     dims_t* bias_dims);
+
+data_list* blocked_pack_colmajor_fc_weights(farray_t* weights,
+                                            int max_block_size,
+                                            dims_t* orig_dims,
+                                            dims_t* bias_dims);
 #endif

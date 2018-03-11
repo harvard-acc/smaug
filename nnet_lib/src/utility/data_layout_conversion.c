@@ -626,3 +626,75 @@ void block_matrix_colwise_fp32(farray_t* input,
         columns_remaining -= curr_block_cols;
     }
 }
+
+data_list* blocked_pack_compress_colmajor_fc_weights(farray_t* weights,
+                                                     farray_t* biases,
+                                                     int max_block_size,
+                                                     dims_t* orig_dims,
+                                                     dims_t* bias_dims) {
+    // Compress the weights without the bias row first.
+    // Swap the rows and columns.
+    dims_t transposed_dims = *orig_dims;
+    int rows = transposed_dims.rows;
+    transposed_dims.rows = transposed_dims.cols;
+    transposed_dims.cols = rows;
+    transposed_dims.align_pad =
+            calc_padding(transposed_dims.rows, DATA_ALIGNMENT);
+    data_list* blocked_weights = NULL;
+    block_matrix_colwise_fp32(weights, &transposed_dims, max_block_size,
+                              DATA_ALIGNMENT, &blocked_weights);
+    data_list* result = init_data_list(blocked_weights->len + 1);
+    for (int i = 0; i < blocked_weights->len; i++) {
+        farray_t* curr_block = blocked_weights->data[i].dense;
+        dims_t block_dims;
+        block_dims.rows = transposed_dims.rows;
+        block_dims.cols = curr_block->size / block_dims.rows;
+        block_dims.height = 1;
+        block_dims.align_pad = calc_padding(block_dims.cols, DATA_ALIGNMENT);
+        csr_array_t* weights_csr =
+                compress_dense_data_csr(curr_block->d, &block_dims);
+        packed_csr_array_t* packed_weights_csr =
+                pack_csr_array_vec8_f16(weights_csr, &block_dims);
+        result->data[i].packed = packed_weights_csr;
+        result->type[i] = PackedCSR;
+        free_csr_array_t(weights_csr);
+    }
+    free_data_list(blocked_weights);
+
+    result->data[result->len - 1].dense_hp = pack_data_fp16(biases, NULL);
+    result->type[result->len - 1] = UncompressedHalfPrecision;
+    return result;
+}
+
+// TODO: Add documentation.
+// orig_dims = dims of weights only.
+data_list* blocked_pack_colmajor_fc_weights(farray_t* weights_and_biases,
+                                            int max_block_size,
+                                            dims_t* orig_dims,
+                                            dims_t* bias_dims) {
+    // Compress the weights without the bias row first.
+    // Swap the rows and columns.
+    dims_t transposed_dims = *orig_dims;
+    int rows = transposed_dims.rows;
+    transposed_dims.rows = transposed_dims.cols;
+    transposed_dims.cols = rows;
+    transposed_dims.align_pad =
+            calc_padding(transposed_dims.cols, DATA_ALIGNMENT);
+    data_list* blocked_weights = NULL;
+    block_matrix_colwise_fp32(weights_and_biases, &transposed_dims,
+                              max_block_size, DATA_ALIGNMENT, &blocked_weights);
+    data_list* result = init_data_list(blocked_weights->len + 1);
+    for (int i = 0; i < blocked_weights->len; i++) {
+        result->data[i] = blocked_weights->data[i];
+        result->type[i] = blocked_weights->type[i];
+    }
+
+    // Just store biases as an uncompressed buffer.
+    float* bias_loc = weights_and_biases->d + get_dims_size(&transposed_dims);
+    farray_t* biases_storage = init_farray(bias_dims->cols, false);
+    memcpy(biases_storage->d, bias_loc, biases_storage->size * sizeof(float));
+    result->data[result->len - 1].dense = biases_storage;
+    result->type[result->len - 1] = Uncompressed;
+
+    return result;
+}

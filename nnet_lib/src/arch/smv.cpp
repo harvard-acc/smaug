@@ -8,6 +8,7 @@
 #include "core/ref/pooling.h"
 #include "core/ref/zeropad.h"
 #include "core/smv/smv.h"
+#include "core/smv/params.h"
 #include "utility/compression.h"
 #include "utility/data_layout_conversion.h"
 #include "utility/profiling.h"
@@ -511,7 +512,83 @@ void set_io_requirements(network_t* network,
                network->layers[layer_num].input_req,
                network->layers[layer_num].output_req);
     }
+}
 
+// If the weights are too large, we may need to block them up column-wise.
+void block_fc_weights_if_necessary(layer_t* layer) {
+    int max_weight_cols_in_spad =
+            g_smv.kUmemSize / NUM_PE_INSTS / sizeof(float);
+    // Yes, cols = weights.rows, because the weights are stored
+    // col-major.
+    int weight_cols = layer->weights.rows;
+    bool needs_colwise_blocking = (weight_cols > max_weight_cols_in_spad);
+    dims_t transposed_weights_dims =
+            transpose_dims(&layer->weights, DATA_ALIGNMENT);
+
+    if (layer->host_weights->type[0] == PackedCSR) {
+        if (needs_colwise_blocking) {
+            // We need to decompress the data and recompress it in
+            // blocked form.
+            farray_t* decomp_weights =
+                    init_farray(get_dims_size(&layer->weights), false);
+            farray_t* decomp_biases = layer->host_weights->data[1].dense;
+            packed_csr_array_t* csr_weights =
+                    layer->host_weights->data[0].packed;
+            decompress_packed_csr_data(csr_weights->vals, csr_weights->col_idx,
+                                       csr_weights->row_idx,
+                                       &transposed_weights_dims,
+                                       decomp_weights->d);
+            data_list* packed_csr_blocked_weights =
+                    blocked_pack_compress_colmajor_fc_weights(
+                            decomp_weights, decomp_biases,
+                            max_weight_cols_in_spad, &layer->weights,
+                            &layer->biases);
+            free_data_list(layer->host_weights);
+            free_farray(decomp_weights);
+            layer->host_weights = packed_csr_blocked_weights;
+        } else {
+            // Compress the biases into FP16.
+            farray_t* fp32_biases = layer->host_weights->data[1].dense;
+            fp16array_t* fp16_biases = pack_data_fp16(fp32_biases, NULL);
+            layer->host_weights->data[1].dense_hp = fp16_biases;
+            free_farray(fp32_biases);
+        }
+    } else if (layer->host_weights->type[0] == Uncompressed) {
+        farray_t* fp32_weights = layer->host_weights->data[0].dense;
+        data_list* orig_weights_list = layer->host_weights;
+        if (needs_colwise_blocking) {
+            data_list* blocked_weights = blocked_pack_colmajor_fc_weights(
+                    fp32_weights, max_weight_cols_in_spad, &layer->weights,
+                    &layer->biases);
+            layer->host_weights = init_data_list(blocked_weights->len);
+            for (int i = 0; i < blocked_weights->len; i++) {
+                fp16array_t* packed_weights =
+                        pack_data_fp16(blocked_weights->data[i].dense, NULL);
+                layer->host_weights->data[i].dense_hp = packed_weights;
+            }
+            free_data_list(blocked_weights);
+        } else {
+            // Separate the weights into two data list entries, one for
+            // the main synapses, one for the biases.
+            farray_t synapses;
+            synapses.d = fp32_weights->d;
+            synapses.size = layer->weights.cols *
+                            (layer->weights.rows + layer->weights.align_pad);
+            fp16array_t* packed_synapses = pack_data_fp16(&synapses, NULL);
+
+            farray_t biases;
+            biases.d = fp32_weights->d + synapses.size;
+            biases.size = layer->biases.cols + layer->biases.align_pad;
+            fp16array_t* packed_biases = pack_data_fp16(&biases, NULL);
+
+            layer->host_weights = init_data_list(2);
+            layer->host_weights->data[0].dense_hp = packed_synapses;
+            layer->host_weights->type[0] = UncompressedHalfPrecision;
+            layer->host_weights->data[1].dense_hp = packed_biases;
+            layer->host_weights->type[1] = UncompressedHalfPrecision;
+        }
+        free_data_list(orig_weights_list);
+    }
 }
 
 // Perform SMV-specific weight conversion tasks before running the network.
@@ -555,13 +632,7 @@ void early_convert_weights_data_layout(network_t* network, device_t* device) {
             layer->host_weights->type[0] = UncompressedHalfPrecision;
             free_farray(bn_weights);
         } else if (layer->type == FC) {
-            if (layer->host_weights->type[0] != Uncompressed)
-                continue;  // Skip the biases.
-            farray_t* fp32_weights = layer->host_weights->data[0].dense;
-            fp16array_t* packed_weights = pack_data_fp16(fp32_weights, NULL);
-            layer->host_weights->data[0].dense_hp = packed_weights;
-            layer->host_weights->type[0] = UncompressedHalfPrecision;
-            free_farray(fp32_weights);
+            block_fc_weights_if_necessary(layer);
         }
     }
 }
