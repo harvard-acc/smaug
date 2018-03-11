@@ -167,6 +167,10 @@ int get_output_activations_size(layer_t* layer) {
 
 #endif
 
+const char* bool_to_yesno(bool value) {
+    return value ? "yes" : "no";
+}
+
 void clear_matrix(float* input, int size) {
     int i;
 clear_loop:    for (i = 0; i < size; i++)

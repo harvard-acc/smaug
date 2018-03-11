@@ -89,6 +89,7 @@ int calc_conv_cols(layer_t* layer, bool account_for_padding);
 void flush_cache_range(void* src, size_t total_bytes);
 
 float randfloat();
+const char* bool_to_yesno(bool value);
 void clear_matrix(float* input, int size);
 void copy_matrix(float* input, float* output, int size);
 int arg_max(float* input, int size, int increment);

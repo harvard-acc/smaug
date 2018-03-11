@@ -631,10 +631,6 @@ const char* io_req_to_str(io_req_t value) {
     return NONE_TYPE;
 }
 
-const char* bool_to_yesno(bool value) {
-    return value ? "yes" : "no";
-}
-
 static void read_device_parameters(cfg_t* all_opts, device_t* device) {
     if (cfg_size(all_opts, "device") != 0) {
         cfg_t* device_opts = cfg_getsec(all_opts, "device");
