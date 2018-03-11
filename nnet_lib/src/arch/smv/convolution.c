@@ -318,17 +318,17 @@ static void set_sampling_parameters(conv_tiling_cfg* tiling,
             output_tiles_remaining -= output_tile->sampling_upscale_factor;
 
             // Each output tile may requires multiple HW passes to execute. We
-            // only sample if we must run two or more.
+            // only sample if we must run three or more.
             bool do_hw_pass_sampling =
                     sampled_inner_iters > 0 &&
-                    sampled_inner_iters < output_tile->num_hw_passes - 1;
+                    sampled_inner_iters < output_tile->num_hw_passes - 2;
             int remaining_hw_passes = output_tile->num_hw_passes;
             // If we sample HW passes, how many HW passes does each executed
             // pass represent?
             int sampling_hw_passes_upscale_factor;
             if (do_hw_pass_sampling) {
                 sampling_hw_passes_upscale_factor =
-                        ceil(((float)output_tile->num_hw_passes - 1) /
+                        ceil(((float)output_tile->num_hw_passes - 2) /
                              sampled_inner_iters);
             } else {
                 sampling_hw_passes_upscale_factor = 1;
@@ -338,12 +338,16 @@ static void set_sampling_parameters(conv_tiling_cfg* tiling,
                  hw_pass++) {
                 smv_convolution_options* hw_options =
                         &output_tile->hw_passes[hw_pass];
-                bool is_first_hw_pass = (hw_pass == 0);
-                if (is_first_hw_pass || !do_hw_pass_sampling) {
+                bool is_first_or_last_hw_pass =
+                        (hw_pass == 0) ||
+                        (hw_pass == output_tile->num_hw_passes - 1);
+                if (is_first_or_last_hw_pass || !do_hw_pass_sampling) {
                     hw_options->execute = true;
                     hw_options->sampling_upscale_factor = 1;
                 } else {
-                    if (remaining_hw_passes > 0) {
+                    // Compare the remaining HW pass with one, not zero,
+                    // because we always need to execute the last iteration.
+                    if (remaining_hw_passes > 1) {
                         hw_options->execute = true;
                         hw_options->sampling_upscale_factor =
                                 min2(sampling_hw_passes_upscale_factor,
