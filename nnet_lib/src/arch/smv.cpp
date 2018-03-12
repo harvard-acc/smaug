@@ -421,7 +421,9 @@ result_buf run_layer(data_list* activations,
 //
 // Since SMV can share scratchpads between the conv/fc blocks, we only need
 // IO if we need to send data back to the CPU.
-void set_io_requirements(network_t* network, device_t* device) {
+void set_io_requirements(network_t* network,
+                         device_t* device,
+                         smv_global* g_smv) {
     for (int layer_num = 0; layer_num < network->depth; layer_num++) {
         layer_t* curr_layer = &network->layers[layer_num];
 
@@ -468,7 +470,7 @@ void set_io_requirements(network_t* network, device_t* device) {
             // If the FC block needs work division, we can't locally cache.
             (curr_layer->type == FC && next_layer->type == FC &&
              smv_inner_product_needs_work_division(
-                     &network->layers[layer_num]))) {
+                     &network->layers[layer_num], g_smv))) {
             curr_layer->output_req = device->cpu_default_offload;
         } else {
             curr_layer->output_req = IO_NONE;
@@ -581,7 +583,7 @@ void nnet_fwd(data_list* activations,
     device->session = (void*)session;
 #endif
 
-    set_io_requirements(network, device);
+    set_io_requirements(network, device, &g_smv);
     early_convert_weights_data_layout(network, device);
     fp16array_t* fp16_activations =
             pack_data_fp16(activations->data[0].dense, NULL);
