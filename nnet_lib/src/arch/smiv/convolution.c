@@ -349,7 +349,9 @@ static void smiv_convolution_layer_hw(float* dma_activations,
 }
 
 // Find a good way to pack the convolution into the accelerator.
-static conv_cfg_t smiv_convolution_divide_work(layer_t* layers, int lnum) {
+static conv_cfg_t smiv_convolution_divide_work(layer_t* layers,
+                                               int lnum,
+                                               smiv_global* g_smiv) {
     conv_cfg_t conv_cfgs;
     unsigned total_input_bytes = INPUT_BYTES(layers, lnum) / NUM_TEST_CASES;
     // This is the unreduced output for a single output channel.
@@ -357,12 +359,12 @@ static conv_cfg_t smiv_convolution_divide_work(layer_t* layers, int lnum) {
             layers[lnum].outputs.rows *
             (layers[lnum].outputs.cols + layers[lnum].outputs.align_pad) *
             layers[lnum].inputs.height * sizeof(float);
-    if (total_input_bytes > SMIV_UMEM_SIZE) {
+    if (total_input_bytes > g_smiv->kUmemSize) {
         printf("A single input image exceeds the capacity of the UMEM, which "
                "is not supported!\n");
         assert(false);
     }
-    if (total_output_bytes <= SMIV_SPAD_SIZE) {
+    if (total_output_bytes <= g_smiv->kSpadSize) {
         PRINT_MSG_V("Entire input problem fits into the local memory.\n");
         init_smiv_work_cfg(&conv_cfgs, 1);
         conv_cfgs.iteration[0].rows = layers[lnum].inputs.rows;
@@ -381,7 +383,7 @@ static conv_cfg_t smiv_convolution_divide_work(layer_t* layers, int lnum) {
             sizeof(float);
     unsigned input_channels = layers[lnum].inputs.height;
 
-    int max_channels_per_iter = SMIV_SPAD_SIZE / output_channel_size;
+    int max_channels_per_iter = g_smiv->kSpadSize / output_channel_size;
     if (max_channels_per_iter >= 2) {
         PRINT_MSG_V("We can fit at least 2 unreduced input channels at once.\n");
         init_smiv_work_cfg(&conv_cfgs,
@@ -432,7 +434,7 @@ void smiv_standard_convolution_layer_impl(float* host_activations,
     const int result_2d_size = result_height * (result_width + result_pad);
     const int weights_size = WEIGHT_BYTES(layers, lnum);
 
-    conv_cfg_t conv_cfgs = smiv_convolution_divide_work(layers, lnum);
+    conv_cfg_t conv_cfgs = smiv_convolution_divide_work(layers, lnum, g_smiv);
     INFO_MSG("Standard convolution layer %d work configuration:\n", lnum);
     print_smiv_work_cfg(&conv_cfgs);
 
@@ -592,7 +594,7 @@ void smiv_standard_convolution_layer_impl(float* host_activations,
 
                 int result_iter =
                         ceil(result_2d_size * conv_cfgs.num_iterations /
-                             (float)SMIV_SPAD_SIZE);
+                             (float)g_smiv->kSpadSize);
                 assert(result_iter <= 1 &&
                        "Only support 1 last iteration of reduction!");
 
@@ -689,7 +691,7 @@ void smiv_depthwise_convolution_layer_impl(float* host_activations,
              result_width + result_pad);
     ARRAY_3D(float, _kernels, host_weights, k_width, k_width + k_pad);
 
-    conv_cfg_t conv_cfgs = smiv_convolution_divide_work(layers, lnum);
+    conv_cfg_t conv_cfgs = smiv_convolution_divide_work(layers, lnum, g_smiv);
     INFO_MSG("Depthwise convolution layer %d work configuration:\n", lnum);
     print_smiv_work_cfg(&conv_cfgs);
 

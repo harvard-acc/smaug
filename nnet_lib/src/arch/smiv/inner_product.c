@@ -61,7 +61,7 @@ static void inner_product_layer_hw_impl(float* dma_activations,
         if (!options->do_bias)
             weights_size -= curr_layer->weights.cols;
         weights_size *= sizeof(float);
-        setReadyBits(local_weights, SMIV_UMEM_SIZE, 0);
+        setReadyBits(local_weights, weights_size, 0);
         dma_load_wrapper(local_weights, dma_weights, weights_size,
                          options->use_pipelined_dma);
     }
@@ -70,7 +70,7 @@ static void inner_product_layer_hw_impl(float* dma_activations,
         ASSERT(dma_activations && "DMA inputs pointer cannot be NULL!");
         int activations_size =
                 get_input_activations_size(curr_layer) * sizeof(float);
-        setReadyBits(local_activations, SMIV_SPAD_SIZE, 0);
+        setReadyBits(local_activations, activations_size, 0);
         dma_load_wrapper(local_activations, dma_activations, activations_size,
                          options->use_pipelined_dma);
     }
@@ -268,26 +268,28 @@ static void inner_product_layer_hw(float* dma_activations,
 }
 
 // Returns true if this inner product layer will require multiple iterations.
-bool smiv_inner_product_needs_work_division(layer_t* curr_layer) {
+bool smiv_inner_product_needs_work_division(layer_t* curr_layer,
+                                            smiv_global* g_smiv) {
     const unsigned total_weight_bytes = WEIGHT_BYTES(curr_layer, 0);
-    return total_weight_bytes > SMIV_UMEM_SIZE;
+    return total_weight_bytes > g_smiv->kUmemSize;
 }
 
 // These are the conditions under which we just will not try to run the layer
 // at all.
 //
 // TODO: These are not quite the right constraints.
-void smiv_inner_product_check_absolute_size_limits(layer_t* curr_layer) {
+void smiv_inner_product_check_absolute_size_limits(layer_t* curr_layer,
+                                                   smiv_global* g_smiv) {
     const unsigned total_input_bytes =
             get_input_activations_size(curr_layer) / NUM_TEST_CASES;
-    if (total_input_bytes > SMIV_SPAD_SIZE) {
+    if (total_input_bytes > g_smiv->kSpadSize) {
         printf("A single input does not fit in the SPAD, which is not "
                "supported!\n");
         assert(false);
     }
     const unsigned total_output_bytes =
             get_output_activations_size(curr_layer) / NUM_TEST_CASES;
-    if (total_output_bytes > SMIV_SPAD_SIZE) {
+    if (total_output_bytes > g_smiv->kSpadSize) {
         printf("A single output does not fit in the SPAD, which is not "
                "supported!\n");
         assert(false);
@@ -303,10 +305,11 @@ void smiv_inner_product_check_absolute_size_limits(layer_t* curr_layer) {
 // Columnwise work division means to do the matrix multiply in groups of In x W,
 // where W = On/iterations. This will require weights reordering, but not input
 // reordering.
-fc_cfg_t smiv_inner_product_divide_work_colwise(layer_t* curr_layer) {
+fc_cfg_t smiv_inner_product_divide_work_colwise(layer_t* curr_layer,
+                                                smiv_global* g_smiv) {
     fc_cfg_t fc_cfgs;
-    smiv_inner_product_check_absolute_size_limits(curr_layer);
-    if (!smiv_inner_product_needs_work_division(curr_layer)) {
+    smiv_inner_product_check_absolute_size_limits(curr_layer, g_smiv);
+    if (!smiv_inner_product_needs_work_division(curr_layer, g_smiv)) {
         // No work division means to return an fc_cfg_t that is holds the
         // entire weights.
         init_smiv_work_cfg(&fc_cfgs, 1);
@@ -320,11 +323,12 @@ fc_cfg_t smiv_inner_product_divide_work_colwise(layer_t* curr_layer) {
     const unsigned num_neurons =
             curr_layer->weights.cols + curr_layer->weights.align_pad;
     const unsigned minimum_work_size = num_inputs * VECTOR_SIZE * sizeof(float);
-    if (minimum_work_size > SMIV_UMEM_SIZE) {
+    if (minimum_work_size > g_smiv->kUmemSize) {
         printf("This weights layer exceeds our current capability to run!\n");
         assert(false);
     }
-    const unsigned max_work_units_per_iteration = SMIV_UMEM_SIZE / minimum_work_size;
+    const unsigned max_work_units_per_iteration =
+            g_smiv->kUmemSize / minimum_work_size;
     const unsigned bytes_per_iteration =
             max_work_units_per_iteration * minimum_work_size;
     const unsigned num_cols_per_iteration =
@@ -355,10 +359,11 @@ fc_cfg_t smiv_inner_product_divide_work_colwise(layer_t* curr_layer) {
 // Rowwise work division means to do the matrix multiply in groups of W x On,
 // where W = In/iterations. This will require inputs reordering, but not
 // weights reordering.
-fc_cfg_t smiv_inner_product_divide_work_rowwise(layer_t* curr_layer) {
+fc_cfg_t smiv_inner_product_divide_work_rowwise(layer_t* curr_layer,
+                                                smiv_global* g_smiv) {
     fc_cfg_t fc_cfgs;
-    smiv_inner_product_check_absolute_size_limits(curr_layer);
-    if (!smiv_inner_product_needs_work_division(curr_layer)) {
+    smiv_inner_product_check_absolute_size_limits(curr_layer, g_smiv);
+    if (!smiv_inner_product_needs_work_division(curr_layer, g_smiv)) {
         // No work division means to return an fc_cfg_t that is holds the
         // entire weights.
         init_smiv_work_cfg(&fc_cfgs, 1);
@@ -379,12 +384,12 @@ fc_cfg_t smiv_inner_product_divide_work_rowwise(layer_t* curr_layer) {
     const int num_neurons =
             curr_layer->weights.cols + curr_layer->weights.align_pad;
     const unsigned minimum_work_size = num_neurons * 2 * sizeof(float);
-    if (minimum_work_size > SMIV_UMEM_SIZE) {
+    if (minimum_work_size > g_smiv->kUmemSize) {
         printf("This weights layer exceeds our current capability to run!\n");
         assert(false);
     }
     const unsigned max_work_units_per_iteration =
-            SMIV_UMEM_SIZE / minimum_work_size;
+            g_smiv->kUmemSize / minimum_work_size;
     const unsigned bytes_per_iteration =
             max_work_units_per_iteration * minimum_work_size;
     const unsigned num_rows_per_iteration =
@@ -491,7 +496,8 @@ void smiv_inner_product_layer_impl_rowwise(float* host_activations,
                                            device_t* device,
                                            bool input_in_spad0) {
     INFO_MSG("Running rowwise inner product.\n");
-    fc_cfg_t fc_cfgs = smiv_inner_product_divide_work_rowwise(curr_layer);
+    fc_cfg_t fc_cfgs =
+            smiv_inner_product_divide_work_rowwise(curr_layer, g_smiv);
     INFO_MSG("Inner product layer %d work configuration:\n", curr_layer->num);
     print_smiv_work_cfg(&fc_cfgs);
     bool needs_multiple_iter = (fc_cfgs.num_iterations > 1);
@@ -719,7 +725,8 @@ void smiv_inner_product_layer_impl_colwise(float* host_activations,
                                            device_t* device,
                                            bool input_in_spad0) {
     INFO_MSG("Running colwise inner product.\n");
-    fc_cfg_t fc_cfgs = smiv_inner_product_divide_work_colwise(curr_layer);
+    fc_cfg_t fc_cfgs =
+            smiv_inner_product_divide_work_colwise(curr_layer, g_smiv);
     INFO_MSG("Inner product layer %d work configuration:\n", curr_layer->num);
     print_smiv_work_cfg(&fc_cfgs);
 

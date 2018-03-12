@@ -245,7 +245,7 @@ data_list* pack_compress_colmajor_weights(float* weights,
     // Just store biases as an uncompressed buffer.
     float* bias_loc = weights + get_dims_size(&transposed_dims);
     farray_t* biases_storage = init_farray(bias_dims->cols, false);
-    memcpy(biases_storage->d, bias_loc, biases_storage->size * sizeof(float)); 
+    memcpy(biases_storage->d, bias_loc, biases_storage->size * sizeof(float));
 
     data_list* list = init_data_list(2);
     list->data[0].packed = packed_weights_csr;

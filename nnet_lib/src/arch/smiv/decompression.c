@@ -57,8 +57,6 @@ static void smiv_decompress_packed_csr_hw(packed_fp16* dma_weights,
                                           float* spad1,
                                           float* umem) {
     PRINT_MSG("Decompressing CSR data!\n");
-    ASSERT(compressed_size <= SMIV_SPAD_SIZE &&
-           "CSR array size exceeds scratchpad capacity!");
     // The umem must be zeroed first.
     int num_rows = decompressed_size / (VECTOR_SIZE * sizeof(float));
     int start_row = dest_offset / VECTOR_SIZE;
@@ -108,7 +106,7 @@ void smiv_decompress_packed_csr_impl(layer_t* layer,
     packed_csr_array_t* src_csr =
             layer->host_weights->data[weights_list_idx].packed;
     csr_tile_list* tile_list = tile_packed_csr_array_t(
-            src_csr, &layer->weights, start_row, SMIV_SPAD_SIZE);
+            src_csr, &layer->weights, start_row, g_smiv->kSpadSize);
     assert(tile_list->len > 0 && "CSR tile list cannot be empty!");
     csr_tile* curr_tile = tile_list->head;
     int dest_offset = 0;
@@ -117,6 +115,8 @@ void smiv_decompress_packed_csr_impl(layer_t* layer,
         dims_t dims = (dims_t){ curr_tile->num_rows, layer->weights.cols,
                                 layer->weights.height,
                                 layer->weights.align_pad };
+        assert(array->total_buf_size <= g_smiv->kSpadSize &&
+               "CSR array size exceeds scratchpad capacity!");
         MAP_ARRAY_TO_ACCEL(g_smiv->kInnerProductHw,
                            get_host_weights_var_name(layer->weights_req),
                            array->vals, array->total_buf_size);

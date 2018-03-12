@@ -5,8 +5,8 @@
 #include "utility/profiling.h"
 
 // SMV has the same scratchpad sizes as SMIV.
-#define SMV_SPAD_SIZE (131072)
-#define SMV_UMEM_SIZE (3*1048576)
+#define SMV_DEFAULT_SPAD_SIZE (131072)
+#define SMV_DEFAULT_UMEM_SIZE (3*1048576)
 
 // Accelerator id codes.
 extern unsigned kSmvConvolutionHw;
@@ -26,6 +26,8 @@ typedef struct _smv_global {
     unsigned kReductionHw;
     unsigned kBatchNormHw;
     unsigned kPoolingHw;
+    size_t kUmemSize;
+    size_t kSpadSize;
     //-----------------------//
 } smv_global;
 

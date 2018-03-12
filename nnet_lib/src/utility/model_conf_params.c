@@ -53,6 +53,8 @@ cfg_opt_t device_cfg[] = {
     CFG_BOOL("use_hw_pooling", cfg_false, CFGF_NONE),
     CFG_BOOL("use_pipelined_dma", cfg_false, CFGF_NONE),
     CFG_BOOL("use_pipelined_activation_func", cfg_false, CFGF_NONE),
+    CFG_INT("umem_size", 0, CFGF_NONE),
+    CFG_INT("spad_size", 0, CFGF_NONE),
     CFG_END()
 };
 

@@ -34,7 +34,7 @@
 
 smv_global g_smv;
 
-void init_smv_global() {
+void init_smv_global(device_t* device) {
     // Use the same accelerator id for all hardware blocks. This means we will
     // simulate only ONE datapath instead of multiple, which means that the two
     // blocks can share the scratchpads (without any infrastructure
@@ -48,10 +48,22 @@ void init_smv_global() {
     g_smv.kReductionHw = 0x0003;
     g_smv.kBatchNormHw = 0x0003;
     g_smv.kPoolingHw = 0x0003;
+    if (device->umem_size != 0) {
+        g_smv.kUmemSize = device->umem_size;
+    } else {
+        g_smv.kUmemSize = SMV_DEFAULT_UMEM_SIZE;
+    }
+    if (device->spad_size != 0) {
+        g_smv.kSpadSize = device->spad_size;
+    } else {
+        g_smv.kSpadSize = SMV_DEFAULT_SPAD_SIZE;
+    }
+    printf("Size of UMEM: %lu bytes\n", g_smv.kUmemSize);
+    printf("Size of Scratchpad: %lu bytes\n", g_smv.kSpadSize);
 
-    g_smv.umem = (float*)malloc_aligned(SMV_UMEM_SIZE);
-    g_smv.spad0 = (float*)malloc_aligned(SMV_SPAD_SIZE);
-    g_smv.spad1 = (float*)malloc_aligned(SMV_SPAD_SIZE);
+    g_smv.umem = (float*)malloc_aligned(g_smv.kUmemSize);
+    g_smv.spad0 = (float*)malloc_aligned(g_smv.kSpadSize);
+    g_smv.spad1 = (float*)malloc_aligned(g_smv.kSpadSize);
 }
 
 void free_smv_global() {
@@ -562,7 +574,7 @@ void nnet_fwd(data_list* activations,
               network_t* network,
               device_t* device,
               sampling_param_t* sampling_param) {
-    init_smv_global();
+    init_smv_global(device);
 
 #ifdef __cplusplus
     nnet_mkl::MklSession* session = new nnet_mkl::MklSession();

@@ -118,20 +118,20 @@ void smv_batch_norm_layer_impl(data_list* activations,
         require_data_type(activations, 0, UncompressedHalfPrecision);
         require_data_type(weights, 0, UncompressedHalfPrecision);
         fp16array_t* bn_weights = weights->data[0].dense_hp;
-        int weights_size = bn_weights->size * sizeof(short);
-        if (weights_size > SMV_UMEM_SIZE) {
+        size_t weights_size = bn_weights->size * sizeof(short);
+        if (weights_size > g_smv->kUmemSize) {
             fprintf(stderr, "[ERROR]: Batch norm weights are larger than the "
                             "UMEM - not currently supported!\n");
         }
-        assert(weights_size <= SMV_UMEM_SIZE);
-        int inputs_size = get_dims_size(&curr_layer.inputs) * NUM_TEST_CASES;
-        int outputs_size = get_dims_size(&curr_layer.outputs) * NUM_TEST_CASES;
+        assert(weights_size <= g_smv->kUmemSize);
+        size_t inputs_size = get_dims_size(&curr_layer.inputs) * NUM_TEST_CASES;
+        size_t outputs_size = get_dims_size(&curr_layer.outputs) * NUM_TEST_CASES;
         assert(inputs_size == outputs_size);
-        if (inputs_size * sizeof(float) > SMV_SPAD_SIZE) {
+        if (inputs_size * sizeof(float) > g_smv->kSpadSize) {
             fprintf(stderr, "[ERROR]: Batch norm inputs don't fit on the "
                             "scratchpad!\n");
         }
-        assert(inputs_size * sizeof(float) <= SMV_SPAD_SIZE);
+        assert(inputs_size * sizeof(float) <= g_smv->kSpadSize);
         if (!device->use_hw_activation_func)
             curr_layer.activation = NO_ACTIVATION;
 
@@ -193,7 +193,7 @@ void smv_batch_norm_layer_impl(data_list* activations,
         batch_norm_fxp(fp32_activations->d, bn_weights, &curr_layer,
                        NUM_TEST_CASES, fp32_results->d);
         if (device->use_hw_activation_func) {
-            int input_size = get_dims_size(&curr_layer.inputs);
+            size_t input_size = get_dims_size(&curr_layer.inputs);
             activation_fun(fp32_results->d, NUM_TEST_CASES, input_size,
                            curr_layer.outputs.align_pad, curr_layer.activation);
         }

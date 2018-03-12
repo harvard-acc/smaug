@@ -98,7 +98,8 @@ void smv_pooling_layer_impl(data_list* inputs,
                             data_list* results,
                             device_t* device) {
     require_data_type(inputs, 0, UncompressedHalfPrecision);
-    pool_cfg_t pool_cfgs = smiv_pooling_divide_work(curr_layer);
+    pool_cfg_t pool_cfgs =
+            smiv_pooling_divide_work(curr_layer, (smiv_global*)g_smv);
 
     data_list* nhwc_inputs = init_data_list(1);
     begin_profiling("convert_nchw_to_blocked_nhwc", curr_layer->num);

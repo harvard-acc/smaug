@@ -649,6 +649,10 @@ static void read_device_parameters(cfg_t* all_opts, device_t* device) {
                 cfg_getbool(device_opts, "use_pipelined_dma");
         device->use_pipelined_activation_func =
                 cfg_getbool(device_opts, "use_pipelined_activation_func");
+        device->umem_size =
+                cfg_getint(device_opts, "umem_size");
+        device->spad_size =
+                cfg_getint(device_opts, "spad_size");
     } else {
         device->cpu_default_offload = IO_DMA;
         device->cpu_pooling_offload = IO_DMA;
@@ -658,6 +662,8 @@ static void read_device_parameters(cfg_t* all_opts, device_t* device) {
         device->use_hw_pooling = false;
         device->use_pipelined_dma = false;
         device->use_pipelined_activation_func = false;
+        device->umem_size = 0;
+        device->spad_size = 0;
     }
 }
 

@@ -363,7 +363,8 @@ static void set_sampling_parameters(conv_tiling_cfg* tiling,
     }
 }
 
-static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer) {
+static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer,
+                                               smv_global* g_smv) {
     // Ensure that all the tiling is done using NHWC padding on the inputs (not
     // the outputs - they get written in NCHW!).
     layer_t curr_layer_nhwc_padded = *curr_layer;
@@ -373,7 +374,7 @@ static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer) {
             calc_padding(curr_layer->inputs.height, DATA_ALIGNMENT);
 
     conv_tiling_cfg cfg;
-    const int total_input_bytes =
+    const size_t total_input_bytes =
             get_nhwc_dims_size(&curr_layer_nhwc_padded.inputs) * sizeof(float);
     bool need_input_tiling = false;
     int num_input_iters = 1;
@@ -382,33 +383,33 @@ static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer) {
     int output_2d_rows = curr_layer_nhwc_padded.outputs.rows;
     int first_output_2d_rows = curr_layer_nhwc_padded.outputs.rows;
     int last_output_2d_rows = curr_layer_nhwc_padded.outputs.rows;
-    int output_2d_size = curr_layer_nhwc_padded.outputs.rows *
+    size_t output_2d_size = curr_layer_nhwc_padded.outputs.rows *
                          (curr_layer_nhwc_padded.outputs.cols +
                           curr_layer_nhwc_padded.outputs.align_pad) *
                          sizeof(float);
-    int first_output_2d_size = output_2d_size;
-    int last_output_2d_size = output_2d_size;
+    size_t first_output_2d_size = output_2d_size;
+    size_t last_output_2d_size = output_2d_size;
 
     // If the input can't fit on the UMEM, then we need to do input tiling.
     // The input is tiled based on a strip mining mechanism, the smallest tile
     // is of (K * W * H) layout format, where K is the kernel's length, W is
     // is input's width, H is input's height.
-    if (total_input_bytes > SMV_UMEM_SIZE) {
+    if (total_input_bytes > g_smv->kUmemSize) {
         need_input_tiling = true;
-        const int single_strip_size =
+        const size_t single_strip_size =
                 curr_layer_nhwc_padded.weights.rows *
                 curr_layer_nhwc_padded.inputs.cols *
                 (curr_layer_nhwc_padded.inputs.height +
                  curr_layer_nhwc_padded.inputs.align_pad) *
                 sizeof(float);
-        if (single_strip_size > SMV_UMEM_SIZE) {
+        if (single_strip_size > g_smv->kUmemSize) {
             printf("A single strip of the input image exceeds the capacity of "
                    "the UMEM, which is not supported!\n");
             assert(false);
         }
 
         // Divide up the work over input strips.
-        const int max_strip_per_iter = SMV_UMEM_SIZE / single_strip_size;
+        const int max_strip_per_iter = g_smv->kUmemSize / single_strip_size;
         halo_rows = curr_layer_nhwc_padded.weights.rows -
                     curr_layer_nhwc_padded.stride.rows;
         num_rows_per_iter =
@@ -450,7 +451,7 @@ static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer) {
                 sizeof(float);
     }
 
-    if (output_2d_size > SMV_SPAD_SIZE) {
+    if (output_2d_size > g_smv->kSpadSize) {
         fprintf(stderr,
                 "A single output channel of the input tile"
                 "doesn't fit on the scratchpad! We "
@@ -465,21 +466,21 @@ static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer) {
     const int single_kernel_size =
             get_nhwc_dims_size(&curr_layer_nhwc_padded.weights) * sizeof(float);
     const int max_kernels_per_iter =
-                    SMV_SPAD_SIZE / single_kernel_size;
-    const int max_ofmaps_per_iter = SMV_SPAD_SIZE / output_2d_size;
+                    g_smv->kSpadSize / single_kernel_size;
+    const int max_ofmaps_per_iter = g_smv->kSpadSize / output_2d_size;
     const int num_ofmaps_per_iter =
             min2(max_kernels_per_iter, max_ofmaps_per_iter);
     const int num_output_iters =
             ceil(((float)curr_layer_nhwc_padded.outputs.height) / num_ofmaps_per_iter);
 
-    const int max_ofmaps_first_iter = SMV_SPAD_SIZE / first_output_2d_size;
+    const int max_ofmaps_first_iter = g_smv->kSpadSize / first_output_2d_size;
     const int num_ofmaps_first_iter =
             min2(max_kernels_per_iter, max_ofmaps_first_iter);
     const int num_output_first_iter =
             ceil(((float)curr_layer_nhwc_padded.outputs.height) /
                  num_ofmaps_first_iter);
 
-    const int max_ofmaps_last_iter = SMV_SPAD_SIZE / last_output_2d_size;
+    const int max_ofmaps_last_iter = g_smv->kSpadSize / last_output_2d_size;
     const int num_ofmaps_last_iter =
             min2(max_kernels_per_iter, max_ofmaps_last_iter);
     const int num_output_last_iter =
@@ -622,7 +623,7 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
     ARRAY_4D(float16, _result, host_results->data[0].dense_hp->d,
              result_height, result_rows, result_cols + result_pad);
 
-    conv_tiling_cfg tiling = convolution_divide_work(&curr_layer);
+    conv_tiling_cfg tiling = convolution_divide_work(&curr_layer, g_smv);
     set_sampling_parameters(&tiling, &curr_layer, sampling_param);
     print_conv_tiling_cfg(&tiling, lnum);
 

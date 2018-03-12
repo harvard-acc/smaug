@@ -62,7 +62,7 @@ void smv_inner_product_layer_hw_impl(packed_fp16* host_activations,
         ASSERT(host_weights && "DMA weights pointer cannot be NULL!");
         // This size includes the biases if options->do_bias is true.
         int weights_size = get_num_weights_layer(curr_layer, 0);
-        setReadyBits(local_weights, SMV_UMEM_SIZE, 0);
+        setReadyBits(local_weights, weights_size, 0);
         dma_load_and_unpack_fp16(
                 local_weights, host_weights, weights_size, 0, 0);
     }
@@ -72,7 +72,7 @@ void smv_inner_product_layer_hw_impl(packed_fp16* host_activations,
         ASSERT(host_activations && "DMA inputs pointer cannot be NULL!");
         int activations_size = get_input_activations_size(curr_layer);
         if (curr_layer->input_req == IO_DMA) {
-            setReadyBits(local_activations, SMV_SPAD_SIZE, 0);
+            setReadyBits(local_activations, activations_size, 0);
             dma_load_and_unpack_fp16(local_activations,
                                      host_activations,
                                      activations_size, 0, 0);
@@ -214,19 +214,21 @@ void smv_inner_product_layer_hw(packed_fp16* dma_activations,
     }
 }
 
-bool smv_inner_product_needs_work_division(layer_t* curr_layer) {
+bool smv_inner_product_needs_work_division(layer_t* curr_layer,
+                                           smv_global* g_smv) {
     const unsigned total_weight_bytes = WEIGHT_BYTES(curr_layer, 0);
-    return total_weight_bytes > SMV_UMEM_SIZE;
+    return total_weight_bytes > g_smv->kUmemSize;
 }
 
 // These are the conditions under which we just will not try to run the layer
 // at all.
 //
 // Same as SMIV, but it might change.
-void smv_inner_product_check_absolute_size_limits(layer_t* curr_layer) {
+void smv_inner_product_check_absolute_size_limits(layer_t* curr_layer,
+                                                  smv_global* g_smv) {
     const unsigned total_input_bytes = get_input_activations_size(curr_layer) /
                                        NUM_TEST_CASES * sizeof(float);
-    if (total_input_bytes > SMIV_SPAD_SIZE) {
+    if (total_input_bytes > g_smv->kSpadSize) {
         printf("A single input does not fit in the SPAD, which is not "
                "supported!\n");
         assert(false);
@@ -234,7 +236,7 @@ void smv_inner_product_check_absolute_size_limits(layer_t* curr_layer) {
     const unsigned total_output_bytes =
             get_output_activations_size(curr_layer) / NUM_TEST_CASES *
             sizeof(float);
-    if (total_output_bytes > SMIV_SPAD_SIZE) {
+    if (total_output_bytes > g_smv->kSpadSize) {
         printf("A single output does not fit in the SPAD, which is not "
                "supported!\n");
         assert(false);
@@ -255,10 +257,11 @@ void smv_inner_product_check_absolute_size_limits(layer_t* curr_layer) {
 // row to fake the row of biases as a dimension on each iteration. Instead, on
 // the last iteration, we set options.do_bias = True, so the last iteration
 // will dmaLoad the biases, add them, and then run the activation function.
-fc_cfg_t smv_inner_product_tile_rowwise(layer_t* curr_layer) {
+fc_cfg_t smv_inner_product_tile_rowwise(layer_t* curr_layer,
+                                        smv_global* g_smv) {
     fc_cfg_t fc_cfgs;
-    smv_inner_product_check_absolute_size_limits(curr_layer);
-    if (!smv_inner_product_needs_work_division(curr_layer)) {
+    smv_inner_product_check_absolute_size_limits(curr_layer, g_smv);
+    if (!smv_inner_product_needs_work_division(curr_layer, g_smv)) {
         // No work division means to return an fc_cfg_t that is holds the
         // entire weights.
         init_smiv_work_cfg(&fc_cfgs, 1);
@@ -275,11 +278,11 @@ fc_cfg_t smv_inner_product_tile_rowwise(layer_t* curr_layer) {
             curr_layer->weights.cols + curr_layer->weights.align_pad;
     const unsigned minimum_work_size =
             NUM_PE_INSTS * num_inputs * sizeof(float);
-    if (minimum_work_size > SMV_UMEM_SIZE) {
+    if (minimum_work_size > g_smv->kUmemSize) {
         printf("This weights layer exceeds our current capability to run!\n");
         assert(false);
     }
-    const unsigned max_work_units_per_iteration = SMV_UMEM_SIZE / minimum_work_size;
+    const unsigned max_work_units_per_iteration = g_smv->kUmemSize / minimum_work_size;
     const unsigned bytes_per_iteration =
             max_work_units_per_iteration * minimum_work_size;
     const unsigned num_rows_per_iteration =
@@ -475,7 +478,7 @@ void smv_inner_product_layer_impl_rowwise(data_list* host_activations,
            "SMV inner product requires transposed weights!");
 
     INFO_MSG("Running rowwise inner product.\n");
-    fc_cfg_t fc_cfgs = smv_inner_product_tile_rowwise(curr_layer);
+    fc_cfg_t fc_cfgs = smv_inner_product_tile_rowwise(curr_layer, g_smv);
     INFO_MSG("Inner product layer %d work configuration:\n", curr_layer->num);
     print_smiv_work_cfg(&fc_cfgs);
     const size_t inputs_size = get_dims_size(&curr_layer->inputs) *

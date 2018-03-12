@@ -242,6 +242,8 @@ typedef struct _device_t {
     bool use_hw_pooling;
     bool use_pipelined_dma;
     bool use_pipelined_activation_func;
+    size_t umem_size;
+    size_t spad_size;
     // An implementation can pass any pointer containing architecture specific
     // state that must be shared.
     void* session;

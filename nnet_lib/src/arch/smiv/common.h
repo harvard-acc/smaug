@@ -14,10 +14,10 @@
 // Each SMIV block has two scratchpads of 64KB each, but the real accelerator
 // operates on 16-bit data, whereas we are using 32-bit data. To make sure we
 // can fit the same size inputs, we double the per-scratchpad size.
-#define SMIV_SPAD_SIZE (131072)
+#define SMIV_DEFAULT_SPAD_SIZE (131072)
 
 // The UMEM on the NIC is 3 blocks of 1MB each.
-#define SMIV_UMEM_SIZE (3*1048576)
+#define SMIV_DEFAULT_UMEM_SIZE (3*1048576)
 
 // These are GLOBAL arrays which cannot be referenced directly by a HW
 // function. Instead, pass them to the top level functions as function
@@ -32,6 +32,8 @@ typedef struct _smiv_global {
     unsigned kReductionHw;
     unsigned kBatchNormHw;
     unsigned kPoolingHw;
+    size_t kUmemSize;
+    size_t kSpadSize;
 } smiv_global;
 
 extern smiv_global g_smiv;
@@ -55,9 +57,11 @@ void print_smiv_work_cfg(smiv_work_cfg_t* cfg);
 // Returns whether the hardware can execute this activation function on this
 // layer type or not.
 bool smiv_is_supported_activation_func(layer_type ltype, activation_type func);
-bool smiv_inner_product_needs_work_division(layer_t* curr_layer);
-void smiv_inner_product_check_absolute_size_limits(layer_t* curr_layer);
-pool_cfg_t smiv_pooling_divide_work(layer_t* curr_layer);
+bool smiv_inner_product_needs_work_division(layer_t* curr_layer,
+                                            smiv_global* g_smiv);
+void smiv_inner_product_check_absolute_size_limits(layer_t* curr_layer,
+                                                   smiv_global* g_smiv);
+pool_cfg_t smiv_pooling_divide_work(layer_t* curr_layer, smiv_global* g_smiv);
 
 float* smiv_activation_function_impl(float* activations,
                                      layer_t* layer,

@@ -43,18 +43,18 @@ static void smiv_pooling_layer_hw(float* host_activations,
 }
 
 // Pooling work division.
-pool_cfg_t smiv_pooling_divide_work(layer_t* curr_layer) {
+pool_cfg_t smiv_pooling_divide_work(layer_t* curr_layer, smiv_global* g_smiv) {
     pool_cfg_t pool_cfgs;
     dims_t input_nhwc_dims =
             nchw_to_nhwc_dims(&curr_layer->inputs, DATA_ALIGNMENT);
     unsigned total_input_bytes = get_dims_size(&input_nhwc_dims) * sizeof(float);
-    if (total_input_bytes > SMIV_UMEM_SIZE) {
+    if (total_input_bytes > g_smiv->kUmemSize) {
         fprintf(stderr,
                 "A single input image exceeds the capacity of the UMEM, which "
                 "is unsupported!\n");
         assert(false);
     }
-    if (total_input_bytes <= SMIV_SPAD_SIZE) {
+    if (total_input_bytes <= g_smiv->kSpadSize) {
         PRINT_MSG_V("Entire input problem fits into the local memory.\n");
         init_smiv_work_cfg(&pool_cfgs, 1);
         pool_cfgs.iteration[0].rows = curr_layer->inputs.rows;
@@ -72,12 +72,12 @@ pool_cfg_t smiv_pooling_divide_work(layer_t* curr_layer) {
             (curr_layer->inputs.cols + curr_layer->inputs.align_pad) *
             sizeof(float);
 
-    if (input_block_size > SMIV_SPAD_SIZE) {
+    if (input_block_size > g_smiv->kSpadSize) {
         fprintf(stderr, "Tiled input handling is not yet supported!\n");
         assert(false);
     }
 
-    const int num_blocks_per_iter = SMIV_SPAD_SIZE / input_block_size;
+    const int num_blocks_per_iter = g_smiv->kSpadSize / input_block_size;
     const int num_channels_per_iter = num_blocks_per_iter * VECTOR_SIZE;
     const int total_channels = curr_layer->inputs.height;
     const int num_iterations =
@@ -101,7 +101,7 @@ void smiv_pooling_layer_impl(data_list* inputs,
                              layer_t* curr_layer,
                              smiv_global* g_smiv,
                              data_list* results) {
-    pool_cfg_t pool_cfgs = smiv_pooling_divide_work(curr_layer);
+    pool_cfg_t pool_cfgs = smiv_pooling_divide_work(curr_layer, g_smiv);
 
     data_list* nhwc_inputs = init_data_list(1);
     begin_profiling("convert_nchw_to_blocked_nhwc", curr_layer->num);
