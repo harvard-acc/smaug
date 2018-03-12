@@ -10,7 +10,7 @@
 
 #include "profiling.h"
 
-static log_entry_t* profile_log;
+static profile_log* log;
 
 // Indicates whether profiling has been enabled or not. If this is false, all
 // calls to profiling functions are nops.
@@ -50,8 +50,17 @@ uint64_t get_nsecs() {
 }
 
 void init_profiling_log() {
-    profile_log = NULL;
+    log = (profile_log*)malloc(sizeof(profile_log));
     profiling_enabled = true;
+    log->head = NULL;
+    log->tail = NULL;
+    log->dump_start = NULL;
+    log->outfile = fopen("profiling.log", "w");
+    if (!log->outfile) {
+        perror("Unable to open profiling.log file");
+        exit(-1);
+    }
+    write_profiling_log_header(log->outfile);
 }
 
 // Allocate a new log entry.
@@ -77,23 +86,28 @@ void free_log_entry(log_entry_t* entry) {
     free(entry);
 }
 
-// Push this new entry onto the stack.
-void push_to_log_entry_stack(log_entry_t* entry, log_entry_t** stack_top) {
-    if (stack_top == NULL) {
-      entry->next = NULL;
-      *stack_top = entry;
+void append_to_profile_log(log_entry_t* entry, profile_log* log) {
+    entry->next = NULL;
+    if (log->head == NULL) {
+      log->head = entry;
     } else {
-      entry->next = *stack_top;
-      *stack_top = entry;
+      log->tail->next = entry;
     }
+    log->tail = entry;
+    if (!log->dump_start)
+        log->dump_start = entry;
 }
 
 // Find the newest incomplete entry in the profiling log.
 log_entry_t* find_newest_incomplete_entry() {
-    log_entry_t* entry = profile_log;
-    while (!(entry && entry->profile_data.end_time == 0))
-      entry = entry->next;
-    return entry;
+    log_entry_t* entry = log->head;
+    log_entry_t* newest = NULL;
+    while (entry) {
+        if (entry->profile_data.end_time == 0)
+            newest = entry;
+        entry = entry->next;
+    }
+    return newest;
 }
 
 void begin_profiling(const char* label, int layer_num) {
@@ -101,7 +115,7 @@ void begin_profiling(const char* label, int layer_num) {
         return;
 
     log_entry_t* entry = new_log_entry(label, layer_num, UNSAMPLED);
-    push_to_log_entry_stack(entry, &profile_log);
+    append_to_profile_log(entry, log);
 
     // Assign the rest of the metadata fields.
     entry->profile_data.end_time = 0;
@@ -119,7 +133,7 @@ void end_profiling() {
     if (!profiling_enabled)
         return;
     log_entry_t* entry = find_newest_incomplete_entry();
-		if (!entry || entry->profile_data.end_time != 0) {
+    if (!entry || entry->profile_data.end_time != 0) {
         fprintf(stderr, "Could not find the corresponding entry for this "
                         "end_profiling call! Please ensure that all "
                         "begin_profiling() calls are paired with at most one "
@@ -129,15 +143,17 @@ void end_profiling() {
     entry->profile_data.end_time = get_nsecs();
 }
 
-// Format is:
-//
-// num,label,function,invocation,start_time,end_time,elapsed_time
-void write_profiling_log(FILE* out) {
-    fprintf(out, "layer_num,label,invocation,type,start_time,end_time,elapsed_"
-                 "time,sampled_iters,total_iters\n");
-    log_entry_t* curr_entry = profile_log;
-    while (curr_entry) {
-        fprintf(out,
+void write_profiling_log_header(FILE* out) {
+    fprintf(out, "layer_num,label,invocation,type,start_time,end_time,"
+                 "elapsed_time,sampled_iters,total_iters\n");
+}
+
+// Dump the profiling log up until either the end of the log or the first
+// incomplete entry, whichever is first.
+void write_profiling_log(profile_log* log) {
+    log_entry_t* curr_entry = log->dump_start;
+    while (curr_entry && curr_entry->profile_data.end_time != 0) {
+        fprintf(log->outfile,
                 "%d,%s,%d,%s,%lu,%lu,%lu,%ld,%ld\n",
                 curr_entry->layer_num,
                 curr_entry->label.str,
@@ -151,19 +167,14 @@ void write_profiling_log(FILE* out) {
                 curr_entry->sample_data.total_iters);
         curr_entry = curr_entry->next;
     }
+    log->dump_start = curr_entry;
+    fflush(log->outfile);
 }
 
 int dump_profiling_log() {
     if (!profiling_enabled)
         return 0;
-
-    FILE* profile = fopen("profiling.log", "w");
-    if (!profile) {
-      perror("Unable to open profiling.log file");
-      return -1;
-    }
-    write_profiling_log(profile);
-    fclose(profile);
+    write_profiling_log(log);
     return 0;
 }
 
@@ -171,13 +182,16 @@ void close_profiling_log() {
     if (!profiling_enabled)
         return;
 
-    log_entry_t* curr_entry = profile_log;
+    log_entry_t* curr_entry = log->head;
     while (curr_entry) {
         log_entry_t* next = curr_entry->next;
         free_log_entry(curr_entry);
         curr_entry = next;
     }
-    profile_log = NULL;
+    fclose(log->outfile);
+    log->outfile = NULL;
+    log->head = NULL;
+    log->tail = NULL;
     profiling_enabled = false;
 }
 

@@ -52,6 +52,17 @@ typedef struct _log_entry_t {
     struct _log_entry_t* next;
 } log_entry_t;
 
+typedef struct _profile_log {
+    // Head of the list.
+    log_entry_t* head;
+    // Tail of the list.
+    log_entry_t* tail;
+    // The first entry that has not yet been committed to the file.
+    log_entry_t* dump_start;
+    // The profiling log file pointer.
+    FILE* outfile;
+} profile_log;
+
 // Return the current timestamp counter via rdtscp.
 //
 // Remember to use this carefully! Results obtained from using this can be
@@ -92,8 +103,11 @@ void end_profiling();
 // Dumps all profiling logs to a file "profiling.log".
 int dump_profiling_log();
 
+// Writes the profiling log header.
+void write_profiling_log_header(FILE* out);
+
 // Writes profiling logs to the specified file pointer.
-void write_profiling_log(FILE* out);
+void write_profiling_log(profile_log* log);
 
 // Initialize the profiling system.
 void init_profiling_log();
