@@ -216,6 +216,7 @@ result_buf run_layer(data_list* activations,
                       curr_layer.outputs.cols + curr_layer.outputs.align_pad,
                       curr_layer.outputs.height);
     }
+    dump_profiling_log();
     return result_loc;
 }
 

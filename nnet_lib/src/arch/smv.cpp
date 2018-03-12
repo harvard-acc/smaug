@@ -401,6 +401,7 @@ result_buf run_layer(data_list* activations,
                                    layers[layer_num].outputs.align_pad);
     }
     end_profiling();
+    dump_profiling_log();
     return result_loc;
 }
 
