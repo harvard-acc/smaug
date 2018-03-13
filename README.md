@@ -306,7 +306,7 @@ predicted label are written to `output_labels.out`.
 
 **UPDATE**: These simulation setups are no longer working because they have not
 been updated for many months. Instead, please refer to
-[https://github.com/xyzsam/composability](this repo) for working simulation
+[this repo](https://github.com/xyzsam/composability) for working simulation
 setups instead.
 
 The quickest way to get started with simulation is to run an already-existing
