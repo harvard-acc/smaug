@@ -141,6 +141,7 @@ static inline void pack_and_store_fp16(float* local_data,
             _local_data_hp[page_offset_vec + v / 2] = packed_data;
         }
         if (use_dma) {
+            transfer_size = next_multiple(transfer_size, 32);
             dmaStore(remote_data + remote_offset + curr_remote_offset,
                      local_data + local_offset + curr_local_offset,
                      transfer_size);
