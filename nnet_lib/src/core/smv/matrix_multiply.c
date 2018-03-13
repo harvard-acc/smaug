@@ -30,6 +30,7 @@ void matrix_multiply_transpose_smv_nobatch_vec_fxp(float* a,
                                                    int a_pad,
                                                    activation_type act_func,
                                                    int result_start,
+                                                   bool accumulate,
                                                    float* result) {
     int a_width = b_width;
     ASSERT(b_width % VECTOR_SIZE == 0 &&
@@ -46,8 +47,14 @@ void matrix_multiply_transpose_smv_nobatch_vec_fxp(float* a,
     for (int input_act = 0; input_act < a_height; input_act++) {
         wgt_row:
         for (int wgt_row = 0; wgt_row < b_height; wgt_row += NUM_PE_INSTS) {
-            if (wgt_row % VECTOR_SIZE == 0)
-                partial_sums = zero;
+            if (wgt_row % VECTOR_SIZE == 0) {
+                if (accumulate) {
+                    partial_sums = _result[input_act][(result_start + wgt_row) /
+                                                      VECTOR_SIZE];
+                } else {
+                    partial_sums = zero;
+                }
+            }
 
             wgt_col:
             for (int wgt_col = 0; wgt_col < b_width_vec; wgt_col+=NUM_MACC_INSTS) {

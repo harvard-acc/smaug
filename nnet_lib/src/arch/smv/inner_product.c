@@ -26,6 +26,7 @@ typedef struct _inner_product_options {
     bool do_bias;
     bool input_in_spad0;
     bool use_pipelined_dma;
+    bool accumulate;
     int result_start;
     int dma_store_start;
 } smv_inner_product_options;
@@ -108,6 +109,19 @@ void smv_inner_product_layer_hw_impl(packed_fp16* host_activations,
         }
     }
 
+    size_t result_size = get_output_activations_size(curr_layer);
+    if (options->accumulate && options->psums_req != IO_NONE) {
+        if (options->psums_req == IO_DMA) {
+            dma_load_and_unpack_fp16(local_results, host_results, result_size,
+                                     options->result_start,
+                                     options->result_start);
+        } else {
+            acp_load_and_unpack_fp16(local_results, host_results, result_size,
+                                     options->result_start,
+                                     options->result_start);
+        }
+    }
+
     matrix_multiply_transpose_smv(
             local_activations,
             local_weights,
@@ -117,6 +131,7 @@ void smv_inner_product_layer_hw_impl(packed_fp16* host_activations,
             curr_layer->inputs.align_pad,
             curr_layer->activation,
             options->result_start,
+            options->accumulate,
             local_results);
 
     VEC_ARRAY_1D(v8fp_t, _local_results, local_results);
@@ -139,9 +154,6 @@ void smv_inner_product_layer_hw_impl(packed_fp16* host_activations,
         }
     }
 
-    // If we didn't run the activation function or add the bias, and we expect
-    // outputs to go out via ACP, then we need to explicitly store it back.
-    size_t result_size = get_output_activations_size(curr_layer);
     if (curr_layer->output_req == IO_ACP ||
         curr_layer->output_req == IO_CACHE) {
         acp_pack_and_store_fp16(host_results,
@@ -745,6 +757,23 @@ void smv_inner_product_layer_impl_rowwise(data_list* host_activations,
                 options.dma_store_start = 0;
             }
 
+
+            options.accumulate = tile_num > 0;
+            ARRAY_2D(float16, _host_results, host_results->data[0].dense_hp->d,
+                     curr_layer->outputs.cols + curr_layer->outputs.align_pad);
+            if (options.accumulate && use_decomp_result_buf) {
+                if (curr_layer->input_req != IO_NONE)
+                    options.psums_req = curr_layer->input_req;
+                else
+                    options.psums_req = device->cpu_default_offload;
+                for (int n = 0; n < NUM_TEST_CASES; n++) {
+                    memcpy(accel_result_loc, &_host_results[n][current_row],
+                           strip->weights_dims[1] * sizeof(float16));
+                }
+            } else {
+                options.psums_req = IO_NONE;
+            }
+
             smv_inner_product_layer_hw_dispatch(
                     host_inputs_buffer->d,
                     (packed_fp16*)curr_dense_weights_loc,
@@ -755,10 +784,6 @@ void smv_inner_product_layer_impl_rowwise(data_list* host_activations,
 
             // Copy the results from result_buf to host_results.
             if (use_decomp_result_buf) {
-                ARRAY_2D(float16, _host_results,
-                         host_results->data[0].dense_hp->d,
-                         curr_layer->outputs.cols +
-                                 curr_layer->outputs.align_pad);
                 for (int n = 0; n < NUM_TEST_CASES; n++) {
                     memcpy(&_host_results[n][current_row],
                            accel_result_loc + options.dma_store_start,

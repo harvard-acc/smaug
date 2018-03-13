@@ -18,6 +18,7 @@ void matrix_multiply_transpose_smv(float* a,
                                    int a_pad,
                                    activation_type act_func,
                                    int result_start,
+                                   bool accumulate,
                                    float* result);
 
 #endif

@@ -21,8 +21,9 @@ void matrix_multiply_transpose_smv(float* a,
                                    int a_pad,
                                    activation_type act_func,
                                    int result_start,
+                                   bool accumulate,
                                    float* result) {
-    matrix_multiply_transpose_smv_nobatch_vec_fxp(a, b, a_height, b_height,
-                                                  b_width, a_pad, act_func,
-                                                  result_start, result);
+    matrix_multiply_transpose_smv_nobatch_vec_fxp(
+            a, b, a_height, b_height, b_width, a_pad, act_func, result_start,
+            accumulate, result);
 }
