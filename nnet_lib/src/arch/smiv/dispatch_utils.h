@@ -119,6 +119,48 @@ static inline void dma_store_wrapper(float* host_dest,
 // *_offset_64b is a 64-byte-aligned offset into either the source and
 // destination from which to start copying data, used for the 64-byte aligned
 // variants.
+//
+// coherentLoad16/coherentStore16 are used to load or store a single 16-byte
+// value. They handle the requirement that all accesses to local storage be at
+// 32-byte granularity and size.
+
+ALWAYS_INLINE
+static inline void coherentLoad16(float* local_dest,
+                                  float* host_src,
+                                  int local_offset_16b,
+                                  int host_offset_16b) {
+    VEC_ARRAY_1D(v8fp_t, _local_dest, local_dest);
+    VEC_ARRAY_1D(v4fp_t, _host_src, host_src);
+    v4fp_t host_data = _host_src[host_offset_16b];
+    int local_dest_32b = local_offset_16b / 2;
+    int vec_offset = (local_offset_16b % 2) * 4;
+    // Perform a read-modify-write operation.
+    v8fp_t local_data = _local_dest[local_offset_16b / 2];
+    local_data[vec_offset] = host_data[0];
+    local_data[vec_offset + 1] = host_data[1];
+    local_data[vec_offset + 2] = host_data[2];
+    local_data[vec_offset + 3] = host_data[3];
+    _local_dest[local_dest_32b] = local_data;
+}
+
+ALWAYS_INLINE
+static inline void coherentStore16(float* host_dest,
+                                   float* local_src,
+                                   int host_offset_16b,
+                                   int local_offset_16b) {
+    VEC_ARRAY_1D(v8fp_t, _local_src, local_src);
+    VEC_ARRAY_1D(v4fp_t, _host_dest, host_dest);
+    int local_src_32b = local_offset_16b / 2;
+    int vec_offset = (local_offset_16b % 2) * 4;
+    // Read 32-bytes, then extract the 16 bytes we want.
+    v8fp_t local_data = _local_src[local_src_32b];
+    v4fp_t host_data;
+    host_data[0] = local_data[vec_offset + 0];
+    host_data[1] = local_data[vec_offset + 1];
+    host_data[2] = local_data[vec_offset + 2];
+    host_data[3] = local_data[vec_offset + 3];
+    _host_dest[host_offset_16b] = host_data;
+}
 
 ALWAYS_INLINE
 static inline void coherentLoad32(float* local_dest,
@@ -174,7 +216,7 @@ static inline void coherentLoad64(float* local_dest,
     // send it back.
     if (has_remaining) {
         v16fp_t host_cacheline = _host_src_64[elems_64 + host_offset_64b];
-        v16fp_t local_cacheline = _local_dest_64[elems_64 + host_offset_64b];
+        v16fp_t local_cacheline = _local_dest_64[elems_64 + local_offset_64b];
         int remaining_qwords = transfer_size % CACHELINE_SIZE;
         rmw:
         for (int i = 0; i < remaining_qwords; i++) {
@@ -207,7 +249,7 @@ static inline void coherentStore64(float* host_dest,
     // send it back.
     if (remainder > 0) {
         v16fp_t host_cacheline = _host_dest_64[elems_64 + host_offset_64b];
-        v16fp_t local_cacheline = _local_src_64[elems_64 + host_offset_64b];
+        v16fp_t local_cacheline = _local_src_64[elems_64 + local_offset_64b];
         int remaining_qwords = transfer_size % CACHELINE_SIZE;
         rmw:
         for (int i = 0; i < remaining_qwords; i++) {
@@ -215,6 +257,29 @@ static inline void coherentStore64(float* host_dest,
         }
         _host_dest_64[elems_64] = host_cacheline;
     }
+}
+
+ALWAYS_INLINE
+static inline void coherentStore(float* host_dest,
+                                 float* local_src,
+                                 int transfer_size,
+                                 int host_offset_4b,
+                                 int local_offset_4b) {
+    // Handle unaligned store at the beginning.
+    ASSERT(transfer_size % 16 == 0 &&
+           "Transfer size must be a multiple of 16 bytes!");
+    if (transfer_size % 32 == 16) {
+        coherentStore16(
+                host_dest, local_src, host_offset_4b / 4, local_offset_4b / 4);
+        transfer_size -= 16;
+        host_offset_4b += 4;
+        local_offset_4b += 4;
+    }
+    coherentStore64(host_dest,
+                    local_src,
+                    transfer_size,
+                    host_offset_4b / 16,
+                    local_offset_4b / 16);
 }
 
 //=--------------------------------------------------------------------------=//

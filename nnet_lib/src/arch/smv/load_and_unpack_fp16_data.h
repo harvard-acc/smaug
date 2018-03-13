@@ -108,8 +108,7 @@ static inline void pack_and_store_fp16(float* local_data,
     VEC_ARRAY_1D(v8fp_t, _local_data_sp, local_data);
     const int page_size = (1 << LOG_PAGE_SIZE);
     const int max_transfer_size = page_size;
-    const int total_bytes =
-            next_multiple(num_elems * sizeof(float16), CACHELINE_SIZE);
+    const int total_bytes = next_multiple(num_elems * sizeof(float16), 16);
     int num_xfers = FRAC_CEIL(total_bytes, max_transfer_size);
     int num_bytes_remaining = total_bytes;
     // packed_fp16 is a 4-byte type, but float16 is 2 bytes, so in order to
@@ -146,12 +145,12 @@ static inline void pack_and_store_fp16(float* local_data,
                      local_data + local_offset + curr_local_offset,
                      transfer_size);
         } else {
-            coherentStore32(
+            coherentStore(
                     (float*)remote_data,
                     local_data,
                     transfer_size,
-                    (remote_offset + curr_remote_offset) / VECTOR_SIZE,
-                    (local_offset + curr_local_offset) / VECTOR_SIZE);
+                    (remote_offset + curr_remote_offset),
+                    (local_offset + curr_local_offset));
         }
 
         num_bytes_remaining -= transfer_size;
