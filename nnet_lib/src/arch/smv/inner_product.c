@@ -515,6 +515,7 @@ void smv_run_eltwise_ops(data_list* host_activations,
                          bool input_in_spad0,
                          bool use_hw_activation_func) {
     layer_t eltwise_layer;
+    eltwise_layer.type = curr_layer->type;
     eltwise_layer.num = curr_layer->num;
     eltwise_layer.inputs = curr_layer->inputs;
     eltwise_layer.outputs = curr_layer->outputs;
@@ -735,8 +736,10 @@ void smv_inner_product_layer_impl_rowwise(data_list* host_activations,
            "SMV inner product requires transposed weights!");
 
     INFO_MSG("Running rowwise inner product.\n");
+    begin_profiling("smv_inner_product_tile_work", curr_layer->num);
     inner_product_tiling_cfg* fc_cfgs =
             smv_inner_product_tile_work(curr_layer, g_smv);
+    end_profiling();
     INFO_MSG("Inner product layer %d work configuration:\n", curr_layer->num);
     print_inner_product_tiling_cfg(fc_cfgs);
     const size_t inputs_size = get_dims_size(&curr_layer->inputs) *
@@ -810,8 +813,12 @@ void smv_inner_product_layer_impl_rowwise(data_list* host_activations,
 
                 // If decompression is needed, we'll also want to send back the
                 // pre-activation function outputs.
-                if (partial_layer.output_req == IO_NONE)
-                    partial_layer.output_req = curr_layer->output_req;
+                if (partial_layer.output_req == IO_NONE) {
+                    if (curr_layer->output_req != IO_NONE)
+                        partial_layer.output_req = curr_layer->output_req;
+                    else
+                        partial_layer.output_req = device->cpu_default_offload;
+                }
 
                 // Only send back the pixels produced by this strip.
                 partial_layer.outputs.cols = strip->weights_dims[1];
