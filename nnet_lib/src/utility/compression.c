@@ -144,7 +144,8 @@ fp16array_t* pack_data_fp16(farray_t* sp_data, packed_fp16* dest_buf) {
     } else {
         hp_data->d = dest_buf;
     }
-    memset(hp_data->d, 0, hp_data->size * sizeof(packed_fp16));
+    memset(hp_data->d, 0,
+           next_multiple(hp_data->size * sizeof(packed_fp16), CACHELINE_SIZE));
     for (size_t i = 0; i < sp_data->size; i++) {
         bool use_lo_half = (i % 2 == 0);
         hp_data->d[i / 2] |= ((int)_CVT_SS_SH(sp_data->d[i], 0))
@@ -173,7 +174,8 @@ farray_t* unpack_data_fp16x4(fp16array_t* hp_data, float* dest_buf) {
     } else {
         sp_data->d = dest_buf;
     }
-    memset(sp_data->d, 0, sp_data->size * sizeof(float));
+    memset(sp_data->d, 0,
+           next_multiple(sp_data->size * sizeof(float), CACHELINE_SIZE));
 
     for (size_t i = 0; i < hp_data->size / 4; i++) {
         v8short_t packed_data = *(v8short_t*)&hp_data->d[4 * i];
