@@ -374,84 +374,102 @@ static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer,
             calc_padding(curr_layer->inputs.height, DATA_ALIGNMENT);
 
     conv_tiling_cfg cfg;
-    const size_t total_input_bytes =
+    size_t total_input_bytes =
             get_nhwc_dims_size(&curr_layer_nhwc_padded.inputs) * sizeof(float);
-    bool need_input_tiling = false;
-    int num_input_iters = 1;
-    int halo_rows = 0;
-    int num_rows_per_iter = curr_layer_nhwc_padded.inputs.rows;
-    int output_2d_rows = curr_layer_nhwc_padded.outputs.rows;
-    int first_output_2d_rows = curr_layer_nhwc_padded.outputs.rows;
-    int last_output_2d_rows = curr_layer_nhwc_padded.outputs.rows;
-    size_t output_2d_size = curr_layer_nhwc_padded.outputs.rows *
-                         (curr_layer_nhwc_padded.outputs.cols +
-                          curr_layer_nhwc_padded.outputs.align_pad) *
-                         sizeof(float);
-    size_t first_output_2d_size = output_2d_size;
-    size_t last_output_2d_size = output_2d_size;
-
-    // If the input can't fit on the UMEM, then we need to do input tiling.
-    // The input is tiled based on a strip mining mechanism, the smallest tile
-    // is of (K * W * H) layout format, where K is the kernel's length, W is
-    // is input's width, H is input's height.
-    if (total_input_bytes > g_smv->kUmemSize) {
-        need_input_tiling = true;
-        const size_t single_strip_size =
-                curr_layer_nhwc_padded.weights.rows *
-                curr_layer_nhwc_padded.inputs.cols *
-                (curr_layer_nhwc_padded.inputs.height +
-                 curr_layer_nhwc_padded.inputs.align_pad) *
-                sizeof(float);
+    bool need_input_tiling = (total_input_bytes > g_smv->kUmemSize);
+    // The following variables need to be computed for creating tiles.
+    int halo_rows;
+    int max_rows_per_input_tile;
+    int num_input_tiles;
+    int first_input_tile_output_rows;
+    int inner_input_tile_output_rows;
+    int last_input_tile_output_rows;
+    size_t first_input_tile_output_2d_size;
+    size_t inner_input_tile_output_2d_size;
+    size_t last_input_tile_output_2d_size;
+    if (!need_input_tiling) {
+        // If the whole input can fit on the UMEM, initialize the variables with
+        // single input tile setting.
+        halo_rows = 0;
+        num_input_tiles = 1;
+        max_rows_per_input_tile = curr_layer_nhwc_padded.inputs.rows;
+        first_input_tile_output_rows = curr_layer_nhwc_padded.outputs.rows;
+        inner_input_tile_output_rows = curr_layer_nhwc_padded.outputs.rows;
+        last_input_tile_output_rows = curr_layer_nhwc_padded.outputs.rows;
+        size_t output_2d_size = curr_layer_nhwc_padded.outputs.rows *
+                                (curr_layer_nhwc_padded.outputs.cols +
+                                 curr_layer_nhwc_padded.outputs.align_pad) *
+                                sizeof(float);
+        first_input_tile_output_2d_size = output_2d_size;
+        inner_input_tile_output_2d_size = output_2d_size;
+        last_input_tile_output_2d_size = output_2d_size;
+    } else {
+        // If the input can't fit on the UMEM, then we need to do input tiling.
+        // The input is tiled based on a strip mining mechanism, the smallest
+        // tile is of (K * W * H) layout format, where K is the kernel's length,
+        // W is input's width, H is input's height.
+        size_t single_strip_size = curr_layer_nhwc_padded.weights.rows *
+                                   curr_layer_nhwc_padded.inputs.cols *
+                                   (curr_layer_nhwc_padded.inputs.height +
+                                    curr_layer_nhwc_padded.inputs.align_pad) *
+                                   sizeof(float);
         if (single_strip_size > g_smv->kUmemSize) {
             printf("A single strip of the input image exceeds the capacity of "
                    "the UMEM, which is not supported!\n");
             assert(false);
         }
-
-        // Divide up the work over input strips.
-        const int max_strip_per_iter = g_smv->kUmemSize / single_strip_size;
+        // Divide up the input over strips.
         halo_rows = curr_layer_nhwc_padded.weights.rows -
                     curr_layer_nhwc_padded.stride.rows;
-        num_rows_per_iter =
-                max_strip_per_iter * curr_layer_nhwc_padded.weights.rows;
-        num_input_iters =
+        int max_strip_per_input_tile = g_smv->kUmemSize / single_strip_size;
+        max_rows_per_input_tile =
+                max_strip_per_input_tile * curr_layer_nhwc_padded.weights.rows;
+        num_input_tiles =
                 ceil((float)(curr_layer_nhwc_padded.inputs.rows - halo_rows) /
-                     (curr_layer_nhwc_padded.weights.rows * max_strip_per_iter -
+                     (curr_layer_nhwc_padded.weights.rows *
+                              max_strip_per_input_tile -
                       halo_rows));
-        const int num_rows_last_iter =
-                curr_layer_nhwc_padded.inputs.rows -
-                (num_rows_per_iter - halo_rows) * (num_input_iters - 1);
-        output_2d_rows =
-                (num_rows_per_iter - curr_layer_nhwc_padded.weights.rows) /
-                        curr_layer_nhwc_padded.stride.rows+
-                1;
-        output_2d_size =
-                output_2d_rows *
-                (curr_layer_nhwc_padded.outputs.cols +
-                 curr_layer_nhwc_padded.outputs.align_pad) *
-                sizeof(float);
-        first_output_2d_rows =
-                (num_rows_per_iter - curr_layer_nhwc_padded.weights.rows +
+
+        // Compute the output rows, output 2D feture map size for the first input
+        // tile, last input tile and the inner tiles. These will be used for
+        // creating output tiles.
+        first_input_tile_output_rows =
+                (max_rows_per_input_tile - curr_layer_nhwc_padded.weights.rows +
                  curr_layer_nhwc_padded.pad.top) /
                         curr_layer_nhwc_padded.stride.rows +
                 1;
-        first_output_2d_size = first_output_2d_rows *
-                               (curr_layer_nhwc_padded.outputs.cols +
-                                curr_layer_nhwc_padded.outputs.align_pad) *
-                               sizeof(float);
-        last_output_2d_rows =
-                (num_rows_last_iter - curr_layer_nhwc_padded.weights.rows +
+        first_input_tile_output_2d_size =
+                first_input_tile_output_rows *
+                (curr_layer_nhwc_padded.outputs.cols +
+                 curr_layer_nhwc_padded.outputs.align_pad) *
+                sizeof(float);
+        inner_input_tile_output_rows =
+                (max_rows_per_input_tile -
+                 curr_layer_nhwc_padded.weights.rows) /
+                        curr_layer_nhwc_padded.stride.rows +
+                1;
+        inner_input_tile_output_2d_size =
+                inner_input_tile_output_rows *
+                (curr_layer_nhwc_padded.outputs.cols +
+                 curr_layer_nhwc_padded.outputs.align_pad) *
+                sizeof(float);
+        int num_rows_last_input_tile =
+                curr_layer_nhwc_padded.inputs.rows -
+                (max_rows_per_input_tile - halo_rows) * (num_input_tiles - 1);
+        last_input_tile_output_rows =
+                (num_rows_last_input_tile -
+                 curr_layer_nhwc_padded.weights.rows +
                  curr_layer_nhwc_padded.pad.bottom) /
                         curr_layer_nhwc_padded.stride.rows +
                 1;
-        last_output_2d_size =
-                last_output_2d_rows *
+        last_input_tile_output_2d_size =
+                last_input_tile_output_rows *
                 (curr_layer_nhwc_padded.outputs.cols +
                  curr_layer_nhwc_padded.outputs.align_pad) *
                 sizeof(float);
     }
 
-    if (output_2d_size > g_smv->kSpadSize) {
+    if (first_input_tile_output_2d_size > g_smv->kSpadSize) {
         fprintf(stderr,
                 "A single output channel of the input tile"
                 "doesn't fit on the scratchpad! We "
@@ -463,50 +481,23 @@ static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer,
     // The number of output feature maps we can support at once is determined
     // by how many weights and output feature maps can fit into the two
     // scratchpads.
-    const int single_kernel_size =
+    int single_kernel_size =
             get_nhwc_dims_size(&curr_layer_nhwc_padded.weights) * sizeof(float);
-    const int max_kernels_per_iter =
-                    g_smv->kSpadSize / single_kernel_size;
-    const int max_ofmaps_per_iter = g_smv->kSpadSize / output_2d_size;
-    const int num_ofmaps_per_iter =
-            min2(max_kernels_per_iter, max_ofmaps_per_iter);
-    const int num_output_iters =
-            ceil(((float)curr_layer_nhwc_padded.outputs.height) / num_ofmaps_per_iter);
-
-    const int max_ofmaps_first_iter = g_smv->kSpadSize / first_output_2d_size;
-    const int num_ofmaps_first_iter =
-            min2(max_kernels_per_iter, max_ofmaps_first_iter);
-    const int num_output_first_iter =
-            ceil(((float)curr_layer_nhwc_padded.outputs.height) /
-                 num_ofmaps_first_iter);
-
-    const int max_ofmaps_last_iter = g_smv->kSpadSize / last_output_2d_size;
-    const int num_ofmaps_last_iter =
-            min2(max_kernels_per_iter, max_ofmaps_last_iter);
-    const int num_output_last_iter =
-            ceil(((float)curr_layer_nhwc_padded.outputs.height) /
-                 num_ofmaps_last_iter);
+    int max_kernels_per_output_tile = g_smv->kSpadSize / single_kernel_size;
 
     // Create tiling configurations.
-    cfg.num_input_tiles = num_input_iters;
+    cfg.num_input_tiles = num_input_tiles;
     cfg.input_tiles =
-            (conv_input_tile*)malloc(sizeof(conv_input_tile) * num_input_iters);
+            (conv_input_tile*)malloc(sizeof(conv_input_tile) * num_input_tiles);
     int remaining_input_rows = curr_layer_nhwc_padded.inputs.rows;
     for (int i = 0; i < cfg.num_input_tiles; i++) {
         bool first_input_tile = (i == 0);
         bool last_input_tile = (i == cfg.num_input_tiles - 1);
-        // The last input tile has a different number of output tiles.
         conv_input_tile* input_tile = &cfg.input_tiles[i];
-        input_tile->num_output_tiles =
-                first_input_tile ? num_output_first_iter
-                                 : last_input_tile ? num_output_last_iter
-                                                   : num_output_iters;
-        input_tile->output_tiles = (conv_output_tile*)malloc(
-                sizeof(conv_output_tile) * cfg.input_tiles[i].num_output_tiles);
         input_tile->input_dims[0] = curr_layer_nhwc_padded.inputs.height;
         input_tile->input_dims[1] = curr_layer_nhwc_padded.inputs.cols;
         input_tile->input_dims[2] =
-                min2(remaining_input_rows, num_rows_per_iter);
+                min2(remaining_input_rows, max_rows_per_input_tile);
         input_tile->input_dims[3] = NUM_TEST_CASES;
         input_tile->input_dims[4] = 1;
         input_tile->pad = curr_layer_nhwc_padded.pad;
@@ -526,30 +517,47 @@ static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer,
         }
         input_tile->input_pad =
                 calc_padding(input_tile->input_dims[0], DATA_ALIGNMENT);
-        remaining_input_rows -= (num_rows_per_iter - halo_rows);
+        // Compute the number of output tiles for this input tile.
+        int max_ofmaps_per_output_tile;
+        int num_ofmaps_per_output_tile;
+        if (first_input_tile) {
+            max_ofmaps_per_output_tile =
+                    g_smv->kSpadSize / first_input_tile_output_2d_size;
+        } else if (last_input_tile) {
+            max_ofmaps_per_output_tile =
+                    g_smv->kSpadSize / last_input_tile_output_2d_size;
+        } else {
+            max_ofmaps_per_output_tile =
+                    g_smv->kSpadSize / inner_input_tile_output_2d_size;
+        }
+        num_ofmaps_per_output_tile =
+                min2(max_kernels_per_output_tile, max_ofmaps_per_output_tile);
+        // Round down the number of output feature maps to the previous multiple
+        // of NUM_PE_INSTS in order to maximine hardware utilization.
+        if (num_ofmaps_per_output_tile > NUM_PE_INSTS) {
+            num_ofmaps_per_output_tile =
+                    (num_ofmaps_per_output_tile / NUM_PE_INSTS) * NUM_PE_INSTS;
+        }
+        input_tile->num_output_tiles =
+                ceil(((float)curr_layer_nhwc_padded.outputs.height) /
+                     num_ofmaps_per_output_tile);
+        input_tile->output_tiles = (conv_output_tile*)malloc(
+                sizeof(conv_output_tile) * cfg.input_tiles[i].num_output_tiles);
+        remaining_input_rows -= (max_rows_per_input_tile - halo_rows);
         int remaining_ofmaps = curr_layer_nhwc_padded.outputs.height;
         for (int j = 0; j < input_tile->num_output_tiles; j++) {
             conv_output_tile* output_tile = &input_tile->output_tiles[j];
-            if (first_input_tile) {
-                output_tile->num_ofmaps =
-                        min2(remaining_ofmaps, num_ofmaps_first_iter);
-            } else if (last_input_tile) {
-                output_tile->num_ofmaps =
-                        min2(remaining_ofmaps, num_ofmaps_last_iter);
-            } else {
-                output_tile->num_ofmaps =
-                        min2(remaining_ofmaps, num_ofmaps_per_iter);
-            }
+            output_tile->num_ofmaps =
+                    min2(remaining_ofmaps, num_ofmaps_per_output_tile);
             output_tile->output_dims[0] = output_tile->num_ofmaps;
             output_tile->output_dims[1] = curr_layer_nhwc_padded.outputs.cols;
-            // Calculate the number of rows in the output of the tile.
-            // NOTE: we need to do padding for the last input tile.
+            // Initialize the number of rows in the output of the tile.
             if (first_input_tile) {
-                output_tile->output_dims[2] = first_output_2d_rows;
+                output_tile->output_dims[2] = first_input_tile_output_rows;
             } else if (last_input_tile) {
-                output_tile->output_dims[2] = last_output_2d_rows;
+                output_tile->output_dims[2] = last_input_tile_output_rows;
             } else {
-                output_tile->output_dims[2] = output_2d_rows;
+                output_tile->output_dims[2] = inner_input_tile_output_rows;
             }
             output_tile->output_dims[3] = NUM_TEST_CASES;
             output_tile->output_dims[4] = 1;
