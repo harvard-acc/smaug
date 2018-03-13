@@ -22,11 +22,16 @@
 typedef void (*tiled_inner_product_impl)(
         float*, float*, layer_t*, float*, device_t*, bool);
 
-typedef struct _inner_product_options {
+typedef struct _eltwise_options {
     bool do_bias;
+    bool input_in_spad0;
+} smv_eltwise_options;
+
+typedef struct _inner_product_options {
     bool input_in_spad0;
     bool use_pipelined_dma;
     bool accumulate;
+    io_req_t psums_req;
     int result_start;
     int dma_store_start;
 } smv_inner_product_options;
@@ -50,13 +55,135 @@ typedef struct _inner_product_tiling_cfg {
 } inner_product_tiling_cfg;
 
 typedef struct _smv_decompression_options {
-    int num_output_neurons;
     int tile_num;
     int current_row;
     bool input_in_spad0;
-    bool is_last_strip;
-    io_req_t orig_output_req;
 } smv_decompression_options;
+
+void smv_eltwise_hw_impl(packed_fp16* host_activations,
+                         packed_fp16* host_weights,
+                         float* local_activations,
+                         float* local_weights,
+                         layer_t* curr_layer,
+                         smv_eltwise_options* options) {
+    if (curr_layer->weights_req != IO_NONE) {
+        ASSERT(host_weights && "DMA weights pointer cannot be NULL!");
+        int weights_size = get_num_weights_layer(curr_layer, 0);
+        setReadyBits(local_weights, weights_size * sizeof(float), 0);
+        dma_load_and_unpack_fp16(
+                local_weights, host_weights, weights_size, 0, 0);
+    }
+
+    if (curr_layer->input_req != IO_NONE) {
+        ASSERT(host_activations && "DMA inputs pointer cannot be NULL!");
+        int activations_size = get_input_activations_size(curr_layer);
+        if (curr_layer->input_req == IO_DMA) {
+            setReadyBits(
+                    local_activations, activations_size * sizeof(float), 0);
+            dma_load_and_unpack_fp16(local_activations,
+                                     host_activations,
+                                     activations_size, 0, 0);
+        } else {
+            acp_load_and_unpack_fp16(local_activations, host_activations,
+                                     activations_size, 0, 0);
+        }
+    }
+
+    VEC_ARRAY_1D(v8fp_t, _local_activations, local_activations);
+    if (options->do_bias || curr_layer->activation != NO_ACTIVATION) {
+        int output_cols = curr_layer->outputs.cols;
+        VEC_ARRAY_1D(v8fp_t, _weights, local_weights);
+        const v8fp_t zero = (v8fp_t){ 0, 0, 0, 0, 0, 0, 0, 0 };
+        bias_and_act_func:
+        for (int i = 0; i < FRAC_CEIL(output_cols, VECTOR_SIZE); i++) {
+            v8fp_t psum = _local_activations[i] +
+                          (options->do_bias ? _weights[i] : zero);
+            _local_activations[i] =
+                    activation_fun_simd_fxp(psum, curr_layer->activation);
+        }
+    }
+
+    size_t result_size = get_output_activations_size(curr_layer);
+    if (curr_layer->output_req == IO_ACP ||
+        curr_layer->output_req == IO_CACHE) {
+        acp_pack_and_store_fp16(
+                host_activations, local_activations, result_size, 0, 0);
+    } else if (curr_layer->output_req == IO_DMA) {
+        ASSERT(host_activations && "DMA activations pointer cannot be NULL!");
+        dma_pack_and_store_fp16(
+                host_activations, local_activations, result_size, 0, 0);
+    }
+}
+
+void smv_eltwise_hw(packed_fp16* dma_activations,
+                    packed_fp16* dma_weights,
+                    packed_fp16* cache_activations,
+                    packed_fp16* cache_weights,
+                    packed_fp16* acp_activations,
+                    packed_fp16* acp_weights,
+                    float* umem,
+                    float* spad0,
+                    float* spad1,
+                    layer_t* curr_layer,
+                    access_config* access_config,
+                    smv_eltwise_options* options) {
+    // We don't currently support using a local cache for inner products.  If
+    // the IO requirement is IO_CACHE, it will be treated as IO_ACP.
+    bool use_acp_results = (access_config->outputs == _ACP ||
+                            access_config->outputs == _Cache);
+    bool use_acp_inputs =
+            (access_config->inputs == _ACP || access_config->inputs == _Cache);
+
+    if (options->input_in_spad0) {
+        if (use_acp_results) {
+            if (use_acp_inputs) {
+                smv_eltwise_hw_impl(acp_activations, dma_weights, spad0, umem,
+                                    curr_layer, options);
+            } else {
+                // Not a common scenario but should be supported anyways.
+                smv_eltwise_hw_impl(dma_activations, dma_weights, spad0, umem,
+                                    curr_layer, options);
+            }
+        } else {
+            if (use_acp_inputs) {
+                // Common use case: Use ACP to load input, but leave data in
+                // the spads.
+                smv_eltwise_hw_impl(acp_activations, dma_weights, spad0, umem,
+                                    curr_layer, options);
+            } else {
+                ASSERT((access_config->inputs == _DmaOrLocal &&
+                        access_config->outputs == _DmaOrLocal) &&
+                       "IO requirements are inconsistent with DMA fallback!");
+                smv_eltwise_hw_impl(dma_activations, dma_weights, spad0, umem,
+                                    curr_layer, options);
+            }
+        }
+    } else {
+        if (use_acp_results) {
+            if (use_acp_inputs) {
+                smv_eltwise_hw_impl(acp_activations, dma_weights, spad1, umem,
+                                    curr_layer, options);
+            } else {
+                // Not a common scenario but should be supported anyways.
+                smv_eltwise_hw_impl(dma_activations, dma_weights, spad1, umem,
+                                    curr_layer, options);
+            }
+        } else {
+            if (use_acp_inputs) {
+                // Common use case: Use ACP to load input, but leave data in
+                // the spads.
+                smv_eltwise_hw_impl(acp_activations, dma_weights, spad1, umem,
+                                    curr_layer, options);
+            } else {
+                ASSERT((access_config->inputs == _DmaOrLocal &&
+                        access_config->outputs == _DmaOrLocal) &&
+                       "IO requirements are inconsistent with DMA fallback!");
+                smv_eltwise_hw_impl(dma_activations, dma_weights, spad1, umem,
+                                    curr_layer, options);
+            }
+        }
+    }
+}
 
 // Main implementation of inner product HW.
 //
@@ -134,25 +261,6 @@ void smv_inner_product_layer_hw_impl(packed_fp16* host_activations,
             options->accumulate,
             local_results);
 
-    VEC_ARRAY_1D(v8fp_t, _local_results, local_results);
-    bool do_bias_or_activation =
-            options->do_bias || curr_layer->activation != NO_ACTIVATION;
-    if (do_bias_or_activation) {
-        int output_cols = curr_layer->outputs.cols;
-        VEC_ARRAY_1D(v8fp_t, _weights, local_weights);
-        int bias_offset =
-                (curr_layer->weights.cols *
-                 (curr_layer->weights.rows + curr_layer->weights.align_pad)) /
-                VECTOR_SIZE;
-        const v8fp_t zero = (v8fp_t){ 0, 0, 0, 0, 0, 0, 0, 0 };
-        bias_and_act_func:
-        for (int i = 0; i < FRAC_CEIL(output_cols, VECTOR_SIZE); i++) {
-            v8fp_t psum = _local_results[i] +
-                          (options->do_bias ? _weights[bias_offset + i] : zero);
-            _local_results[i] =
-                    activation_fun_simd_fxp(psum, curr_layer->activation);
-        }
-    }
 
     if (curr_layer->output_req == IO_ACP ||
         curr_layer->output_req == IO_CACHE) {
@@ -402,6 +510,61 @@ inner_product_tiling_cfg* smv_inner_product_tile_work(layer_t* curr_layer,
     return fc_cfg;
 }
 
+void smv_run_eltwise_ops(data_list* host_activations,
+                         layer_t* curr_layer,
+                         bool input_in_spad0,
+                         bool use_hw_activation_func) {
+    layer_t eltwise_layer;
+    eltwise_layer.num = curr_layer->num;
+    eltwise_layer.inputs = curr_layer->inputs;
+    eltwise_layer.outputs = curr_layer->outputs;
+    eltwise_layer.weights = (dims_t){ 0, 0, 0, 0 };
+    eltwise_layer.biases = (dims_t){ 1, curr_layer->outputs.cols, 1,
+                                     curr_layer->outputs.align_pad };
+
+    activation_type act_func = curr_layer->activation;
+    bool do_hw_activation =
+            use_hw_activation_func &&
+            smiv_is_supported_activation_func(curr_layer->type, act_func);
+    eltwise_layer.activation =
+            do_hw_activation ? curr_layer->activation : NO_ACTIVATION;
+
+    // The input req of eltwise is the output req of the layer's main kernel.
+    // If the FC wanted to leave the inputs in the local scratchpad, we don't
+    // want to DMA the host activations back.
+    eltwise_layer.input_req = curr_layer->output_req;
+    eltwise_layer.weights_req = curr_layer->weights_req;
+    eltwise_layer.output_req = curr_layer->output_req;
+
+    smv_eltwise_options options;
+    options.do_bias = true;
+    options.input_in_spad0 = input_in_spad0;
+
+    data_list* host_weights = curr_layer->host_weights;
+    int bias_index = host_weights->len - 1;
+    fp16array_t* biases = host_weights->data[bias_index].dense_hp;
+    fp16array_t* activations = host_activations->data[0].dense_hp;
+    MAP_ARRAY_TO_ACCEL(g_smv.kInnerProductHw,
+                       get_host_inputs_var_name(eltwise_layer.input_req),
+                       activations->d, activations->size * sizeof(packed_fp16));
+    MAP_ARRAY_TO_ACCEL(g_smv.kInnerProductHw,
+                       get_host_weights_var_name(eltwise_layer.weights_req),
+                       biases->d, biases->size * sizeof(packed_fp16));
+
+    access_config access_config;
+    access_config.inputs = io_to_access_mechanism(eltwise_layer.input_req);
+    access_config.weights = io_to_access_mechanism(eltwise_layer.weights_req);
+    access_config.outputs = io_to_access_mechanism(eltwise_layer.output_req);
+
+    INVOKE_KERNEL_PROF(g_smv.kInnerProductHw,
+                       eltwise_layer.num, smv_eltwise_hw,
+                       activations->d, biases->d,  // DMA
+                       activations->d, biases->d,  // Cache
+                       activations->d, biases->d,  // ACP
+                       g_smv.umem, g_smv.spad0, g_smv.spad1,
+                       &eltwise_layer, &access_config, &options);
+}
+
 // Call the right HW function based on the device parameters.
 void smv_inner_product_layer_hw_dispatch(packed_fp16* activations,
                                          packed_fp16* weights,
@@ -476,90 +639,37 @@ void smv_inner_product_layer_hw_dispatch(packed_fp16* activations,
 // accelerator works on channel-last data.  We achieve the same effect by
 // transposing the weights matrix prior to compression at the very beginning.
 //
-// Biases have to be specified separately, because once we transpose, we lose
-// the property that biases have the same padding and column widths as the
-// weights. Since biases are usually not sparse, we don't compress them.
-// Instead, we just directly DMA them into the accelerator.
-//
-// Finally, decompression will overwrite content stored in one of the
-// scratchpads, so the layer descriptor for the inner product needs to be
-// modified to account for this by doing some extra DMAs.
-//
-// The modified partial layer descriptor is updated directly via the first
-// function argument.
-void smv_inner_product_run_decompression_and_update_layer(
-        layer_t* partial_layer,
+// Decompression will overwrite content stored in one of the scratchpads, so
+// after decompression, the layer descriptor for the inner product needs to be
+// updated to ensure partial sums are sent back to the host after every strip.
+void smv_inner_product_run_decompression(
+        layer_t partial_layer,
         packed_fp16* host_results,
         smv_decompression_options* decompress_options,
         smv_global* g_smv,
         device_t* device) {
-    layer_t transpose_layer = *partial_layer;
     // Transpose the dimensions of the layer so we decompress the colmajor
     // weights correctly.
-    int rows = transpose_layer.weights.rows;
-    transpose_layer.weights.rows = transpose_layer.weights.cols;
-    transpose_layer.weights.cols = rows;
-    smiv_decompress_packed_csr_impl(
-            &transpose_layer, decompress_options->tile_num, decompress_options->current_row,
-            decompress_options->input_in_spad0, (smiv_global*)g_smv, device);
-    if (decompress_options->is_last_strip) {
-        assert(partial_layer->host_weights->len == 2 &&
-               "Inner product HW on SMV must have two sets of "
-               "weights!");
-        assert(partial_layer->host_weights->type[1] == Uncompressed &&
-               "The second set of weights (biases) must be "
-               "uncompressed!");
-        farray_t* biases = partial_layer->host_weights->data[1].dense;
-        dma_options dma_options;
-        dma_options.src_offset = 0;
-        dma_options.dst_offset = get_nhwc_dims_size(&transpose_layer.weights);
-        dma_options.use_pipelined_dma = device->use_pipelined_dma;
-        dma_options.length = biases->size * sizeof(float);
-        dma_options.is_load = true;
-        dma_options.fp16_input = false;
-        dma_copy_impl(g_smv->umem, biases->d, g_smv->kInnerProductHw,
-                      transpose_layer.num, g_smv, &dma_options);
-        // We need to copy the saved partial sums back to the appropriate
-        // scratchpad. This needs to happen REGARDLESS of what the output
-        // access mechanism is, because the inputs rely on DMA!
-        // TODO: Allow the inner product kernel to pull in partial sums via
-        // ACP.
-        dma_options.src_offset = 0;
-        dma_options.dst_offset = 0;
-        dma_options.use_pipelined_dma = device->use_pipelined_dma;
-        dma_options.length =
-                next_multiple(decompress_options->current_row * sizeof(float16),
-                              CACHELINE_SIZE) * NUM_TEST_CASES;
-        dma_options.is_load = true;
-        dma_options.fp16_input = true;
-        float* dest_spad = decompress_options->input_in_spad0 ? g_smv->spad1
-                                                              : g_smv->spad0;
-        dma_copy_impl(dest_spad, (float*)host_results, g_smv->kInnerProductHw,
-                      transpose_layer.num, g_smv, &dma_options);
+    int rows = partial_layer.weights.rows;
+    partial_layer.weights.rows = partial_layer.weights.cols;
+    partial_layer.weights.cols = rows;
+    int weights_idx = decompress_options->tile_num;
 
-        // On the last iteration, send the entire output back, because
-        // only the last iteration applies the bias and activation
-        // function, so don't change partial_layer->outputs.cols.
-    } else {
-        // Otherwise, send back only the pixels that were produced
-        // during this iteration.
-        partial_layer->outputs.cols = decompress_options->num_output_neurons;
+    // Decompress the section of the CSR-formatted weights starting from
+    // current_row, with the number of rows indicated in partial_layer.
+    if (get_dims_size(&partial_layer.weights) > 0) {
+        smiv_decompress_packed_csr_impl(&partial_layer,
+                                        weights_idx,
+                                        decompress_options->current_row,
+                                        decompress_options->input_in_spad0,
+                                        (smiv_global*)g_smv, device);
     }
-
-    // Now that we've decompressed the weights, we don't need to DMA
-    // them again.
-    partial_layer->weights_req = IO_NONE;
-
-    // If decompression is needed, we'll also want to send back the
-    // pre-activation function outputs.
-    if (partial_layer->output_req == IO_NONE)
-        partial_layer->output_req = decompress_options->orig_output_req;
 
     PRINT_MSG("Weights:\n");
     PRINT_DEBUG(g_smv->umem,
-                partial_layer->weights.cols,
-                partial_layer->weights.rows,
-                partial_layer->weights.rows + partial_layer->weights.align_pad);
+                partial_layer.weights.cols,
+                partial_layer.weights.rows,
+                partial_layer.weights.rows + partial_layer.weights.align_pad);
 }
 
 layer_t create_partial_layer(layer_t* curr_layer,
@@ -594,42 +704,23 @@ layer_t create_partial_layer(layer_t* curr_layer,
     partial_layer.outputs.cols = curr_layer->outputs.cols;
     partial_layer.outputs.height = 1;
     partial_layer.outputs.align_pad = 0;
-    if (strip->num == tile->num_strips - 1) {
-        partial_layer.biases.rows = 0;
-        partial_layer.biases.cols = 0;
-        partial_layer.biases.height = 0;
-        partial_layer.biases.align_pad = 0;
-    } else {
-        partial_layer.biases.rows = 1;
-        partial_layer.biases.cols = partial_layer.outputs.cols;
-        partial_layer.biases.height = 1;
-        partial_layer.biases.align_pad = 0;
-    }
-    partial_layer.input_req = (tile->num == 0 && strip->num == 0)
-                                       ? curr_layer->input_req
-                                       : IO_NONE;
+    // We handle the biases as a separate eltwise operation. It is no longer
+    // fused with the matrix multiply op.
+    partial_layer.biases.rows = 0;
+    partial_layer.biases.cols = 0;
+    partial_layer.biases.height = 0;
+    partial_layer.biases.align_pad = 0;
+
+    partial_layer.input_req = strip->num == 0 ? curr_layer->input_req : IO_NONE;
     partial_layer.weights_req = curr_layer->weights_req;
 
     // The tiling strategy used for DMA: we accumulate all the output pixels on
     // the scratchpad iteration by iteration, and on the last strip of the last
     // tile, we copy them back to the host.
     bool is_last_strip = strip->num == (tile->num_strips - 1);
-    if (is_last_strip) {
-        // Check if we even support this activation function at all.
-        activation_type act_func = partial_layer.activation;
-        bool do_hw_activation =
-                use_hw_activation_func &&
-                smiv_is_supported_activation_func(partial_layer.type, act_func);
-        if (!do_hw_activation)
-            partial_layer.activation = NO_ACTIVATION;
-        // Don't change the output_req.
-        partial_layer.output_req = curr_layer->output_req;
-    } else {
-        // Don't run the activation function, and don't DMA back output
-        // pixels.
-        partial_layer.activation = NO_ACTIVATION;
-        partial_layer.output_req = IO_NONE;
-    }
+    bool is_last_tile = tile->num == (num_tiles - 1);
+    partial_layer.output_req =
+            is_last_tile && is_last_strip ? curr_layer->output_req : IO_NONE;
     return partial_layer;
 }
 
@@ -708,10 +799,22 @@ void smv_inner_product_layer_impl_rowwise(data_list* host_activations,
                 options.tile_num = tile_num;
                 options.current_row = current_row;
                 options.input_in_spad0 = input_in_spad0;
-                smv_inner_product_run_decompression_and_update_layer(
-                        &partial_layer, host_results->data[0].dense_hp->d,
+                smv_inner_product_run_decompression(
+                        partial_layer, host_results->data[0].dense_hp->d,
                         &options, g_smv, device);
                 curr_dense_weights_loc = NULL;  // To prevent us from DMAing it.
+
+                // Now that we've decompressed the weights, we don't need to DMA
+                // them again.
+                partial_layer.weights_req = IO_NONE;
+
+                // If decompression is needed, we'll also want to send back the
+                // pre-activation function outputs.
+                if (partial_layer.output_req == IO_NONE)
+                    partial_layer.output_req = curr_layer->output_req;
+
+                // Only send back the pixels produced by this strip.
+                partial_layer.outputs.cols = strip->weights_dims[1];
             }
 
             if (partial_layer.weights_req != IO_NONE) {
@@ -800,6 +903,10 @@ void smv_inner_product_layer_impl_rowwise(data_list* host_activations,
             free_fp16array(host_inputs_buffer);
         }
     }
+
+    bool fc_result_in_spad0 = !input_in_spad0;
+    smv_run_eltwise_ops(host_results, curr_layer, fc_result_in_spad0,
+                        device->use_hw_activation_func);
 
     free_inner_product_tiling_cfg(fc_cfgs);
 }
