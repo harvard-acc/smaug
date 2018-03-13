@@ -418,18 +418,18 @@ void free_inner_product_tiling_cfg(inner_product_tiling_cfg* cfg) {
 }
 
 void print_inner_product_tiling_cfg(inner_product_tiling_cfg* cfg) {
-    printf("Inner product tiling configuration\n");
+    INFO_MSG("Inner product tiling configuration\n");
     for (int t = 0; t < cfg->num_tiles; t++) {
         inner_product_tile* tile = &cfg->tiles[t];
-        printf("Tile %d\n", t);
-        printf("  Input starting offset: %d\n", tile->inputs_start_offset);
+        INFO_MSG("Tile %d\n", t);
+        INFO_MSG("  Input starting offset: %d\n", tile->inputs_start_offset);
         for (int s = 0; s < tile->num_strips; s++) {
             inner_product_strip* strip = &tile->strips[s];
-            printf("  Strip %d\n", s);
-            printf("  - Weights starting row: %d\n",
-                   strip->weights_start_row);
-            printf("  - Weights dims: %d x %d\n", strip->weights_dims[0],
-                   strip->weights_dims[1]);
+            INFO_MSG("  Strip %d\n", s);
+            INFO_MSG("  - Weights starting row: %d\n",
+                     strip->weights_start_row);
+            INFO_MSG("  - Weights dims: %d x %d\n", strip->weights_dims[0],
+                     strip->weights_dims[1]);
         }
     }
 }
