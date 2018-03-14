@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <float.h>
 
 #include "config.h"
 #include "core/nnet_fwd_defs.h"
@@ -104,7 +105,10 @@ void maxpooling_nhwc_smiv_simd_fxp(float* inputs,
             int out_col = 0;
             maxpool_chan_input_col:
             for (int col = 0; col < end_col; col += col_stride) {
-                v8fp_t curr_results = {0, 0, 0, 0, 0, 0, 0, 0};
+                v8fp_t curr_results = {
+                    -FLT_MAX, -FLT_MAX, -FLT_MAX, -FLT_MAX,
+                    -FLT_MAX, -FLT_MAX, -FLT_MAX, -FLT_MAX
+                };
                 // Optimization: precompute the results location.
                 // Aladdin doesn't do well with optimizations that move across
                 // the end of loop boundaries.
