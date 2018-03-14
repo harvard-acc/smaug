@@ -470,8 +470,9 @@ void set_io_requirements(network_t* network,
             next_layer->type == POOLING ||
             // If the FC block needs work division, we can't locally cache.
             (curr_layer->type == FC && next_layer->type == FC &&
-             smv_inner_product_needs_work_division(
-                     &network->layers[layer_num], g_smv))) {
+             (smv_inner_product_needs_work_division(
+                     &network->layers[layer_num], g_smv) ||
+              (curr_layer->host_weights->type[0] == PackedCSR)))) {
             curr_layer->output_req = device->cpu_default_offload;
         } else {
             curr_layer->output_req = IO_NONE;
