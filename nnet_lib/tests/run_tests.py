@@ -479,6 +479,46 @@ class NLPTests(BaseTest):
     correct_output = "nlp-deepspeech2.out"
     self.runAndValidate(model_file, correct_output)
 
+class SmvTests(BaseTest):
+  def runAndValidate(self, model_file, correct_output, *args, **kwargs):
+    # Only SMV supports tiled inputs for pooling. SMIV will crash if the input
+    # image exceeds the UMEM size, and this test scenario doesn't apply for any
+    # of the other backends.
+    if ARCH != "smv":
+      return
+    super(SmvTests, self).runAndValidate(
+        model_file, correct_output, *args, **kwargs)
+
+  def test_pool_tiling_128KB(self):
+    model_file = "smv/pool-tiling/128KB.conf"
+    correct_output = "smv-pool-tiling.out"
+    self.runAndValidate(model_file, correct_output)
+
+  def test_pool_tiling_256KB(self):
+    model_file = "smv/pool-tiling/256KB.conf"
+    correct_output = "smv-pool-tiling.out"
+    self.runAndValidate(model_file, correct_output)
+
+  def test_pool_tiling_512KB(self):
+    model_file = "smv/pool-tiling/512KB.conf"
+    correct_output = "smv-pool-tiling.out"
+    self.runAndValidate(model_file, correct_output)
+
+  def test_pool_tiling_1MB(self):
+    model_file = "smv/pool-tiling/1MB.conf"
+    correct_output = "smv-pool-tiling.out"
+    self.runAndValidate(model_file, correct_output)
+
+  def test_pool_tiling_2MB(self):
+    model_file = "smv/pool-tiling/2MB.conf"
+    correct_output = "smv-pool-tiling.out"
+    self.runAndValidate(model_file, correct_output)
+
+  def test_pool_tiling_3MB(self):
+    model_file = "smv/pool-tiling/3MB.conf"
+    correct_output = "smv-pool-tiling.out"
+    self.runAndValidate(model_file, correct_output)
+
 def run_tests():
   suite = unittest.TestSuite()
   test_loader = unittest.TestLoader()
