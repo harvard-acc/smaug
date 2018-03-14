@@ -46,7 +46,10 @@ void maxpooling_nhwc_smiv_fxp(float* inputs, layer_t curr_layer, float* results)
             int out_col = 0;
             maxpool_chan_input_col:
             for (int col = 0; col < end_col; col += col_stride) {
-                float curr_results[VECTOR_SIZE] = {0, 0, 0, 0, 0, 0, 0, 0};
+                float curr_results[VECTOR_SIZE] = { -FLT_MAX, -FLT_MAX,
+                                                    -FLT_MAX, -FLT_MAX,
+                                                    -FLT_MAX, -FLT_MAX,
+                                                    -FLT_MAX, -FLT_MAX };
                 float next_pixels[VECTOR_SIZE];
                 maxpool_pool_row:
                 for (int pool_i = 0; pool_i < pool_size; pool_i++) {
