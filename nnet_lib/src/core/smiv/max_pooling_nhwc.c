@@ -20,13 +20,21 @@
 //     not be a multiple of 8; prior to calling this function the data shoud
 //     have been converted into NHWC format, and that conversion will take care
 //     of the required alignment.
+//   input_start_chan: Start reading input pixels from this channel. This is
+//     used when the input is tiled channel-wise and we need to start the next
+//     output tile from somewhere in the middle of the inputs.
 //   results: A pointer to the output buffer.
-void maxpooling_nhwc_smiv_fxp(float* inputs, layer_t curr_layer, float* results) {
+void maxpooling_nhwc_smiv_fxp(float* inputs,
+                              layer_t curr_layer,
+                              int input_start_chan,
+                              float* results) {
     const int a_rows = curr_layer.inputs.rows;
     const int a_cols = curr_layer.inputs.cols;
-    const int a_chan_groups = FRAC_CEIL(curr_layer.inputs.height, VECTOR_SIZE);
     const int result_rows = curr_layer.outputs.rows;
     const int result_cols = curr_layer.outputs.cols;
+    const int result_chan_groups =
+            FRAC_CEIL(curr_layer.outputs.height, VECTOR_SIZE);
+    const int start_group = input_start_chan / VECTOR_SIZE;
 
     const int pool_size = curr_layer.weights.cols;
     const int row_stride = curr_layer.stride.rows;
@@ -39,7 +47,7 @@ void maxpooling_nhwc_smiv_fxp(float* inputs, layer_t curr_layer, float* results)
     ARRAY_4D(float, _results, results, result_rows, result_cols, VECTOR_SIZE);
 
     maxpool_chan_grp:
-    for (int chan_grp = 0; chan_grp < a_chan_groups; chan_grp++) {
+    for (int chan_grp = 0; chan_grp < result_chan_groups; chan_grp++) {
         int out_row = 0;
         maxpool_chan_input_row:
         for (int row = 0; row < end_row; row += row_stride) {
@@ -57,7 +65,9 @@ void maxpooling_nhwc_smiv_fxp(float* inputs, layer_t curr_layer, float* results)
                     for (int pool_j = 0; pool_j < pool_size; pool_j++) {
                         maxpool_load_chan_px:
                         for (int px = 0; px < VECTOR_SIZE; px++) {
-                            next_pixels[px] = _a[chan_grp][row+pool_i][col+pool_j][px];
+                            next_pixels[px] =
+                                    _a[chan_grp + start_group][row + pool_i]
+                                      [col + pool_j][px];
                         }
                         maxpool_compare:
                         for (int px = 0; px < VECTOR_SIZE; px++) {
@@ -81,12 +91,15 @@ void maxpooling_nhwc_smiv_fxp(float* inputs, layer_t curr_layer, float* results)
 
 void maxpooling_nhwc_smiv_simd_fxp(float* inputs,
                                    layer_t curr_layer,
+                                   int input_start_chan,
                                    float* results) {
     const int a_rows = curr_layer.inputs.rows;
     const int a_cols = curr_layer.inputs.cols;
-    const int a_chan_groups = FRAC_CEIL(curr_layer.inputs.height, VECTOR_SIZE);
     const int result_rows = curr_layer.outputs.rows;
     const int result_cols = curr_layer.outputs.cols;
+    const int result_chan_groups =
+            FRAC_CEIL(curr_layer.outputs.height, VECTOR_SIZE);
+    const int start_group = input_start_chan / VECTOR_SIZE;
 
     const int pool_size = curr_layer.weights.cols;
     const int row_stride = curr_layer.stride.rows;
@@ -101,12 +114,11 @@ void maxpooling_nhwc_smiv_simd_fxp(float* inputs,
     VEC_ARRAY_1D(v8fp_t, _results_flat, results);
 
     maxpool_chan_grp:
-    for (int chan_grp = 0; chan_grp < a_chan_groups; chan_grp++) {
+    for (int chan_grp = 0; chan_grp < result_chan_groups; chan_grp++) {
         int out_row = 0;
         maxpool_chan_input_row:
         for (int row = 0; row < end_row; row += row_stride) {
-            int out_col = 0;
-            maxpool_chan_input_col:
+            int out_col = 0; maxpool_chan_input_col:
             for (int col = 0; col < end_col; col += col_stride) {
                 v8fp_t curr_results = {
                     -FLT_MAX, -FLT_MAX, -FLT_MAX, -FLT_MAX,
@@ -122,8 +134,8 @@ void maxpooling_nhwc_smiv_simd_fxp(float* inputs,
                 for (int pool_i = 0; pool_i < pool_size; pool_i++) {
                     maxpool_pool_col:
                     for (int pool_j = 0; pool_j < pool_size; pool_j++) {
-                        v8fp_t next_pixels =
-                                _a[chan_grp][row + pool_i][col + pool_j][0];
+                        v8fp_t next_pixels = _a[chan_grp + start_group]
+                                               [row + pool_i][col + pool_j][0];
                         maxpool_compare:
                         for (int px = 0; px < VECTOR_SIZE; px++) {
                            if (curr_results[px] < next_pixels[px])
@@ -139,10 +151,14 @@ void maxpooling_nhwc_smiv_simd_fxp(float* inputs,
     }
 }
 
-void maxpooling_nhwc_smiv(float* inputs, layer_t curr_layer, float* results) {
+void maxpooling_nhwc_smiv(float* inputs,
+                          layer_t curr_layer,
+                          int input_start_chan,
+                          float* results) {
 #ifdef ENABLE_SIMD_IMPL
-    maxpooling_nhwc_smiv_simd_fxp(inputs, curr_layer, results);
+    maxpooling_nhwc_smiv_simd_fxp(
+            inputs, curr_layer, input_start_chan, results);
 #else
-    maxpooling_nhwc_smiv_fxp(inputs, curr_layer, results);
+    maxpooling_nhwc_smiv_fxp(inputs, curr_layer, input_start_chan, results);
 #endif
 }

@@ -29,8 +29,15 @@ void batch_norm_simd_fxp(float* inputs,
                          int batch_size,
                          float* result);
 
-void maxpooling_nhwc_smiv(float* inputs, layer_t curr_layer, float* results);
-void avgpooling_nhwc_smiv(float* inputs, layer_t curr_layer, float* results);
+void maxpooling_nhwc_smiv(float* inputs,
+                          layer_t curr_layer,
+                          int input_start_chan,
+                          float* results);
+
+void avgpooling_nhwc_smiv(float* inputs,
+                          layer_t curr_layer,
+                          int input_start_chan,
+                          float* results);
 
 void decompress_packed_csr_data_smiv_fxp(uint32_t* cmp_data,
                                          int cmp_col_offset,

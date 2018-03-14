@@ -29,9 +29,9 @@ static void smiv_pooling_layer_hw(float* host_activations,
     }
 
     if (partial_layer.pool == MAX)
-        maxpooling_nhwc_smiv(spad0, partial_layer, spad1);
+        maxpooling_nhwc_smiv(spad0, partial_layer, 0, spad1);
     else
-        avgpooling_nhwc_smiv(spad0, partial_layer, spad1);
+        avgpooling_nhwc_smiv(spad0, partial_layer, 0, spad1);
 
     if (partial_layer.output_req == IO_DMA) {
         size_t partial_output_size = partial_layer.outputs.rows *

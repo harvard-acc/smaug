@@ -35,7 +35,10 @@ const float get_avg_scale(int size) {
 //     have been converted into NHWC format, and that conversion will take care
 //     of the required alignment.
 //   results: A pointer to the output buffer.
-void avgpooling_nhwc_smiv_fxp(float* inputs, layer_t curr_layer, float* results) {
+void avgpooling_nhwc_smiv_fxp(float* inputs,
+                              layer_t curr_layer,
+                              int input_start_chan,
+                              float* results) {
     const int a_rows = curr_layer.inputs.rows;
     const int a_cols = curr_layer.inputs.cols;
     const int a_chan_groups = FRAC_CEIL(curr_layer.inputs.height, VECTOR_SIZE);
@@ -89,6 +92,7 @@ void avgpooling_nhwc_smiv_fxp(float* inputs, layer_t curr_layer, float* results)
 
 void avgpooling_nhwc_smiv_simd_fxp(float* inputs,
                                    layer_t curr_layer,
+                                   int input_start_chan,
                                    float* results) {
     const int a_rows = curr_layer.inputs.rows;
     const int a_cols = curr_layer.inputs.cols;
@@ -143,10 +147,14 @@ void avgpooling_nhwc_smiv_simd_fxp(float* inputs,
     }
 }
 
-void avgpooling_nhwc_smiv(float* inputs, layer_t curr_layer, float* results) {
+void avgpooling_nhwc_smiv(float* inputs,
+                          layer_t curr_layer,
+                          int input_start_chan,
+                          float* results) {
 #ifdef ENABLE_SIMD_IMPL
-    avgpooling_nhwc_smiv_simd_fxp(inputs, curr_layer, results);
+    avgpooling_nhwc_smiv_simd_fxp(
+            inputs, curr_layer, input_start_chan, results);
 #else
-    avgpooling_nhwc_smiv_fxp(inputs, curr_layer, results);
+    avgpooling_nhwc_smiv_fxp(inputs, curr_layer, input_start_chan, results);
 #endif
 }
