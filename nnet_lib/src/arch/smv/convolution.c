@@ -732,7 +732,7 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                 MAP_ARRAY_TO_ACCEL(g_smv->kConvolutionHw,
                                    get_host_weights_var_name(IO_DMA),
                                    weights_loc,
-                                   num_kerns *
+                                   output_tile->num_ofmaps *
                                            get_dims_size(&nhwc_weights_dims) *
                                            sizeof(float16));
 
