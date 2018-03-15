@@ -103,15 +103,18 @@ class Convolution3dOp : public BaseMklOp<DType> {
 
         mem_dims conv_stride = { this->layer->stride.rows,
                                  this->layer->stride.cols };
-        // We pass this twice...?
-        mem_dims conv_padding = { this->layer->pad.top,
-                                  this->layer->pad.bottom };
+        // This padding appears to apply to the top-left and lower-right
+        // dimensions.
+        mem_dims conv_padding_l = { this->layer->pad.top,
+                                    this->layer->pad.left };
+        mem_dims conv_padding_r = { this->layer->pad.bottom,
+                                    this->layer->pad.right };
 
         auto conv_desc = mkldnn::convolution_forward::desc(
                 mkldnn::prop_kind::forward,
                 mkldnn::algorithm::convolution_direct, conv_input_md,
                 conv_weight_md, conv_bias_md, conv_output_md, conv_stride,
-                conv_padding, conv_padding, mkldnn::padding_kind::zero);
+                conv_padding_l, conv_padding_r, mkldnn::padding_kind::zero);
         auto conv_pd = mkldnn::convolution_forward::primitive_desc(
                 conv_desc, this->engine);
 
