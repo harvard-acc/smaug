@@ -720,7 +720,6 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                                           sizeof(float16);
                 packed_fp16* temp_result_buf =
                         (packed_fp16*)malloc_aligned(partial_result_size);
-                memset(temp_result_buf, 0, partial_result_size);
                 MAP_ARRAY_TO_ACCEL(
                         g_smv->kConvolutionHw,
                         get_host_results_var_name(curr_layer.output_req),
@@ -887,13 +886,15 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                     end_profiling();  // activation function.
                 }
 
-                // Reorgnize the temporary results into the host result buffer.
+                // Reorganize the temporary results into the host result buffer.
+                begin_profiling("smv_convolution_layer_result_reorder", curr_layer.num);
                 for (int k = 0; k < output_tile->num_ofmaps; k++) {
                     memcpy(&_result[img][k + kern_start][result_row_start][0],
                            temp_result_buf + (partial_result_2d_size * k) / 2,
                            partial_result_2d_size * sizeof(float16));
                 }
                 free(temp_result_buf);
+                end_profiling();
 
                 kern_start += output_tile->num_ofmaps;
                 end_profiling();  // standard_convolution_layer_smv_output_tile
