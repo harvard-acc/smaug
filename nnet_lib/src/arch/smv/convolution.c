@@ -42,6 +42,8 @@ typedef struct _conv_input_tile {
     padding pad;
     conv_output_tile* output_tiles;
     int num_output_tiles;
+    int sampling_upscale_factor;
+    bool execute;
 } conv_input_tile;
 
 typedef struct _conv_tiling_cfg {
@@ -66,11 +68,14 @@ void print_conv_tiling_cfg(conv_tiling_cfg* cfg, int lnum) {
         conv_input_tile* input_tile =
                 &cfg->input_tiles[i];
         INFO_MSG("Input tile %d\n"
+                 "  Execute: %s\n"
                  "  IFMap size: %d, %d, %d, %d, %d\n"
                  "  zero padding: %d, %d, %d, %d\n"
                  "  input pad: %d\n"
+                 "  Each tile represents: %d input tiles\n"
                  "  Output tiles: %d\n",
                  i,
+                 bool_to_yesno(input_tile->execute),
                  input_tile->input_dims[0],
                  input_tile->input_dims[1],
                  input_tile->input_dims[2],
@@ -81,6 +86,7 @@ void print_conv_tiling_cfg(conv_tiling_cfg* cfg, int lnum) {
                  input_tile->pad.left,
                  input_tile->pad.right,
                  input_tile->input_pad,
+                 input_tile->sampling_upscale_factor,
                  input_tile->num_output_tiles);
         for (int j = 0; j < input_tile->num_output_tiles; j++) {
             conv_output_tile* output_tile =
@@ -264,19 +270,51 @@ static layer_t create_partial_layer_from_tile(layer_t* full_layer,
  * HW pass is not skipped, we also set the appropriate sampling upscaling
  * factor.
  */
-static void set_sampling_parameters(conv_tiling_cfg* tiling,
+static void set_sampling_parameters(conv_tiling_cfg* conv_tiling,
                                     layer_t* curr_layer,
                                     sampling_param_t* sampling_param) {
     // These parameters indicate the number of tiles/hw passes to run *IN
-    // ADDITION* to the minimum required amount. At a minimum, we must run
-    // the first and last output tiles and the first HW pass. So if
+    // ADDITION* to the minimum required amount. At a minimum, we must run the
+    // first and last input output tiles and HW passes. So if
     // sampled_outer_tiles = 1, then the total number of executed output tiles
     // is 3.
+    int sampled_input_tiles = sampling_param->smv_conv_input_tiles;
     int sampled_output_tiles = sampling_param->smv_conv_output_tiles;
     int sampled_inner_iters = sampling_param->smv_conv_inner_iters;
 
-    for (int it = 0; it < tiling->num_input_tiles; it++) {
-        conv_input_tile* input_tile = &tiling->input_tiles[it];
+    bool do_input_tile_sampling =
+            (sampled_input_tiles > 0 &&
+             sampled_input_tiles < conv_tiling->num_input_tiles - 2);
+    int sampling_input_tiles_upscale_factor;
+    if (do_input_tile_sampling) {
+        sampling_input_tiles_upscale_factor =
+                ceil(((float)conv_tiling->num_input_tiles - 2) /
+                     sampled_input_tiles);
+    } else {
+        sampling_input_tiles_upscale_factor = 1;
+    }
+
+    int input_tiles_remaining = conv_tiling->num_input_tiles;
+    for (int it = 0; it < conv_tiling->num_input_tiles; it++) {
+        conv_input_tile* input_tile = &conv_tiling->input_tiles[it];
+        bool is_first_or_last_input_tile =
+                (it == 0 || it == conv_tiling->num_input_tiles - 1);
+        if (is_first_or_last_input_tile) {
+            input_tile->execute = true;
+            input_tile->sampling_upscale_factor = 1;
+        } else {
+            if (input_tiles_remaining > 1) {
+                input_tile->execute = true;
+                input_tile->sampling_upscale_factor =
+                        min2(sampling_input_tiles_upscale_factor,
+                             input_tiles_remaining - 1);
+            } else {
+                input_tile->execute = false;
+                input_tile->sampling_upscale_factor = 0;
+            }
+        }
+        input_tiles_remaining -= input_tile->sampling_upscale_factor;
+
         // The first output tile may need to handle input activation DMA, and
         // the last output tile may be smaller than the rest, so they always
         // need to be executed.
@@ -640,23 +678,21 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                                     curr_layer.type, curr_layer.activation);
     bool use_pipelined_dma = device->use_pipelined_dma;
     bool use_pipelined_activation = device->use_pipelined_activation_func;
+    begin_ignored_profiling(lnum);
     if (curr_layer.input_req == IO_DMA) {
-        begin_ignored_profiling(lnum);
         flush_cache_range(
                 host_activations->data[0].dense_hp->d,
                 host_activations->data[0].dense_hp->size * sizeof(float16));
         flush_cache_range(
                 host_weights->data[0].dense_hp->d,
                 host_weights->data[0].dense_hp->size * sizeof(float16));
-        end_profiling();
     }
     if (do_hw_activation || curr_layer.output_req == IO_DMA) {
-        begin_ignored_profiling(lnum);
         flush_cache_range(
                 host_results->data[0].dense_hp->d,
                 host_results->data[0].dense_hp->size * sizeof(float16));
-        end_profiling();
     }
+    end_profiling();
 
     volatile int finish_flag;
 #ifdef GEM5_HARNESS
@@ -675,13 +711,25 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
         int result_row_start = 0;
         for (int it = 0; it < tiling.num_input_tiles; it++) {
             conv_input_tile* input_tile = &tiling.input_tiles[it];
-            layer_t partial_layer;
+            if (!input_tile->execute) {
+                input_row_start += input_tile->input_dims[2] - halo_rows;
+                // All output tiles within an input tile produce the same
+                // number of output rows.
+                result_row_start += input_tile->output_tiles[0].output_dims[2];
+                continue;
+            }
+
             int kern_start = 0;
+            layer_t partial_layer;
             // Output tile sampling operates over the following loop. We always
             // execute the last output tile, because it has a different number
             // of output feature maps. We only run up to sampled_output_tiles
             // iterations.
             begin_profiling("standard_convolution_layer_smv_input_tile", lnum);
+            if (input_tile->sampling_upscale_factor > 1) {
+                set_profiling_type_sampled(
+                        1, input_tile->sampling_upscale_factor);
+            }
             // Inner loop for output tiling of an input tile.
             for (int ot = 0; ot < input_tile->num_output_tiles; ot++) {
                 conv_output_tile* output_tile = &input_tile->output_tiles[ot];
@@ -887,7 +935,8 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                 }
 
                 // Reorganize the temporary results into the host result buffer.
-                begin_profiling("smv_convolution_layer_result_reorder", curr_layer.num);
+                begin_profiling(
+                        "smv_convolution_layer_result_reorder", curr_layer.num);
                 for (int k = 0; k < output_tile->num_ofmaps; k++) {
                     memcpy(&_result[img][k + kern_start][result_row_start][0],
                            temp_result_buf + (partial_result_2d_size * k) / 2,
@@ -901,7 +950,6 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
             }
             end_profiling(); // standard_convolution_layer_smv_input_tile
             INFO_MSG("Finished an input tile.\n");
-            kern_start = 0;
             input_row_start += (partial_layer.inputs.rows - halo_rows);
             result_row_start += partial_layer.outputs.rows;
         }
