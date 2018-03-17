@@ -114,15 +114,14 @@ void begin_profiling(const char* label, int layer_num) {
     if (!profiling_enabled)
         return;
 
+    // Query the current time first so that we include the overhead of the
+    // profiling as part of the profiled section. This sounds backwards, but it
+    // actually makes accounting for this overhead easier.
+    uint64_t time = get_nsecs();
     log_entry_t* entry = new_log_entry(label, layer_num, UNSAMPLED);
-    append_to_profile_log(entry, log);
-
-    // Assign the rest of the metadata fields.
     entry->profile_data.end_time = 0;
-
-    // Query the current time LAST, so it's as close as possible to the start
-    // of the kernel being profiled.
-    entry->profile_data.start_time = get_nsecs();
+    entry->profile_data.start_time = time;
+    append_to_profile_log(entry, log);
 }
 
 void begin_ignored_profiling(int layer_num) {
