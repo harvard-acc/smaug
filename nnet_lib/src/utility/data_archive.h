@@ -14,10 +14,10 @@ void save_all_to_file(const char* filename,
                       iarray_t* labels,
                       iarray_t* compress_type);
 
-void read_all_from_file(const char* filename,
-                      network_t* network,
-                      farray_t* weights,
-                      farray_t* data,
-                      iarray_t* labels,
-                      iarray_t* compress_type);
+mmapped_file read_all_from_file(const char* filename,
+                                network_t* network,
+                                farray_t** weights,
+                                farray_t** data,
+                                iarray_t* labels,
+                                iarray_t* compress_type);
 #endif

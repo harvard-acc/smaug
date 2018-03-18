@@ -101,7 +101,7 @@ static bool read_data_sec_header(FILE* fp,
 }
 
 static void read_fp_data_from_txt_file(const char* filename,
-                                       farray_t* data,
+                                       farray_t** array_ptr,
                                        const char* section_header,
                                        bool is_required_section) {
     FILE* fp = fopen(filename, "r");
@@ -111,6 +111,10 @@ static void read_fp_data_from_txt_file(const char* filename,
         if (is_required_section)
             FATAL_MSG("Could not find required section %s\n", section_header);
     } else {
+        if (!(*array_ptr)) {
+            *array_ptr = init_farray(header.num_elems, false);
+        }
+        farray_t* data = *array_ptr;
         if (data->size == 0 && data->d == NULL) {
             data->size = header.num_elems;
             data->d = (float*) malloc_aligned(data->size * sizeof(float));
@@ -254,11 +258,11 @@ void save_compress_type_to_txt_file(FILE* fp,
     fprintf(fp, "%s\n", kTxtCompressTypeFooter);
 }
 
-void read_weights_from_txt_file(const char* filename, farray_t* weights) {
+void read_weights_from_txt_file(const char* filename, farray_t** weights) {
     read_fp_data_from_txt_file(filename, weights, kTxtWeightsHeader, true);
 }
 
-void read_data_from_txt_file(const char* filename, farray_t* data) {
+void read_data_from_txt_file(const char* filename, farray_t** data) {
     read_fp_data_from_txt_file(filename, data, kTxtDataHeader, true);
 }
 

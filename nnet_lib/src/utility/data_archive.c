@@ -93,12 +93,13 @@ void save_all_to_file(const char* filename,
     }
 }
 
-void read_all_from_file(const char* filename,
-                        network_t* network,
-                        farray_t* weights,
-                        farray_t* inputs,
-                        iarray_t* labels,
-                        iarray_t* compress_type) {
+mmapped_file read_all_from_file(const char* filename,
+                                network_t* network,
+                                farray_t** weights,
+                                farray_t** inputs,
+                                iarray_t* labels,
+                                iarray_t* compress_type) {
+    mmapped_file model_file = init_mmapped_file();
     if (is_txt_file(filename)) {
         printf("Reading data from text file %s...\n", filename);
         global_sec_header header = read_global_header_from_txt_file(filename);
@@ -110,18 +111,17 @@ void read_all_from_file(const char* filename,
         free_global_sec_header(&header);
     } else {
         printf("Reading data from binary file %s...\n", filename);
-        mmapped_file file = open_bin_data_file(filename);
+        *weights = init_farray(0, false);
+        *inputs = init_farray(0, false);
+        model_file = open_bin_data_file(filename);
         global_sec_header global_header =
-                read_global_header_from_bin_file(&file);
+                read_global_header_from_bin_file(&model_file);
         verify_global_parameters(&global_header, network);
-
-        read_weights_from_bin_file(&file, weights);
-        read_inputs_from_bin_file(&file, inputs);
-        read_labels_from_bin_file(&file, labels);
-        read_compress_type_from_bin_file(&file, compress_type);
+        read_weights_from_bin_file(&model_file, weights);
+        read_inputs_from_bin_file(&model_file, inputs);
+        read_labels_from_bin_file(&model_file, labels);
+        read_compress_type_from_bin_file(&model_file, compress_type);
         free_global_sec_header(&global_header);
-
-        close_bin_data_file(&file);
     }
 #if DEBUG_LEVEL >= 2
     int input_rows = network->layers[0].inputs.rows;
@@ -130,6 +130,7 @@ void read_all_from_file(const char* filename,
     int input_align_pad = network->layers[0].inputs.align_pad;
 #endif
     PRINT_MSG("Input activations:\n");
-    PRINT_DEBUG4D(
-            inputs->d, input_rows, input_cols + input_align_pad, input_height);
+    PRINT_DEBUG4D((*inputs)->d, input_rows, input_cols + input_align_pad,
+                  input_height);
+    return model_file;
 }

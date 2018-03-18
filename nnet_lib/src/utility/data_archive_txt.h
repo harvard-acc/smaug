@@ -12,8 +12,8 @@ void save_compress_type_to_txt_file(FILE* fp,
                                     size_t num_layers);
 
 global_sec_header read_global_header_from_txt_file(const char* filename);
-void read_weights_from_txt_file(const char* filename, farray_t* weights);
-void read_data_from_txt_file(const char* filename, farray_t* data);
+void read_weights_from_txt_file(const char* filename, farray_t** weights);
+void read_data_from_txt_file(const char* filename, farray_t** data);
 void read_labels_from_txt_file(const char* filename, iarray_t* labels);
 void read_compress_type_from_txt_file(const char* filename,
                                       iarray_t* compress_type);

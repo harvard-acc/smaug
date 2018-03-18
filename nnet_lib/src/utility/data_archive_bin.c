@@ -125,6 +125,24 @@ static void read_array_from_bin_file(mmapped_file* file,
     }
 }
 
+// Returns the pointer to the start of the data section and the number of
+// elements in @data_ptr and @num_elems.
+static void get_ptr_to_array_in_bin_file(mmapped_file* file,
+                                         const char* section_name,
+                                         void** data_ptr,
+                                         size_t* num_elems) {
+    void* section_start = find_section_header(file, section_name);
+    data_sec_header header;
+    unsigned header_size = sizeof(data_sec_header);
+    read_section_header((void*)&header, &section_start, header_size);
+    *data_ptr = section_start;
+    *num_elems = header.num_elems;
+}
+
+static void read_farray_from_bin_file(mmapped_file* file,
+                                      farray_t* data,
+                                      const char* section_name) MAYBE_UNUSED;
+
 static void read_farray_from_bin_file(mmapped_file* file,
                                       farray_t* data,
                                       const char* section_name) {
@@ -137,6 +155,14 @@ static void read_iarray_from_bin_file(mmapped_file* file,
                                       const char* section_name) {
     read_array_from_bin_file(
             file, (void**)&data->d, &data->size, sizeof(int), section_name);
+}
+
+mmapped_file init_mmapped_file() {
+    mmapped_file file;
+    file.addr = NULL;
+    file.fd = -1;
+    file.file_size = 0;
+    return file;
 }
 
 mmapped_file open_bin_data_file(const char* filename) {
@@ -225,12 +251,14 @@ global_sec_header read_global_header_from_bin_file(mmapped_file* file) {
     return global_header;
 }
 
-void read_weights_from_bin_file(mmapped_file* file, farray_t* weights) {
-    read_farray_from_bin_file(file, weights, "WEIGHTS");
+void read_weights_from_bin_file(mmapped_file* file, farray_t** weights) {
+    get_ptr_to_array_in_bin_file(
+            file, "WEIGHTS", (void**)&(*weights)->d, &(*weights)->size);
 }
 
-void read_inputs_from_bin_file(mmapped_file* file, farray_t* inputs) {
-    read_farray_from_bin_file(file, inputs, "INPUTS");
+void read_inputs_from_bin_file(mmapped_file* file, farray_t** inputs) {
+    get_ptr_to_array_in_bin_file(
+            file, "INPUTS", (void**)&(*inputs)->d, &(*inputs)->size);
 }
 
 void read_labels_from_bin_file(mmapped_file* file, iarray_t* labels) {

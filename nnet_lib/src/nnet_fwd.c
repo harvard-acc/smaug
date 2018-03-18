@@ -9,6 +9,7 @@
 #include "core/ref/lookup_tables.h"
 #include "utility/compression.h"
 #include "utility/data_archive.h"
+#include "utility/data_archive_bin.h"
 #include "utility/init_data.h"
 #include "utility/profiling.h"
 #include "utility/read_model_conf.h"
@@ -272,10 +273,12 @@ void process_compressed_weights(network_t* network,
                 (weights->d + get_weights_loc_for_layer(network->layers, i));
         if (storage_type == Uncompressed) {
             layer->host_weights = init_data_list(1);
-            farray_t* layer_weights =
-                    init_farray(get_num_weights_layer(layer, 0), false);
-            memcpy(layer_weights->d, weights_loc,
-                   layer_weights->size * sizeof(float));
+            // Don't do a memcpy - this gets extremely expensive in simulation
+            // with large models. Instead, use the pointer directly and mark
+            // the array as un-freeable.
+            farray_t* layer_weights = init_farray(0, false);
+            layer_weights->d = weights_loc;
+            layer_weights->size = get_num_weights_layer(layer, 0);
             layer->host_weights->data[0].dense = layer_weights;
             layer->host_weights->type[0] = Uncompressed;
         } else if (storage_type == CSR) {
@@ -339,8 +342,6 @@ int main(int argc, char* argv[]) {
     data_list* inputs = init_data_list(1);
     data_list* outputs = init_data_list(1);
     layer_t input_layer = network.layers[0];
-    inputs->data[0].dense = init_farray(
-            NUM_TEST_CASES * get_dims_size(&input_layer.inputs), true);
 
     // Initialize weights, data, and labels.
     // This is just a container for the global set of weights in the entire
@@ -349,7 +350,6 @@ int main(int argc, char* argv[]) {
     data_list* global_weights = init_data_list(1);
     int total_weight_size =
             get_total_num_weights(network.layers, network.depth);
-    global_weights->data[0].dense = init_farray(total_weight_size, true);
     printf("  Total weights: %d elements\n", total_weight_size);
 
     iarray_t labels = { NULL, 0 };
@@ -363,11 +363,15 @@ int main(int argc, char* argv[]) {
     compress_type.d = (int*)malloc_aligned(compress_type.size * sizeof(int));
     memset(compress_type.d, 0, compress_type.size * sizeof(int));
 
+    mmapped_file model_file = init_mmapped_file();
     if (args.data_mode == READ_FILE) {
-        read_all_from_file(args.args[DATA_FILE], &network,
-                           global_weights->data[0].dense, inputs->data[0].dense,
-                           &labels, &compress_type);
+        model_file = read_all_from_file(
+                args.args[DATA_FILE], &network, &global_weights->data[0].dense,
+                &inputs->data[0].dense, &labels, &compress_type);
     } else {
+        global_weights->data[0].dense = init_farray(total_weight_size, false);
+        inputs->data[0].dense = init_farray(
+                NUM_TEST_CASES * get_dims_size(&input_layer.inputs), true);
 #if ARCHITECTURE == EIGEN
         nnet_eigen::init_weights(global_weights->data[0].dense->d,
                                  network.layers, network.depth, args.data_mode);
@@ -445,10 +449,13 @@ int main(int argc, char* argv[]) {
         free(sigmoid_table);
     if (exp_table)
         free(exp_table);
-    free_network_weights(&network);
+    if (model_file.addr != NULL) {
+        close_bin_data_file(&model_file);
+    }
     free_data_list(inputs);
-    free_data_list(outputs);
     free_data_list(global_weights);
+    free_network_weights(&network);
+    free_data_list(outputs);
     free(labels.d);
     free(compress_type.d);
     free(network.layers);
