@@ -696,8 +696,11 @@ farray_t* init_farray(int len, bool zero) {
         array->size = 0;
         array->freeable = false;
     }
-    if (zero && len > 0)
-        memset(array->d, 0, array->size * sizeof(float));
+    if (zero && len > 0) {
+        unsigned bytes = next_multiple(
+                array->size * sizeof(float), CACHELINE_SIZE);
+        memset(array->d, 0, bytes);
+    }
     return array;
 }
 
@@ -716,22 +719,32 @@ fp16array_t* init_fp16array(int num_elems, bool zero) {
         array->size = 0;
         array->freeable = false;
     }
-    if (zero && array->size > 0)
-        memset(array->d, 0, array->size * sizeof(packed_fp16));
+    if (zero && array->size > 0) {
+        unsigned bytes = next_multiple(
+                array->size * sizeof(packed_fp16), CACHELINE_SIZE);
+        memset(array->d, 0, bytes);
+    }
     return array;
 }
 
 // Allocate a new farray_t structure if the provided one is not big enough to
 // fit num_elems elements. num_elems specifies the number of 32-bit elements.
-farray_t* create_new_farray_if_necessary(farray_t* array, size_t num_elems) {
+farray_t* create_new_farray_if_necessary(farray_t* array,
+                                         size_t num_elems,
+                                         bool zero) {
     if (!array) {
-        array = init_farray(num_elems, false);
+        array = init_farray(num_elems, zero);
     } else if (array->d && array->size < num_elems) {
         free(array->d);
-        array = init_farray(num_elems, false);
+        array = init_farray(num_elems, zero);
     } else if (array->d == NULL) {
         array->d = (float*)malloc_aligned(num_elems * sizeof(float));
         array->size = num_elems;
+        if (zero) {
+            memset(array->d,
+                   0,
+                   next_multiple(array->size * sizeof(float), CACHELINE_SIZE));
+        }
     }
     return array;
 }
@@ -739,15 +752,21 @@ farray_t* create_new_farray_if_necessary(farray_t* array, size_t num_elems) {
 // Allocate a new fp16array_t structure if the provided one is not big enough to
 // fit num_elems elements. num_elems specifies the number of 16-bit elements.
 fp16array_t* create_new_fp16array_if_necessary(fp16array_t* array,
-                                               size_t num_elems) {
+                                               size_t num_elems,
+                                               bool zero) {
     if (!array) {
-        array = init_fp16array(num_elems, false);
+        array = init_fp16array(num_elems, zero);
     } else if (array->d && array->size < num_elems) {
         free(array->d);
-        array = init_fp16array(num_elems, false);
+        array = init_fp16array(num_elems, zero);
     } else if (array->d == NULL) {
         array->d = (packed_fp16*)malloc_aligned(num_elems * sizeof(float16));
         array->size = num_elems;
+        if (zero) {
+            memset(array->d,
+                   0,
+                   next_multiple(num_elems * sizeof(float16), CACHELINE_SIZE));
+        }
     }
     return array;
 }

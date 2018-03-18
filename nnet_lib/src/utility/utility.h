@@ -152,9 +152,12 @@ farray_t* init_farray(int len, bool zero);
 fp16array_t* init_fp16array(int len, bool zero);
 void free_farray(farray_t* array);
 void free_fp16array(fp16array_t* array);
-farray_t* create_new_farray_if_necessary(farray_t* array, size_t num_elems);
+farray_t* create_new_farray_if_necessary(farray_t* array,
+                                         size_t num_elems,
+                                         bool zero);
 fp16array_t* create_new_fp16array_if_necessary(fp16array_t* array,
-                                               size_t num_elems);
+                                               size_t num_elems,
+                                               bool zero);
 farray_t* copy_farray(farray_t* existing);
 fp16array_t* copy_fp16array(fp16array_t* existing);
 

@@ -215,7 +215,7 @@ dims_t convert_nchw_to_nhwc_farray(farray_t* input,
                                    farray_t** result) {
     dims_t nhwc = nchw_to_nhwc_dims(&input_dims, data_alignment);
     *result = create_new_farray_if_necessary(
-            *result, num_inputs * get_dims_size(&nhwc));
+            *result, num_inputs * get_dims_size(&nhwc), true);
     convert_nchw_to_nhwc_fp32(
             input->d, num_inputs, input_dims, data_alignment, &(*result)->d);
     return nhwc;
@@ -264,7 +264,7 @@ dims_t convert_nchw_to_nhwc_fp16array(fp16array_t* input,
                                       fp16array_t** result) {
     dims_t nhwc = nchw_to_nhwc_dims(&input_dims, data_alignment);
     *result = create_new_fp16array_if_necessary(
-            *result, num_inputs * get_dims_size(&nhwc));
+            *result, num_inputs * get_dims_size(&nhwc), true);
     convert_nchw_to_nhwc_fp16(
             input->d, num_inputs, input_dims, data_alignment, &(*result)->d);
     return nhwc;
@@ -340,7 +340,7 @@ dims_t convert_nhwc_to_nchw_farray(farray_t* input,
                                    farray_t** result) {
     dims_t nchw = nhwc_to_nchw_dims(&input_dims, data_alignment);
     *result = create_new_farray_if_necessary(
-            *result, num_inputs * get_dims_size(&nchw));
+            *result, num_inputs * get_dims_size(&nchw), true);
     convert_nhwc_to_nchw_fp32(
             input->d, num_inputs, input_dims, data_alignment, &(*result)->d);
     return nchw;
@@ -385,7 +385,7 @@ dims_t convert_nhwc_to_nchw_fp16array(fp16array_t* input,
                                       fp16array_t** result) {
     dims_t nchw = nhwc_to_nchw_dims(&input_dims, data_alignment);
     *result = create_new_fp16array_if_necessary(
-            *result, num_inputs * get_dims_size(&nchw));
+            *result, num_inputs * get_dims_size(&nchw), true);
     convert_nhwc_to_nchw_fp16(
             input->d, num_inputs, input_dims, data_alignment, &(*result)->d);
     return nchw;
@@ -459,7 +459,8 @@ int convert_nchw_to_blocked_nhwc_fp16(fp16array_t* input,
     const int num_blocks = ceil(((float)input_dims.height) / block_size);
     const size_t total_converted_size =
             compute_blocked_nhwc_size(&input_dims, block_size, data_alignment);
-    *result = create_new_fp16array_if_necessary(*result, total_converted_size);
+    *result = create_new_fp16array_if_necessary(
+            *result, total_converted_size, true);
 
     dims_t block_dims = input_dims;
     packed_fp16* curr_src = input->d;
@@ -485,7 +486,8 @@ int convert_nchw_to_blocked_nhwc_fp32(farray_t* input,
     const int num_blocks = ceil(((float)input_dims.height) / block_size);
     const size_t total_converted_size =
             compute_blocked_nhwc_size(&input_dims, block_size, data_alignment);
-    *result = create_new_farray_if_necessary(*result, total_converted_size);
+    *result =
+            create_new_farray_if_necessary(*result, total_converted_size, true);
 
     dims_t block_dims = input_dims;
     float* curr_src = input->d;
@@ -548,7 +550,8 @@ int convert_blocked_nhwc_to_nchw_fp16(fp16array_t* input,
     // Determine how large the final converted result will be.
     dims_t nchw = nhwc_to_nchw_dims(&input_dims, data_alignment);
     const size_t total_converted_size = get_dims_size(&nchw);
-    *result = create_new_fp16array_if_necessary(*result, total_converted_size);
+    *result = create_new_fp16array_if_necessary(
+            *result, total_converted_size, true);
 
     const int num_blocks = ceil(((float)input_dims.cols) / block_size);
     dims_t block_dims = input_dims;
@@ -576,7 +579,7 @@ int convert_blocked_nhwc_to_nchw_fp32(farray_t* input,
     // Determine how large the final converted result will be.
     dims_t nchw = nhwc_to_nchw_dims(&input_dims, data_alignment);
     const size_t total_converted_size = get_dims_size(&nchw);
-    *result = create_new_farray_if_necessary(*result, total_converted_size);
+    *result = create_new_farray_if_necessary(*result, total_converted_size, true);
 
     const int num_blocks = ceil(((float)input_dims.cols) / block_size);
     dims_t block_dims = input_dims;
@@ -614,7 +617,7 @@ void block_matrix_colwise_fp32(farray_t* input,
         int padding = calc_padding(curr_block_cols, data_alignment);
         int block_size = input_dims->rows * (curr_block_cols + padding);
         result->data[block].dense = create_new_farray_if_necessary(
-                result->data[block].dense, block_size);
+                result->data[block].dense, block_size, true);
         result->type[block] = Uncompressed;
 
         ARRAY_2D(float, _result, result->data[block].dense->d,
