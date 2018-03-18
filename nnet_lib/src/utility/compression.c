@@ -141,8 +141,10 @@ fp16array_t* pack_data_fp16(farray_t* sp_data, packed_fp16* dest_buf) {
     if (!dest_buf) {
         hp_data->d = (packed_fp16*)malloc_aligned(hp_data->size *
                                                   sizeof(packed_fp16));
+        hp_data->freeable = true;
     } else {
         hp_data->d = dest_buf;
+        hp_data->freeable = false;
     }
     memset(hp_data->d, 0,
            next_multiple(hp_data->size * sizeof(packed_fp16), CACHELINE_SIZE));
@@ -171,8 +173,10 @@ farray_t* unpack_data_fp16x4(fp16array_t* hp_data, float* dest_buf) {
     sp_data->size = hp_data->size * 2;
     if (!dest_buf) {
         sp_data->d = (float*)malloc_aligned(sp_data->size * sizeof(float));
+        sp_data->freeable = true;
     } else {
         sp_data->d = dest_buf;
+        sp_data->freeable = false;
     }
     memset(sp_data->d, 0,
            next_multiple(sp_data->size * sizeof(float), CACHELINE_SIZE));

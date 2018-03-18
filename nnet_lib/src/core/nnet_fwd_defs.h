@@ -98,6 +98,9 @@ typedef enum _sigmoid_impl_t {
 typedef struct _farray_t {
     float* d;
     size_t size;
+    // If true, this buffer contains a dynamically-allocated pointer and can be
+    // freed. If not, you should NOT try to call free() on this buffer.
+    bool freeable;
 } farray_t;
 
 typedef struct _iarray_t {
@@ -111,6 +114,7 @@ typedef uint16_t float16;
 typedef struct _fp16array_t {
     packed_fp16* d;
     size_t size;
+    bool freeable;
 } fp16array_t;
 
 typedef enum _data_storage_t {
@@ -568,6 +572,8 @@ typedef struct _sampling_param_t {
 #define ASSERT(x) assert(x)
 #define ASSUME_ALIGNED(ptr, args...) __builtin_assume_aligned((ptr), args)
 #endif
+
+#define MAYBE_UNUSED __attribute__((__unused__))
 
 
 //=------------ GLOBAL VARIABLES ---------------=//

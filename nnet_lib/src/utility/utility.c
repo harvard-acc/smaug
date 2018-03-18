@@ -690,9 +690,11 @@ farray_t* init_farray(int len, bool zero) {
     if (len > 0) {
         array->d = (float*)malloc_aligned(len * sizeof(float));
         array->size = len;
+        array->freeable = true;
     } else {
         array->d = NULL;
         array->size = 0;
+        array->freeable = false;
     }
     if (zero && len > 0)
         memset(array->d, 0, array->size * sizeof(float));
@@ -708,9 +710,11 @@ fp16array_t* init_fp16array(int num_elems, bool zero) {
         array->size = FRAC_CEIL(num_elems, 2);
         array->d =
                 (packed_fp16*)malloc_aligned(array->size * sizeof(packed_fp16));
+        array->freeable = true;
     } else {
         array->d = NULL;
         array->size = 0;
+        array->freeable = false;
     }
     if (zero && array->size > 0)
         memset(array->d, 0, array->size * sizeof(packed_fp16));
@@ -749,14 +753,24 @@ fp16array_t* create_new_fp16array_if_necessary(fp16array_t* array,
 }
 
 void free_farray(farray_t* array) {
-    if (array->size > 0)
+    if (!array->freeable) {
+        INFO_MSG("[WARNING]: Got call to free_farray() for an array that was "
+                 "not freeable! Ignoring this call.\n");
+    } else if (array->size > 0) {
         free(array->d);
+    }
+    // We always need to free the container struct, even if we don't free the
+    // underlying buffer.
     free(array);
 }
 
 void free_fp16array(fp16array_t* array) {
-    if (array->size > 0)
+    if (!array->freeable) {
+        INFO_MSG("[WARNING]: Got call to free_fp16array() for an array that "
+                 "was not freeable! Ignoring this call.\n");
+    } else if (array->size > 0) {
         free(array->d);
+    }
     free(array);
 }
 
