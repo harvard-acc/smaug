@@ -515,6 +515,8 @@ void nnet_fwd(data_list* activations,
               sampling_param_t* sampling_param) {
     init_smiv_global(device);
 
+    M5_SWITCH_CPU();
+
 #ifdef __cplusplus
     nnet_mkl::MklSession* session = new nnet_mkl::MklSession();
     device->session = (void*)session;

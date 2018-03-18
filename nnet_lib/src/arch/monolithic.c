@@ -240,6 +240,7 @@ void nnet_fwd(data_list* activations,
               network_t* network,
               device_t* device,
               sampling_param_t* sampling_param) {
+    M5_SWITCH_CPU();
     layer_t curr_layer;
 
     // Alternate between reading from/writing to activations and results so we

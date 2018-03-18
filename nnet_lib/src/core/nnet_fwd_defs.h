@@ -575,6 +575,13 @@ typedef struct _sampling_param_t {
 
 #define MAYBE_UNUSED __attribute__((__unused__))
 
+// To switch to the detailed CPU after fast-forwarding simulation.
+#ifdef GEM5_HARNESS
+#define M5_SWITCH_CPU() m5_switch_cpu()
+#else
+#define M5_SWITCH_CPU()
+#endif
+
 
 //=------------ GLOBAL VARIABLES ---------------=//
 

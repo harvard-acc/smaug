@@ -31,6 +31,11 @@
 #include "gem5_harness.h"
 #endif
 
+#ifdef GEM5_HARNESS
+#include "gem5/m5ops.h"
+#endif
+
+
 #if ARCHITECTURE == SMV
 
 smv_global g_smv;
@@ -662,6 +667,11 @@ void nnet_fwd(data_list* activations,
     free_farray(activations->data[0].dense);
     activations->data[0].dense_hp = fp16_activations;
     activations->type[0] = UncompressedHalfPrecision;
+
+    // At this point we're done preprocessing all the data and about to start
+    // running the network layers, so stop fast forwarding and switch to the
+    // Detailed CPU model.
+    M5_SWITCH_CPU();
 
     //******************//
     //   PRIMARY LOOP   //

@@ -229,6 +229,7 @@ void nnet_fwd(data_list* activations,
     layer_t* layers = network->layers;
     nnet_mkl::MklSession* session = new nnet_mkl::MklSession();
     device->session = (void*)session;
+    M5_SWITCH_CPU();
 
     // Alternate between reading from/writing to activations and results so we
     // can avoid copying matrices. The initial activations is obviously in
