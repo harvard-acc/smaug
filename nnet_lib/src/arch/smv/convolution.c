@@ -252,9 +252,9 @@ static layer_t create_partial_layer_from_tile(layer_t* full_layer,
     partial_layer.inputs.cols = input_tile->input_dims[1];
     partial_layer.inputs.height = input_tile->input_dims[0];
     partial_layer.inputs.align_pad = input_tile->input_pad;
-    partial_layer.outputs.rows = output_tile->output_dims[2];
-    partial_layer.outputs.cols = output_tile->output_dims[1];
-    partial_layer.outputs.height = output_tile->output_dims[0];
+    partial_layer.outputs.rows = output_tile->output_dims[1];
+    partial_layer.outputs.cols = output_tile->output_dims[0];
+    partial_layer.outputs.height = output_tile->output_dims[2];
     partial_layer.outputs.align_pad = output_tile->output_pad;
     partial_layer.weights.height = input_tile->input_dims[0];
     partial_layer.weights.align_pad = input_tile->input_pad;
@@ -587,20 +587,20 @@ static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer,
             conv_output_tile* output_tile = &input_tile->output_tiles[j];
             output_tile->num_ofmaps =
                     min2(remaining_ofmaps, num_ofmaps_per_output_tile);
-            output_tile->output_dims[0] = output_tile->num_ofmaps;
-            output_tile->output_dims[1] = curr_layer_nhwc_padded.outputs.cols;
+            output_tile->output_dims[2] = output_tile->num_ofmaps;
+            output_tile->output_dims[0] = curr_layer_nhwc_padded.outputs.cols;
             // Initialize the number of rows in the output of the tile.
             if (first_input_tile) {
-                output_tile->output_dims[2] = first_input_tile_output_rows;
+                output_tile->output_dims[1] = first_input_tile_output_rows;
             } else if (last_input_tile) {
-                output_tile->output_dims[2] = last_input_tile_output_rows;
+                output_tile->output_dims[1] = last_input_tile_output_rows;
             } else {
-                output_tile->output_dims[2] = inner_input_tile_output_rows;
+                output_tile->output_dims[1] = inner_input_tile_output_rows;
             }
             output_tile->output_dims[3] = NUM_TEST_CASES;
             output_tile->output_dims[4] = 1;
             output_tile->output_pad =
-                    calc_padding(output_tile->output_dims[1], DATA_ALIGNMENT);
+                    calc_padding(output_tile->output_dims[0], DATA_ALIGNMENT);
             output_tile->num_hw_passes =
                     ceil((float)output_tile->num_ofmaps / NUM_PE_INSTS);
             output_tile->hw_passes = (smv_convolution_options*)malloc(
@@ -628,7 +628,6 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
     const int result_rows = curr_layer.outputs.rows;
     const int result_cols = curr_layer.outputs.cols;
     const int result_pad = curr_layer.outputs.align_pad;
-    const int num_kerns = curr_layer.outputs.height;
     const int input_height = curr_layer.inputs.height;
     const int input_rows = curr_layer.inputs.rows;
     const int input_cols = curr_layer.inputs.cols;
@@ -715,7 +714,7 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                 input_row_start += input_tile->input_dims[2] - halo_rows;
                 // All output tiles within an input tile produce the same
                 // number of output rows.
-                result_row_start += input_tile->output_tiles[0].output_dims[2];
+                result_row_start += input_tile->output_tiles[0].output_dims[1];
                 continue;
             }
 
