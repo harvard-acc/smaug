@@ -244,6 +244,72 @@ static void smv_convolution_layer_hw(packed_fp16* dma_activations,
     }
 }
 
+//=------- Functions to capture cache behavior of sampled tiles --------=//
+//
+// When we sample, we entirely skip the computation for that tile, but that
+// also means we don't touch the caches, so our working set is smaller. To
+// model the original working set size, these functions set the relevant
+// regions of memory to zero, thus ensuring that those memory regions are
+// touched.  We then ignore the cycles in profiling.
+
+// To mimic a HW pass, just set the entire temporary result buffer to zero,
+// even though the pixels for each output feature map will interleaved across
+// the NUM_PE_INSTS feature maps, because the output tiling code will take care
+// of rearranging the zeros into the correct format (as if it was real data).
+void run_sampled_hw_pass(layer_t* partial_layer,
+                         smv_convolution_options* hw_pass,
+                         int img,
+                         packed_fp16* temp_results_buf) {
+    begin_ignored_profiling(partial_layer->num);
+    int result_2d_size =
+            partial_layer->outputs.rows *
+            (partial_layer->outputs.cols + partial_layer->outputs.align_pad);
+    float16* results_buf =
+            ((float16*)temp_results_buf) + result_2d_size * hw_pass->kern_start;
+    memset(results_buf, 0,
+           result_2d_size * (hw_pass->kern_end - hw_pass->kern_start));
+    end_profiling();
+}
+
+// To mimic an entire output tile, set the correct slices (rows) of each output
+// feature map in this output tile to zero.
+void run_sampled_output_tile(layer_t* curr_layer,
+                             conv_output_tile* output_tile,
+                             int img,
+                             int ofmap_start,
+                             int ofmap_row_start,
+                             packed_fp16* results_base) {
+    begin_ignored_profiling(curr_layer->num);
+    ARRAY_4D(float16, _result, results_base, curr_layer->outputs.height,
+             curr_layer->outputs.rows,
+             curr_layer->outputs.cols + curr_layer->outputs.align_pad);
+    int ofmap_size = sizeof(float16) * output_tile->output_dims[1] *
+                     (output_tile->output_dims[0] + output_tile->output_pad);
+    for (int k = ofmap_start; k < ofmap_start + output_tile->num_ofmaps; k++) {
+        float16* dest = &_result[img][k][ofmap_row_start][0];
+        memset(dest, 0, ofmap_size);
+    }
+    end_profiling();
+}
+
+// To mimic an entire input tile, set the entire slices of all the output
+// feature maps to zero.
+void run_sampled_input_tile(layer_t* curr_layer,
+                            conv_input_tile* input_tile,
+                            int img,
+                            int ofmap_row_start,
+                            packed_fp16* results_base) {
+    begin_ignored_profiling(curr_layer->num);
+    int ofmap_start = 0;
+    for (int i = 0; i < input_tile->num_output_tiles; i++) {
+        conv_output_tile* output_tile = &input_tile->output_tiles[i];
+        run_sampled_output_tile(curr_layer, output_tile, img, ofmap_start,
+                                ofmap_row_start, results_base);
+        ofmap_start += output_tile->num_ofmaps;
+    }
+    end_profiling();
+}
+
 static layer_t create_partial_layer_from_tile(layer_t* full_layer,
                                               conv_input_tile* input_tile,
                                               conv_output_tile* output_tile) {
@@ -711,6 +777,9 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
         for (int it = 0; it < tiling.num_input_tiles; it++) {
             conv_input_tile* input_tile = &tiling.input_tiles[it];
             if (!input_tile->execute) {
+                run_sampled_input_tile(&curr_layer, input_tile, img,
+                                       result_row_start,
+                                       host_results->data[0].dense_hp->d);
                 input_row_start += input_tile->input_dims[2] - halo_rows;
                 // All output tiles within an input tile produce the same
                 // number of output rows.
@@ -732,19 +801,24 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
             // Inner loop for output tiling of an input tile.
             for (int ot = 0; ot < input_tile->num_output_tiles; ot++) {
                 conv_output_tile* output_tile = &input_tile->output_tiles[ot];
-                if (!output_tile->execute)
+                // NOTE: partial_layer's inputs are in NHWC format. So use
+                // get_nhwc_dims_size() to get the input size instead of
+                // get_dims_size().
+                partial_layer = create_partial_layer_from_tile(
+                        &curr_layer, input_tile, output_tile);
+                if (!output_tile->execute) {
+                    run_sampled_output_tile(&partial_layer, output_tile, img,
+                                            kern_start, result_row_start,
+                                            host_results->data[0].dense_hp->d);
                     continue;
+                }
+
                 begin_profiling(
                         "standard_convolution_layer_smv_output_tile", lnum);
                 if (output_tile->sampling_upscale_factor > 1) {
                     set_profiling_type_sampled(
                             1, output_tile->sampling_upscale_factor);
                 }
-                // NOTE: partial_layer's inputs are in NHWC format. So use
-                // get_nhwc_dims_size() to get the input size instead of
-                // get_dims_size().
-                partial_layer = create_partial_layer_from_tile(
-                        &curr_layer, input_tile, output_tile);
                 if (ot != 0 && curr_layer.input_req == IO_DMA)
                     partial_layer.input_req = IO_NONE;
 
@@ -797,9 +871,6 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                 for (int iter = 0; iter < output_tile->num_hw_passes; iter++) {
                     smv_convolution_options* options =
                             &output_tile->hw_passes[iter];
-                    if (!options->execute)
-                        continue;
-
                     options->img = img;
                     // This kern_start is with respect to the current set of
                     // output fmaps in the tile.
@@ -813,6 +884,11 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                     // end.
                     options->total_tile_ofmaps = output_tile->num_ofmaps;
                     options->use_pipelined_dma = use_pipelined_dma;
+                    if (!options->execute) {
+                        run_sampled_hw_pass(&partial_layer, options, img,
+                                            temp_result_buf);
+                        continue;
+                    }
 
                     // Only copy weights and inputs on the first iteration.
                     if (iter > 0) {
