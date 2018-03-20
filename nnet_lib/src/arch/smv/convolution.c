@@ -715,7 +715,7 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
     const int k_cols = curr_layer.weights.cols;
 
     data_list* nhwc_activations = init_data_list(1);
-    begin_profiling("convert_nchw_to_nhwc", lnum);
+    begin_ignored_profiling(lnum);
     dims_t activations_nhwc = convert_nchw_to_nhwc(host_activations,
                                                    0,
                                                    NUM_TEST_CASES,
@@ -1021,8 +1021,7 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                 int partial_result_2d_size = partial_layer.outputs.rows *
                                              (partial_layer.outputs.cols +
                                               partial_layer.outputs.align_pad);
-                begin_profiling(
-                        "smv_convolution_layer_result_reorder", curr_layer.num);
+                begin_ignored_profiling(curr_layer.num);
                 for (int k = 0; k < output_tile->num_ofmaps; k++) {
                     memcpy(&_result[img][k + kern_start][result_row_start][0],
                            temp_result->d + (partial_result_2d_size * k) / 2,

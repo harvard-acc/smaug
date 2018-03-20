@@ -363,7 +363,7 @@ void smv_pooling_layer_impl(data_list* inputs,
     print_pool_tiling_cfg(pool_cfg, curr_layer->num);
     end_profiling();
 
-    begin_profiling("convert_nchw_to_blocked_nhwc", curr_layer->num);
+    begin_ignored_profiling(curr_layer->num);
     data_list* nhwc_inputs = init_data_list(1);
     convert_nchw_to_blocked_nhwc(inputs, 0, NUM_TEST_CASES, VECTOR_SIZE,
                                  curr_layer->inputs, DATA_ALIGNMENT,
@@ -446,7 +446,7 @@ void smv_pooling_layer_impl(data_list* inputs,
         }
     }
 
-    begin_profiling("convert_blocked_nhwc_to_nhwc", curr_layer->num);
+    begin_ignored_profiling(curr_layer->num);
     dims_t output_dims =
             nchw_to_nhwc_dims(&curr_layer->outputs, DATA_ALIGNMENT);
     convert_blocked_nhwc_to_nchw(nhwc_outputs, 0, NUM_TEST_CASES, VECTOR_SIZE,
