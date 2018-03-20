@@ -88,6 +88,7 @@ void free_log_entry(log_entry_t* entry) {
 
 void append_to_profile_log(log_entry_t* entry, profile_log* log) {
     entry->next = NULL;
+    entry->prev = log->tail;
     if (log->head == NULL) {
       log->head = entry;
     } else {
@@ -100,12 +101,14 @@ void append_to_profile_log(log_entry_t* entry, profile_log* log) {
 
 // Find the newest incomplete entry in the profiling log.
 log_entry_t* find_newest_incomplete_entry() {
-    log_entry_t* entry = log->head;
+    log_entry_t* entry = log->tail;
     log_entry_t* newest = NULL;
     while (entry) {
-        if (entry->profile_data.end_time == 0)
+        if (entry->profile_data.end_time == 0) {
             newest = entry;
-        entry = entry->next;
+            break;
+        }
+        entry = entry->prev;
     }
     return newest;
 }

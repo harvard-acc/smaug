@@ -50,6 +50,7 @@ typedef struct _log_entry_t {
     profile_entry_t profile_data;
     sample_entry_t sample_data;
     struct _log_entry_t* next;
+    struct _log_entry_t* prev;
 } log_entry_t;
 
 typedef struct _profile_log {
