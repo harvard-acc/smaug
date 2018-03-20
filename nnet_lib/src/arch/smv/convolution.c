@@ -328,6 +328,20 @@ static layer_t create_partial_layer_from_tile(layer_t* full_layer,
     return partial_layer;
 }
 
+/* Return the largest amount of output pixels produced by an output tile for a
+ * given input tile. */
+int get_largest_output_tile_size(conv_input_tile* input_tile) {
+    int max = 0;
+    for (int i = 0; i < input_tile->num_output_tiles; i++) {
+        conv_output_tile* output_tile = &input_tile->output_tiles[i];
+        max = max2(
+                max, (output_tile->output_dims[0] + output_tile->output_pad) *
+                             output_tile->output_dims[1] *
+                             output_tile->output_dims[2]);
+    }
+    return max;
+}
+
 /* For each input tile, output tile, and HW pass, determine if it should be executed.
  *
  * When we sample, we skip certain output tiles and HW passes based on the
@@ -798,6 +812,15 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                 set_profiling_type_sampled(
                         1, input_tile->sampling_upscale_factor);
             }
+
+            // Set up the results buffer and mappings.
+            int result_buf_size = get_largest_output_tile_size(input_tile);
+            fp16array_t* temp_result = init_fp16array(result_buf_size, false);
+            MAP_ARRAY_TO_ACCEL(g_smv->kConvolutionHw,
+                               get_host_results_var_name(curr_layer.output_req),
+                               temp_result->d,
+                               temp_result->size * sizeof(packed_fp16));
+
             // Inner loop for output tiling of an input tile.
             for (int ot = 0; ot < input_tile->num_output_tiles; ot++) {
                 conv_output_tile* output_tile = &input_tile->output_tiles[ot];
@@ -831,21 +854,6 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                         activations_loc,
                         get_nhwc_dims_size(&partial_layer.inputs) *
                                 sizeof(float16));
-
-                // Set up the results buffer and mappings.
-                int partial_result_2d_size = partial_layer.outputs.rows *
-                                             (partial_layer.outputs.cols +
-                                              partial_layer.outputs.align_pad);
-                int partial_result_size = partial_result_2d_size *
-                                          output_tile->num_ofmaps *
-                                          sizeof(float16);
-                packed_fp16* temp_result_buf =
-                        (packed_fp16*)malloc_aligned(partial_result_size);
-                MAP_ARRAY_TO_ACCEL(
-                        g_smv->kConvolutionHw,
-                        get_host_results_var_name(curr_layer.output_req),
-                        temp_result_buf,
-                        partial_result_size);
 
                 // Convert weights to NHWC and set up mappings.
                 float16* weights_loc = &_kernels[kern_start][0][0][0];
@@ -886,7 +894,7 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                     options->use_pipelined_dma = use_pipelined_dma;
                     if (!options->execute) {
                         run_sampled_hw_pass(&partial_layer, options, img,
-                                            temp_result_buf);
+                                            temp_result->d);
                         continue;
                     }
 
@@ -913,15 +921,15 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                                               // DMA
                                               (packed_fp16*)activations_loc,
                                               (packed_fp16*)weights_loc,
-                                              temp_result_buf,
+                                              temp_result->d,
                                               // Cache
                                               (packed_fp16*)activations_loc,
                                               (packed_fp16*)weights_loc,
-                                              temp_result_buf,
+                                              temp_result->d,
                                               // ACP
                                               (packed_fp16*)activations_loc,
                                               (packed_fp16*)weights_loc,
-                                              temp_result_buf,
+                                              temp_result->d,
                                               g_smv->umem,
                                               g_smv->spad0,
                                               g_smv->spad1,
@@ -948,15 +956,15 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                                               // DMA
                                               (packed_fp16*)activations_loc,
                                               (packed_fp16*)weights_loc,
-                                              temp_result_buf,
+                                              temp_result->d,
                                               // Cache
                                               (packed_fp16*)activations_loc,
                                               (packed_fp16*)weights_loc,
-                                              temp_result_buf,
+                                              temp_result->d,
                                               // ACP
                                               (packed_fp16*)activations_loc,
                                               (packed_fp16*)weights_loc,
-                                              temp_result_buf,
+                                              temp_result->d,
                                               g_smv->umem,
                                               g_smv->spad0,
                                               g_smv->spad1,
@@ -974,11 +982,11 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                                 calc_padding(prev_iter_num_kerns, DATA_ALIGNMENT),
                             };
                             activation_fun_simd128(
-                                    temp_result_buf,
+                                    temp_result->d,
                                     1,
                                     &last_iter_dims,
                                     curr_layer.activation,
-                                    temp_result_buf);
+                                    temp_result->d);
                             end_profiling();  // activation function.
                         }
                         prev_iter_num_kerns = num_kerns_this_iter;
@@ -1001,28 +1009,31 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                         prev_iter_num_kerns,
                         calc_padding(prev_iter_num_kerns, DATA_ALIGNMENT),
                     };
-                    activation_fun_simd128(temp_result_buf,
+                    activation_fun_simd128(temp_result->d,
                                            1,
                                            &last_iter_dims,
                                            curr_layer.activation,
-                                           temp_result_buf);
+                                           temp_result->d);
                     end_profiling();  // activation function.
                 }
 
                 // Reorganize the temporary results into the host result buffer.
+                int partial_result_2d_size = partial_layer.outputs.rows *
+                                             (partial_layer.outputs.cols +
+                                              partial_layer.outputs.align_pad);
                 begin_profiling(
                         "smv_convolution_layer_result_reorder", curr_layer.num);
                 for (int k = 0; k < output_tile->num_ofmaps; k++) {
                     memcpy(&_result[img][k + kern_start][result_row_start][0],
-                           temp_result_buf + (partial_result_2d_size * k) / 2,
+                           temp_result->d + (partial_result_2d_size * k) / 2,
                            partial_result_2d_size * sizeof(float16));
                 }
-                free(temp_result_buf);
                 end_profiling();
 
                 kern_start += output_tile->num_ofmaps;
                 end_profiling();  // standard_convolution_layer_smv_output_tile
             }
+            free_fp16array(temp_result);
             end_profiling(); // standard_convolution_layer_smv_input_tile
             INFO_MSG("Finished an input tile.\n");
             input_row_start += (partial_layer.inputs.rows - halo_rows);
