@@ -420,6 +420,7 @@ result_buf run_layer(data_list* activations,
     }
     end_profiling();
     dump_profiling_log();
+    M5_DUMP_RESET_STATS();
     return result_loc;
 }
 
@@ -684,6 +685,7 @@ void nnet_fwd(data_list* activations,
     data_list* activations_internal = activations;
     data_list* results_internal = results;
 
+    M5_RESET_STATS();
     // Alternate between reading from/writing to activations and results so we
     // can avoid copying matrices. The initial activations is obviously in
     // "activations", so that's where we start.

@@ -301,8 +301,8 @@ typedef struct _sampling_param_t {
 // Convert a layer_type enum to a string
 #define LAYER_TYPE_STR(arg) \
   (arg == CONV_STANDARD ? "CONV_STANDARD" : \
-  (arg == CONV_DEPTHWISE ? "CONV_DEPTHWISE" : \
-  (arg == CONV_POINTWISE ? "CONV_POINTWISE" : \
+   arg == CONV_DEPTHWISE ? "CONV_DEPTHWISE" : \
+   arg == CONV_POINTWISE ? "CONV_POINTWISE" : \
    arg == POOLING ? "POOLING" : \
    arg == FC ? "FC" : \
    arg == OUTPUT ? "OUTPUT" : \
@@ -575,11 +575,16 @@ typedef struct _sampling_param_t {
 
 #define MAYBE_UNUSED __attribute__((__unused__))
 
-// To switch to the detailed CPU after fast-forwarding simulation.
 #ifdef GEM5_HARNESS
 #define M5_SWITCH_CPU() m5_switch_cpu()
+#define M5_RESET_STATS() m5_reset_stats(0, 0)
+#define M5_DUMP_STATS() m5_dump_stats(0, 0)
+#define M5_DUMP_RESET_STATS() m5_dump_reset_stats(0, 0)
 #else
 #define M5_SWITCH_CPU()
+#define M5_RESET_STATS()
+#define M5_DUMP_STATS()
+#define M5_DUMP_RESET_STATS()
 #endif
 
 
