@@ -534,7 +534,7 @@ void smv_run_eltwise_ops(data_list* host_activations,
     // If the FC wanted to leave the inputs in the local scratchpad, we don't
     // want to DMA the host activations back.
     eltwise_layer.input_req = curr_layer->output_req;
-    eltwise_layer.weights_req = curr_layer->weights_req;
+    eltwise_layer.weights_req = IO_DMA;
     eltwise_layer.output_req = curr_layer->output_req;
 
     smv_eltwise_options options;
