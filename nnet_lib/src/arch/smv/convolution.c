@@ -815,7 +815,7 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
 
             // Set up the results buffer and mappings.
             int result_buf_size = get_largest_output_tile_size(input_tile);
-            fp16array_t* temp_result = init_fp16array(result_buf_size, false);
+            fp16array_t* temp_result = init_fp16array(result_buf_size, true);
             MAP_ARRAY_TO_ACCEL(g_smv->kConvolutionHw,
                                get_host_results_var_name(curr_layer.output_req),
                                temp_result->d,
