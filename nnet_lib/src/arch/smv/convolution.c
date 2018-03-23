@@ -842,7 +842,7 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                     set_profiling_type_sampled(
                             1, output_tile->sampling_upscale_factor);
                 }
-                if (ot != 0 && curr_layer.input_req == IO_DMA)
+                if (ot != 0)
                     partial_layer.input_req = IO_NONE;
 
                 // Set up input location and mappings.
@@ -900,9 +900,6 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
 
                     // Only copy weights and inputs on the first iteration.
                     if (iter > 0) {
-                        if (partial_layer.input_req == IO_DMA ||
-                            partial_layer.input_req == IO_ACP)
-                            partial_layer.input_req = IO_NONE;
                         if (partial_layer.weights_req == IO_DMA ||
                             partial_layer.weights_req == IO_ACP)
                             partial_layer.weights_req = IO_NONE;
@@ -913,6 +910,13 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                                                        : NO_ACTIVATION;
                     access_config access_cfg =
                             layer_to_access_config(&partial_layer);
+                    INFO_MSG("Layer %d: input tile %d, output_tile %d, hw_pass "
+                             "%d: input_req = %d, output_req = %d, weights_req "
+                             "= %d\n",
+                             partial_layer.num, it, ot, iter,
+                             partial_layer.input_req,
+                             partial_layer.output_req,
+                             partial_layer.weights_req);
                     if (!use_pipelined_activation) {
                         INVOKE_KERNEL_SAMPLED(g_smv->kConvolutionHw,
                                               lnum,
