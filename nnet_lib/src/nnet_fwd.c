@@ -48,7 +48,8 @@ static char args_doc[] = "path/to/model-config-file";
 static struct argp_option options[] = {
     { "num-inputs", 'n', "N", 0, "Number of input images" },
     { "data-init-mode", 'd', "D", 0,
-      "Data and weights generation mode (FIXED, RANDOM, READ_FILE)." },
+      "Data and weights generation mode (FIXED, FAST_FIXED, RANDOM, "
+      "READ_FILE)." },
     { "data-file", 'f', "F", 0,
       "File to read data and weights from (if data-init-mode == READ_FILE or "
       "save-params is true). *.txt files are decoded as text files, while "
@@ -94,6 +95,9 @@ int str2mode(char* str, data_init_mode* mode) {
         return 0;
     } else if (strncmp(str, "FIXED", 6) == 0) {
         *mode = FIXED;
+        return 0;
+    } else if (strncmp(str, "FAST_FIXED", 11) == 0) {
+        *mode = FAST_FIXED;
         return 0;
     } else if (strncmp(str, "READ_FILE", 10) == 0) {
         *mode = READ_FILE;

@@ -2,6 +2,7 @@
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "utility/utility.h"
 #include "nnet_fwd.h"
@@ -10,6 +11,13 @@
 
 inline float gen_uniform() {
     return randfloat();
+}
+
+void memsetfp(float* buffer, float value, int size) {
+    buffer = (float*)ASSUME_ALIGNED(buffer, CACHELINE_SIZE);
+    for (int i = 0; i < size; i++) {
+        buffer[i] = value;
+    }
 }
 
 // Returns an approximately normally distributed random value, using the
@@ -53,7 +61,15 @@ void init_fc_weights(float* weights,
                      int w_pad,
                      data_init_mode mode,
                      bool transpose) {
+    int w_tot_rows = transpose ? w_rows + w_pad : w_rows;
     int w_tot_cols = transpose ? w_cols : w_cols + w_pad;
+    if (mode == FAST_FIXED) {
+        int num_weights = w_tot_rows * w_tot_cols;
+        memsetfp(weights, 0.001, num_weights);
+        int num_biases = w_tot_cols;
+        memsetfp(weights + num_weights, -12, num_biases);
+        return;
+    }
     // Always store the biases after all the weights, regardless of whether
     // weights are transposed or not.
     float val = 0;
@@ -92,6 +108,12 @@ void init_conv_weights(float* weights,
                        data_init_mode mode,
                        bool transpose) {
     int w_tot_cols = w_cols + w_pad;
+    if (mode == FAST_FIXED) {
+        int num_weights = w_depth * w_height * w_rows *  w_tot_cols;
+        memsetfp(weights, 0.001, num_weights / 2);
+        memsetfp(weights + num_weights / 2, -0.001, num_weights / 2);
+        return;
+    }
     float val = 0;
     for (int d = 0; d < w_depth; d++) {
         for (int h = 0; h < w_height; h++) {
@@ -141,8 +163,14 @@ void init_bn_weights(float* weights,
                      data_init_mode mode,
                      bool precompute_variance) {
     static const float kEpsilon = 1e-5;
-
     int w_tot_cols = w_cols + w_pad;
+    if (mode == FAST_FIXED) {
+        int num_weights = w_height * w_rows *  w_tot_cols;
+        memsetfp(weights, kEpsilon, num_weights / 2);
+        memsetfp(weights + num_weights / 2, -kEpsilon, num_weights / 2);
+        return;
+    }
+
     float val = 0;
     for (int h = 0; h < w_height; h++) {
         for (int i = 0; i < w_rows; i++) {
@@ -183,7 +211,7 @@ void init_weights(float* weights,
     int l;
     int w_rows, w_cols, w_height, w_depth, w_offset, w_pad;
 
-    assert(mode == RANDOM || mode == FIXED);
+    assert(mode == RANDOM || mode == FIXED || mode == FAST_FIXED);
     w_offset = 0;
     printf("Initializing weights randomly\n");
 
@@ -236,8 +264,15 @@ void init_data(float* data,
 
     ARRAY_4D(float, _data, data, input_height, input_rows,
              input_cols + input_align_pad);
-    assert(mode == RANDOM || mode == FIXED);
+    assert(mode == RANDOM || mode == FIXED || mode == FAST_FIXED);
     printf("Initializing data randomly\n");
+    if (mode == FAST_FIXED) {
+        int num_inputs = num_test_cases * input_height * input_rows *
+                         (input_cols + input_align_pad);
+        memsetfp(data, 0.002, num_inputs / 2);
+        memsetfp(data + num_inputs / 2, -0.002, num_inputs / 2);
+        return;
+    }
     // Generate random input data, size num_test_cases by num_units[0]
     // (input dimensionality)
     for (i = 0; i < num_test_cases; i++) {
@@ -265,7 +300,7 @@ void init_data(float* data,
 
 void init_labels(int* labels, size_t label_size, data_init_mode mode) {
     unsigned i;
-    assert(mode == RANDOM || mode == FIXED);
+    assert(mode == RANDOM || mode == FIXED || mode == FAST_FIXED);
     printf("Initializing labels randomly\n");
     for (i = 0; i < label_size; i++) {
         labels[i] = 0;  // set all labels to 0

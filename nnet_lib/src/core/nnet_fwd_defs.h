@@ -9,9 +9,10 @@
 // This is the core header of nnet_lib.
 
 typedef enum _data_init_mode {
-    RANDOM,    // Generate pseudo-random input.
-    FIXED,     // Use (mostly) constant values (helpful for debugging).
-    READ_FILE  // Read data and weights from files.
+    RANDOM,      // Generate pseudo-random input.
+    FIXED,       // Use (mostly) constant values (helpful for debugging).
+    FAST_FIXED,  // Use completely constant values (fast simulation).
+    READ_FILE    // Read data and weights from files.
 } data_init_mode;
 
 typedef enum _pool_type {
