@@ -903,6 +903,9 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                         if (partial_layer.weights_req == IO_DMA ||
                             partial_layer.weights_req == IO_ACP)
                             partial_layer.weights_req = IO_NONE;
+                        if (partial_layer.input_req == IO_DMA ||
+                            partial_layer.input_req == IO_ACP)
+                            partial_layer.input_req = IO_NONE;
                     }
                     // Only run the activation function on the last iteration.
                     partial_layer.activation = (do_hw_activation)
