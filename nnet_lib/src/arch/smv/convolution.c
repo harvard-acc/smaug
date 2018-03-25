@@ -143,10 +143,15 @@ static void smv_convolution_layer_hw_impl(packed_fp16* host_activations,
             curr_layer.weights.rows * curr_layer.weights.cols *
             (curr_layer.weights.height + curr_layer.weights.align_pad);
     int num_weights = options->total_tile_ofmaps * single_weights_elems;
-    if (curr_layer.weights_req != IO_NONE) {
+    if (curr_layer.weights_req == IO_DMA) {
         setReadyBits(local_weights, num_weights * sizeof(*local_results), 0);
-        dma_load_and_unpack_fp16(local_weights, host_weights, num_weights, 0, 0);
+        dma_load_and_unpack_fp16(
+                local_weights, host_weights, num_weights, 0, 0);
+    } else if (curr_layer.weights_req == IO_ACP) {
+        acp_load_and_unpack_fp16(
+                local_weights, host_weights, num_weights, 0, 0);
     }
+
     if (curr_layer.input_req == IO_DMA || curr_layer.input_req == IO_ACP) {
         // Read in ALL channels of the input into the UMEM at once, so that we
         // can reuse them on subsequent output channels.
@@ -225,22 +230,35 @@ static void smv_convolution_layer_hw(packed_fp16* dma_activations,
         curr_layer.output_req = IO_ACP;
         if (use_acp_inputs) {
             curr_layer.input_req = IO_ACP;
-            smv_convolution_layer_hw_impl(acp_activations, dma_weights,
-                                          acp_results, umem, spad0, spad1,
-                                          curr_layer, options);
+            if (access_config->weights == _DmaOrLocal) {
+                smv_convolution_layer_hw_impl(acp_activations, dma_weights,
+                    acp_results, umem, spad0, spad1, curr_layer, options);
+            } else {
+                smv_convolution_layer_hw_impl(acp_activations, acp_weights,
+                    acp_results, umem, spad0, spad1, curr_layer, options);
+            }
         } else {
             if (curr_layer.input_req != IO_NONE)
                 curr_layer.input_req = IO_DMA;
-            smv_convolution_layer_hw_impl(dma_activations, dma_weights,
-                                          acp_results, umem, spad0, spad1,
-                                          curr_layer, options);
+            if (access_config->weights == _DmaOrLocal) {
+                smv_convolution_layer_hw_impl(dma_activations, dma_weights,
+                    acp_results, umem, spad0, spad1, curr_layer, options);
+            } else {
+                smv_convolution_layer_hw_impl(dma_activations, acp_weights,
+                    acp_results, umem, spad0, spad1, curr_layer, options);
+            }
         }
     } else {
         ASSERT((access_config->inputs == _DmaOrLocal &&
                 access_config->outputs == _DmaOrLocal) &&
                "IO requirements are inconsistent with DMA fallback!");
-        smv_convolution_layer_hw_impl(dma_activations, dma_weights, dma_results,
-                                      umem, spad0, spad1, curr_layer, options);
+        if (access_config->weights == _DmaOrLocal) {
+            smv_convolution_layer_hw_impl(dma_activations, dma_weights,
+                dma_results, umem, spad0, spad1, curr_layer, options);
+        } else {
+            smv_convolution_layer_hw_impl(dma_activations, acp_weights,
+                dma_results, umem, spad0, spad1, curr_layer, options);
+        }
     }
 }
 
@@ -692,6 +710,35 @@ static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer,
     return cfg;
 }
 
+// Determine whether to use ACP or DMA for the weights for this output tile.
+io_req_t get_weights_io_req(layer_t* curr_layer,
+                            conv_tiling_cfg* tiling_cfg,
+                            conv_input_tile* input_tile,
+                            int output_tile_num,
+                            io_req_t cpu_default_offload) {
+    // Always use DMA if that is the default. ACP is only considered if it is
+    // set to the default.
+    if (cpu_default_offload == IO_DMA)
+      return IO_DMA;
+    // If there is only one input tile, there is no reuse of weights across
+    // input tiles, so don't pollute the cache with them.
+    if (tiling_cfg->num_input_tiles == 1)
+        return IO_DMA;
+    int input_size = next_multiple(curr_layer->inputs.height, DATA_ALIGNMENT) *
+                     curr_layer->inputs.rows * curr_layer->inputs.cols;
+    int weight_size =
+            next_multiple(curr_layer->weights.height, DATA_ALIGNMENT) *
+            curr_layer->weights.rows * curr_layer->weights.cols *
+            curr_layer->outputs.height;
+    INFO_MSG("Total inputs: %d, weights; %d, tiles = %d\n",
+             input_size,
+             weight_size,
+             tiling_cfg->num_input_tiles);
+    if (weight_size * tiling_cfg->num_input_tiles >= input_size)
+        return IO_ACP;
+    return IO_DMA;
+}
+
 void smv_standard_convolution_layer_impl(data_list* host_activations,
                                          data_list* host_weights,
                                          layer_t* layers,
@@ -856,13 +903,17 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                                 sizeof(float16));
 
                 // Convert weights to NHWC and set up mappings.
+                partial_layer.weights_req = get_weights_io_req(
+                    &curr_layer, &tiling, input_tile, ot,
+                    device->cpu_default_offload);
                 float16* weights_loc = &_kernels[kern_start][0][0][0];
-                MAP_ARRAY_TO_ACCEL(g_smv->kConvolutionHw,
-                                   get_host_weights_var_name(IO_DMA),
-                                   weights_loc,
-                                   output_tile->num_ofmaps *
-                                           get_dims_size(&nhwc_weights_dims) *
-                                           sizeof(float16));
+                MAP_ARRAY_TO_ACCEL(
+                        g_smv->kConvolutionHw,
+                        get_host_weights_var_name(partial_layer.weights_req),
+                        weights_loc,
+                        output_tile->num_ofmaps *
+                                get_dims_size(&nhwc_weights_dims) *
+                                sizeof(float16));
 
                 // Sampling operates on iterations of the following loop over
                 // num_hw_iters. We always execute the first and last
