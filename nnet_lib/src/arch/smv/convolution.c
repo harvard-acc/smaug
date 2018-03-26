@@ -715,28 +715,36 @@ io_req_t get_weights_io_req(layer_t* curr_layer,
                             conv_tiling_cfg* tiling_cfg,
                             conv_input_tile* input_tile,
                             int output_tile_num,
-                            io_req_t cpu_default_offload) {
+                            device_t* device) {
     // Always use DMA if that is the default. ACP is only considered if it is
     // set to the default.
-    if (cpu_default_offload == IO_DMA)
+    if (device->weights_load_policy == DmaAlways)
       return IO_DMA;
-    // If there is only one input tile, there is no reuse of weights across
-    // input tiles, so don't pollute the cache with them.
-    if (tiling_cfg->num_input_tiles == 1)
+    else if (device->weights_load_policy == AcpAlways)
+      return IO_ACP;
+    else if (device->weights_load_policy == AcpIfWeightsAreReused) {
+        // If there is only one input tile, there is no reuse of weights across
+        // input tiles, so don't pollute the cache with them.
+        if (tiling_cfg->num_input_tiles == 1)
+            return IO_DMA;
+        int input_size =
+                next_multiple(curr_layer->inputs.height, DATA_ALIGNMENT) *
+                curr_layer->inputs.rows * curr_layer->inputs.cols;
+        int weight_size =
+                next_multiple(curr_layer->weights.height, DATA_ALIGNMENT) *
+                curr_layer->weights.rows * curr_layer->weights.cols *
+                curr_layer->outputs.height;
+        INFO_MSG("Total inputs: %d, weights; %d, tiles = %d\n",
+                 input_size,
+                 weight_size,
+                 tiling_cfg->num_input_tiles);
+        if (weight_size * tiling_cfg->num_input_tiles >= input_size)
+            return IO_ACP;
         return IO_DMA;
-    int input_size = next_multiple(curr_layer->inputs.height, DATA_ALIGNMENT) *
-                     curr_layer->inputs.rows * curr_layer->inputs.cols;
-    int weight_size =
-            next_multiple(curr_layer->weights.height, DATA_ALIGNMENT) *
-            curr_layer->weights.rows * curr_layer->weights.cols *
-            curr_layer->outputs.height;
-    INFO_MSG("Total inputs: %d, weights; %d, tiles = %d\n",
-             input_size,
-             weight_size,
-             tiling_cfg->num_input_tiles);
-    if (weight_size * tiling_cfg->num_input_tiles >= input_size)
-        return IO_ACP;
-    return IO_DMA;
+    } else {
+        assert(false && "Unknown data movement load policy!");
+        return IO_DMA;
+    }
 }
 
 void smv_standard_convolution_layer_impl(data_list* host_activations,
@@ -904,8 +912,7 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
 
                 // Convert weights to NHWC and set up mappings.
                 partial_layer.weights_req = get_weights_io_req(
-                    &curr_layer, &tiling, input_tile, ot,
-                    device->cpu_default_offload);
+                        &curr_layer, &tiling, input_tile, ot, device);
                 float16* weights_loc = &_kernels[kern_start][0][0][0];
                 MAP_ARRAY_TO_ACCEL(
                         g_smv->kConvolutionHw,

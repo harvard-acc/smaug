@@ -155,6 +155,13 @@ typedef struct _stride_dims {
     int cols;
 } stride_dims;
 
+typedef enum _data_mvmt_policy {
+    DmaAlways,
+    AcpAlways,
+    AcpIfWeightsAreReused,
+    NumDataMvmtPolicies
+} data_mvmt_policy;
+
 // When ping-ponging data between two buffers, use this to indicate which one
 // stores the last output (and the next input).
 typedef data_list* result_buf;
@@ -242,6 +249,7 @@ typedef struct _device_t {
     io_req_t cpu_default_offload;
     io_req_t cpu_pooling_offload;
     io_req_t cpu_activation_func_offload;
+    data_mvmt_policy weights_load_policy;
     bool use_hw_activation_func;
     bool use_hw_batch_norm;
     bool use_hw_pooling;

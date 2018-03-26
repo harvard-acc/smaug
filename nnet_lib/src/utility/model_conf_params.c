@@ -48,6 +48,7 @@ cfg_opt_t device_cfg[] = {
     CFG_STR("cpu_default_offload", "DMA", CFGF_NONE),
     CFG_STR("cpu_pooling_offload", "DMA", CFGF_NONE),
     CFG_STR("cpu_activation_func_offload", "DMA", CFGF_NONE),
+    CFG_STR("weights_load_policy", "DMA_ALWAYS", CFGF_NONE),
     CFG_BOOL("use_hw_activation_func", cfg_true, CFGF_NONE),
     CFG_BOOL("use_hw_batch_norm", cfg_true, CFGF_NONE),
     CFG_BOOL("use_hw_pooling", cfg_true, CFGF_NONE),

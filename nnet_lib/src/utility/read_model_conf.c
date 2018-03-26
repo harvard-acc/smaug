@@ -38,6 +38,9 @@ const char OFFLOAD_ACP[] = "ACP";
 const char OFFLOAD_CACHE[] = "CACHE";
 const char PADDING_SAME[] = "SAME";
 const char PADDING_VALID[] = "VALID";
+const char DMA_ALWAYS[] = "DMA_ALWAYS";
+const char ACP_ALWAYS[] = "ACP_ALWAYS";
+const char ACP_IF_WEIGHTS_REUSED[] = "ACP_IF_WEIGHTS_REUSED";
 
 static int input_rows;
 static int input_cols;
@@ -104,6 +107,19 @@ int validate_layer_type(cfg_t* cfg, cfg_opt_t* opt) {
         strcmp(value, POOLING_TYPE) != 0 &&
         strcmp(value, BATCH_NORM_TYPE) != 0) {
         cfg_error(cfg, "Invalid layer type '%s' for '%s'!", value, cfg->name);
+        return -1;
+    }
+    return 0;
+}
+
+int validate_data_mvmt_policy(cfg_t* cfg, cfg_opt_t* opt) {
+    const char* value = cfg_opt_getnstr(opt, cfg_opt_size(opt) - 1);
+    assert(value);
+    if (strcmp(value, DMA_ALWAYS) != 0 &&
+        strcmp(value, ACP_ALWAYS) != 0 &&
+        strcmp(value, ACP_IF_WEIGHTS_REUSED) != 0) {
+        cfg_error(cfg, "Invalid data movement policy '%s' for '%s'!",
+                  value, cfg->name);
         return -1;
     }
     return 0;
@@ -631,6 +647,16 @@ const char* io_req_to_str(io_req_t value) {
     return NONE_TYPE;
 }
 
+data_mvmt_policy str2policy(const char* value) {
+    if (strcmp(value, DMA_ALWAYS) == 0)
+        return DmaAlways;
+    if (strcmp(value, ACP_ALWAYS) == 0)
+        return AcpAlways;
+    if (strcmp(value, ACP_IF_WEIGHTS_REUSED) == 0)
+        return AcpIfWeightsAreReused;
+    return NumDataMvmtPolicies;
+}
+
 static void read_device_parameters(cfg_t* all_opts, device_t* device) {
     if (cfg_size(all_opts, "device") != 0) {
         cfg_t* device_opts = cfg_getsec(all_opts, "device");
@@ -649,10 +675,10 @@ static void read_device_parameters(cfg_t* all_opts, device_t* device) {
                 cfg_getbool(device_opts, "use_pipelined_dma");
         device->use_pipelined_activation_func =
                 cfg_getbool(device_opts, "use_pipelined_activation_func");
-        device->umem_size =
-                cfg_getint(device_opts, "umem_size");
-        device->spad_size =
-                cfg_getint(device_opts, "spad_size");
+        device->umem_size = cfg_getint(device_opts, "umem_size");
+        device->spad_size = cfg_getint(device_opts, "spad_size");
+        device->weights_load_policy =
+                str2policy(cfg_getstr(device_opts, "weights_load_policy"));
     } else {
         device->cpu_default_offload = IO_DMA;
         device->cpu_pooling_offload = IO_DMA;
@@ -664,6 +690,7 @@ static void read_device_parameters(cfg_t* all_opts, device_t* device) {
         device->use_pipelined_activation_func = false;
         device->umem_size = 0;
         device->spad_size = 0;
+        device->weights_load_policy = DmaAlways;
     }
 }
 
