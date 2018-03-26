@@ -1049,6 +1049,7 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                             activation_fun_simd128(
                                     temp_result->d,
                                     1,
+                                    &curr_layer,
                                     &last_iter_dims,
                                     curr_layer.activation,
                                     temp_result->d);
@@ -1076,6 +1077,7 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                     };
                     activation_fun_simd128(temp_result->d,
                                            1,
+                                           &curr_layer,
                                            &last_iter_dims,
                                            curr_layer.activation,
                                            temp_result->d);

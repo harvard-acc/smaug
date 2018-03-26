@@ -95,8 +95,11 @@ result_buf smv_activation_function(data_list* activations,
 #else
     require_data_type(activations, 0, UncompressedHalfPrecision);
     begin_profiling(ACTIVATION_TYPE_STR(layer->activation), layer->num);
-    activation_fun_simd128(activations->data[0].dense_hp->d, NUM_TEST_CASES,
-                           &layer->outputs, layer->activation,
+    activation_fun_simd128(activations->data[0].dense_hp->d,
+                           NUM_TEST_CASES,
+                           layer,
+                           &layer->outputs,
+                           layer->activation,
                            activations->data[0].dense_hp->d);
     end_profiling();
     return activations;

@@ -105,8 +105,10 @@ void smiv_decompress_packed_csr_impl(layer_t* layer,
     assert(layer->host_weights->len > weights_list_idx);
     packed_csr_array_t* src_csr =
             layer->host_weights->data[weights_list_idx].packed;
+    begin_ignored_profiling(layer->num);
     csr_tile_list* tile_list = tile_packed_csr_array_t(
             src_csr, &layer->weights, start_row, g_smiv->kSpadSize);
+    end_profiling();
     assert(tile_list->len > 0 && "CSR tile list cannot be empty!");
     csr_tile* curr_tile = tile_list->head;
     int dest_offset = 0;
