@@ -7,6 +7,7 @@
 // SMV has the same scratchpad sizes as SMIV.
 #define SMV_DEFAULT_SPAD_SIZE (131072)
 #define SMV_DEFAULT_UMEM_SIZE (3*1048576)
+#define SMV_DEFAULT_L2_SIZE (2*1048576)
 
 // Accelerator id codes.
 extern unsigned kSmvConvolutionHw;
@@ -28,6 +29,7 @@ typedef struct _smv_global {
     unsigned kPoolingHw;
     size_t kUmemSize;
     size_t kSpadSize;
+    size_t kL2Size;
     //-----------------------//
 } smv_global;
 

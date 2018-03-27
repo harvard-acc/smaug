@@ -257,6 +257,7 @@ typedef struct _device_t {
     bool use_pipelined_activation_func;
     size_t umem_size;
     size_t spad_size;
+    size_t l2_size;
     // An implementation can pass any pointer containing architecture specific
     // state that must be shared.
     void* session;
@@ -282,7 +283,10 @@ typedef struct _sampling_param_t {
     // See smv/arch/convolution.c for details.
     int smv_conv_inner_iters;
 
-    // SMV: Run this many input tiles of a convolution.
+    // SMV: Run this many L2 tiles.
+    int smv_conv_l2_tiles;
+
+    // SMV: Run this many input tiles of an L2 tile.
     int smv_conv_input_tiles;
 
     // SMV: Run this many output tiles for an input tile.

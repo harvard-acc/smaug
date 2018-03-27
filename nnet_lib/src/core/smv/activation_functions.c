@@ -5,12 +5,15 @@
 
 #include "core/ref/activation_functions.h"
 #include "core/ref/lookup_tables_ops.h"
-#include "third_party/fmath/fmath.hpp"
 #include "core/smiv/params.h"
 #include "arch/smv/common.h"
 #include "utility/compression.h"
 #include "utility/utility.h"
 #include "nnet_fwd.h"
+
+#ifdef __cplusplus
+
+#include "third_party/fmath/fmath.hpp"
 
 // Internal to this file only.
 #define _VECTOR_WIDTH (4)
@@ -114,6 +117,8 @@ void hard_tanh_simd128(
     }
 }
 
+#endif
+
 // Dispatch to the appropriate activation function.
 void activation_fun_simd128(packed_fp16* activations,
                             int batch_size,
@@ -128,6 +133,7 @@ void activation_fun_simd128(packed_fp16* activations,
     farray_t* unpacked_activations = unpack_data_fp16x4(&packed_array, NULL);
     end_profiling();
 
+#ifdef __cplusplus
     if (function == RELU) {
         relu_simd128(unpacked_activations->d, unpacked_activations->size);
     } else if (function == LRELU) {
@@ -161,6 +167,14 @@ void activation_fun_simd128(packed_fp16* activations,
                 input_size,
                 input_dims->align_pad);
     }
+#else
+    int input_size = input_dims->rows * input_dims->cols * input_dims->height;
+    activation_fun(unpacked_activations->d,
+                   batch_size,
+                   input_size,
+                   input_dims->align_pad,
+                   function);
+#endif
     begin_ignored_profiling(layer->num);
     fp16array_t* packed_results = pack_data_fp16(unpacked_activations, results);
     // This frees the malloc'ed pointer to the fp16array_t without freeing the

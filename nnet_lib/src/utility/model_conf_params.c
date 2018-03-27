@@ -56,6 +56,7 @@ cfg_opt_t device_cfg[] = {
     CFG_BOOL("use_pipelined_activation_func", cfg_false, CFGF_NONE),
     CFG_INT("umem_size", 0, CFGF_NONE),
     CFG_INT("spad_size", 0, CFGF_NONE),
+    CFG_INT("l2_size", 0, CFGF_NONE),
     CFG_END()
 };
 
@@ -65,6 +66,7 @@ cfg_opt_t sampling_cfg[] = {
     CFG_INT("smv_conv_inner_iters", 0, CFGF_NONE),
     CFG_INT("smv_conv_input_tiles", 0, CFGF_NONE),
     CFG_INT("smv_conv_output_tiles", 0, CFGF_NONE),
+    CFG_INT("smv_conv_l2_tiles", 0, CFGF_NONE),
     CFG_END()
 };
 

@@ -677,6 +677,8 @@ static void read_device_parameters(cfg_t* all_opts, device_t* device) {
                 cfg_getbool(device_opts, "use_pipelined_activation_func");
         device->umem_size = cfg_getint(device_opts, "umem_size");
         device->spad_size = cfg_getint(device_opts, "spad_size");
+        device->l2_size =
+                cfg_getint(device_opts, "l2_size");
         device->weights_load_policy =
                 str2policy(cfg_getstr(device_opts, "weights_load_policy"));
     } else {
@@ -690,6 +692,7 @@ static void read_device_parameters(cfg_t* all_opts, device_t* device) {
         device->use_pipelined_activation_func = false;
         device->umem_size = 0;
         device->spad_size = 0;
+        device->l2_size = 0;
         device->weights_load_policy = DmaAlways;
     }
 }
@@ -707,12 +710,15 @@ static void read_sampling_param(cfg_t* all_opts, sampling_param_t* sampling) {
                 cfg_getint(sampling_opts, "smv_conv_input_tiles");
         sampling->smv_conv_output_tiles =
                 cfg_getint(sampling_opts, "smv_conv_output_tiles");
+        sampling->smv_conv_l2_tiles =
+                cfg_getint(sampling_opts, "smv_conv_l2_tiles");
     } else {
         sampling->standard_conv_num_filters = 0;
         sampling->fc_num_neurons = 0;
         sampling->smv_conv_inner_iters = 0;
         sampling->smv_conv_input_tiles = 0;
         sampling->smv_conv_output_tiles = 0;
+        sampling->smv_conv_l2_tiles = 0;
     }
 }
 
@@ -830,12 +836,14 @@ static void print_sampling_param(sampling_param_t* sampling_param) {
            "   FC num neurons: %d\n"
            "   SMV convolution inner iters: %d\n"
            "   SMV convolution input tiles: %d\n"
-           "   SMV convolution output tiles: %d\n",
+           "   SMV convolution output tiles: %d\n"
+           "   SMV convolution l2 tiles: %d\n",
            sampling_param->standard_conv_num_filters,
            sampling_param->fc_num_neurons,
            sampling_param->smv_conv_inner_iters,
            sampling_param->smv_conv_input_tiles,
-           sampling_param->smv_conv_output_tiles);
+           sampling_param->smv_conv_output_tiles,
+           sampling_param->smv_conv_l2_tiles);
     printf("========================================\n");
 
 }
@@ -898,6 +906,8 @@ static void install_validation_callbacks(cfg_t* cfg) {
             cfg, "sampling_param|smv_conv_input_tiles", validate_unsigned_int);
     cfg_set_validate_func(
             cfg, "sampling_param|smv_conv_output_tiles", validate_unsigned_int);
+    cfg_set_validate_func(
+            cfg, "sampling_param|smv_conv_l2_tiles", validate_unsigned_int);
 }
 
 int configure_network_from_file(const char* cfg_file,

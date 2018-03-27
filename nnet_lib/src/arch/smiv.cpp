@@ -58,8 +58,14 @@ void init_smiv_global(device_t* device) {
     } else {
         g_smiv.kSpadSize = SMIV_DEFAULT_SPAD_SIZE;
     }
+    if (device->l2_size != 0) {
+        g_smiv.kL2Size = device->l2_size;
+    } else {
+        g_smiv.kL2Size = SMIV_DEFAULT_L2_SIZE;
+    }
     printf("Size of UMEM: %lu bytes\n", g_smiv.kUmemSize);
     printf("Size of Scratchpad: %lu bytes\n", g_smiv.kSpadSize);
+    printf("Size of L2 cache: %lu bytes\n", g_smiv.kL2Size);
 
     g_smiv.umem = (float*)malloc_aligned(g_smiv.kUmemSize);
     g_smiv.spad0 = (float*)malloc_aligned(g_smiv.kSpadSize);

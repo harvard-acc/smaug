@@ -19,6 +19,9 @@
 // The UMEM on the NIC is 3 blocks of 1MB each.
 #define SMIV_DEFAULT_UMEM_SIZE (3*1048576)
 
+// The default L2 cache size is 2MB.
+#define SMIV_DEFAULT_L2_SIZE (2*1048576)
+
 // These are GLOBAL arrays which cannot be referenced directly by a HW
 // function. Instead, pass them to the top level functions as function
 // arguments, and use a boolean flag to indicate which one contains the data
@@ -34,6 +37,7 @@ typedef struct _smiv_global {
     unsigned kPoolingHw;
     size_t kUmemSize;
     size_t kSpadSize;
+    size_t kL2Size;
 } smiv_global;
 
 extern smiv_global g_smiv;
