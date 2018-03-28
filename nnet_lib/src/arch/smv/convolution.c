@@ -652,12 +652,12 @@ static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer,
         // The input is tiled based on a strip mining mechanism, the smallest
         // tile is of (K * W * H) layout format, where K is the kernel's length,
         // W is input's width, H is input's height.
-        size_t single_strip_size = curr_layer_nhwc_padded.weights.rows *
-                                   curr_layer_nhwc_padded.inputs.cols *
+        size_t single_row_size = curr_layer_nhwc_padded.inputs.cols *
                                    (curr_layer_nhwc_padded.inputs.height +
                                     curr_layer_nhwc_padded.inputs.align_pad) *
                                    sizeof(float);
-        if (single_strip_size > g_smv->kUmemSize) {
+        if (single_row_size * curr_layer_nhwc_padded.weights.rows >
+            g_smv->kUmemSize) {
             printf("A single strip of the input image exceeds the capacity of "
                    "the UMEM, which is not supported!\n");
             assert(false);
@@ -665,14 +665,10 @@ static conv_tiling_cfg convolution_divide_work(layer_t* curr_layer,
         // Divide up the input over strips.
         halo_rows = curr_layer_nhwc_padded.weights.rows -
                     curr_layer_nhwc_padded.stride.rows;
-        int max_strip_per_input_tile = g_smv->kUmemSize / single_strip_size;
-        max_rows_per_input_tile =
-                max_strip_per_input_tile * curr_layer_nhwc_padded.weights.rows;
+        max_rows_per_input_tile = g_smv->kUmemSize / single_row_size;
         num_input_tiles =
                 ceil((float)(curr_layer_nhwc_padded.inputs.rows - halo_rows) /
-                     (curr_layer_nhwc_padded.weights.rows *
-                              max_strip_per_input_tile -
-                      halo_rows));
+                     (max_rows_per_input_tile - halo_rows));
 
         // Compute the output rows, output 2D feture map size for the first input
         // tile, last input tile and the inner tiles. These will be used for
