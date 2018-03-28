@@ -970,6 +970,10 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                 l2_tile_kern_start += l2_tile->num_kernels;
                 continue;
             }
+            begin_profiling("standard_convolution_layer_smv_l2_tile", lnum);
+            if (l2_tile->sampling_upscale_factor > 1) {
+                set_profiling_type_sampled(1, l2_tile->sampling_upscale_factor);
+            }
             // Outer loop for input tiling. The input is tiled along rows, and the
             // output of an input tile is furtur tiled along output channels.
             // We need to track the start row number of the current input tile and
@@ -1253,6 +1257,7 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                 input_row_start += (partial_layer.inputs.rows - halo_rows);
                 result_row_start += partial_layer.outputs.rows;
             }
+            end_profiling();  // standard_convolution_layer_smv_l2_tile
             l2_tile_kern_start += l2_tile->num_kernels;
         }
     }
