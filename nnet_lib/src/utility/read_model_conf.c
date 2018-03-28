@@ -979,6 +979,8 @@ int configure_network_from_file(const char* cfg_file,
     // Read the device parameters.
     *device_ptr = (device_t*) malloc_aligned(sizeof(device_t));
     read_device_parameters(all_opts, *device_ptr);
+    assert(!((*device_ptr)->use_pipelined_activation_func == true &&
+             (*device_ptr)->use_hw_activation_func == true));
 
     // Read the sampling configuration.
     *sampling_ptr = (sampling_param_t*) malloc_aligned(sizeof(sampling_param_t));

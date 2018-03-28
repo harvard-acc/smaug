@@ -1131,7 +1131,7 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                                  partial_layer.input_req,
                                  partial_layer.output_req,
                                  partial_layer.weights_req);
-                        if (!use_pipelined_activation) {
+                        if (!use_pipelined_activation || do_hw_activation) {
                             INVOKE_KERNEL_SAMPLED(g_smv->kConvolutionHw,
                                                   lnum,
                                                   options->sampling_upscale_factor,
