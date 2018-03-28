@@ -38,9 +38,9 @@ static void smiv_batch_norm_layer_hw(float* host_activations,
     // The main kernel
 #ifdef ENABLE_SIMD_IMPL
     if (input_in_spad0) {
-        batch_norm_simd_fxp(spad0, umem, curr_layer, NUM_TEST_CASES, spad1);
+        batch_norm_simd_fxp(spad0, umem, curr_layer, NUM_TEST_CASES, spad1, 0);
     } else {
-        batch_norm_simd_fxp(spad1, umem, curr_layer, NUM_TEST_CASES, spad0);
+        batch_norm_simd_fxp(spad1, umem, curr_layer, NUM_TEST_CASES, spad0, 0);
     }
 #else
     int input_size = curr_layer->inputs.rows * curr_layer->inputs.height *

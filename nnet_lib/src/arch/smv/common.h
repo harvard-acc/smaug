@@ -44,6 +44,12 @@ typedef struct _dma_options {
     bool fp16_input;
 } dma_options;
 
+typedef enum _smv_sram {
+    SMV_SPAD0,
+    SMV_SPAD1,
+    SMV_UMEM
+} smv_sram;
+
 bool smv_inner_product_needs_work_division(layer_t* curr_layer,
                                            smv_global* g_smv);
 

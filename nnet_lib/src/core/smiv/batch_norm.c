@@ -51,8 +51,10 @@ void batch_norm_post_conv_simd_fxp(float* inputs,
                                    float* weights,
                                    const layer_t* curr_layer,
                                    int batch_size,
-                                   float* results) {
+                                   float* results,
+                                   int weight_col_start) {
     const int num_chans = curr_layer->inputs.height;
+    const int weight_cols = curr_layer->weights.cols;
     const int weight_align_pad = curr_layer->weights.align_pad;
     const int input_rows = curr_layer->inputs.rows;
     const int input_cols = curr_layer->inputs.cols;
@@ -63,7 +65,7 @@ void batch_norm_post_conv_simd_fxp(float* inputs,
     const int input_cols_vec = FRAC_CEIL(input_cols, VECTOR_SIZE);
     activation_type act = curr_layer->activation;
 
-    VEC_ARRAY_2D(v8fp_t, _weights, weights, num_chans + weight_align_pad);
+    VEC_ARRAY_2D(v8fp_t, _weights, weights, weight_cols + weight_align_pad);
     VEC_ARRAY_4D(v8fp_t,
                  _inputs,
                  inputs,
@@ -81,10 +83,14 @@ void batch_norm_post_conv_simd_fxp(float* inputs,
     for (int i = 0; i < batch_size; i++) {
         bn_chan:
         for (int h = 0; h < FRAC_CEIL(num_chans, VECTOR_SIZE); h++) {
-            v8fp_t mean_vec = _weights[MeanIndex][h];
-            v8fp_t recip_sqrt_var_vec = _weights[VarianceIndex][h];
-            v8fp_t gamma_vec = _weights[GammaIndex][h];
-            v8fp_t beta_vec = _weights[BetaIndex][h];
+            v8fp_t mean_vec =
+                    _weights[MeanIndex][h + weight_col_start / VECTOR_SIZE];
+            v8fp_t recip_sqrt_var_vec =
+                    _weights[VarianceIndex][h + weight_col_start / VECTOR_SIZE];
+            v8fp_t gamma_vec =
+                    _weights[GammaIndex][h + weight_col_start / VECTOR_SIZE];
+            v8fp_t beta_vec =
+                    _weights[BetaIndex][h + weight_col_start / VECTOR_SIZE];
 
             bn_chan_vec:
             for (int v = 0; v < VECTOR_SIZE; v++) {
@@ -127,7 +133,8 @@ void batch_norm_simd_fxp(float* inputs,
                          float* weights,
                          const layer_t* curr_layer,
                          int batch_size,
-                         float* results) {
+                         float* results,
+                         int weight_col_start) {
     // TODO: This will break if the output of a conv/pool/input layer has
     // height 1, since it will be interpreted as the output of an FC layer.
     // We really need to fix this problem of using layer_t to glob the
@@ -136,7 +143,11 @@ void batch_norm_simd_fxp(float* inputs,
         batch_norm_post_fc_simd_fxp(
                 inputs, weights, curr_layer, batch_size, results);
     } else {
-        batch_norm_post_conv_simd_fxp(
-                inputs, weights, curr_layer, batch_size, results);
+        batch_norm_post_conv_simd_fxp(inputs,
+                                      weights,
+                                      curr_layer,
+                                      batch_size,
+                                      results,
+                                      weight_col_start);
     }
 }
