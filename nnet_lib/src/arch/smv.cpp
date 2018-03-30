@@ -414,14 +414,17 @@ result_buf run_layer(data_list* activations,
             device->use_hw_activation_func &&
             smiv_is_supported_activation_func(layers[layer_num].type, act_func);
     bool use_pipelined_activation = device->use_pipelined_activation_func;
-    if (do_activation && !do_hw_activation && !use_pipelined_activation) {
+    if (do_activation && !do_hw_activation &&
+        !(use_pipelined_activation &&
+          layers[layer_num].type == CONV_STANDARD)) {
         if (result_loc == results) {
             SWAP_PTRS(results, activations);
         }
         result_loc = smv_activation_function(
                 activations, &layers[layer_num], results, device);
         PRINT_MSG("\nactivation function\n");
-        PRINT_DEBUG4D_FP16(result_loc->data[0].dense_hp->d, NUM_TEST_CASES,
+        PRINT_DEBUG4D_FP16(result_loc->data[0].dense_hp->d,
+                           NUM_TEST_CASES,
                            layers[layer_num].outputs.height,
                            layers[layer_num].outputs.rows,
                            layers[layer_num].outputs.cols +

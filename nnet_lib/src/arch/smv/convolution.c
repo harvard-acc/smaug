@@ -1082,6 +1082,8 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                     // iteration will do activation function on the results produced
                     // by previous iteration.
                     int prev_iter_num_kerns = 0;
+                    int prev_kern_start = 0;
+                    bool prev_iter_unsampled = true;
                     for (int iter = 0; iter < output_tile->num_hw_passes; iter++) {
                         smv_convolution_options* options =
                                 &output_tile->hw_passes[iter];
@@ -1099,6 +1101,14 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                         options->total_tile_ofmaps = output_tile->num_ofmaps;
                         options->use_pipelined_dma = use_pipelined_dma;
                         if (!options->execute) {
+                            if (iter != 0 && use_pipelined_activation &&
+                                prev_iter_unsampled) {
+                                #ifdef GEM5_HARNESS
+                                while (finish_flag == NOT_COMPLETED)
+                                    ;
+                                #endif
+                                end_profiling();
+                            }
                             run_sampled_hw_pass(
                                     &partial_layer,
                                     options,
@@ -1106,6 +1116,7 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                                     &_kernels[output_tile_kern_start +
                                               options->kern_start][0][0][0],
                                     temp_result->d);
+                            prev_iter_unsampled = false;
                             continue;
                         }
 
@@ -1163,52 +1174,62 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                             while (iter != 0 && finish_flag == NOT_COMPLETED)
                                 ;
                             #endif
-                            if (iter != 0)
+                            if (iter != 0 && prev_iter_unsampled)
                                 end_profiling();  // INVOKE_KERNEL_NOBLOCK
                             begin_profiling(
                                     "smv_convolution_layer_hw_activation_func",
                                     lnum);
+                            if (options->sampling_upscale_factor > 1)
+                                set_profiling_type_sampled(
+                                        1, options->sampling_upscale_factor);
+                            float16* result_loc =
+                                    &_result[img][output_tile_kern_start][0][0];
                             INVOKE_KERNEL_NOBLOCK(g_smv->kConvolutionHw,
                                                   &finish_flag,
                                                   smv_convolution_layer_hw,
                                                   // DMA
                                                   (packed_fp16*)activations_loc,
                                                   (packed_fp16*)weights_loc,
-                                                  temp_result->d,
+                                                  (packed_fp16*)result_loc,
                                                   // Cache
                                                   (packed_fp16*)activations_loc,
                                                   (packed_fp16*)weights_loc,
-                                                  temp_result->d,
+                                                  (packed_fp16*)result_loc,
                                                   // ACP
                                                   (packed_fp16*)activations_loc,
                                                   (packed_fp16*)weights_loc,
-                                                  temp_result->d,
+                                                  (packed_fp16*)result_loc,
                                                   g_smv->umem,
                                                   g_smv->spad0,
                                                   g_smv->spad1,
                                                   partial_layer,
                                                   &access_cfg,
                                                   options);
-                            if (iter != 0 && !do_hw_activation) {
-                                begin_profiling(
-                                        ACTIVATION_TYPE_STR(curr_layer.activation),
-                                        lnum);
-                                dims_t last_iter_dims = (dims_t){
+                            if (iter != 0) {
+                                dims_t last_iter_dims = (dims_t) {
                                     partial_layer.outputs.rows,
-                                    partial_layer.outputs.cols,
+                                    partial_layer.outputs.cols +
+                                            partial_layer.outputs.align_pad,
                                     prev_iter_num_kerns,
-                                    calc_padding(prev_iter_num_kerns, DATA_ALIGNMENT),
+                                    calc_padding(prev_iter_num_kerns,
+                                                 DATA_ALIGNMENT),
                                 };
                                 activation_fun_simd128(
-                                        temp_result->d,
+                                        (packed_fp16*)&_result[img]
+                                                              [prev_kern_start]
+                                                              [0][0],
                                         1,
                                         &curr_layer,
                                         &last_iter_dims,
                                         curr_layer.activation,
-                                        temp_result->d);
-                                end_profiling();  // activation function.
+                                        (packed_fp16*)&_result[img]
+                                                              [prev_kern_start]
+                                                              [0][0]);
                             }
                             prev_iter_num_kerns = num_kerns_this_iter;
+                            prev_kern_start =
+                                    output_tile_kern_start + options->kern_start;
+                            prev_iter_unsampled = true;
                         }
                     }
                     // We need to do activation function for the last iteration of
@@ -1218,35 +1239,45 @@ void smv_standard_convolution_layer_impl(data_list* host_activations,
                         while (finish_flag == NOT_COMPLETED)
                             ;
                         #endif
-                        end_profiling();  // INVOKE_KERNEL_PROF.
+                        if (prev_iter_unsampled)
+                            end_profiling();  // INVOKE_KERNEL_PROF.
                         begin_profiling(
                                 ACTIVATION_TYPE_STR(curr_layer.activation), lnum);
-                        dims_t last_iter_dims = (dims_t){
+                        dims_t last_iter_dims = (dims_t) {
                             partial_layer.outputs.rows,
-                            partial_layer.outputs.cols,
+                            partial_layer.outputs.cols +
+                                    partial_layer.outputs.align_pad,
                             prev_iter_num_kerns,
                             calc_padding(prev_iter_num_kerns, DATA_ALIGNMENT),
                         };
-                        activation_fun_simd128(temp_result->d,
-                                               1,
-                                               &curr_layer,
-                                               &last_iter_dims,
-                                               curr_layer.activation,
-                                               temp_result->d);
+                        activation_fun_simd128(
+                                (packed_fp16*)&_result[img][prev_kern_start][0]
+                                                      [0],
+                                1,
+                                &curr_layer,
+                                &last_iter_dims,
+                                curr_layer.activation,
+                                (packed_fp16*)&_result[img][prev_kern_start][0]
+                                                      [0]);
                         end_profiling();  // activation function.
                     }
 
                     // Reorganize the temporary results into the host result buffer.
-                    int partial_result_2d_size = partial_layer.outputs.rows *
-                                                 (partial_layer.outputs.cols +
-                                                  partial_layer.outputs.align_pad);
-                    begin_ignored_profiling(curr_layer.num);
-                    for (int k = 0; k < output_tile->num_ofmaps; k++) {
-                        memcpy(&_result[img][k + output_tile_kern_start][result_row_start][0],
-                               temp_result->d + (partial_result_2d_size * k) / 2,
-                               partial_result_2d_size * sizeof(float16));
+                    if (!use_pipelined_activation) {
+                        int partial_result_2d_size =
+                                partial_layer.outputs.rows *
+                                (partial_layer.outputs.cols +
+                                 partial_layer.outputs.align_pad);
+                        begin_ignored_profiling(curr_layer.num);
+                        for (int k = 0; k < output_tile->num_ofmaps; k++) {
+                            memcpy(&_result[img][k + output_tile_kern_start]
+                                           [result_row_start][0],
+                                   temp_result->d +
+                                           (partial_result_2d_size * k) / 2,
+                                   partial_result_2d_size * sizeof(float16));
+                        }
+                        end_profiling();
                     }
-                    end_profiling();
 
                     output_tile_kern_start += output_tile->num_ofmaps;
                     end_profiling();  // standard_convolution_layer_smv_output_tile
