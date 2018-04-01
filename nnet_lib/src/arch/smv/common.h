@@ -7,7 +7,10 @@
 // SMV has the same scratchpad sizes as SMIV.
 #define SMV_DEFAULT_SPAD_SIZE (131072)
 #define SMV_DEFAULT_UMEM_SIZE (3*1048576)
-#define SMV_DEFAULT_L2_SIZE (2*1048576)
+// TODO: This sets the default L2 size to a really large value so that we never
+// have to use L2 tiling unless we explicitly set it to a more reasonable size.
+// We should have a more explicit way of turning off L2 tiling.
+#define SMV_DEFAULT_L2_SIZE (1024*1024*1024)
 
 // Accelerator id codes.
 extern unsigned kSmvConvolutionHw;
