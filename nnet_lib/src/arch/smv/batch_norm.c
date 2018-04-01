@@ -243,6 +243,7 @@ static void smv_batch_norm_layer_hw(packed_fp16* dma_activations,
                             curr_layer->output_req == IO_CACHE);
     bool use_acp_inputs = (curr_layer->input_req == IO_ACP ||
                            curr_layer->input_req == IO_CACHE);
+    bool use_acp_weights = (curr_layer->weights_req == IO_ACP);
 
     // Check that all the data organizations are supported.
     if (options->weights_loc == SMV_UMEM) {
@@ -264,38 +265,74 @@ static void smv_batch_norm_layer_hw(packed_fp16* dma_activations,
         if (use_acp_inputs) {
             curr_layer->input_req = IO_ACP;
             if (options->weights_loc == SMV_UMEM) {
-                smv_batch_norm_layer_hw_impl(acp_activations, dma_weights,
-                                             acp_results, spad0, umem, spad1,
-                                             curr_layer, options);
+                if (use_acp_weights) {
+                    smv_batch_norm_layer_hw_impl(acp_activations, acp_weights,
+                                                 acp_results, spad0, umem,
+                                                 spad1, curr_layer, options);
+                } else {
+                    smv_batch_norm_layer_hw_impl(acp_activations, dma_weights,
+                                                 acp_results, spad0, umem,
+                                                 spad1, curr_layer, options);
+                }
             } else if (options->inputs_loc == SMV_UMEM) {
-                smv_batch_norm_layer_hw_impl(acp_activations, dma_weights,
-                                             acp_results, umem, spad0, spad1,
-                                             curr_layer, options);
+                if (use_acp_weights) {
+                    smv_batch_norm_layer_hw_impl(acp_activations, acp_weights,
+                                                 acp_results, umem, spad0,
+                                                 spad1, curr_layer, options);
+                } else {
+                    smv_batch_norm_layer_hw_impl(acp_activations, dma_weights,
+                                                 acp_results, umem, spad0,
+                                                 spad1, curr_layer, options);
+                }
             }
         } else {
             if (curr_layer->input_req != IO_NONE)
                 curr_layer->input_req = IO_DMA;
             if (options->weights_loc == SMV_UMEM) {
-                smv_batch_norm_layer_hw_impl(dma_activations, dma_weights,
-                                             acp_results, spad0, umem, spad1,
-                                             curr_layer, options);
+                if (use_acp_weights) {
+                    smv_batch_norm_layer_hw_impl(dma_activations, acp_weights,
+                                                 acp_results, spad0, umem,
+                                                 spad1, curr_layer, options);
+                } else {
+                    smv_batch_norm_layer_hw_impl(dma_activations, dma_weights,
+                                                 acp_results, spad0, umem,
+                                                 spad1, curr_layer, options);
+                }
             } else if (options->inputs_loc == SMV_UMEM) {
-                smv_batch_norm_layer_hw_impl(dma_activations, dma_weights,
-                                             acp_results, umem, spad0, spad1,
-                                             curr_layer, options);
+                if (use_acp_weights) {
+                    smv_batch_norm_layer_hw_impl(dma_activations, acp_weights,
+                                                 acp_results, umem, spad0,
+                                                 spad1, curr_layer, options);
+                } else {
+                    smv_batch_norm_layer_hw_impl(dma_activations, dma_weights,
+                                                 acp_results, umem, spad0,
+                                                 spad1, curr_layer, options);
+                }
             }
         }
     } else {
         if (curr_layer->input_req != IO_NONE)
             curr_layer->input_req = IO_DMA;
         if (options->weights_loc == SMV_UMEM) {
-            smv_batch_norm_layer_hw_impl(dma_activations, dma_weights,
-                                         dma_results, spad0, umem, spad1,
-                                         curr_layer, options);
+            if (use_acp_weights) {
+                smv_batch_norm_layer_hw_impl(dma_activations, acp_weights,
+                                             dma_results, spad0, umem, spad1,
+                                             curr_layer, options);
+            } else {
+                smv_batch_norm_layer_hw_impl(dma_activations, dma_weights,
+                                             dma_results, spad0, umem, spad1,
+                                             curr_layer, options);
+            }
         } else if (options->inputs_loc == SMV_UMEM) {
-            smv_batch_norm_layer_hw_impl(dma_activations, dma_weights,
-                                         dma_results, umem, spad0, spad1,
-                                         curr_layer, options);
+            if (use_acp_weights) {
+                smv_batch_norm_layer_hw_impl(dma_activations, acp_weights,
+                                             dma_results, umem, spad0, spad1,
+                                             curr_layer, options);
+            } else {
+                smv_batch_norm_layer_hw_impl(dma_activations, dma_weights,
+                                             dma_results, umem, spad0, spad1,
+                                             curr_layer, options);
+            }
         }
     }
 }
