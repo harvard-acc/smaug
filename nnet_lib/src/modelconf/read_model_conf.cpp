@@ -1,13 +1,28 @@
-#include <assert.h>
-#include <stdio.h>
-#include <string.h>
+#include <cassert>
+#include <cstdio>
+#include <cstring>
+
+#include <string>
 
 #include "confuse.h"
 
 #include "utility/utility.h"
 #include "nnet_fwd.h"
 
-#include "read_model_conf.h"
+#include "core/globals.h"
+#include "core/tensor.h"
+#include "core/network.h"
+#include "core/workspace.h"
+#include "modelconf/read_model_conf.h"
+#include "operators/batch_norm_op.h"
+#include "operators/convolution_op.h"
+#include "operators/data_op.h"
+#include "operators/depthwise_convolution_op.h"
+#include "operators/pooling_op.h"
+#include "operators/inner_product_op.h"
+#include "utility/utils.h"
+
+using namespace smaug;
 
 extern cfg_opt_t convolution_param_cfg[];
 extern cfg_opt_t inner_product_param_cfg[];
@@ -16,31 +31,32 @@ extern cfg_opt_t layer_cfg[];
 extern cfg_opt_t network_cfg[];
 extern cfg_opt_t top_level_cfg[];
 
-const char CONV_STANDARD_TYPE[] = "CONVOLUTION";
-const char CONV_DEPTHWISE_TYPE[] = "DEPTHWISE_CONVOLUTION";
-const char CONV_POINTWISE_TYPE[] = "POINTWISE_CONVOLUTION";
-const char FC_TYPE[] = "INNER_PRODUCT";
-const char POOLING_TYPE[] = "POOLING";
-const char MAX_POOL_TYPE[] = "MAX";
-const char AVG_POOL_TYPE[] = "AVG";
-const char BATCH_NORM_TYPE[] = "BATCH_NORM";
-const char NONE_TYPE[] = "NONE";
-const char RELU_TYPE[] = "RELU";
-const char LRELU_TYPE[] = "LRELU";
-const char ELU_TYPE[] = "ELU";
-const char SELU_TYPE[] = "SELU";
-const char TANH_TYPE[] = "TANH";
-const char HARD_TANH_TYPE[] = "HARD_TANH";
-const char SIGMOID_TYPE[] = "SIGMOID";
-const char SOFTMAX_TYPE[] = "SOFTMAX";
-const char OFFLOAD_DMA[] = "DMA";
-const char OFFLOAD_ACP[] = "ACP";
-const char OFFLOAD_CACHE[] = "CACHE";
-const char PADDING_SAME[] = "SAME";
-const char PADDING_VALID[] = "VALID";
-const char DMA_ALWAYS[] = "DMA_ALWAYS";
-const char ACP_ALWAYS[] = "ACP_ALWAYS";
-const char ACP_IF_WEIGHTS_REUSED[] = "ACP_IF_WEIGHTS_REUSED";
+static const std::string CONV_STANDARD_TYPE = "CONVOLUTION";
+static const std::string CONV_DEPTHWISE_TYPE = "DEPTHWISE_CONVOLUTION";
+static const std::string CONV_POINTWISE_TYPE = "POINTWISE_CONVOLUTION";
+static const std::string FC_TYPE = "INNER_PRODUCT";
+static const std::string POOLING_TYPE = "POOLING";
+static const std::string MAX_POOL_TYPE = "MAX";
+static const std::string AVG_POOL_TYPE = "AVG";
+static const std::string BATCH_NORM_TYPE = "BATCH_NORM";
+static const std::string FLATTEN_TYPE = "FLATTEN";
+static const std::string NONE_TYPE = "NONE";
+static const std::string RELU_TYPE = "RELU";
+static const std::string LRELU_TYPE = "LRELU";
+static const std::string ELU_TYPE = "ELU";
+static const std::string SELU_TYPE = "SELU";
+static const std::string TANH_TYPE = "TANH";
+static const std::string HARD_TANH_TYPE = "HARD_TANH";
+static const std::string SIGMOID_TYPE = "SIGMOID";
+static const std::string SOFTMAX_TYPE = "SOFTMAX";
+static const std::string OFFLOAD_DMA = "DMA";
+static const std::string OFFLOAD_ACP = "ACP";
+static const std::string OFFLOAD_CACHE = "CACHE";
+static const std::string PADDING_SAME = "SAME";
+static const std::string PADDING_VALID = "VALID";
+static const std::string DMA_ALWAYS = "DMA_ALWAYS";
+static const std::string ACP_ALWAYS = "ACP_ALWAYS";
+static const std::string ACP_IF_WEIGHTS_REUSED = "ACP_IF_WEIGHTS_REUSED";
 
 static int input_rows;
 static int input_cols;
@@ -65,14 +81,15 @@ int validate_network(cfg_t* cfg, cfg_opt_t* opt) {
 }
 
 int validate_offload_mechanism(cfg_t* cfg, cfg_opt_t* opt) {
-    const char* value = cfg_opt_getnstr(opt, cfg_opt_size(opt) - 1);
-    assert(value);
-    if (strcmp(value, OFFLOAD_DMA) != 0 && strcmp(value, OFFLOAD_ACP) != 0 &&
-        strcmp(value, OFFLOAD_CACHE) != 0) {
+    const char* op_str = cfg_opt_getnstr(opt, cfg_opt_size(opt) - 1);
+    assert(op_str);
+    std::string value(op_str);
+    if (value != OFFLOAD_DMA && value != OFFLOAD_ACP &&
+        value != OFFLOAD_CACHE) {
         cfg_error(cfg,
                   "'%s' is an invalid option for option '%s': Supported "
                   "options are DMA, ACP, or CACHE.",
-                  value, opt->name);
+                  value.c_str(), opt->name);
         return -1;
     }
     return 0;
@@ -85,11 +102,15 @@ int validate_layer_section(cfg_t* cfg, cfg_opt_t* opt) {
                   cfg_title(layer));
         return -1;
     }
+    // Some layer types do not have user-specified parameters.
+    std::string layerType = cfg_getstr(layer, "type");
+    if (layerType == FLATTEN_TYPE || layerType == BATCH_NORM_TYPE ||
+        layerType == SOFTMAX_TYPE) {
+        return 0;
+    }
     if (!cfg_size(layer, "inner_product_param") &&
         !cfg_size(layer, "convolution_param") &&
-        !cfg_size(layer, "pooling_param") &&
-        // Batch norm layer does not have user-specified parameters
-        strcmp(cfg_getstr(layer, "type"), BATCH_NORM_TYPE) != 0) {
+        !cfg_size(layer, "pooling_param")) {
         cfg_error(cfg, "Layer '%s' is missing layer-specific parameters!",
                   cfg_title(layer));
         return -1;
@@ -98,28 +119,28 @@ int validate_layer_section(cfg_t* cfg, cfg_opt_t* opt) {
 }
 
 int validate_layer_type(cfg_t* cfg, cfg_opt_t* opt) {
-    const char* value = cfg_opt_getnstr(opt, cfg_opt_size(opt) - 1);
-    assert(value);
-    if (strcmp(value, CONV_STANDARD_TYPE) != 0 &&
-        strcmp(value, CONV_DEPTHWISE_TYPE) != 0 &&
-        strcmp(value, CONV_POINTWISE_TYPE) != 0 &&
-        strcmp(value, FC_TYPE) != 0 &&
-        strcmp(value, POOLING_TYPE) != 0 &&
-        strcmp(value, BATCH_NORM_TYPE) != 0) {
-        cfg_error(cfg, "Invalid layer type '%s' for '%s'!", value, cfg->name);
+    const char* op_str = cfg_opt_getnstr(opt, cfg_opt_size(opt) - 1);
+    assert(op_str);
+    std::string value(op_str);
+    if (value != CONV_STANDARD_TYPE && value != CONV_DEPTHWISE_TYPE &&
+        value != CONV_POINTWISE_TYPE && value != FC_TYPE &&
+        value != POOLING_TYPE && value != BATCH_NORM_TYPE &&
+        value != FLATTEN_TYPE) {
+        cfg_error(cfg, "Invalid layer type '%s' for '%s'!", value.c_str(),
+                  cfg->name);
         return -1;
     }
     return 0;
 }
 
 int validate_data_mvmt_policy(cfg_t* cfg, cfg_opt_t* opt) {
-    const char* value = cfg_opt_getnstr(opt, cfg_opt_size(opt) - 1);
-    assert(value);
-    if (strcmp(value, DMA_ALWAYS) != 0 &&
-        strcmp(value, ACP_ALWAYS) != 0 &&
-        strcmp(value, ACP_IF_WEIGHTS_REUSED) != 0) {
+    const char* op_str = cfg_opt_getnstr(opt, cfg_opt_size(opt) - 1);
+    assert(op_str);
+    std::string value(op_str);
+    if (value != DMA_ALWAYS && value != ACP_ALWAYS &&
+        value != ACP_IF_WEIGHTS_REUSED) {
         cfg_error(cfg, "Invalid data movement policy '%s' for '%s'!",
-                  value, cfg->name);
+                  value.c_str(), cfg->name);
         return -1;
     }
     return 0;
@@ -172,9 +193,8 @@ int validate_inner_product_params(cfg_t* cfg, cfg_opt_t* opt) {
 }
 
 int validate_padding_type(cfg_t* cfg, cfg_opt_t* opt) {
-    const char* pad_type = cfg_getstr(cfg, "padding");
-    if (strncmp(pad_type, PADDING_SAME, 5) ||
-        strncmp(pad_type, PADDING_VALID, 6)) {
+    std::string pad_type = cfg_getstr(cfg, "padding");
+    if (pad_type != PADDING_SAME && pad_type != PADDING_VALID) {
         cfg_error(cfg, "Invalid padding type (options are SAME or VALID)!",
                   opt->name);
         return -1;
@@ -184,8 +204,8 @@ int validate_padding_type(cfg_t* cfg, cfg_opt_t* opt) {
 
 int validate_conv_params(cfg_t* cfg, cfg_opt_t* opt) {
     cfg_t* conv_params = cfg_opt_getnsec(opt, cfg_opt_size(opt) - 1);
-    const char* conv_type = cfg_getstr(cfg, "type");
-    bool is_depthwise_conv = (strcmp(conv_type, CONV_DEPTHWISE_TYPE) == 0);
+    std::string conv_type = cfg_getstr(cfg, "type");
+    bool is_depthwise_conv = (conv_type == CONV_DEPTHWISE_TYPE);
     if (!cfg_size(conv_params, "num_output")) {
         if (!is_depthwise_conv) {
             cfg_error(conv_params, "Missing required option 'num_output'!",
@@ -244,37 +264,37 @@ int validate_pool_layer(cfg_t* cfg, cfg_opt_t* opt) {
 }
 
 int validate_conv_type(cfg_t* cfg, cfg_opt_t* opt) {
-    const char* value = cfg_opt_getnstr(opt, cfg_opt_size(opt) - 1);
-    assert(value);
-    if (strcmp(value, CONV_STANDARD_TYPE) != 0 &&
-        strcmp(value, CONV_DEPTHWISE_TYPE) != 0) {
-        cfg_error(cfg, "Invalid pooling type '%s'!", value);
+    const char* op_str = cfg_opt_getnstr(opt, cfg_opt_size(opt) - 1);
+    assert(op_str);
+    std::string value(op_str);
+    if (value != CONV_STANDARD_TYPE && value != CONV_DEPTHWISE_TYPE) {
+        cfg_error(cfg, "Invalid pooling type '%s'!", value.c_str());
         return -1;
     }
     return 0;
 }
 
 int validate_pool_type(cfg_t* cfg, cfg_opt_t* opt) {
-    const char* value = cfg_opt_getnstr(opt, cfg_opt_size(opt) - 1);
-    assert(value);
-    if (strcmp(value, MAX_POOL_TYPE) != 0 &&
-        strcmp(value, AVG_POOL_TYPE) != 0) {
-        cfg_error(cfg, "Invalid pooling type '%s'!", value);
+    const char* op_str = cfg_opt_getnstr(opt, cfg_opt_size(opt) - 1);
+    assert(op_str);
+    std::string value(op_str);
+    if (value != MAX_POOL_TYPE && value != AVG_POOL_TYPE) {
+        cfg_error(cfg, "Invalid pooling type '%s'!", value.c_str());
         return -1;
     }
     return 0;
 }
 
 int validate_activation_func(cfg_t* cfg, cfg_opt_t* opt) {
-    const char* value = cfg_opt_getnstr(opt, cfg_opt_size(opt) - 1);
-    assert(value);
-    if (strcmp(value, NONE_TYPE) != 0 && strcmp(value, RELU_TYPE) != 0 &&
-        strcmp(value, LRELU_TYPE) != 0 && strcmp(value, ELU_TYPE) != 0 &&
-        strcmp(value, SELU_TYPE) != 0 && strcmp(value, TANH_TYPE) != 0 &&
-        strcmp(value, SIGMOID_TYPE) != 0 && strcmp(value, SOFTMAX_TYPE) != 0 &&
-        strcmp(value, HARD_TANH_TYPE) != 0) {
+    const char* op_str = cfg_opt_getnstr(opt, cfg_opt_size(opt) - 1);
+    assert(op_str);
+    std::string value(op_str);
+    if (value != NONE_TYPE && value != RELU_TYPE && value != LRELU_TYPE &&
+        value != ELU_TYPE && value != SELU_TYPE && value != TANH_TYPE &&
+        value != SIGMOID_TYPE && value != SOFTMAX_TYPE &&
+        value != HARD_TANH_TYPE) {
         cfg_error(cfg, "Invalid activation function '%s' for layer '%s'!",
-                  value, cfg_title(cfg));
+                  value.c_str(), cfg_title(cfg));
         return -1;
     }
 
@@ -290,65 +310,80 @@ int validate_unsigned_int(cfg_t* cfg, cfg_opt_t* opt) {
     return 0;
 }
 
-static void set_layer_type(layer_t* layers, cfg_t* layer_opts, int l) {
-    const char* type = cfg_getstr(layer_opts, "type");
-    if (strcmp(type, CONV_STANDARD_TYPE) == 0) {
-        layers[l].type = CONV_STANDARD;
-    } else if (strcmp(type, CONV_DEPTHWISE_TYPE) == 0) {
-        layers[l].type = CONV_DEPTHWISE;
-    } else if (strcmp(type, CONV_POINTWISE_TYPE) == 0) {
-        layers[l].type = CONV_POINTWISE;
-    } else if (strcmp(type, POOLING_TYPE) == 0) {
-        layers[l].type = POOLING;
-        cfg_t* pool_cfg = cfg_getsec(layer_opts, "pooling_param");
-        const char* pool_type_str = cfg_getstr(pool_cfg, "pool");
-        if (strcmp(pool_type_str, MAX_POOL_TYPE) == 0) {
-            layers[l].pool = MAX;
-        } else if (strcmp(pool_type_str, AVG_POOL_TYPE) == 0) {
-            layers[l].pool = AVG;
+static void createAndAddOperator(const std::string& name,
+                                 Network* network,
+                                 Workspace* workspace,
+                                 cfg_t* opCfg) {
+    std::string type = cfg_getstr(opCfg, "type");
+
+    // TODO: Add the repeated input fields so we can specify dependencies. For
+    // now, assume linear stacked topologies, so the input is always the
+    // previous layer.
+    Operator* lastOp = network->getLastOperator();
+    if (type == CONV_STANDARD_TYPE) {
+        cfg_t* convParams = cfg_getsec(opCfg, "convolution_param");
+        ConvolutionOp<GlobalBackend>* op =
+                new ConvolutionOp<GlobalBackend>(name, workspace);
+        op->setWeightDims(cfg_getint(convParams, "kernel_rows"),
+                          cfg_getint(convParams, "kernel_cols"),
+                          cfg_getint(convParams, "num_output"));
+        op->setStride(cfg_getint(convParams, "row_stride"),
+                      cfg_getint(convParams, "col_stride"));
+        op->setPadding(cfg_getstr(convParams, "padding"));
+        network->addOperator(op, { lastOp });
+    } else if (type == CONV_DEPTHWISE_TYPE) {
+        cfg_t* convParams = cfg_getsec(opCfg, "convolution_param");
+        DepthwiseConvolutionOp<GlobalBackend>* op =
+                new DepthwiseConvolutionOp<GlobalBackend>(name, workspace);
+        op->setWeightDims(cfg_getint(convParams, "kernel_rows"),
+                          cfg_getint(convParams, "kernel_cols"),
+                          cfg_getint(convParams, "num_output"));
+        op->setStride(cfg_getint(convParams, "row_stride"),
+                      cfg_getint(convParams, "col_stride"));
+        op->setPadding(cfg_getstr(convParams, "padding"));
+        network->addOperator(op, { lastOp });
+    } else if (type == CONV_POINTWISE_TYPE) {
+        assert(false && "Deprecated! Use normal convolution.");
+    } else if (type == POOLING_TYPE) {
+        cfg_t* poolCfg = cfg_getsec(opCfg, "pooling_param");
+        std::string poolingType = cfg_getstr(poolCfg, "pool");
+        PoolingOp<GlobalBackend>* op;
+        if (poolingType == MAX_POOL_TYPE) {
+            op = new MaxPoolingOp<GlobalBackend>(name, workspace);
+        } else if (poolingType == AVG_POOL_TYPE) {
+            op = new AvgPoolingOp<GlobalBackend>(name, workspace);
         } else {
             assert(false && "Invalid type of pooling layer!");
         }
-    } else if (strcmp(type, FC_TYPE) == 0) {
-        layers[l].type = FC;
-    } else if (strcmp(type, BATCH_NORM_TYPE) == 0) {
-        layers[l].type = BATCH_NORM;
+        cfg_t* poolParams = cfg_getsec(opCfg, "pooling_param");
+        op->setPoolingSize(cfg_getint(poolParams, "size"));
+        op->setPoolingStride(cfg_getint(poolParams, "row_stride"),
+                             cfg_getint(poolParams, "col_stride"));
+        network->addOperator(op, { lastOp });
+    } else if (type == FC_TYPE) {
+        cfg_t* fcParams = cfg_getsec(opCfg, "inner_product_param");
+        InnerProductOp<GlobalBackend>* op =
+                new InnerProductOp<GlobalBackend>(name, workspace);
+        op->setNumOutputs(cfg_getint(fcParams, "num_output"));
+        network->addOperator(op, { lastOp });
+        // TODO: This does not include the bias! Add an elementwise add
+        // operation.
+    } else if (type == FLATTEN_TYPE) {
+        FlattenOp<GlobalBackend>* op =
+                new FlattenOp<GlobalBackend>(name, workspace);
+        network->addOperator(op, { lastOp });
+    } else if (type == BATCH_NORM_TYPE) {
+        BatchNormOp<GlobalBackend>* op =
+                new BatchNormOp<GlobalBackend>(name, workspace);
+        network->addOperator(op, { lastOp });
     } else {
         assert(false && "Invalid layer type!");
     }
-
-    const char* activation = cfg_getstr(layer_opts, "activation");
-    if (strcmp(activation, RELU_TYPE) == 0) {
-        layers[l].activation = RELU;
-    } else if (strcmp(activation, LRELU_TYPE) == 0) {
-        layers[l].activation = LRELU;
-    } else if (strcmp(activation, ELU_TYPE) == 0) {
-        layers[l].activation = ELU;
-    } else if (strcmp(activation, SELU_TYPE) == 0) {
-        layers[l].activation = SELU;
-    } else if (strcmp(activation, TANH_TYPE) == 0) {
-        layers[l].activation = TANH;
-    } else if (strcmp(activation, HARD_TANH_TYPE) == 0) {
-        layers[l].activation = HARD_TANH;
-    } else if (strcmp(activation, SIGMOID_TYPE) == 0) {
-        layers[l].activation = SIGMOID;
-    } else if (strcmp(activation, SOFTMAX_TYPE) == 0) {
-        layers[l].activation = SOFTMAX;
-    } else if (strcmp(activation, NONE_TYPE) == 0) {
-        layers[l].activation = NO_ACTIVATION;
-    } else {
-        assert(false && "Invalid activation type!");
-    }
-
-    if (layers[l].type == POOLING && layers[l].activation != NO_ACTIVATION)
-        fprintf(stderr, "Pooling layer %d has an activation function, which is "
-                        "usually unnecessary.\n",
-                l);
 }
 
 static void set_layer_padding(layer_t* layers, int l, cfg_t* conv_params) {
-    const char* pad_type = cfg_getstr(conv_params, "padding");
-    if (strncmp(pad_type, PADDING_SAME, strlen(PADDING_SAME)) == 0) {
+    std::string pad_type = cfg_getstr(conv_params, "padding");
+    if (pad_type == PADDING_SAME) {
         int total_row_pad = layers[l].weights.rows - 1;
         int total_col_pad = layers[l].weights.cols - 1;
         padding pad;
@@ -367,12 +402,14 @@ static void set_layer_padding(layer_t* layers, int l, cfg_t* conv_params) {
             pad.right = total_col_pad - pad.left;
         }
         layers[l].pad = pad;
-    } else if (strncmp(pad_type, PADDING_VALID, strlen(PADDING_SAME)) == 0) {
+    } else if (pad_type == PADDING_VALID) {
         layers[l].pad = (padding){ 0, 0, 0, 0 };
     } else {
         assert(false && "Unknown padding type!");
     }
 }
+
+#if 0
 
 static void set_layer_dims(layer_t* layers, cfg_t* layer_opts, int l) {
     if (layers[l].type == CONV_STANDARD) {
@@ -592,44 +629,12 @@ static void handle_data_alignment(layer_t* layers, int l) {
             calc_padding(layers[l].biases.cols, data_alignment);
 }
 
-static void read_top_level_config(layer_t* layers, cfg_t* network_opts) {
-    layers[0].inputs.rows = cfg_getint(network_opts, "input_rows");
-    layers[0].inputs.cols = cfg_getint(network_opts, "input_cols");
-    layers[0].inputs.height = cfg_getint(network_opts, "input_height");
-    layers[0].type = INPUT;
-    layers[0].activation = NO_ACTIVATION;
-    layers[0].outputs.rows = layers[0].inputs.rows;
-    layers[0].outputs.cols = layers[0].inputs.cols;
-    layers[0].outputs.height = layers[0].inputs.height;
-    layers[0].weights.rows = 0;
-    layers[0].weights.cols = 0;
-    layers[0].weights.height = 0;
-    layers[0].biases.rows = 0;
-    layers[0].biases.cols = 0;
-    layers[0].biases.height = 0;
-    layers[0].num = 0;
-    layers[0].host_weights = NULL;
-
-    // Set the global variables.
-    data_alignment = DATA_ALIGNMENT;
-    input_rows = layers[0].inputs.rows;
-    input_cols = layers[0].inputs.cols;
-    input_height = layers[0].inputs.height;
-}
-
-static void read_layer_config(layer_t* layers, cfg_t* network_opts, int l) {
-    cfg_t* current_layer_opts = cfg_getnsec(network_opts, "layer", l - 1);
-    set_layer_type(layers, current_layer_opts, l);
-    set_layer_dims(layers, current_layer_opts, l);
-    layers[l].host_weights = NULL;
-}
-
 io_req_t str_to_io_req(char* value) {
-    if (strncmp(value, OFFLOAD_DMA, 3) == 0)
+    if (value == OFFLOAD_DMA)
       return IO_DMA;
-    if (strncmp(value, OFFLOAD_ACP, 3) == 0)
+    if (value == OFFLOAD_ACP)
       return IO_ACP;
-    if (strncmp(value, OFFLOAD_CACHE, 5) == 0)
+    if (value == OFFLOAD_CACHE)
       return IO_CACHE;
     assert(false && "Invalid string value of an io_req_t!");
     return IO_NONE;
@@ -637,22 +642,22 @@ io_req_t str_to_io_req(char* value) {
 
 const char* io_req_to_str(io_req_t value) {
     switch (value) {
-      case IO_DMA: return OFFLOAD_DMA;
-      case IO_ACP: return OFFLOAD_ACP;
-      case IO_CACHE: return OFFLOAD_CACHE;
+      case IO_DMA: return OFFLOAD_DMA.c_str();
+      case IO_ACP: return OFFLOAD_ACP.c_str();
+      case IO_CACHE: return OFFLOAD_CACHE.c_str();
       default:
           assert(false && "Invalid string value of an io_req_t!");
           break;
     }
-    return NONE_TYPE;
+    return NONE_TYPE.c_str();
 }
 
 data_mvmt_policy str2policy(const char* value) {
-    if (strcmp(value, DMA_ALWAYS) == 0)
+    if (value == DMA_ALWAYS)
         return DmaAlways;
-    if (strcmp(value, ACP_ALWAYS) == 0)
+    if (value == ACP_ALWAYS)
         return AcpAlways;
-    if (strcmp(value, ACP_IF_WEIGHTS_REUSED) == 0)
+    if (value == ACP_IF_WEIGHTS_REUSED)
         return AcpIfWeightsAreReused;
     return NumDataMvmtPolicies;
 }
@@ -796,11 +801,14 @@ static void print_layer_config(layer_t* layers, int num_layers) {
         printf("    Weight data padding: %d\n", layers[i].weights.align_pad);
         printf("    Output data padding: %d\n", layers[i].outputs.align_pad);
         printf("    Activation: %s\n",
-               act == RELU ? "RELU" : act == SIGMOID ? "SIGMOID" :
-               act == LRELU ? "LRELU" : act == ELU ? "ELU" :
-               act == SELU ? "SELU" : act == TANH ? "TANH" :
-               act == SOFTMAX ? "SOFTMAX" :
-               act == HARD_TANH ? "HARD TANH ": "NONE");
+               act == activation_type::RELU ? "RELU" :
+               act == activation_type::SIGMOID ? "SIGMOID" :
+               act == activation_type::LRELU ? "LRELU" :
+               act == activation_type::ELU ? "ELU" :
+               act == activation_type::SELU ? "SELU" :
+               act == activation_type::TANH ? "TANH" :
+               act == activation_type::SOFTMAX ? "SOFTMAX" :
+               act == activation_type::HARD_TANH ? "HARD TANH ": "NONE");
     }
 }
 
@@ -847,6 +855,8 @@ static void print_sampling_param(sampling_param_t* sampling_param) {
     printf("========================================\n");
 
 }
+
+#endif
 
 static void install_validation_callbacks(cfg_t* cfg) {
     cfg_set_validate_func(cfg, "network", validate_network);
@@ -910,14 +920,36 @@ static void install_validation_callbacks(cfg_t* cfg) {
             cfg, "sampling_param|smv_conv_l2_tiles", validate_unsigned_int);
 }
 
-int configure_network_from_file(const char* cfg_file,
-                                layer_t** layers_ptr,
-                                device_t** device_ptr,
-                                sampling_param_t** sampling_ptr) {
+static void readInputDataConfig(Network* network,
+                                Workspace* workspace,
+                                cfg_t* network_opts) {
+    int height = cfg_getint(network_opts, "input_height");
+    int rows = cfg_getint(network_opts, "input_rows");
+    int cols = cfg_getint(network_opts, "input_cols");
+    // TODO: Add a config parameter to specify the data layout of the model.
+    // For now, assume NCHW format.
+    DataLayout layout = DataLayout::NCHW;
+    TensorShape shape({ 1, height, rows, cols }, layout);
+    Tensor<GlobalBackend>* inputData =
+            new Tensor<GlobalBackend>("input", shape);
+    DataOp<GlobalBackend>* inputOp =
+            new DataOp<GlobalBackend>("input", workspace);
+    inputOp->setData(inputData);
+    workspace->addTensor(inputData);
+    network->addOperator(inputOp);
+
+    // Set the global variables.
+    // TODO: Remove.
+    data_alignment = DATA_ALIGNMENT;
+}
+
+// TODO: Read the device/sampling parameters.
+Network* smaug::readModelConfiguration(const std::string& cfg_file,
+                                       Workspace* workspace) {
     cfg_t* all_opts = cfg_init(top_level_cfg, CFGF_NONE);
     install_validation_callbacks(all_opts);
 
-    int ret = cfg_parse(all_opts, cfg_file);
+    int ret = cfg_parse(all_opts, cfg_file.c_str());
     if (ret == CFG_FILE_ERROR) {
         assert(false && "Failed to open configuration file!");
     } else if (ret == CFG_PARSE_ERROR) {
@@ -927,54 +959,23 @@ int configure_network_from_file(const char* cfg_file,
     }
 
     cfg_t* network_opts = cfg_getsec(all_opts, "network");
-    int num_layers =
-            cfg_size(network_opts, "layer") + 1;  // +1 for input layer.
+    int num_layers = cfg_size(network_opts, "layer");
 
-    *layers_ptr = (layer_t*)malloc_aligned(sizeof(layer_t) * num_layers);
-    layer_t* layers = *layers_ptr;
+    Network* network = new Network(cfg_getstr(network_opts, "name"));
 
     //=---------------------  STEP 1 -----------------------=//
     // First, read in all the parameters from the configuration
     // file for each layer.
 
-    read_top_level_config(layers, network_opts);
-    for (int i = 1; i < num_layers; i++) {
-        read_layer_config(layers, network_opts, i);
-        layers[i].num = i;
-    }
-
-    //=---------------------  STEP 2 -----------------------=//
-    // Identify layers that require their input to be flattened
-    // (CONV/INPUT to FC) or unflattened (FC to CONV).
-
-    layers[0].input_preprocessing = NO_PREPROCESSING;
-    for (int i = 1; i < num_layers; i++) {
-        if (layers[i].type == FC && layers[i-1].type != FC) {
-            layers[i].input_preprocessing = FLATTEN;
-        } else if ((layers[i].type == CONV_STANDARD ||
-                    layers[i].type == CONV_DEPTHWISE ||
-                    layers[i].type == CONV_POINTWISE) &&
-                   layers[i - 1].type == FC) {
-            layers[i].input_preprocessing = UNFLATTEN;
-#if ARCHITECTURE == SMIV
-        } else if (layers[i].type == CONV_POINTWISE &&
-                   (layers[i - 1].type == CONV_STANDARD ||
-                    layers[i - 1].type == CONV_DEPTHWISE ||
-                    layers[i - 1].type == CONV_POINTWISE)) {
-            layers[i].input_preprocessing = NCHW_TO_NHWC;
-#endif
-        } else {
-            layers[i].input_preprocessing = NO_PREPROCESSING;
-        }
-    }
-
-    //=---------------------  STEP 3 -----------------------=//
-    // Compute data alignment requirements for each layer's
-    // inputs and weights. This needs to account for flattening.
-
+    readInputDataConfig(network, workspace, network_opts);
     for (int i = 0; i < num_layers; i++) {
-        handle_data_alignment(layers, i);
+        cfg_t* opConfig = cfg_getnsec(network_opts, "layer", i);
+        std::string layerName = cfg_title(opConfig);
+        createAndAddOperator(layerName, network, workspace, opConfig);
     }
+
+#if 0
+    // network->addDataLayoutTransformations<GlobalBackend>(workspace);
 
     // Read the device parameters.
     *device_ptr = (device_t*) malloc_aligned(sizeof(device_t));
@@ -998,6 +999,8 @@ int configure_network_from_file(const char* cfg_file,
     print_layer_config(*layers_ptr, num_layers);
     print_device_config(*device_ptr);
     print_sampling_param(*sampling_ptr);
+#endif
+    network->printSummary();
     cfg_free(all_opts);
-    return num_layers;
+    return network;
 }
