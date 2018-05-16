@@ -18,8 +18,15 @@
 #include "operators/convolution_op.h"
 #include "operators/data_op.h"
 #include "operators/depthwise_convolution_op.h"
-#include "operators/pooling_op.h"
+#include "operators/eltwise_add_op.h"
+#include "operators/elu_op.h"
 #include "operators/inner_product_op.h"
+#include "operators/pooling_op.h"
+#include "operators/relu_op.h"
+#include "operators/reorder_op.h"
+#include "operators/sigmoid_op.h"
+#include "operators/softmax_op.h"
+#include "operators/tanh_op.h"
 #include "utility/utils.h"
 
 using namespace smaug;
@@ -311,11 +318,10 @@ int validate_unsigned_int(cfg_t* cfg, cfg_opt_t* opt) {
 }
 
 static void createAndAddOperator(const std::string& name,
+                                 const std::string& type,
                                  Network* network,
                                  Workspace* workspace,
                                  cfg_t* opCfg) {
-    std::string type = cfg_getstr(opCfg, "type");
-
     // TODO: Add the repeated input fields so we can specify dependencies. For
     // now, assume linear stacked topologies, so the input is always the
     // previous layer.
@@ -376,6 +382,33 @@ static void createAndAddOperator(const std::string& name,
         BatchNormOp<GlobalBackend>* op =
                 new BatchNormOp<GlobalBackend>(name, workspace);
         network->addOperator(op, { lastOp });
+    } else if (type == RELU_TYPE) {
+        ReluOp<GlobalBackend>* op = new ReluOp<GlobalBackend>(name, workspace);
+        network->addOperator(op, { lastOp });
+    } else if (type == LRELU_TYPE) {
+        // TODO: Add parameter to enable customization of this behavior.
+        ReluOp<GlobalBackend>* op =
+                new ReluOp<GlobalBackend>(name, workspace, 0.1);
+        network->addOperator(op, { lastOp });
+    } else if (type == ELU_TYPE) {
+        EluOp<GlobalBackend>* op = new EluOp<GlobalBackend>(name, workspace);
+        network->addOperator(op, { lastOp });
+    } else if (type == SELU_TYPE) {
+        SeluOp<GlobalBackend>* op = new SeluOp<GlobalBackend>(name, workspace);
+        network->addOperator(op, { lastOp });
+    } else if (type == SIGMOID_TYPE) {
+        SigmoidOp<GlobalBackend>* op =
+                new SigmoidOp<GlobalBackend>(name, workspace);
+        network->addOperator(op, { lastOp });
+    } else if (type == TANH_TYPE) {
+        TanhOp<GlobalBackend>* op = new TanhOp<GlobalBackend>(name, workspace);
+        network->addOperator(op, { lastOp });
+    } else if (type == HARD_TANH_TYPE) {
+        HardTanhOp<GlobalBackend>* op =
+                new HardTanhOp<GlobalBackend>(name, workspace);
+        network->addOperator(op, { lastOp });
+    } else if (type == NONE_TYPE) {
+        return;
     } else {
         assert(false && "Invalid layer type!");
     }
@@ -971,7 +1004,11 @@ Network* smaug::readModelConfiguration(const std::string& cfg_file,
     for (int i = 0; i < num_layers; i++) {
         cfg_t* opConfig = cfg_getnsec(network_opts, "layer", i);
         std::string layerName = cfg_title(opConfig);
-        createAndAddOperator(layerName, network, workspace, opConfig);
+        std::string type = cfg_getstr(opConfig, "type");
+        createAndAddOperator(layerName, type, network, workspace, opConfig);
+        std::string actfunc = cfg_getstr(opConfig, "activation");
+        std::string actName = layerName + "_" + actfunc;
+        createAndAddOperator(actName, actfunc, network, workspace, opConfig);
     }
 
 #if 0
