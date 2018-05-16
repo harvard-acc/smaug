@@ -48,6 +48,7 @@ static const std::string AVG_POOL_TYPE = "AVG";
 static const std::string BATCH_NORM_TYPE = "BATCH_NORM";
 static const std::string FLATTEN_TYPE = "FLATTEN";
 static const std::string NONE_TYPE = "NONE";
+static const std::string ADD_TYPE = "ADD";
 static const std::string RELU_TYPE = "RELU";
 static const std::string LRELU_TYPE = "LRELU";
 static const std::string ELU_TYPE = "ELU";
@@ -113,7 +114,7 @@ int validate_layer_section(cfg_t* cfg, cfg_opt_t* opt) {
     // Some layer types do not have user-specified parameters.
     std::string layerType = cfg_getstr(layer, "type");
     if (layerType == FLATTEN_TYPE || layerType == BATCH_NORM_TYPE ||
-        layerType == SOFTMAX_TYPE) {
+        layerType == SOFTMAX_TYPE || layerType == ADD_TYPE) {
         return 0;
     }
     if (!cfg_size(layer, "inner_product_param") &&
@@ -133,7 +134,7 @@ int validate_layer_type(cfg_t* cfg, cfg_opt_t* opt) {
     if (value != CONV_STANDARD_TYPE && value != CONV_DEPTHWISE_TYPE &&
         value != CONV_POINTWISE_TYPE && value != FC_TYPE &&
         value != POOLING_TYPE && value != BATCH_NORM_TYPE &&
-        value != FLATTEN_TYPE) {
+        value != FLATTEN_TYPE && value != ADD_TYPE) {
         cfg_error(cfg, "Invalid layer type '%s' for '%s'!", value.c_str(),
                   cfg->name);
         return -1;
@@ -318,15 +319,17 @@ int validate_unsigned_int(cfg_t* cfg, cfg_opt_t* opt) {
     return 0;
 }
 
-static void createAndAddOperator(const std::string& name,
-                                 const std::string& type,
-                                 Network* network,
-                                 Workspace* workspace,
-                                 cfg_t* opCfg) {
-    // TODO: Add the repeated input fields so we can specify dependencies. For
-    // now, assume linear stacked topologies, so the input is always the
-    // previous layer.
-    Operator* lastOp = network->getLastOperator();
+static void createAndAddOperator(
+        const std::string& name,
+        const std::string& type,
+        Network* network,
+        Workspace* workspace,
+        cfg_t* opCfg,
+        std::vector<Operator*> inputs = std::vector<Operator*>()) {
+    // If no input layers are specified, then it is assumed to be the last
+    // operator that was added.
+    if (inputs.empty())
+        inputs.push_back(network->getLastOperator());
     if (type == CONV_STANDARD_TYPE) {
         cfg_t* convParams = cfg_getsec(opCfg, "convolution_param");
         ConvolutionOp<GlobalBackend>* op =
@@ -337,7 +340,7 @@ static void createAndAddOperator(const std::string& name,
         op->setStride(cfg_getint(convParams, "row_stride"),
                       cfg_getint(convParams, "col_stride"));
         op->setPadding(cfg_getstr(convParams, "padding"));
-        network->addOperator(op, { lastOp });
+        network->addOperator(op, inputs);
     } else if (type == CONV_DEPTHWISE_TYPE) {
         cfg_t* convParams = cfg_getsec(opCfg, "convolution_param");
         DepthwiseConvolutionOp<GlobalBackend>* op =
@@ -348,7 +351,7 @@ static void createAndAddOperator(const std::string& name,
         op->setStride(cfg_getint(convParams, "row_stride"),
                       cfg_getint(convParams, "col_stride"));
         op->setPadding(cfg_getstr(convParams, "padding"));
-        network->addOperator(op, { lastOp });
+        network->addOperator(op, inputs);
     } else if (type == CONV_POINTWISE_TYPE) {
         assert(false && "Deprecated! Use normal convolution.");
     } else if (type == POOLING_TYPE) {
@@ -366,48 +369,52 @@ static void createAndAddOperator(const std::string& name,
         op->setPoolingSize(cfg_getint(poolParams, "size"));
         op->setPoolingStride(cfg_getint(poolParams, "row_stride"),
                              cfg_getint(poolParams, "col_stride"));
-        network->addOperator(op, { lastOp });
+        network->addOperator(op, inputs);
     } else if (type == FC_TYPE) {
         cfg_t* fcParams = cfg_getsec(opCfg, "inner_product_param");
         InnerProductOp<GlobalBackend>* op =
                 new InnerProductOp<GlobalBackend>(name, workspace);
         op->setNumOutputs(cfg_getint(fcParams, "num_output"));
-        network->addOperator(op, { lastOp });
+        network->addOperator(op, inputs);
         // TODO: This does not include the bias! Add an elementwise add
         // operation.
     } else if (type == FLATTEN_TYPE) {
         FlattenOp<GlobalBackend>* op =
                 new FlattenOp<GlobalBackend>(name, workspace);
-        network->addOperator(op, { lastOp });
+        network->addOperator(op, inputs);
     } else if (type == BATCH_NORM_TYPE) {
         BatchNormOp<GlobalBackend>* op =
                 new BatchNormOp<GlobalBackend>(name, workspace);
-        network->addOperator(op, { lastOp });
+        network->addOperator(op, inputs);
+    } else if (type == ADD_TYPE) {
+        EltwiseAddOp<GlobalBackend>* op =
+                new EltwiseAddOp<GlobalBackend>(name, workspace);
+        network->addOperator(op, inputs);
     } else if (type == RELU_TYPE) {
         ReluOp<GlobalBackend>* op = new ReluOp<GlobalBackend>(name, workspace);
-        network->addOperator(op, { lastOp });
+        network->addOperator(op, inputs);
     } else if (type == LRELU_TYPE) {
         // TODO: Add parameter to enable customization of this behavior.
         ReluOp<GlobalBackend>* op =
                 new ReluOp<GlobalBackend>(name, workspace, 0.1);
-        network->addOperator(op, { lastOp });
+        network->addOperator(op, inputs);
     } else if (type == ELU_TYPE) {
         EluOp<GlobalBackend>* op = new EluOp<GlobalBackend>(name, workspace);
-        network->addOperator(op, { lastOp });
+        network->addOperator(op, inputs);
     } else if (type == SELU_TYPE) {
         SeluOp<GlobalBackend>* op = new SeluOp<GlobalBackend>(name, workspace);
-        network->addOperator(op, { lastOp });
+        network->addOperator(op, inputs);
     } else if (type == SIGMOID_TYPE) {
         SigmoidOp<GlobalBackend>* op =
                 new SigmoidOp<GlobalBackend>(name, workspace);
-        network->addOperator(op, { lastOp });
+        network->addOperator(op, inputs);
     } else if (type == TANH_TYPE) {
         TanhOp<GlobalBackend>* op = new TanhOp<GlobalBackend>(name, workspace);
-        network->addOperator(op, { lastOp });
+        network->addOperator(op, inputs);
     } else if (type == HARD_TANH_TYPE) {
         HardTanhOp<GlobalBackend>* op =
                 new HardTanhOp<GlobalBackend>(name, workspace);
-        network->addOperator(op, { lastOp });
+        network->addOperator(op, inputs);
     } else if (type == NONE_TYPE) {
         return;
     } else {
@@ -691,22 +698,24 @@ Network* smaug::readModelConfiguration(const std::string& cfg_file,
 
     cfg_t* network_opts = cfg_getsec(all_opts, "network");
     int num_layers = cfg_size(network_opts, "layer");
-
     Network* network = new Network(cfg_getstr(network_opts, "name"));
-
-    //=---------------------  STEP 1 -----------------------=//
-    // First, read in all the parameters from the configuration
-    // file for each layer.
-
     readInputDataConfig(network, workspace, network_opts);
     for (int i = 0; i < num_layers; i++) {
         cfg_t* opConfig = cfg_getnsec(network_opts, "layer", i);
+        int numInputs = cfg_size(opConfig, "inputs");
+        std::vector<Operator*> inputs;
+        for (int i = 0; i < numInputs; i++) {
+            std::string inputName = cfg_getnstr(opConfig, "inputs", i);
+            inputs.push_back(network->getLayerLastOperator(inputName));
+        }
         std::string layerName = cfg_title(opConfig);
         std::string type = cfg_getstr(opConfig, "type");
-        createAndAddOperator(layerName, type, network, workspace, opConfig);
+        createAndAddOperator(layerName, type, network, workspace, opConfig, inputs);
         std::string actfunc = cfg_getstr(opConfig, "activation");
         std::string actName = layerName + "_" + actfunc;
         createAndAddOperator(actName, actfunc, network, workspace, opConfig);
+        Operator* lastOp = network->getLastOperator();
+        network->addLayerLastOperator(layerName, lastOp);
     }
 
 #if 0

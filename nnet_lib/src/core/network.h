@@ -44,6 +44,9 @@ class Network {
     Operator* getOperator(const std::string& name) {
         return operators.at(name);
     }
+    Operator* getLayerLastOperator(const std::string& name) {
+        return layerLastOps.at(name);
+    }
     Operator* getLastOperator() const { return lastOperator; }
     const Graph& getGraph() const { return graph; }
     void dumpDataflowGraph() const;
@@ -96,6 +99,10 @@ class Network {
     }
 
     void printSummary() const;
+    void addLayerLastOperator(std::string label, Operator* op) {
+        assert(op && "Operator cannot be NULL!");
+        layerLastOps[label] = op;
+    }
 
    protected:
     struct OperatorInsertion {
@@ -114,11 +121,24 @@ class Network {
                                   LayoutOpsMap& minSet);
 
 
+    // The dataflow graph.
     Graph graph;
-    // TODO: Remove this and replace with the graph terminator when we switch to
-    // a graph representation.
+
+    // The last operator to be added to the network.
     Operator* lastOperator;
+
+    // Global map of operator names to their operator objects.
     std::map<std::string, Operator*> operators;
+
+    // Map from layer name to the operator that produces its final output.i
+    //
+    // A layer could be comprised of multiple operators (e.g. inner product +
+    // eltwise add + activation function), but in the model configuration file,
+    // they are specified as a single named layer section, and subsequent layer
+    // sections can specify the overall output of that layer as an input.
+    std::map<std::string, Operator*> layerLastOps;
+
+    // Name of the model.
     std::string name;
 };
 

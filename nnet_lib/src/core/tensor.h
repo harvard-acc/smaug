@@ -21,7 +21,7 @@ class TensorShape {
     const std::vector<int>& dims() const { return dims_; }
     int& operator[](int index) { return dims_[index]; }
     int operator[](int index) const { return dims_[index]; }
-    bool operator==(const TensorShape& other) {
+    bool operator==(const TensorShape& other) const {
         return (dims_ == other.dims_ && layout == other.layout);
     }
     DataLayout getLayout() const { return layout; }
@@ -136,7 +136,6 @@ class Tensor : public TensorBase {
 
   protected:
     std::shared_ptr<void> tensorData;
-
 };
 
 }  // namespace smaug
