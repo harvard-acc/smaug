@@ -2,6 +2,8 @@
 
 #include <boost/program_options.hpp>
 
+#include "core/globals.h"
+#include "modelconf/data_generator.h"
 #include "modelconf/read_model_conf.h"
 
 namespace po = boost::program_options;
@@ -44,6 +46,12 @@ int main(int argc, char* argv[]) {
     Workspace* workspace = new Workspace();
     Network* network = readModelConfiguration(modelconf, workspace);
     network->dumpDataflowGraph();
+    DataGenerator<float>* generator = new GaussianDataGenerator<float>();
+    generateWeights<float, GlobalBackend>(network, generator);
+
+    delete generator;
+    delete network;
+    delete workspace;
 
     return 0;
 }

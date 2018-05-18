@@ -47,6 +47,7 @@ class Operator {
     virtual void run() = 0;
     virtual bool validate() = 0;
     virtual void createAllTensors() = 0;
+    virtual std::vector<TensorBase*> getParameterizableInputs() { return {}; }
     virtual void printSummary(std::ostream& out) const {}
 
     virtual DataLayoutSet getInputDataLayouts() const {

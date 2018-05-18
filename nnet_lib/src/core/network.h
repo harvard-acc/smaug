@@ -31,6 +31,7 @@ class DataflowGraphWriter {
 class Network {
    protected:
     typedef std::map<DataLayout, std::vector<Operator*>> LayoutOpsMap;
+    typedef std::map<std::string, Operator*> OperatorMap;
 
    public:
     Network(std::string _name) : name(_name), lastOperator(NULL) {}
@@ -103,6 +104,8 @@ class Network {
         assert(op && "Operator cannot be NULL!");
         layerLastOps[label] = op;
     }
+    OperatorMap::iterator begin() { return operators.begin(); }
+    OperatorMap::iterator end() { return operators.end(); }
 
    protected:
     struct OperatorInsertion {
@@ -128,7 +131,7 @@ class Network {
     Operator* lastOperator;
 
     // Global map of operator names to their operator objects.
-    std::map<std::string, Operator*> operators;
+    OperatorMap operators;
 
     // Map from layer name to the operator that produces its final output.i
     //
@@ -136,7 +139,7 @@ class Network {
     // eltwise add + activation function), but in the model configuration file,
     // they are specified as a single named layer section, and subsequent layer
     // sections can specify the overall output of that layer as an input.
-    std::map<std::string, Operator*> layerLastOps;
+    OperatorMap layerLastOps;
 
     // Name of the model.
     std::string name;

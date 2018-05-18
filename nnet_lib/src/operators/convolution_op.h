@@ -131,6 +131,10 @@ class ConvolutionOp : public Operator {
           << weightsShape << "\t\t" << weightsShape.total() << "\n";
     }
 
+    virtual std::vector<TensorBase*> getParameterizableInputs() {
+        return { inputs[Kernels] };
+    }
+
    protected:
     int computeOutputDim(int inputDim,
                          int weightDim,

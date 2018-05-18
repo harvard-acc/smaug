@@ -1,7 +1,9 @@
 #ifndef _UTILITY_UTILS_H_
 #define _UTILITY_UTILS_H_
 
+#include <array>
 #include <string>
+#include <vector>
 
 #include "core/datatypes.h"
 
@@ -19,7 +21,7 @@ int product(std::vector<T> array) {
 template <typename T>
 std::vector<T> sum(std::vector<T> array0, std::vector<T> array1) {
     assert(array0.size() == array1.size());
-    std::vector<T> sum;
+    std::vector<T> sum(array0.size());
     for (int i = 0; i < array0.size(); i++)
       sum[i] = array0[i] + array1[i];
     return sum;

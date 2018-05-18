@@ -718,6 +718,21 @@ Network* smaug::readModelConfiguration(const std::string& cfg_file,
         network->addLayerLastOperator(layerName, lastOp);
     }
 
+    // Allocate storage for all of the tensors. Assume float32 data type (this
+    // can be customized if necessary).
+    for (auto iter = network->begin(); iter != network->end(); ++iter) {
+        Operator* op = iter->second;
+        for (auto input : op->getInputs()) {
+            Tensor<GlobalBackend>* tensor =
+                    dynamic_cast<Tensor<GlobalBackend>*>(input);
+            tensor->allocateStorage<float>();
+        }
+        for (auto output : op->getOutputs()) {
+            Tensor<GlobalBackend>* tensor =
+                    dynamic_cast<Tensor<GlobalBackend>*>(output);
+            tensor->allocateStorage<float>();
+        }
+    }
 #if 0
     // network->addDataLayoutTransformations<GlobalBackend>(workspace);
 

@@ -12,6 +12,60 @@
 
 namespace smaug {
 
+class TensorIndexIterator {
+   public:
+    TensorIndexIterator(const std::vector<int>& _dims,
+                        const std::vector<int>& _padding,
+                        bool _atEnd = false)
+            : dims(_dims), padding(_padding), atEnd(_atEnd) {
+        state.resize(dims.size(), 0);
+    }
+
+    int getIndex() const {
+        int linearIndex = 0, stride = 1;
+        for (int i = (int)state.size() - 1; i >= 0; i--) {
+            linearIndex += state[i] * stride;
+            stride *= (dims.at(i) + padding.at(i));
+        }
+        return linearIndex;
+    }
+
+    operator int() const {
+        return getIndex();
+    }
+
+    bool end() const { return atEnd; }
+
+    void operator++() {
+        bool carry = true;
+        for (int i = (int)state.size() - 1; i >= 0 && carry; i--) {
+            int currValue = state[i];
+            currValue++;
+            carry = (currValue >= dims[i]);
+            if (carry)
+                currValue = 0;
+            state[i] = currValue;
+        }
+        if (carry)
+            atEnd = true;
+    }
+
+    bool operator==(const TensorIndexIterator& other) const {
+        return (state == other.state && dims == other.dims &&
+                padding == other.padding && atEnd == other.atEnd);
+    }
+
+    bool operator!=(const TensorIndexIterator& other) const {
+        return !(*this == other);
+    }
+
+   protected:
+    std::vector<int> state;
+    std::vector<int> dims;
+    std::vector<int> padding;
+    bool atEnd;
+};
+
 class TensorShape {
    public:
     TensorShape() : layout(DataLayout::UnknownLayout) {}
@@ -65,8 +119,7 @@ class TensorBase {
     }
     int getAlignment() const { return alignment; }
     int getDataStorageFormat() const { return dataFormat; }
-
-    void setAlignment(int align) { alignment = align; }
+    DataType getDataType() const { return dataType; }
 
    protected:
     void computePadding() {
@@ -96,7 +149,6 @@ class Tensor : public TensorBase {
            const std::vector<T>& _data)
             : TensorBase(_name, _shape, Backend::Alignment) {
         assert(product(sum(shape.dims(), padding)) == _data.size());
-        dataType = ToDataType<T>::type;
         allocateStorage<T>();
         copyFromExternalData(_data.data(), _data.size());
     }
@@ -104,12 +156,15 @@ class Tensor : public TensorBase {
     template <typename T>
     Tensor(const std::string& _name, const TensorShape& _shape, T* _data)
             : TensorBase(_name, _shape, Backend::Alignment) {
-        dataType = ToDataType<T>::type;
         allocateStorage<T>();
         copyFromExternalData(_data, product(sum(shape.dims(), padding)));
     }
 
     virtual ~Tensor() {}
+
+    TensorIndexIterator startIndex() const {
+        return TensorIndexIterator(shape.dims(), padding);
+    }
 
     template <typename T>
     void copyFromExternalData(T* externalData, int size) {
@@ -120,18 +175,26 @@ class Tensor : public TensorBase {
     }
 
     template <typename T>
-    void allocateStorage() {
-        if (tensorData != NULL)
-          return;
-        // TODO: Replace this with malloc_aligned.
-        int size = product(sum(shape.dims(), padding));
-        tensorData = std::shared_ptr<void>(new T[size]);
+    T* allocateStorage() {
+        if (tensorData == NULL) {
+            dataType = ToDataType<T>::dataType;
+            // TODO: Replace this with malloc_aligned.
+            int size = product(sum(shape.dims(), padding));
+            tensorData = std::shared_ptr<void>(new T[size]);
+        }
+        return reinterpret_cast<T*>(tensorData.get());
     }
 
     template <typename T>
-    const T* data() {
-      assert(ToDataType<T>::dataType == dataType);
-      return reinterpret_cast<T*>(tensorData.get());
+    T* const data() const {
+        assert(ToDataType<T>::dataType == dataType);
+        return reinterpret_cast<T*>(tensorData.get());
+    }
+
+    template <typename T>
+    T* data() {
+        assert(ToDataType<T>::dataType == dataType);
+        return reinterpret_cast<T*>(tensorData.get());
     }
 
   protected:

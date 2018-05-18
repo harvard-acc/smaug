@@ -104,6 +104,10 @@ class BatchNormOp : public Operator {
           << weightsShape << "\t\t\t" << 4 * weightsShape.total() << "\n";
     }
 
+    virtual std::vector<TensorBase*> getParameterizableInputs() {
+        return { inputs[Mean], inputs[Variance], inputs[Gamma], inputs[Beta] };
+    }
+
    protected:
     enum {
         Inputs,

@@ -74,6 +74,10 @@ class InnerProductOp : public Operator {
           << weightsShape << "\t\t" << weightsShape.total() << "\n";
     }
 
+    virtual std::vector<TensorBase*> getParameterizableInputs() {
+        return { inputs[Weights] };
+    }
+
    protected:
     enum { Inputs, Weights, kNumInputs };
     enum { Outputs, kNumOutputs };
