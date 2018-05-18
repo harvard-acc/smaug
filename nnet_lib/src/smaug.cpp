@@ -48,6 +48,10 @@ int main(int argc, char* argv[]) {
     network->dumpDataflowGraph();
     DataGenerator<float>* generator = new GaussianDataGenerator<float>();
     generateWeights<float, GlobalBackend>(network, generator);
+    Tensor<GlobalBackend>* inputTensor =
+            workspace->getTensor<GlobalBackend>("input");
+    generator->reset();
+    generateRandomTensor<float, GlobalBackend>(inputTensor, generator);
 
     delete generator;
     delete network;
