@@ -3,6 +3,8 @@
 
 #include "backend.h"
 
+namespace smaug {
+
 template <int Backend>
 class BackendSelector {};
 
@@ -13,5 +15,7 @@ class BackendSelector<Reference> {
 };
 
 using GlobalBackend = BackendSelector<CONFIG_BACKEND>::Backend;
+
+}  // namespace smaug
 
 #endif

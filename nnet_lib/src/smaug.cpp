@@ -2,7 +2,9 @@
 
 #include <boost/program_options.hpp>
 
+#include "core/backend.h"
 #include "core/globals.h"
+#include "core/scheduler.h"
 #include "modelconf/data_generator.h"
 #include "modelconf/read_model_conf.h"
 
@@ -52,6 +54,8 @@ int main(int argc, char* argv[]) {
             workspace->getTensor<GlobalBackend>("input");
     generator->reset();
     generateRandomTensor<float, GlobalBackend>(inputTensor, generator);
+
+    runNetwork<GlobalBackend>(network, workspace);
 
     delete generator;
     delete network;

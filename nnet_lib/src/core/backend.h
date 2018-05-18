@@ -7,6 +7,8 @@
 // a particular backend.
 #define REFERENCE 0
 
+namespace smaug {
+
 enum BackendName {
     Reference = REFERENCE,
     UnknownBackend,
@@ -19,5 +21,7 @@ class ReferenceBackend {
     static const bool ColumnMajorFCWeights = true;
     static const std::string Name;
 };
+
+}  // namespace smaug
 
 #endif
