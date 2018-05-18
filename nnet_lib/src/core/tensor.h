@@ -59,12 +59,17 @@ class TensorIndexIterator {
         return !(*this == other);
     }
 
+    friend std::ostream& operator<<(std::ostream& os,
+                                    const TensorIndexIterator& iter);
+
    protected:
     std::vector<int> state;
     std::vector<int> dims;
     std::vector<int> padding;
     bool atEnd;
 };
+
+std::ostream& operator<<(std::ostream& os, const TensorIndexIterator& iter);
 
 class TensorShape {
    public:
@@ -197,9 +202,69 @@ class Tensor : public TensorBase {
         return reinterpret_cast<T*>(tensorData.get());
     }
 
-  protected:
+    template <typename B>
+    friend std::ostream& operator<<(std::ostream& os,
+                                    const Tensor<B>& tensor);
+
+   protected:
     std::shared_ptr<void> tensorData;
 };
+
+template <typename DType, typename Backend>
+void writeTensorToOstream(std::ostream& os, const Tensor<Backend>& tensor) {
+    const TensorShape& shape = tensor.template getShape();
+    if (shape.size() == 0) {
+        os << "  [ ]\n";
+        return;
+    }
+    int ndims = shape.size();
+    int newlineAfterElems = shape[ndims- 1];
+    int newGroupAfterElems =
+            (shape.size() >= 2 ? shape[ndims - 1] * shape[ndims - 2]
+                               : shape[ndims - 1]);
+    int counter = 0;
+    DType* data = tensor.template data<DType>();
+    os << tensor.getName() << ", shape = " << shape << "\n";
+    for (auto idx = tensor.startIndex(); !idx.end(); ++idx) {
+        // Print the current index after going through all of the last two
+        // dimensions.
+        if (counter == 0)
+            os << idx << "\n[ ";
+        os << data[idx] << " ";
+        ++counter;
+        if (counter % newGroupAfterElems == 0) {
+            counter = 0;
+            os << " ]\n";
+        } else if (counter % newlineAfterElems == 0) {
+            os << "\n  ";
+        }
+    }
+}
+
+template <typename Backend>
+std::ostream& operator<<(std::ostream& os, const Tensor<Backend>& tensor) {
+    DataType type = tensor.template getDataType();
+    switch (type) {
+      case Int32:
+        writeTensorToOstream<int>(os, tensor);
+        break;
+      case Int64:
+        writeTensorToOstream<int64_t>(os, tensor);
+        break;
+      case Float16:
+        writeTensorToOstream<uint16_t>(os, tensor);
+        break;
+      case Float32:
+        writeTensorToOstream<float>(os, tensor);
+        break;
+      case Float64:
+        writeTensorToOstream<double>(os, tensor);
+        break;
+      default:
+        assert(false && "Unknown data type!");
+    }
+    return os;
+}
 
 }  // namespace smaug
 
