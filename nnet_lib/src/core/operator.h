@@ -45,7 +45,9 @@ class Operator {
     virtual ~Operator() {}
 
     virtual void run() = 0;
-    virtual bool validate() = 0;
+    virtual bool validate() {
+        return validateInputsOutputs() && opType != OpType::UnknownOp;
+    }
     virtual void createAllTensors() = 0;
     virtual std::vector<TensorBase*> getParameterizableInputs() { return {}; }
     virtual void printSummary(std::ostream& out) const {}
@@ -81,6 +83,27 @@ class Operator {
     TensorBase* getOutput(int index) const { return outputs.at(index); }
 
    protected:
+    bool tensorsAllConstructed(const std::vector<TensorBase*>& tensors) const {
+        for (auto tensor : tensors)
+            if (!tensor || !tensor->containsData())
+                return false;
+        return true;
+    }
+
+    bool validateInputsOutputs() const {
+        bool success = true;
+        if (!tensorsAllConstructed(inputs)) {
+            success = false;
+            std::cerr << "[ERROR]: Inputs to " << getName()
+                      << " were not all constructed!\n";
+        }
+        if (!tensorsAllConstructed(outputs)) {
+            success = false;
+            std::cerr << "[ERROR]: Outputs to " << getName()
+                      << " were not all constructed!\n";
+        }
+        return success;
+    }
     std::vector<TensorBase*> inputs;
     std::vector<TensorBase*> outputs;
     std::string name;

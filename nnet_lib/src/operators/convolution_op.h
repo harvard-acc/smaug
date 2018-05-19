@@ -45,8 +45,7 @@ class ConvolutionOp : public Operator {
     virtual bool validate() {
         return (weightRows > 0 && weightCols > 0 && numOfmaps > 0 &&
                 rowStride > 0 && colStride > 0 &&
-                paddingType != UnknownPadding &&
-                inputs.size() == 1);
+                paddingType != UnknownPadding && Operator::validate());
     }
 
     TensorShape inferOutputShape() const {

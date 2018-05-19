@@ -18,7 +18,7 @@ class UnaryOp: public Operator {
     }
 
     virtual void run() = 0;
-    virtual bool validate() { return true; }
+    virtual bool validate() { return Operator::validate(); }
     virtual std::string opTypeName() const = 0;
 
     virtual void createAllTensors() {

@@ -27,7 +27,29 @@ class ReorderOp : public Operator {
     void setTargetLayout(DataLayout layout) { targetLayout = layout; }
 
     virtual void run() {}
-    virtual bool validate() {}
+
+    virtual bool validate() {
+        if (!Operator::validate())
+            return false;
+        DataLayout sourceLayout = inputs[Inputs]->getShape().getLayout();
+        if (sourceLayout == DataLayout::UnknownLayout) {
+            std::cerr << "[ERROR]: Reorder operation has unknown source "
+                         "layout!\n";
+            return false;
+        }
+        if (targetLayout == DataLayout::UnknownLayout) {
+            std::cerr << "[ERROR]: Reorder operation has unknown target "
+                         "layout!\n";
+            return false;
+        }
+        if (sourceLayout == targetLayout) {
+            std::cerr << "[ERROR]: Reorder operation does not change the data "
+                         "layout!\n";
+            return false;
+        }
+        return true;
+    }
+
     TensorShape inferOutputShape() const {
         TensorShape inputShape = getInput<Backend>(Inputs)->getShape();
         std::vector<int> dims(2, 1);
@@ -64,7 +86,6 @@ class ReorderOp : public Operator {
    protected:
     enum { Inputs, kNumInputs };
     enum { Outputs, kNumOutputs };
-    // DataLayout sourceLayout;
     DataLayout targetLayout;
 };
 

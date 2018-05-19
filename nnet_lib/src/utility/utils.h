@@ -27,6 +27,22 @@ std::vector<T> sum(std::vector<T> array0, std::vector<T> array1) {
     return sum;
 }
 
+template <typename T>
+void variadicToVector(std::vector<T>& vector, T elem) {
+    vector.push_back(elem);
+}
+
+template <typename T, typename... Args>
+void variadicToVector(std::vector<T>& vector, T e, Args... elems) {
+    vector.push_back(e);
+    variadicToVector(vector, elems...);
+}
+
+template <typename T, typename... Args>
+std::array<T, sizeof...(Args) + 1> variadicToArray(T i, Args... elems) {
+    return {{ i, elems... }};
+}
+
 // Return the difference between @value and the next multiple of @alignment.
 int calc_padding(int value, unsigned alignment);
 

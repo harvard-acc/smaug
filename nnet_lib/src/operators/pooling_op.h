@@ -27,7 +27,10 @@ class PoolingOp : public Operator {
     }
 
     virtual void run() = 0;
-    virtual bool validate() { assert(false && "Unimplemented!"); }
+    virtual bool validate() {
+        return (poolingColSize > 0 && poolingRowStride > 0 &&
+                poolingColStride > 0 && Operator::validate());
+    }
 
     virtual DataLayoutSet getInputDataLayouts() const {
         return DataLayoutSet(DataLayout::NCHW);
@@ -52,6 +55,8 @@ class PoolingOp : public Operator {
         int inputChans = isNCHW ? inputShape[1] : inputShape[0];
         int outputRows = calcOutputRows(inputRows);
         int outputCols = calcOutputCols(inputCols);
+        assert(outputRows > 0 && outputCols > 0 &&
+               "Pooling layer field size exceeds the input image dimensions!");
         if (isNCHW) {
             return TensorShape(
                     { inputShape[0], inputChans, outputRows, outputCols },

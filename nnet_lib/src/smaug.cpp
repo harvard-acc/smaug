@@ -55,6 +55,8 @@ int main(int argc, char* argv[]) {
     generator->reset();
     generateRandomTensor<float, GlobalBackend>(inputTensor, generator);
 
+    if (!network->validate())
+        return -1;
     runNetwork<GlobalBackend>(network, workspace);
 
     delete generator;

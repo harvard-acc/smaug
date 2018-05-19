@@ -21,7 +21,6 @@ class BatchNormOp : public Operator {
     }
 
     virtual void run() {}
-    virtual bool validate() { return true; }
     TensorShape inferOutputShape() const {
         return getInput<Backend>(Inputs)->getShape();
     }

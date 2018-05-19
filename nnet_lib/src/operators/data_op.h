@@ -22,7 +22,7 @@ class DataOp : public Operator {
     }
 
     virtual void run() {}
-    virtual bool validate() { return data != NULL; }
+    virtual bool validate() { return data != NULL && Operator::validate(); }
     virtual void createAllTensors() {}
 
     virtual DataLayoutSet getInputDataLayouts() const {

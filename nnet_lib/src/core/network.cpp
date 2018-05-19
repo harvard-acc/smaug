@@ -101,6 +101,19 @@ void Network::dumpDataflowGraph() const {
     write_graphviz(out, graph, DataflowGraphWriter(graph));
 }
 
+bool Network::validate() const {
+    bool success = true;
+    for (auto& iter : operators) {
+        Operator* op = iter.second;
+        if (!op->validate()) {
+            std::cerr << "[ERROR]: " << op->getName()
+                      << " was not configured correctly!\n";
+            success = false;
+        }
+    }
+    return success;
+}
+
 void Network::printSummary() const {
     static const std::string hline(
             "______________________________________________"

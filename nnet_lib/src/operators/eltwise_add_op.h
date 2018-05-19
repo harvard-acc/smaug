@@ -15,10 +15,6 @@ class EltwiseAddOp : public Operator {
     }
 
     virtual void run() {}
-    virtual bool validate() {
-        return (getInput<Backend>(Input0)->getShape() ==
-                getInput<Backend>(Input1)->getShape());
-    }
     TensorShape inferOutputShape() const {
         return getInput<Backend>(Input0)->getShape();
     }

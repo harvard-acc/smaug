@@ -21,7 +21,7 @@ class InnerProductOp : public Operator {
     void setNumOutputs(int _outputs) { numOutputs = _outputs; }
 
     virtual void run() {}
-    virtual bool validate() { return numOutputs > 0; }
+    virtual bool validate() { return numOutputs > 0 && Operator::validate(); }
     TensorShape inferOutputShape() const {
         const TensorShape& shape = getInput<Backend>(Inputs)->getShape();
         assert(shape.getLayout() == DataLayout::NC);

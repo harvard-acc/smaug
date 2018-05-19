@@ -104,6 +104,7 @@ class Network {
         assert(op && "Operator cannot be NULL!");
         layerLastOps[label] = op;
     }
+    bool validate() const;
     OperatorMap::iterator begin() { return operators.begin(); }
     OperatorMap::iterator end() { return operators.end(); }
 

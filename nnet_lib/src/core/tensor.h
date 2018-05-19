@@ -125,6 +125,7 @@ class TensorBase {
     int getAlignment() const { return alignment; }
     int getDataStorageFormat() const { return dataFormat; }
     DataType getDataType() const { return dataType; }
+    virtual bool containsData() const = 0;
 
    protected:
     void computePadding() {
@@ -169,6 +170,10 @@ class Tensor : public TensorBase {
 
     TensorIndexIterator startIndex() const {
         return TensorIndexIterator(shape.dims(), padding);
+    }
+
+    virtual bool containsData() const {
+        return tensorData != nullptr;
     }
 
     template <typename T>
