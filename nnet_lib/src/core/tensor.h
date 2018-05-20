@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <initializer_list>
 #include <iostream>
 #include <memory>
 #include <vector>
@@ -152,18 +153,18 @@ class Tensor : public TensorBase {
     template <typename T>
     Tensor(const std::string& _name,
            const TensorShape& _shape,
-           const std::vector<T>& _data)
+           std::initializer_list<T> _data)
             : TensorBase(_name, _shape, Backend::Alignment) {
         assert(product(sum(shape.dims(), padding)) == _data.size());
         allocateStorage<T>();
-        copyFromExternalData(_data.data(), _data.size());
+        fillData(_data);
     }
 
     template <typename T>
     Tensor(const std::string& _name, const TensorShape& _shape, T* _data)
             : TensorBase(_name, _shape, Backend::Alignment) {
         allocateStorage<T>();
-        copyFromExternalData(_data, product(sum(shape.dims(), padding)));
+        fillData(_data, product(sum(shape.dims(), padding)));
     }
 
     TensorIndexIterator startIndex() const {
@@ -173,10 +174,20 @@ class Tensor : public TensorBase {
     virtual bool containsData() const { return tensorData != nullptr; }
 
     template <typename T>
-    void copyFromExternalData(T* externalData, int size) {
+    void fillData(T* externalData, int size) {
         T* rawPtr = data<T>();
         for (int i = 0; i < size; i++) {
             rawPtr[i] = externalData[i];
+        }
+    }
+
+    template <typename T>
+    void fillData(std::initializer_list<T> externalData) {
+        T* rawPtr = data<T>();
+        int i = 0;
+        for (auto dataPtr = externalData.begin(); dataPtr != externalData.end();
+             ++dataPtr, ++i) {
+            rawPtr[i] = *dataPtr;
         }
     }
 
