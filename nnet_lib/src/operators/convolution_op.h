@@ -4,6 +4,7 @@
 #include <string>
 
 #include "core/operator.h"
+#include "core/workspace.h"
 
 namespace smaug {
 
@@ -133,6 +134,9 @@ class ConvolutionOp : public Operator {
     virtual std::vector<TensorBase*> getParameterizableInputs() {
         return { inputs[Kernels] };
     }
+
+    int getRowStride() const { return rowStride; }
+    int getColStride() const { return colStride; }
 
    protected:
     int computeOutputDim(int inputDim,
