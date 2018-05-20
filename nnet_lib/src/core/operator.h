@@ -75,12 +75,14 @@ class Operator {
         return dynamic_cast<Tensor<Backend>*>(inputs.at(index));
     }
     TensorBase* getInput(int index) const { return inputs.at(index); }
+    const std::vector<TensorBase*>& getInputs() const { return inputs; }
 
     template <typename Backend>
     Tensor<Backend>* getOutput(int index) const {
         return dynamic_cast<Tensor<Backend>*>(outputs.at(index));
     }
     TensorBase* getOutput(int index) const { return outputs.at(index); }
+    const std::vector<TensorBase*>& getOutputs() const { return outputs; }
 
    protected:
     bool tensorsAllConstructed(const std::vector<TensorBase*>& tensors) const {
