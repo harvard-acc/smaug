@@ -11,6 +11,10 @@ namespace smaug {
 class Workspace {
   public:
     Workspace() {}
+    ~Workspace() {
+        for (auto& tensor : tensors)
+            delete tensor.second;
+    }
 
     template <typename Backend>
     void addTensor(Tensor<Backend>* tensor) {

@@ -97,6 +97,7 @@ std::ostream& operator<<(std::ostream& os, const TensorShape& shape);
 class TensorBase {
    public:
     TensorBase() : name(""), alignment(0), dataFormat(UnknownStorageFormat) {}
+    virtual ~TensorBase() {}
 
     // We could use this constructor for placeholder variables that don't have
     // any dynamic memory allocated yet.
@@ -109,8 +110,6 @@ class TensorBase {
         assert(shape.size() == padding.size());
         computePadding();
     }
-
-    virtual ~TensorBase() {}
 
     // TODO: Do we need a copy constructor?
 
@@ -148,6 +147,7 @@ class Tensor : public TensorBase {
     Tensor() : TensorBase(), tensorData(NULL) {}
     Tensor(const std::string& _name, const TensorShape& _shape)
             : TensorBase(_name, _shape, Backend::Alignment), tensorData(NULL) {}
+    virtual ~Tensor() {}
 
     template <typename T>
     Tensor(const std::string& _name,
@@ -166,15 +166,11 @@ class Tensor : public TensorBase {
         copyFromExternalData(_data, product(sum(shape.dims(), padding)));
     }
 
-    virtual ~Tensor() {}
-
     TensorIndexIterator startIndex() const {
         return TensorIndexIterator(shape.dims(), padding);
     }
 
-    virtual bool containsData() const {
-        return tensorData != nullptr;
-    }
+    virtual bool containsData() const { return tensorData != nullptr; }
 
     template <typename T>
     void copyFromExternalData(T* externalData, int size) {
@@ -190,7 +186,8 @@ class Tensor : public TensorBase {
             dataType = ToDataType<T>::dataType;
             // TODO: Replace this with malloc_aligned.
             int size = product(sum(shape.dims(), padding));
-            tensorData = std::shared_ptr<void>(new T[size]);
+            tensorData = std::shared_ptr<void>(
+                    new T[size], std::default_delete<T[]>());
         }
         return reinterpret_cast<T*>(tensorData.get());
     }

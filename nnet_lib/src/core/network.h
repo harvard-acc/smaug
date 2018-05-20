@@ -25,7 +25,7 @@ class DataflowGraphWriter {
     }
 
    protected:
-    Graph graph;
+    const Graph& graph;
 };
 
 class Network {
@@ -35,6 +35,10 @@ class Network {
 
    public:
     Network(std::string _name) : name(_name), lastOperator(NULL) {}
+    ~Network() {
+        for (auto& op : operators)
+            delete op.second;
+    }
 
     void addOperator(
             Operator* op,
