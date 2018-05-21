@@ -24,7 +24,8 @@ class HardTanhOp : public UnaryOp<Backend> {
                Workspace* workspace,
                float _min = -1,
                float _max = 1)
-            : UnaryOp<Backend>(name, OpType::ReLU, workspace) {}
+            : UnaryOp<Backend>(name, OpType::ReLU, workspace), min(_min),
+              max(_max) {}
 
     virtual void run() {}
     virtual std::string opTypeName() const { return "HardTanh"; }
