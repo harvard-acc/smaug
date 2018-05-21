@@ -366,7 +366,8 @@ static void createAndAddOperator(
             assert(false && "Invalid type of pooling layer!");
         }
         cfg_t* poolParams = cfg_getsec(opCfg, "pooling_param");
-        op->setPoolingSize(cfg_getint(poolParams, "size"));
+        int poolSize = cfg_getint(poolParams, "size");
+        op->setPoolingSize(poolSize, poolSize);
         op->setPoolingStride(cfg_getint(poolParams, "row_stride"),
                              cfg_getint(poolParams, "col_stride"));
         network->addOperator(op, inputs);

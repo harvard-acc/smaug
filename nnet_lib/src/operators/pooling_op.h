@@ -17,10 +17,18 @@ class PoolingOp : public Operator {
         outputs.resize(kNumOutputs, nullptr);
     }
 
-    void setPoolingSize(int size) {
-        poolingRowSize = size;
-        poolingColSize = size;
+    std::pair<int, int> getPoolingSize() const {
+        return std::make_pair(poolingRowSize, poolingColSize);
     }
+    std::pair<int, int> getPoolingStride() const {
+        return std::make_pair(poolingRowStride, poolingColStride);
+    }
+
+    void setPoolingSize(int rowSize, int colSize) {
+        poolingRowSize = rowSize;
+        poolingColSize = colSize;
+    }
+
     void setPoolingStride(int rowStride, int colStride) {
         poolingRowStride = rowStride;
         poolingColStride = colStride;

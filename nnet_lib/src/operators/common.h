@@ -36,4 +36,25 @@
         TYPE(*output_array_name)[DIM_1][DIM_2][DIM_3][DIM_4] =                 \
             (TYPE(*)[DIM_1][DIM_2][DIM_3][DIM_4])input_array_name
 
+// Macros for computing the maximum of a group of elements.
+//
+// Why macros and not functions (or a loop)? A loop takes O(n) cycles to
+// compute the maximum, when it could be done in O(log n) time with a tree
+// based implementation. But Aladdin regards function calls as a hard
+// dependency that it does not optimize across, so we would not get the
+// parallelism we expect from the tree. Thus, these must be macros.
+//
+// I've only implemented a few of these. These are only meant for the pooling
+// layers, and we shouldn't need more than a 3x3 pooling layer anyways.
+#define max2(A, B) (((A) > (B)) ? (A) : (B))
+#define max3(e0, e1, e2) max2(max2(e0, e1), e2)
+#define max4(e0, e1, e2, e3) max2(max2(e0, e1), max2(e2, e3))
+#define max8(e0, e1, e2, e3, e4, e5, e6, e7)                                   \
+    max2(max4(e0, e1, e2, e3), max4(e4, e5, e6, e7))
+#define max9(e0, e1, e2, e3, e4, e5, e6, e7, e8)                               \
+    max2(max8(e0, e1, e2, e3, e4, e5, e6, e7), e8)
+#define min2(A, B) (((A) < (B)) ? (A) : (B))
+
+#define FRAC_CEIL(A, B) ((A) / (B) + ((A) % (B) != 0))
+
 #endif
