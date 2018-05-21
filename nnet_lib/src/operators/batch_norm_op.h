@@ -12,6 +12,18 @@ namespace smaug {
 template <typename Backend>
 class BatchNormOp : public Operator {
    public:
+    enum {
+        Inputs,
+        Mean,
+        Variance,
+        Gamma,
+        Scaleshift = Gamma,  // for MKL.
+        Beta,
+        kNumInputs
+    };
+    enum { Outputs, kNumOutputs };
+    static constexpr float kEpsilon = 1e-5;
+
     BatchNormOp(const std::string& name, Workspace* workspace)
             : Operator(name, OpType::BatchNorm, workspace),
               meanName(name + "/mean"), varianceName(name + "/variance"),
@@ -108,17 +120,6 @@ class BatchNormOp : public Operator {
     }
 
    protected:
-    enum {
-        Inputs,
-        Mean,
-        Variance,
-        Gamma,
-        Scaleshift = Gamma,  // for MKL.
-        Beta,
-        kNumInputs
-    };
-    enum { Outputs, kNumOutputs };
-
     const std::string meanName;
     const std::string varianceName;
     const std::string gammaName;

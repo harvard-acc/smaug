@@ -1,11 +1,13 @@
 #ifndef _MODELCONF_DATA_GENERATOR_H_
 #define _MODELCONF_DATA_GENERATOR_H_
 
+#include <cmath>
 #include <vector>
 
 #include "core/network.h"
 #include "core/operator.h"
 #include "core/tensor.h"
+#include "operators/batch_norm_op.h"
 
 namespace smaug {
 
@@ -115,6 +117,18 @@ void generateWeights(Network* network, DataGenerator<DType>* generator) {
             Tensor<Backend>* tensor = dynamic_cast<Tensor<Backend>*>(t);
             assert(tensor && "Weight tensor was of incorrect type!");
             generateRandomTensor<DType, Backend>(tensor, generator);
+        }
+
+        if (Backend::PrecomputeBNVariance &&
+            op->getOpType() == OpType::BatchNorm) {
+            auto variance =
+                    op->getInput<Backend>(BatchNormOp<Backend>::Variance);
+            DType* ptr = variance->template data<DType>();
+            for (auto idx = variance->startIndex(); !idx.end(); ++idx) {
+                DType value = std::abs(ptr[idx]);
+                value = 1.0 / sqrt(value + BatchNormOp<Backend>::kEpsilon);
+                ptr[idx] = value;
+            }
         }
     }
 }
