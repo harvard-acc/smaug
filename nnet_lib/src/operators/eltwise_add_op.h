@@ -2,6 +2,7 @@
 #define _OPERATORS_ELTWISE_ADD_OP_H_
 
 #include "core/operator.h"
+#include "core/workspace.h"
 
 namespace smaug {
 
