@@ -49,7 +49,7 @@ class ConvolutionOp : public Operator {
                 paddingType != UnknownPadding && Operator::validate());
     }
 
-    TensorShape inferOutputShape() const {
+    virtual TensorShape inferOutputShape() const {
         Tensor<Backend>* input = getInput<Backend>(Inputs);
         assert(input && "Unable to get input for convolution op!");
         DataLayout layout = input->getShape().getLayout();
@@ -69,7 +69,7 @@ class ConvolutionOp : public Operator {
         }
     }
 
-    TensorShape inferWeightsShape() const {
+    virtual TensorShape inferWeightsShape() const {
         Tensor<Backend>* input = getInput<Backend>(Inputs);
         DataLayout layout = input->getShape().getLayout();
         bool isNCHW = (layout == DataLayout::NCHW);

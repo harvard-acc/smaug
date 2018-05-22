@@ -39,6 +39,7 @@ class SmaugTest {
         for (auto idx = output->template startIndex(); !idx.end(); ++idx, ++i) {
             REQUIRE(Approx(ptr[idx]) == expected[i]);
         }
+        REQUIRE(i == expected.size());
     }
 
     Network* network() const { return network_; }
