@@ -6,6 +6,7 @@
 #include "core/network.h"
 #include "core/tensor.h"
 #include "core/workspace.h"
+#include "utility/debug_stream.h"
 
 namespace smaug {
 
@@ -16,7 +17,10 @@ void runNetwork(Network* network, Workspace* workspace) {
     boost::topological_sort(graph, std::front_inserter(vertices));
     for (auto v : vertices) {
         Operator* op = get(boost::vertex_op, graph, v);
+        dout(0) << op->getName() << "\n";
         op->run();
+        Tensor<Backend>* output = op->getOutput<Backend>(0);
+        dout(0) << *output << "\n";
     }
 }
 

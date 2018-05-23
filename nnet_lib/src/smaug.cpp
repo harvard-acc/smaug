@@ -7,6 +7,7 @@
 #include "core/scheduler.h"
 #include "modelconf/data_generator.h"
 #include "modelconf/read_model_conf.h"
+#include "utility/debug_stream.h"
 
 namespace po = boost::program_options;
 
@@ -15,12 +16,17 @@ using namespace smaug;
 int main(int argc, char* argv[]) {
     std::string modelconf;
     std::string datamode = "RANDOM";
+    int debugLevel = -1;
     po::options_description options(
             "SMAUG Usage:  ./smaug model.conf [options]");
     options.add_options()
         ("help,h", "Display this help message")
         ("data-init-mode,d", po::value(&datamode),
-            "Random data generation mode (FIXED, RANDOM)");
+            "Random data generation mode (FIXED, RANDOM)")
+        ("debug-level", po::value(&debugLevel)->implicit_value(0),
+            "Set the debugging output level. If omitted, all debugging output "
+            "is ignored. If specified without a value, the debug level is set to "
+            "zero.");
 
     po::options_description hidden;
     hidden.add_options()(
@@ -59,6 +65,7 @@ int main(int argc, char* argv[]) {
                   << datamode << "\"\n";
         return 1;
     }
+    initDebugStream(debugLevel);
 
     std::cout << "Model configuration: " << modelconf << "\n";
 
