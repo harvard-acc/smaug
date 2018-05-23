@@ -22,17 +22,8 @@ class TensorIndexIterator {
         state.resize(dims.size(), 0);
     }
 
-    int getIndex() const {
-        int linearIndex = 0, stride = 1;
-        for (int i = (int)state.size() - 1; i >= 0; i--) {
-            linearIndex += state[i] * stride;
-            stride *= (dims.at(i) + padding.at(i));
-        }
-        return linearIndex;
-    }
-
     operator int() const {
-        return getIndex();
+        return getIndex(state);
     }
 
     bool end() const { return atEnd; }
@@ -51,6 +42,12 @@ class TensorIndexIterator {
             atEnd = true;
     }
 
+    template <typename... Args>
+    int operator()(int i, Args... args) {
+        auto indices = variadicToArray(i, args...);
+        return getIndex(indices);
+    }
+
     bool operator==(const TensorIndexIterator& other) const {
         return (state == other.state && dims == other.dims &&
                 padding == other.padding && atEnd == other.atEnd);
@@ -64,6 +61,16 @@ class TensorIndexIterator {
                                     const TensorIndexIterator& iter);
 
    protected:
+    template <typename Container>
+    int getIndex(Container indices) const {
+        int linearIndex = 0, stride = 1;
+        for (int i = (int)indices.size() - 1; i >= 0; i--) {
+            linearIndex += indices[i] * stride;
+            stride *= (dims.at(i) + padding.at(i));
+        }
+        return linearIndex;
+    }
+
     std::vector<int> state;
     std::vector<int> dims;
     std::vector<int> padding;
