@@ -2,6 +2,7 @@
 #define _CORE_REORDER_OP_H_
 
 #include "core/operator.h"
+#include "operators/reorder_op_impl.h"
 
 namespace smaug {
 
@@ -18,15 +19,31 @@ class ReorderOp : public Operator {
     }
 
     ReorderOp(const std::string& name, Workspace* workspace)
-            : ReorderOp(name,
-                        DataLayout::UnknownLayout,
-                        OpType::Reorder,
-                        workspace) {}
+            : ReorderOp(name, DataLayout::UnknownLayout, workspace) {}
 
     DataLayout getTargetDataLayout() const { return targetLayout; }
     void setTargetLayout(DataLayout layout) { targetLayout = layout; }
 
-    virtual void run() {}
+    virtual void run() {
+        Tensor<Backend>* input = getInput<Backend>(Inputs);
+        Tensor<Backend>* output = getOutput<Backend>(Outputs);
+        DataLayout srcLayout = input->getShape().getLayout();
+        if (srcLayout == DataLayout::NCHW) {
+            if (targetLayout == DataLayout::NHWC) {
+                convertNchwToNhwc(input, output);
+            } else if (targetLayout == DataLayout::NC) {
+                flatten(input, output);
+            }
+        } else if (srcLayout == DataLayout::NHWC) {
+            if (targetLayout == DataLayout::NCHW) {
+                convertNhwcToNchw(input, output);
+            } else if (targetLayout == DataLayout::NC) {
+                flatten(input, output);
+            }
+        } else if (srcLayout == DataLayout::NC) {
+            assert(false && "Data layout reordering from NC is not supported!");
+        }
+    }
 
     virtual bool validate() {
         if (!Operator::validate())
@@ -52,12 +69,23 @@ class ReorderOp : public Operator {
 
     TensorShape inferOutputShape() const {
         TensorShape inputShape = getInput<Backend>(Inputs)->getShape();
-        std::vector<int> dims(2, 1);
-        dims[0] = inputShape[0];
-        for (int i = 1; i < inputShape.size(); ++i) {
-            dims[1] *= inputShape[i];
+        if (targetLayout == DataLayout::NC) {
+            std::vector<int> dims(2, 1);
+            dims[0] = inputShape[0];
+            for (int i = 1; i < inputShape.size(); ++i) {
+                dims[1] *= inputShape[i];
+            }
+            return TensorShape(dims, targetLayout);
+        } else if (targetLayout == DataLayout::NCHW) {
+            return TensorShape({ inputShape[0], inputShape[3], inputShape[1],
+                                 inputShape[2] },
+                               targetLayout);
+        } else if (targetLayout == DataLayout::NHWC) {
+            return TensorShape({ inputShape[0], inputShape[2], inputShape[3],
+                                 inputShape[1] },
+                               targetLayout);
         }
-        return TensorShape(dims, targetLayout);
+        return TensorShape();
     }
 
     void createOutputTensors() {
