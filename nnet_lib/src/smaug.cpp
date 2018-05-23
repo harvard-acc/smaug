@@ -14,15 +14,20 @@ using namespace smaug;
 
 int main(int argc, char* argv[]) {
     std::string modelconf;
-    po::options_description options("SMAUG options");
-    options.add_options()("help", "Display this help message");
+    std::string datamode = "RANDOM";
+    po::options_description options(
+            "SMAUG Usage:  ./smaug model.conf [options]");
+    options.add_options()
+        ("help,h", "Display this help message")
+        ("data-init-mode,d", po::value(&datamode),
+            "Random data generation mode (FIXED, RANDOM)");
 
     po::options_description hidden;
-    hidden.add_options()("model-config", po::value(&modelconf)->required(),
-                         "Model configuration file");
-    po::options_description all;
-    all.add(options);
-    all.add(hidden);
+    hidden.add_options()(
+            "model-config", po::value(&modelconf), "Model configuration file");
+    po::options_description all, visible;
+    all.add(options).add(hidden);
+    visible.add(options);
 
     po::positional_options_description p;
     p.add("model-config", -1);
@@ -40,15 +45,35 @@ int main(int argc, char* argv[]) {
     }
 
     if (vm.count("help")) {
-        std::cout << all << "\n";
+        std::cout << visible << "\n";
         return 1;
     }
+    if (modelconf.empty()) {
+        std::cout << "[ERROR] Need to specify the model configuration file!\n"
+                  << visible << "\n";
+        return 1;
+    }
+
+    if (datamode != "FIXED" && datamode != "RANDOM") {
+        std::cerr << "[ERROR] Invalid value for --data-init-mode: \""
+                  << datamode << "\"\n";
+        return 1;
+    }
+
     std::cout << "Model configuration: " << modelconf << "\n";
 
     Workspace* workspace = new Workspace();
     Network* network = readModelConfiguration(modelconf, workspace);
     network->dumpDataflowGraph();
-    DataGenerator<float>* generator = new GaussianDataGenerator<float>();
+    DataGenerator<float>* generator;
+    if (datamode == "FIXED") {
+        generator = new FixedDataGenerator<float>(0.1);
+    } else if (datamode == "RANDOM") {
+        generator = new GaussianDataGenerator<float>();
+    } else {
+        assert(false && "Invalid data init mode!");
+    }
+
     generateWeights<float, GlobalBackend>(network, generator);
     Tensor<GlobalBackend>* inputTensor =
             workspace->getTensor<GlobalBackend>("input");
