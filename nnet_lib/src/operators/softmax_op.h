@@ -2,6 +2,7 @@
 #define _OPERATORS_SOFTMAX_OP_H_
 
 #include <string>
+#include "operators/unary_op.h"
 
 namespace smaug {
 
@@ -12,7 +13,7 @@ class SoftmaxOp : public UnaryOp<Backend> {
             : UnaryOp<Backend>(name, OpType::Softmax, workspace) {}
 
     virtual void run() {}
-    virtual std::string opTypeName() { return "Softmax"; }
+    virtual std::string opTypeName() const { return "Softmax"; }
 };
 
 }  // namespace smaug

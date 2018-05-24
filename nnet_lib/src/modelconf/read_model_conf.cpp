@@ -134,7 +134,7 @@ int validate_layer_type(cfg_t* cfg, cfg_opt_t* opt) {
     if (value != CONV_STANDARD_TYPE && value != CONV_DEPTHWISE_TYPE &&
         value != CONV_POINTWISE_TYPE && value != FC_TYPE &&
         value != POOLING_TYPE && value != BATCH_NORM_TYPE &&
-        value != FLATTEN_TYPE && value != ADD_TYPE) {
+        value != FLATTEN_TYPE && value != ADD_TYPE && value != SOFTMAX_TYPE) {
         cfg_error(cfg, "Invalid layer type '%s' for '%s'!", value.c_str(),
                   cfg->name);
         return -1;
@@ -379,6 +379,10 @@ static void createAndAddOperator(
         network->addOperator(op, inputs);
         // TODO: This does not include the bias! Add an elementwise add
         // operation.
+    } else if (type == SOFTMAX_TYPE) {
+        SoftmaxOp<GlobalBackend>* op =
+                new SoftmaxOp<GlobalBackend>(name, workspace);
+        network->addOperator(op, inputs);
     } else if (type == FLATTEN_TYPE) {
         FlattenOp<GlobalBackend>* op =
                 new FlattenOp<GlobalBackend>(name, workspace);
