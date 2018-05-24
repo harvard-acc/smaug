@@ -17,6 +17,7 @@ int main(int argc, char* argv[]) {
     std::string modelconf;
     std::string datamode = "RANDOM";
     int debugLevel = -1;
+    std::string lastOutputFile;
     po::options_description options(
             "SMAUG Usage:  ./smaug model.conf [options]");
     options.add_options()
@@ -26,7 +27,11 @@ int main(int argc, char* argv[]) {
         ("debug-level", po::value(&debugLevel)->implicit_value(0),
             "Set the debugging output level. If omitted, all debugging output "
             "is ignored. If specified without a value, the debug level is set to "
-            "zero.");
+            "zero.")
+        ("print-last-output,p",
+            po::value(&lastOutputFile)->implicit_value("stdout"),
+            "Dump the output of the last layer to this file. If specified with "
+            "no argument, it is printed to stdout.");
 
     po::options_description hidden;
     hidden.add_options()(
@@ -86,10 +91,19 @@ int main(int argc, char* argv[]) {
             workspace->getTensor<GlobalBackend>("input");
     generator->reset();
     generateRandomTensor<float, GlobalBackend>(inputTensor, generator);
-
     if (!network->validate())
         return -1;
-    runNetwork<GlobalBackend>(network, workspace);
+
+    Tensor<GlobalBackend>* output =
+            runNetwork<GlobalBackend>(network, workspace);
+    if (!lastOutputFile.empty()) {
+        if (lastOutputFile == "stdout") {
+            std::cout << "Final network output:\n" << *output << "\n";
+        } else {
+            std::ofstream outfile(lastOutputFile);
+            outfile << "Final network output:\n" << *output << "\n";
+        }
+    }
 
     delete generator;
     delete network;
