@@ -1,0 +1,105 @@
+.PHONY: all tests src-symlinks clean run-tests
+
+EXEC = smaug
+MAIN = src/smaug.cpp
+SRCS = src/modelconf/read_model_conf.cpp \
+       src/modelconf/model_conf_params.cpp \
+       src/operators/ref/ref_batch_norm_op.cpp \
+       src/operators/ref/ref_eltwise_add_op.cpp \
+       src/operators/ref/ref_convolution_op.cpp \
+       src/operators/ref/ref_depthwise_convolution_op.cpp \
+       src/operators/ref/ref_inner_product_op.cpp \
+       src/operators/ref/ref_pooling_op.cpp \
+       src/operators/ref/ref_relu_op.cpp \
+       src/operators/ref/ref_elu_op.cpp \
+       src/operators/ref/ref_sigmoid_op.cpp \
+       src/operators/ref/ref_softmax_op.cpp \
+       src/operators/ref/ref_tanh_op.cpp \
+       src/core/backend.cpp \
+       src/core/tensor.cpp \
+       src/core/network.cpp \
+			 src/utility/debug_stream.cpp \
+			 src/utility/utils.cpp
+
+TESTS = src/operators/ref/ref_convolution_op_test.cpp \
+				src/operators/ref/ref_batch_norm_op_test.cpp \
+				src/operators/ref/ref_depthwise_convolution_op_test.cpp \
+				src/operators/ref/ref_eltwise_ops_test.cpp \
+				src/operators/ref/ref_inner_product_op_test.cpp \
+				src/operators/ref/ref_pooling_op_test.cpp \
+				src/operators/ref/ref_softmax_op_test.cpp \
+				src/operators/reorder_op_test.cpp
+
+LFLAGS = -L$(BOOST_ROOT)/lib -lm -lrt -lconfuse -lboost_graph -lboost_program_options
+CPPFLAGS = -DCONFIG_BACKEND=REFERENCE
+CFLAGS = -O3 -g
+CXXFLAGS = -std=c++11 $(CFLAGS)
+INCLUDES = -Isrc -I$(BOOST_ROOT)/include -Isrc/third_party/Catch2/single_include
+
+ifneq ($(CONFUSE_ROOT),)
+INCLUDES += -I$(CONFUSE_ROOT)/include
+LFLAGS += -L$(CONFUSE_ROOT)/lib
+endif
+
+######################################
+####      PRIMARY BUILD SETUP     ####
+######################################
+
+COMMON_DIR := $(CURRENT_DIR)
+CURRENT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+BUILD_DIR = build
+
+# Create a build directory that just has symlinks to all the source files, so
+# we can build everything seemingly "alongside" the source.
+src-symlinks:
+	@mkdir -p $(BUILD_DIR)
+	@cp -asf $(CURRENT_DIR)/../src/* $(BUILD_DIR)/
+
+# Create object files for each cpp/c file.
+BUILD_SRCS = $(patsubst src/%, $(BUILD_DIR)/%, $(SRCS))
+BUILD_SRCS_OBJS := $(patsubst %.cpp, %.o, $(BUILD_SRCS))
+BUILD_SRCS_OBJS := $(patsubst %.c, %.o, $(BUILD_SRCS_OBJS))
+
+BUILD_TESTS = $(patsubst src/%, $(BUILD_DIR)/%, $(TESTS))
+BUILD_TESTS_OBJS := $(patsubst %.cpp, %.o, $(BUILD_TESTS))
+BUILD_TESTS_OBJS := $(patsubst %.cpp, %.o, $(BUILD_TESTS_OBJS))
+
+BUILD_MAIN_SRC = $(patsubst src/%, $(BUILD_DIR)/%, $(MAIN))
+BUILD_MAIN_OBJ = $(patsubst %.cpp, %.o, $(BUILD_MAIN_SRC))
+
+all: src-symlinks $(BUILD_DIR)/$(EXEC)
+
+$(BUILD_DIR)/$(EXEC): $(BUILD_SRCS_OBJS) $(BUILD_MAIN_OBJ)
+	$(CXX) $^ $(LFLAGS) -o $@
+
+%.o: %.cpp
+	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $(INCLUDES) $^ -o $@
+
+%.o: %.c
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) $(INCLUDES) $^ -o $@
+
+########################################
+####      UNIT TEST BUILD SETUP     ####
+########################################
+
+CATCH_MAIN = $(BUILD_DIR)/core/catch
+CATCH_OBJ = $(CATCH_MAIN).o
+CATCH_SRC = $(CATCH_MAIN).cpp
+
+TEST_OBJ = $(patsubst %.cpp, %.o, $(BUILD_TESTS))
+TEST_BIN = $(patsubst %.cpp, %, $(BUILD_TESTS))
+
+tests: src-symlinks $(TEST_BIN)
+
+$(TEST_BIN) : % : %.o $(CATCH_OBJ) $(BUILD_SRCS_OBJS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(INCLUDES) $^ -o $@ $(LFLAGS)
+
+run-tests:
+	@$(foreach t, $(TEST_BIN), echo $(t); ./$(t);)
+
+###########################
+####      CLEAN UP     ####
+###########################
+
+clean:
+	rm -f $(BUILD_DIR)/$(EXEC) $(TEST_BIN) $(BUILD_SRCS_OBJS) $(BUILD_TEST_OBJS) $(BUILD_MAIN_OBJ)

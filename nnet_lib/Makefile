@@ -1,6 +1,21 @@
 .PHONY: all help native eigen dma-trace-binary \
 			  gem5-cpu gem5-accel \
+				new new-test new-clean \
 				clean-trace clean-gem5 clean-native clean-eigen clean gem5
+
+## SMAUG v2 BUILD RULES ##
+
+new:
+	@$(MAKE) -f common/Makefile.common all
+new-test:
+	@$(MAKE) -f common/Makefile.common tests
+new-test-run:
+	@$(MAKE) -f common/Makefile.common run-tests
+new-clean:
+	@$(MAKE) -f common/Makefile.common clean
+
+## SMAUG v1 BUILD RULES ##
+
 all:
 	@echo "Usage: make [target] ARCH=[ARCH]"
 	@echo ""
