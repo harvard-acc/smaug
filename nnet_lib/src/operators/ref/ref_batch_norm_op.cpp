@@ -1,6 +1,7 @@
 #include "core/backend.h"
 #include "operators/common.h"
 #include "operators/batch_norm_op.h"
+#include "utility/debug_stream.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -102,6 +103,10 @@ void BatchNormOp<ReferenceBackend>::run() {
     const TensorShape& kernelShape = mean->getShape();
     const TensorShape& outputShape = output->getShape();
     bool isPostConv = (input->ndims() == 4);
+    dout(2) << *mean << "\n";
+    dout(2) << *variance<< "\n";
+    dout(2) << *gamma << "\n";
+    dout(2) << *beta << "\n";
 
     if (isPostConv) {
         assert(inputShape.getLayout() == DataLayout::NCHW);

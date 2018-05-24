@@ -1,6 +1,7 @@
 #include "core/backend.h"
 #include "operators/common.h"
 #include "operators/convolution_op.h"
+#include "utility/debug_stream.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -161,6 +162,7 @@ void ConvolutionOp<ReferenceBackend>::run() {
     assert(inputShape.getLayout() == DataLayout::NCHW);
     assert(kernelShape.getLayout() == DataLayout::NCHW);
     assert(outputShape.getLayout() == DataLayout::NCHW);
+    dout(2) << *kernels << "\n";
 
     auto func = paddingType == ValidPadding
                         ? ref_conv3d_f32_nchw_valid_padding

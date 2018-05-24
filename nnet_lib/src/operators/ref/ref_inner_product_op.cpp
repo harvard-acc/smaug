@@ -1,6 +1,7 @@
 #include "core/backend.h"
 #include "operators/common.h"
 #include "operators/inner_product_op.h"
+#include "utility/debug_stream.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -50,6 +51,7 @@ void InnerProductOp<ReferenceBackend>::run() {
     assert(inputShape.getLayout() == DataLayout::NC);
     assert(weightShape.getLayout() == DataLayout::NC);
     assert(outputShape.getLayout() == DataLayout::NC);
+    dout(2) << *weights << "\n";
 
     ref_inner_product_f32_nc(input->data<float>(), weights->data<float>(),
                              output->data<float>(), inputShape[0],
