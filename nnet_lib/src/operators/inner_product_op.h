@@ -1,6 +1,7 @@
 #ifndef _OPERATORS_INNER_PRODUCT_OP_H_
 #define _OPERATORS_INNER_PRODUCT_OP_H_
 
+#include "core/backend.h"
 #include "core/operator.h"
 #include "core/tensor.h"
 #include "core/workspace.h"
@@ -87,6 +88,8 @@ class InnerProductOp : public Operator {
     bool outputTensorsCreated;
     std::string weightsName;
 };
+
+REGISTER_SPECIAL_OP(InnerProductOp, ReferenceBackend);
 
 }  // namespace smaug
 

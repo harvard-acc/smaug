@@ -3,6 +3,7 @@
 
 #include <string>
 
+#include "core/backend.h"
 #include "core/operator.h"
 #include "core/workspace.h"
 
@@ -158,6 +159,8 @@ class ConvolutionOp : public Operator {
     PaddingType paddingType;
     std::string weightsName;
 };
+
+REGISTER_SPECIAL_OP(ConvolutionOp, ReferenceBackend);
 
 }  // namespace smaug
 

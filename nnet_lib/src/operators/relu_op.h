@@ -3,6 +3,7 @@
 
 #include <string>
 
+#include "core/backend.h"
 #include "operators/unary_op.h"
 
 namespace smaug {
@@ -23,6 +24,8 @@ class ReluOp : public UnaryOp<Backend> {
     // Slope in the negative region.
     float slope;
 };
+
+REGISTER_SPECIAL_OP(ReluOp, ReferenceBackend);
 
 }  // namespace smaug
 

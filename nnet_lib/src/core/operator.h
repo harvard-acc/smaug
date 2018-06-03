@@ -8,6 +8,10 @@
 #include "core/graph.h"
 #include "core/tensor.h"
 
+#define REGISTER_SPECIAL_OP(Operator, Backend)                                 \
+    template <>                                                                \
+    void Operator<Backend>::run();
+
 namespace smaug {
 
 class Workspace;

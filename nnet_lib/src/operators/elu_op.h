@@ -3,6 +3,7 @@
 
 #include <string>
 
+#include "core/backend.h"
 #include "operators/unary_op.h"
 
 namespace smaug {
@@ -38,6 +39,9 @@ class SeluOp : public EluOp<Backend> {
    protected:
     float lambda;
 };
+
+REGISTER_SPECIAL_OP(EluOp, ReferenceBackend);
+REGISTER_SPECIAL_OP(SeluOp, ReferenceBackend);
 
 }  // namespace smaug
 

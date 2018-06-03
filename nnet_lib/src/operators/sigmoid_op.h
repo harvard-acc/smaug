@@ -3,6 +3,7 @@
 
 #include <string>
 
+#include "core/backend.h"
 #include "operators/unary_op.h"
 
 namespace smaug {
@@ -16,6 +17,8 @@ class SigmoidOp : public UnaryOp<Backend> {
     virtual void run() {}
     virtual std::string opTypeName() const { return "Sigmoid"; }
 };
+
+REGISTER_SPECIAL_OP(SigmoidOp, ReferenceBackend);
 
 }  // namespace smaug
 

@@ -1,6 +1,7 @@
 #ifndef _OPERATORS_POOLING_OP_H_
 #define _OPERATORS_POOLING_OP_H_
 
+#include "core/backend.h"
 #include "core/operator.h"
 #include "core/tensor.h"
 #include "core/workspace.h"
@@ -141,6 +142,9 @@ class AvgPoolingOp : public PoolingOp<Backend> {
         out << this->name << " (AvgPooling)\t\t" << outputShape << "\n";
     }
 };
+
+REGISTER_SPECIAL_OP(MaxPoolingOp, ReferenceBackend);
+REGISTER_SPECIAL_OP(AvgPoolingOp, ReferenceBackend);
 
 }  // namespace smaug
 

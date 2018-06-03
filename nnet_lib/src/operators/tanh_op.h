@@ -3,6 +3,7 @@
 
 #include <string>
 
+#include "core/backend.h"
 #include "operators/unary_op.h"
 
 namespace smaug {
@@ -37,6 +38,9 @@ class HardTanhOp : public UnaryOp<Backend> {
     float min;
     float max;
 };
+
+REGISTER_SPECIAL_OP(TanhOp, ReferenceBackend);
+REGISTER_SPECIAL_OP(HardTanhOp, ReferenceBackend);
 
 }  // namespace smaug
 

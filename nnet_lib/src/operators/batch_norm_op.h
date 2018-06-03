@@ -1,6 +1,7 @@
 #ifndef _OPERATORS_BATCH_NORM_OP_H_
 #define _OPERATORS_BATCH_NORM_OP_H_
 
+#include "core/backend.h"
 #include "core/operator.h"
 #include "core/tensor.h"
 #include "core/workspace.h"
@@ -125,6 +126,8 @@ class BatchNormOp : public Operator {
     const std::string gammaName;
     const std::string betaName;
 };
+
+REGISTER_SPECIAL_OP(BatchNormOp, ReferenceBackend);
 
 }  // namespace smaug
 

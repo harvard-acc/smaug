@@ -1,6 +1,7 @@
 #ifndef _OPERATORS_DATA_OP_H_
 #define _OPERATORS_DATA_OP_H_
 
+#include "core/backend.h"
 #include "core/tensor.h"
 #include "core/workspace.h"
 
@@ -41,4 +42,5 @@ class DataOp : public Operator {
 };
 
 } // namespace smaug
+
 #endif

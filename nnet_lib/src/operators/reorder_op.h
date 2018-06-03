@@ -1,6 +1,7 @@
 #ifndef _CORE_REORDER_OP_H_
 #define _CORE_REORDER_OP_H_
 
+#include "core/backend.h"
 #include "core/operator.h"
 #include "operators/reorder_op_impl.h"
 

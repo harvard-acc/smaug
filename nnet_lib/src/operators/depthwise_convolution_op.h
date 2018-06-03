@@ -77,6 +77,8 @@ class DepthwiseConvolutionOp : public ConvolutionOp<Backend> {
     }
 };
 
+REGISTER_SPECIAL_OP(DepthwiseConvolutionOp, ReferenceBackend);
+
 }  // namespace smaug
 
 #endif
