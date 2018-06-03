@@ -6,13 +6,15 @@
 ## SMAUG v2 BUILD RULES ##
 
 new:
-	@$(MAKE) -f common/Makefile.common all
+	@$(MAKE) -f common/Makefile.native --no-print-directory all
 new-test:
-	@$(MAKE) -f common/Makefile.common tests
+	@$(MAKE) -f common/Makefile.native --no-print-directory tests
 new-test-run:
-	@$(MAKE) -f common/Makefile.common run-tests
+	@$(MAKE) -f common/Makefile.native --no-print-directory run-tests
 new-clean:
-	@$(MAKE) -f common/Makefile.common clean
+	@$(MAKE) -f common/Makefile.native --no-print-directory clean
+new-tracer:
+	@$(MAKE) -f common/Makefile.tracer --no-print-directory dma-trace-binary
 
 ## SMAUG v1 BUILD RULES ##
 

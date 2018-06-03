@@ -3,9 +3,7 @@
 # before including this.
 ##################################
 
-include common/Makefile.arch
-
-MODULES = core core/smiv utility arch gem5
+include common/Makefile.common
 
 .PHONY: dma-trace-binary run-trace clean-trace src-symlinks
 
@@ -31,91 +29,86 @@ LFLAGS += -lz
 #     BUILD PRODUCT REQS       #
 ################################
 
-LLVM_VERSION = $(shell clang --version | grep -o -m 1 "[0-9\.]\+" | head -n 1)
-GEM5_DMA_SRC = gem5/dma_interface.c
+LLVM_VERSION = $(shell clang-6.0 --version | grep -o -m 1 "[0-9\.]\+" | head -n 1)
 
 # The file containinng the main function must be instrumented LAST so that it
 # can include all labels discovered by the clangtool. Therefore, we take it out
 # of this list and manually append it to the end.
-ALL_TRACER_SRCS = $(filter-out $(NNET_FWD_MAIN), $(SRCS) $(GEM5_DMA_SRC)) \
-									$(NNET_FWD_MAIN)
+ALL_TRACER_SRCS = $(filter-out $(MAIN), $(SRCS) $(GEM5_DMA_SRC)) $(MAIN)
 
-ifeq ($(ARCH), EIGEN)
-$(error Eigen requires C++, which LLVM-Tracer does not support!)
-endif
-ifeq ($(ARCH), MONOLITHIC)
-SRCS += arch/monolithic.c
-else ifeq ($(ARCH), COMPOSABLE)
-SRCS += arch/composable.c
-else ifeq ($(ARCH), SMIV)
-SRCS += $(SMIV_ARCH_SRCS) arch/smiv.c
-else ifeq ($(ARCH), SMV)
-SRCS += $(SMIV_ARCH_SRCS) $(SMV_ARCH_SRCS) arch/smv.c
-CPPFLAGS += -DTRANSPOSE_WEIGHTS=1
-else
-$(error "Unknown architecture $(ARCH)!")
-endif
-SUBBUILDDIRS = $(patsubst %, $(BUILD_DIR)/%, $(MODULES))
-
-LLVM_OBJS = $(patsubst %.c, $(BUILD_DIR)/%-opt.llvm, $(ALL_TRACER_SRCS))
+LLVM_OBJS = $(filter-out %.h, \
+						$(patsubst %.c, $(BUILD_DIR)/%-opt.llvm, \
+						$(patsubst src/%.cpp, $(BUILD_DIR)/%-opt.llvm, $(ALL_TRACER_SRCS))))
 
 ################################
 #         SANITY CHECKS        #
 ################################
 
-ifeq ($(ARCH), EIGEN)
-$(error Cannot build trace for the Eigen implementation)
-endif
-
 #########################################################
 #        INSTRUMENTATION AND TRACE FILE GENERATION      #
 #########################################################
 
-build-trace: $(SUBBUILDDIRS) src-symlinks
+build-trace: src-symlinks
 	@$(MAKE) -f common/Makefile.tracer $(BUILD_DIR)/$(EXEC)-instrumented
 
-src-symlinks:
-	@cp -asf $(CURRENT_DIR)/../src/* build/
-	@cp -asf $(ALADDIN_HOME)/$(GEM5_DMA_SRC) $(BUILD_DIR)/$(GEM5_DMA_SRC)
-
-$(SUBBUILDDIRS):
-	@mkdir -p $(SUBBUILDDIRS)
+%-labelmap: %.cpp
+	@$(GET_LABELED_STMTS) $^ -- \
+			-I$(LLVM_HOME)/lib/clang/$(LLVM_VERSION)/include \
+			$(INCLUDES) $(CPPFLAGS) $(CXXFLAGS) -mf16c $(BMARK_SPECIFIC_CFLAGS)
+	@cat labelmap >> $(BUILD_DIR)/labelmap
 
 %-labelmap: %.c
 	@$(GET_LABELED_STMTS) $^ -- \
 			-I$(LLVM_HOME)/lib/clang/$(LLVM_VERSION)/include \
-			$(CPPFLAGS) -mf16c $(BMARK_SPECIFIC_CFLAGS)
+			$(INCLUDES) $(CPPFLAGS) $(CFLAGS) -mf16c $(BMARK_SPECIFIC_CFLAGS)
 	@cat labelmap >> $(BUILD_DIR)/labelmap
 
 $(BUILD_DIR)/full.llvm: $(LLVM_OBJS)
 	@echo Linking instrumented LLVM objects...
-	@llvm-link -o $@ $^ $(LOGGER)
+	@llvm-link-6.0 -o $@ $^ $(LOGGER)
 
 $(BUILD_DIR)/full.s: $(BUILD_DIR)/full.llvm
-	@llc -O0 -disable-fp-elim -filetype=asm -o $@ $<
+	@llc-6.0 -O0 -disable-fp-elim -filetype=asm -o $@ $<
 
 $(BUILD_DIR)/$(EXEC)-instrumented: $(BUILD_DIR)/full.s
 	@echo Producing final binary...
-	@$(CC) -g -O0 -fno-inline -o $@ $^ $(LFLAGS)
+	@g++ -O0 -fno-inline -o $@ $^ $(LFLAGS)
 
 %-opt.llvm: %.c %-labelmap
 	@echo Building $<
-	@clang -g -O1 -S -fno-slp-vectorize -fno-vectorize -fno-unroll-loops \
+	@clang-6.0 -g -O1 -S -fno-slp-vectorize -fno-vectorize -fno-unroll-loops \
         -fno-inline -fno-builtin \
 				-mavx \
 				-mf16c \
 				-emit-llvm \
+				$(INCLUDES) \
 				$(CPPFLAGS) \
         $(BMARK_SPECIFIC_CFLAGS) \
         -o $*.llvm $<
-	@opt -S -load=$(TRACER) -fulltrace \
+	@opt-6.0 -S -load=$(TRACER) -fulltrace \
+				-labelmapwriter -trace-all-callees -i $(BUILD_DIR)/labelmap \
+				$*.llvm -o $*-opt.llvm
+
+%-opt.llvm: %.cpp %-labelmap
+	@echo Building $<
+	@clang++-6.0 -g -O1 -S -fno-slp-vectorize -fno-vectorize -fno-unroll-loops \
+        -fno-inline -fno-builtin \
+				-mavx \
+				-mf16c \
+				-emit-llvm \
+				-std=c++11 \
+				-D_GLIBCXX11_USE_CXX11_ABI=1 \
+				$(INCLUDES) \
+				$(CPPFLAGS) \
+        $(BMARK_SPECIFIC_CFLAGS) \
+        -o $*.llvm $<
+	@opt-6.0 -S -load=$(TRACER) -fulltrace \
 				-labelmapwriter -trace-all-callees -i $(BUILD_DIR)/labelmap \
 				$*.llvm -o $*-opt.llvm
 
 clean-trace:
 	@echo "Cleaning trace build products..."
-	@rm -rf $(SUBBUILDDIRS)
-	@cd $(BUILD_DIR) && rm -rf *.llvm *.h *.c *.s labelmap *-instrumented
+	@cd $(BUILD_DIR) && rm -rf *.llvm *.h *.cpp *.s labelmap *-instrumented
 	@rm -f dynamic_trace.gz
 	@rm -f labelmap
 	@rm -f output_labels.out

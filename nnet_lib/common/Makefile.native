@@ -1,73 +1,65 @@
 # Make rules for native host-side execution.
 
-include common/Makefile.arch
+include common/Makefile.common
 
-ifeq ($(ARCH), EIGEN)
-$(error Please use 'make eigen' to build the Eigen implementation)
-endif
-ifeq ($(ARCH), MONOLITHIC)
-NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/monolithic.c
-COMP = $(CC)
-CFLAGS += -std=gnu99 -DTRANSPOSE_WEIGHTS=1
-else ifeq ($(ARCH), COMPOSABLE)
-NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/composable.c
-COMP = $(CC)
-CFLAGS += -std=gnu99 -DTRANSPOSE_WEIGHTS=1
-else ifeq ($(ARCH), SMIV)
-COMP = $(CXX)
-CPPFLAGS += -I$(MKLDNNROOT)/include
-CFLAGS += -std=gnu++11 $(NATIVE_SIMD_FLAGS) -mf16c -flax-vector-conversions
-NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smiv.cpp \
-												 $(SRC_DIR)/core/mkl/activation_functions.cpp \
-												 $(SRC_DIR)/core/mkl/batch_norm.cpp \
-												 $(SRC_DIR)/core/mkl/pooling.cpp \
-												 $(SRC_DIR)/utility/mkl/utility.cpp
-LFLAGS += -L$(MKLDNNROOT)/lib -lmkldnn
-else ifeq ($(ARCH), SMV)
-COMP = $(CXX)
-CPPFLAGS += -I$(MKLDNNROOT)/include -DTRANSPOSE_WEIGHTS=1
-CFLAGS += -std=gnu++11 $(NATIVE_SIMD_FLAGS) -mf16c -flax-vector-conversions
-NATIVE_FULL_PATH_SRCS += $(SRC_DIR)/arch/smv.cpp \
-												 $(SRC_DIR)/core/mkl/activation_functions.cpp \
-												 $(SRC_DIR)/core/mkl/batch_norm.cpp \
-												 $(SRC_DIR)/core/mkl/pooling.cpp \
-												 $(SRC_DIR)/utility/mkl/utility.cpp
-LFLAGS += -L$(MKLDNNROOT)/lib -lmkldnn
-else
-$(error "Unknown architecture $(ARCH)!")
-endif
+.PHONY: all tests clean run-tests
 
-# Output binary name
-NATIVE = $(BUILD_DIR)/$(EXEC)-native
-DEBUG = $(BUILD_DIR)/$(EXEC)-debug
-
-# Debug flags
-native: DLEVEL=0
-debug: DLEVEL=2
-debug-verbose: DLEVEL=3
-
-# NOTE: Do not remove -std=gnu99! Required for Travis CI toolchain.
-native: CFLAGS+=-O3
-native: $(NATIVE)
-debug: $(DEBUG)
-debug-verbose: $(DEBUG)
+# CFLAGS += -std=gnu++11 $(NATIVE_SIMD_FLAGS) -mf16c -flax-vector-conversions
 
 # Disable some warnings.
 native: CFLAGS+=-Wno-attributes
 
-CFLAGS += $(BMARK_SPECIFIC_CFLAGS) -DDMA_MODE $(INCLUDES) -flax-vector-conversions
+######################################
+####      PRIMARY BUILD SETUP     ####
+######################################
 
-$(NATIVE): $(NATIVE_FULL_PATH_SRCS) $(GEM5_FULL_PATH_SRCS)
-	@echo Building benchmark $(EXEC) for native platform.
-	@mkdir -p $(BUILD_DIR)
-	@$(COMP) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LFLAGS)
+# Create object files for each cpp/c file.
+BUILD_SRCS = $(patsubst src/%, $(BUILD_DIR)/%, $(SRCS))
+BUILD_SRCS_OBJS := $(patsubst %.cpp, %.o, $(BUILD_SRCS))
+BUILD_SRCS_OBJS := $(patsubst %.c, %.o, $(BUILD_SRCS_OBJS))
 
-$(DEBUG): $(NATIVE_FULL_PATH_SRCS) $(GEM5_FULL_PATH_SRCS)
-	@echo Building benchmark $(EXEC) for debugging
-	@mkdir -p $(BUILD_DIR)
-	@$(COMP) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LFLAGS)
+BUILD_TESTS = $(patsubst src/%, $(BUILD_DIR)/%, $(TESTS))
+BUILD_TESTS_OBJS := $(patsubst %.cpp, %.o, $(BUILD_TESTS))
+BUILD_TESTS_OBJS := $(patsubst %.cpp, %.o, $(BUILD_TESTS_OBJS))
 
-clean-native:
-	@echo Cleaning native build products...
-	@rm -rf $(BUILD_DIR)/nnet-*-native
-	@rm -rf $(BUILD_DIR)/nnet-*-debug
+BUILD_MAIN_SRC = $(patsubst src/%, $(BUILD_DIR)/%, $(MAIN))
+BUILD_MAIN_OBJ = $(patsubst %.cpp, %.o, $(BUILD_MAIN_SRC))
+
+all: src-symlinks $(BUILD_DIR)/$(EXEC)
+
+$(BUILD_DIR)/$(EXEC): $(BUILD_SRCS_OBJS) $(BUILD_MAIN_OBJ)
+	$(CXX) $^ $(LFLAGS) -o $@
+
+%.o: %.cpp
+	$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $(INCLUDES) $^ -o $@
+
+%.o: %.c
+	$(CC) -c $(CPPFLAGS) $(CFLAGS) $(INCLUDES) $^ -o $@
+
+########################################
+####      UNIT TEST BUILD SETUP     ####
+########################################
+
+CATCH_MAIN = $(BUILD_DIR)/core/catch
+CATCH_OBJ = $(CATCH_MAIN).o
+CATCH_SRC = $(CATCH_MAIN).cpp
+
+TEST_OBJ = $(patsubst %.cpp, %.o, $(BUILD_TESTS))
+TEST_BIN = $(patsubst %.cpp, %, $(BUILD_TESTS))
+
+tests: src-symlinks $(TEST_BIN)
+
+$(TEST_BIN) : % : %.o $(CATCH_OBJ) $(BUILD_SRCS_OBJS)
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(INCLUDES) $^ -o $@ $(LFLAGS)
+
+run-tests:
+	@$(foreach t, $(TEST_BIN), echo $(t); ./$(t);)
+
+###########################
+####      CLEAN UP     ####
+###########################
+
+clean:
+	rm -f $(BUILD_DIR)/$(EXEC) $(TEST_BIN) $(TEST_OBJ) $(BUILD_SRCS_OBJS) \
+		$(BUILD_MAIN_OBJ)
+	find $(BUILD_DIR) . -name "*.llvm" | xargs rm -f
