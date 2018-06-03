@@ -16,6 +16,36 @@
 //      ARRAY_4D(TYPE, output_name, array, 4, 3, 2);
 //
 //   And so on...
+
+#if defined(__clang__)
+
+#define TO_TYPE(output_array_name, input_array_name)                           \
+    output_array_name##_t output_array_name =                                  \
+            (output_array_name##_t)(input_array_name)
+
+#define ARRAY_1D(TYPE, output_array_name, input_array_name)                    \
+    TYPE* output_array_name = (TYPE*)input_array_name
+
+#define ARRAY_2D(TYPE, output_array_name, input_array_name, DIM_1)             \
+    typedef TYPE(*output_array_name##_t)[DIM_1];                               \
+    TO_TYPE(output_array_name, input_array_name)
+
+#define ARRAY_3D(TYPE, output_array_name, input_array_name, DIM_1, DIM_2)      \
+    typedef TYPE(*output_array_name##_t)[DIM_1][DIM_2];                        \
+    TO_TYPE(output_array_name, input_array_name)
+
+#define ARRAY_4D(                                                              \
+        TYPE, output_array_name, input_array_name, DIM_1, DIM_2, DIM_3)        \
+    typedef TYPE(*output_array_name##_t)[DIM_1][DIM_2][DIM_3];                 \
+    TO_TYPE(output_array_name, input_array_name)
+
+#define ARRAY_5D(                                                              \
+        TYPE, output_array_name, input_array_name, DIM_1, DIM_2, DIM_3, DIM_4) \
+    typedef TYPE(*output_array_name##_t)[DIM_1][DIM_2][DIM_3][DIM_4];          \
+    TO_TYPE(output_array_name, input_array_name)
+
+#elif defined(__GNUC__)
+
 #define ARRAY_1D(TYPE, output_array_name, input_array_name)                    \
     TYPE* output_array_name = (TYPE*)input_array_name
 
@@ -35,6 +65,8 @@
     TYPE, output_array_name, input_array_name, DIM_1, DIM_2, DIM_3, DIM_4)     \
         TYPE(*output_array_name)[DIM_1][DIM_2][DIM_3][DIM_4] =                 \
             (TYPE(*)[DIM_1][DIM_2][DIM_3][DIM_4])input_array_name
+
+#endif
 
 // Macros for computing the maximum of a group of elements.
 //
