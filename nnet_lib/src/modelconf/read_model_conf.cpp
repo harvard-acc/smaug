@@ -6,9 +6,6 @@
 
 #include "confuse.h"
 
-#include "utility/utility.h"
-#include "nnet_fwd.h"
-
 #include "core/globals.h"
 #include "core/tensor.h"
 #include "core/network.h"
