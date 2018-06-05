@@ -43,10 +43,10 @@ void ReluOp<ReferenceBackend>::run() {
     assert(inputs->getShape() == outputs->getShape());
     if (slope == 1) {
         ref_relu_f32(inputs->data<float>(), outputs->data<float>(),
-                     inputs->getShape().total());
+                     inputs->getShape().size());
     } else {
         ref_leaky_relu_f32(inputs->data<float>(), outputs->data<float>(),
-                           inputs->getShape().total(), slope);
+                           inputs->getShape().size(), slope);
     }
 }
 

@@ -52,7 +52,7 @@ tests: src-symlinks $(TEST_BIN)
 $(TEST_BIN) : % : %.o $(CATCH_OBJ) $(BUILD_SRCS_OBJS)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(INCLUDES) $^ -o $@ $(LFLAGS)
 
-run-tests:
+run-tests: $(TEST_BIN)
 	@$(foreach t, $(TEST_BIN), echo $(t); ./$(t);)
 
 ###########################

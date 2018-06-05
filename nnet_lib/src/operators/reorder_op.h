@@ -73,7 +73,7 @@ class ReorderOp : public Operator {
         if (targetLayout == DataLayout::NC) {
             std::vector<int> dims(2, 1);
             dims[0] = inputShape[0];
-            for (int i = 1; i < inputShape.size(); ++i) {
+            for (int i = 1; i < inputShape.ndims(); ++i) {
                 dims[1] *= inputShape[i];
             }
             return TensorShape(dims, targetLayout);

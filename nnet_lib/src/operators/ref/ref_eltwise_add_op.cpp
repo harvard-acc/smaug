@@ -34,7 +34,7 @@ void EltwiseAddOp<ReferenceBackend>::run() {
     ref_eltwise_add_f32(input0->data<float>(),
                         input1->data<float>(),
                         output->data<float>(),
-                        input0Shape.total());
+                        input0Shape.size());
 }
 
 }  // namespace smaug

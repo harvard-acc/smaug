@@ -6,9 +6,9 @@ namespace smaug {
 
 std::ostream& operator<<(std::ostream& os, const TensorShape& shape) {
     os << "(";
-    for (int i = 0; i < shape.size(); i++) {
+    for (int i = 0; i < shape.ndims(); i++) {
         os << shape[i];
-        if (i != shape.size() - 1)
+        if (i != shape.ndims() - 1)
             os << ", ";
     }
     os << ")";

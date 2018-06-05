@@ -43,7 +43,7 @@ void TanhOp<ReferenceBackend>::run() {
     auto outputs = getOutput<ReferenceBackend>(Outputs);
     assert(inputs->getShape() == outputs->getShape());
     ref_tanh_f32(inputs->data<float>(), outputs->data<float>(),
-                 inputs->getShape().total());
+                 inputs->getShape().size());
 }
 
 template <>
@@ -52,7 +52,7 @@ void HardTanhOp<ReferenceBackend>::run() {
     auto outputs = getOutput<ReferenceBackend>(Outputs);
     assert(inputs->getShape() == outputs->getShape());
     ref_hard_tanh_f32(inputs->data<float>(), outputs->data<float>(),
-                      inputs->getShape().total(), min, max);
+                      inputs->getShape().size(), min, max);
 }
 
 }  // namespace smaug

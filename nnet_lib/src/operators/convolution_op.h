@@ -129,7 +129,7 @@ class ConvolutionOp : public Operator {
       const TensorShape& weightsShape = inputs.at(Kernels)->getShape();
       const TensorShape& outputShape = outputs.at(Outputs)->getShape();
       out << this->name << " (Convolution3d)\t\t" << outputShape << "\t\t"
-          << weightsShape << "\t\t" << weightsShape.total() << "\n";
+          << weightsShape << "\t\t" << weightsShape.size() << "\n";
     }
 
     virtual std::vector<TensorBase*> getParameterizableInputs() {

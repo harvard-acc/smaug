@@ -40,7 +40,7 @@ class BatchNormOp : public Operator {
     TensorShape inferWeightsShape() const {
         TensorShape shape = getInput<Backend>(Inputs)->getShape();
         DataLayout layout = shape.getLayout();
-        int ndims = shape.size();
+        int ndims = shape.ndims();
         if (ndims >= 4) {
             // This is a volume which should be batch norm'ed by feature map.
             bool isNCHW = layout == DataLayout::NCHW;
@@ -113,7 +113,7 @@ class BatchNormOp : public Operator {
       const TensorShape& weightsShape = inputs.at(Mean)->getShape();
       const TensorShape& outputShape = outputs.at(Outputs)->getShape();
       out << this->name << " (BatchNormalization)\t" << outputShape << "\t\t"
-          << weightsShape << "\t\t\t" << 4 * weightsShape.total() << "\n";
+          << weightsShape << "\t\t\t" << 4 * weightsShape.size() << "\n";
     }
 
     virtual std::vector<TensorBase*> getParameterizableInputs() {

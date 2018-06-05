@@ -35,7 +35,7 @@ void SigmoidOp<ReferenceBackend>::run() {
     auto outputs = getOutput<ReferenceBackend>(Outputs);
     assert(inputs->getShape() == outputs->getShape());
     ref_sigmoid_f32(inputs->data<float>(), outputs->data<float>(),
-                    inputs->getShape().total());
+                    inputs->getShape().size());
 }
 
 }  // namespace smaug

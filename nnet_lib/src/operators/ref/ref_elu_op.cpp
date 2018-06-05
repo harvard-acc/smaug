@@ -45,7 +45,7 @@ void EluOp<ReferenceBackend>::run() {
     auto outputs = getOutput<ReferenceBackend>(Outputs);
     assert(inputs->getShape() == outputs->getShape());
     ref_elu_f32(inputs->data<float>(), outputs->data<float>(),
-                 inputs->getShape().total(), alpha);
+                 inputs->getShape().size(), alpha);
 }
 
 template <>
@@ -54,7 +54,7 @@ void SeluOp<ReferenceBackend>::run() {
     auto outputs = getOutput<ReferenceBackend>(Outputs);
     assert(inputs->getShape() == outputs->getShape());
     ref_selu_f32(inputs->data<float>(), outputs->data<float>(),
-                 inputs->getShape().total(), this->alpha, lambda);
+                 inputs->getShape().size(), this->alpha, lambda);
 }
 
 }  // namespace smaug
