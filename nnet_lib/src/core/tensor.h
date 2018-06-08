@@ -358,19 +358,73 @@ std::ostream& operator<<(std::ostream& os, const Tensor<Backend>& tensor) {
         case Int64:
             writeTensorToOstream<int64_t>(os, tensor);
             break;
-        case Float16:
-            writeTensorToOstream<uint16_t>(os, tensor);
-            break;
-        case Float32:
-            writeTensorToOstream<float>(os, tensor);
-            break;
-        case Float64:
-            writeTensorToOstream<double>(os, tensor);
-            break;
         default:
             assert(false && "Unknown data type!");
     }
     return os;
+}
+
+namespace internal {
+template <typename Backend, typename DType>
+void copyTensorRegion(Tensor<Backend>* dest,
+                      Tensor<Backend>* src,
+                      const std::vector<int>& destOrigin,
+                      const std::vector<int>& srcOrigin,
+                      const std::vector<int>& regionSize) {
+    auto destIt =
+            TensorRegionIndexIterator(dest->getShape(), destOrigin, regionSize);
+    auto srcIt =
+            TensorRegionIndexIterator(src->getShape(), srcOrigin, regionSize);
+    DType* destPtr = dest->template data<DType>();
+    DType* srcPtr = src->template data<DType>();
+    while (!srcIt.end() && !destIt.end()) {
+        destPtr[destIt] = srcPtr[srcIt];
+        ++destIt;
+        ++srcIt;
+    }
+}
+
+}  // namespace internal
+
+// Copy a block of a tensor to another tensor.
+//
+// For example:
+//   tensor A: 4x4, tensor B: 3x3
+//   To copy upper left 2x2 block of tensor A to the lower left 2x2 block of
+//   tensor B:
+//      copyTensorRegion(tensorB, tensorA, {1,1}, {0,0}, {2,2});
+template <typename Backend>
+void copyTensorRegion(Tensor<Backend>* dest,
+                      Tensor<Backend>* src,
+                      std::vector<int> destOrigin,
+                      std::vector<int> srcOrigin,
+                      std::vector<int> regionSize) {
+    assert(dest->ndims() == src->ndims());
+    assert(dest->getDataType() == src->getDataType());
+    switch (dest->getDataType()) {
+        case Float16:
+            internal::copyTensorRegion<Backend, uint16_t>(
+                    dest, src, destOrigin, srcOrigin, regionSize);
+            break;
+        case Float32:
+            internal::copyTensorRegion<Backend, float>(
+                    dest, src, destOrigin, srcOrigin, regionSize);
+            break;
+        case Float64:
+            internal::copyTensorRegion<Backend, double>(
+                    dest, src, destOrigin, srcOrigin, regionSize);
+            break;
+        case Int32:
+            internal::copyTensorRegion<Backend, int>(
+                    dest, src, destOrigin, srcOrigin, regionSize);
+            break;
+        case Int64:
+            internal::copyTensorRegion<Backend, int64_t>(
+                    dest, src, destOrigin, srcOrigin, regionSize);
+            break;
+        default:
+            assert(false && "Unknown data type!");
+    }
 }
 
 }  // namespace smaug
