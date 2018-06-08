@@ -59,6 +59,28 @@ class TensorShape {
     int alignment;
 };
 
+// An iterator over a multidimensional tensor's indices, accounting for data
+// alignment padding.
+//
+// The iterator tracks the current location as a coordinate and outputs the
+// linearized index so that the data in a tensor can be accessed. While most
+// commonly used to iterate through the contents of a tensor one by one, it can
+// also provide random access to any location in the tensor.
+//
+// Example usage for simple iteration:
+//   auto iter = TensorIndexIterator(tensor->getShape());
+//   // OR: auto iter = tensor->startIndex();
+//   float* data = tensor->data<float>();
+//   while (!iter.end())
+//      std::cout << data[iter] << ",";
+//
+// Example usage for random access (assume 4D tensor):
+//   auto iter = TensorIndexIterator(tensor->getShape());
+//   float* data = tensor->data<float>();
+//   data[iter(1,2,3,4)] = 1.2;
+//   data[iter(3,4,0,0)] = 3.4;
+//
+// The iterator skips over data alignment padding areas, if any exist.
 class TensorIndexIterator {
    public:
     TensorIndexIterator(const TensorShape& shape, bool _atEnd = false)
@@ -117,6 +139,50 @@ class TensorIndexIterator {
     std::vector<int> dims;
     std::vector<int> padding;
     bool atEnd;
+};
+
+// A tensor index iterator that stays within a specified rectangular region.
+//
+// The rectangular region is specified using an origin coordinate and a region
+// size. The iterator will output linear indices in the same space as the full
+// tensor index iterator, but indices outside the region will be skipped.
+//
+// Example: consider a 3x3 tensor. The upper right 2x2 region's origin is at
+// location (0,1). We can output just that block like so:
+//
+//    auto it = TensorRegionIndexIterator(tensor->getShape(), {0,1}, {2,2});
+//    while (!it.end())
+//       std::cout << (int)it << "\n";
+//
+//  This produces: 1, 2, 4, 5
+class TensorRegionIndexIterator : public TensorIndexIterator {
+   public:
+    TensorRegionIndexIterator(const TensorShape& shape,
+                              const std::vector<int>& _origin,
+                              const std::vector<int>& _regionSize)
+            : TensorIndexIterator(shape, false), origin(_origin),
+              regionSize(_regionSize) {
+        state = origin;
+    }
+
+    void operator++() {
+        bool carry = true;
+        for (int i = (int)state.size() - 1; i >= 0 && carry; i--) {
+            int currValue = state[i];
+            currValue++;
+            carry = (currValue >= dims[i] ||
+                     currValue >= origin[i] + regionSize[i]);
+            if (carry)
+                currValue = origin[i];
+            state[i] = currValue;
+        }
+        if (carry)
+            atEnd = true;
+    }
+
+   protected:
+    std::vector<int> origin;
+    std::vector<int> regionSize;
 };
 
 std::ostream& operator<<(std::ostream& os, const TensorIndexIterator& iter);
