@@ -735,6 +735,8 @@ Network* smaug::readModelConfiguration(const std::string& cfg_file,
             tensor->allocateStorage<float>();
         }
     }
+
+    smv::kSpadSize = 32*1024;
 #if 0
     // network->addDataLayoutTransformations<GlobalBackend>(workspace);
 

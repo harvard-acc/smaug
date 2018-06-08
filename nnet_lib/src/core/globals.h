@@ -14,6 +14,12 @@ class BackendSelector<Reference> {
     typedef ReferenceBackend Backend;
 };
 
+template <>
+class BackendSelector<Smv> {
+   public:
+    typedef SmvBackend Backend;
+};
+
 using GlobalBackend = BackendSelector<CONFIG_BACKEND>::Backend;
 
 }  // namespace smaug
