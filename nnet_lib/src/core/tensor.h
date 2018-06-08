@@ -142,6 +142,20 @@ class TensorBase {
     int getTotalDim(int index) const { return shape.getStorageDim(index); }
     int getDataStorageFormat() const { return dataFormat; }
     DataType getDataType() const { return dataType; }
+    int getDataTypeSize() const {
+        switch (dataType) {
+            case Float16:
+                return 2;
+            case Int32:
+            case Float32:
+                return 4;
+            case Int64:
+            case Float64:
+                return 8;
+            default:
+                assert(false && "UnknownDataType has no size!");
+        }
+    }
     virtual bool containsData() const = 0;
 
    protected:
@@ -194,6 +208,28 @@ class Tensor : public TensorBase {
                     new T[size], std::default_delete<T[]>());
         }
         return reinterpret_cast<T*>(tensorData.get());
+    }
+
+    void allocateStorage(DataType _dataType) {
+        switch (_dataType) {
+            case Float16:
+                allocateStorage<float16>();
+                return;
+            case Float32:
+                allocateStorage<float>();
+                return;
+            case Float64:
+                allocateStorage<double>();
+                return;
+            case Int32:
+                allocateStorage<int>();
+                return;
+            case Int64:
+                allocateStorage<int64_t>();
+                return;
+            default:
+                assert(false && "Unknown data type!");
+        }
     }
 
     template <typename T>
