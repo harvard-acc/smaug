@@ -15,6 +15,8 @@ SRCS = src/modelconf/read_model_conf.cpp \
        src/operators/ref/ref_sigmoid_op.cpp \
        src/operators/ref/ref_softmax_op.cpp \
        src/operators/ref/ref_tanh_op.cpp \
+       src/operators/smv/smv_convolution_op.cpp \
+       src/operators/smv/smv_convolution_tiling.cpp \
        src/core/backend.cpp \
        src/core/tensor.cpp \
        src/core/network.cpp \
@@ -28,7 +30,8 @@ TESTS = src/operators/ref/ref_convolution_op_test.cpp \
 				src/operators/ref/ref_inner_product_op_test.cpp \
 				src/operators/ref/ref_pooling_op_test.cpp \
 				src/operators/ref/ref_softmax_op_test.cpp \
-				src/operators/reorder_op_test.cpp
+				src/operators/reorder_op_test.cpp \
+				src/operators/smv/smv_convolution_tiling_test.cpp
 
 GEM5_DMA_SRC = gem5/dma_interface.c gem5/dma_interface.h
 

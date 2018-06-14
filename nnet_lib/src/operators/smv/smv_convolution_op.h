@@ -15,6 +15,8 @@ extern const int kNumMaccsPerPE;
 
 using SmvTensor = Tensor<SmvBackend>;
 
+class TilingOptimizer;
+
 }  // namespace conv
 }  // namespace smv
 
@@ -22,6 +24,7 @@ class SmvConvolutionOp : public ConvolutionOp<SmvBackend> {
   public:
     using ConvolutionOp<SmvBackend>::ConvolutionOp;
     virtual void run();
+    friend class smv::conv::TilingOptimizer;
 };
 
 }  // namespace smaug
