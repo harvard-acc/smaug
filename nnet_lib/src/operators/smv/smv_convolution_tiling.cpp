@@ -323,6 +323,45 @@ TilingConfig TilingOptimizer::computeBasicTileShapes(SmvConvolutionOp* op) {
     return *maxIt;
 }
 
+std::vector<SmvTensor*> TilingOptimizer::generateBlockedTensor(
+        SmvTensor* tensor, const TensorShape& tileShape) {
+    const TensorShape& inputShape = tensor->getShape();
+    const int ndims = inputShape.ndims();
+    std::vector<int> numBlocksInDim(ndims, 0);
+    for (int i = 0; i < ndims; i++)
+        numBlocksInDim[i] = ceil((float)inputShape[i] / tileShape[i]);
+    int totalTiles = product(numBlocksInDim);
+    std::vector<SmvTensor*> tiles;
+    std::vector<int> currentBlock(ndims, 0);
+    std::vector<int> currentOrigin(ndims, 0);
+    for (int t = 0; t < totalTiles; t++) {
+        std::vector<int> currentTileShape(ndims);
+        for (int i = 0; i < ndims; i++) {
+            currentTileShape[i] =
+                    std::min(inputShape[i] - currentOrigin[i], tileShape[i]);
+        }
+        TensorShape currentShape(currentTileShape, tileShape.getLayout());
+        std::string tileName = tensor->getName() + "/tile:" + std::to_string(t);
+        SmvTensor* tile = new SmvTensor(tileName, currentShape);
+        tile->allocateStorage(tensor->getDataType());
+        copyTensorRegion(tile,
+                         tensor,
+                         { 0, 0, 0, 0 },
+                         currentOrigin,
+                         currentShape.dims());
+        for (int i = ndims - 1; i >= 0; i--) {
+            currentOrigin[i] += currentShape[i];
+            if (currentOrigin[i] >= inputShape[i])
+                currentOrigin[i] = 0;
+            else
+                break;
+        }
+        TensorShape temp(currentOrigin, DataLayout::NHWC);
+        tiles.push_back(tile);
+    }
+    return tiles;
+}
+
 }  // namespace conv
 }  // namespace smv
 }  // namespace smaug

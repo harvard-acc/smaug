@@ -8,6 +8,32 @@
 using namespace smaug;
 using namespace smaug::smv::conv;
 
+void fillTensorWithData(SmvTensor* tensor) {
+    const TensorShape& shape = tensor->getShape();
+    // Each dimension C is iniialized to a different constant value.
+    float* dataPtr = tensor->data<float>();
+    int resetCounter = shape.getStorageDim(3);
+    int value = 0;
+    for (int i = 0; i < shape.storageSize(); i++) {
+        dataPtr[i] = value++;
+        if ((i + 1) % resetCounter == 0)
+            value = 0;
+    }
+}
+
+void verifyTensorData(SmvTensor* tensor, int valueOffset) {
+    float* dataPtr = tensor->data<float>();
+    int expectedValue = valueOffset;
+    int resetCounter = tensor->getShape().getStorageDim(3);
+    int totalSize = tensor->getShape().storageSize();
+    for (int i = 0; i < totalSize; i++) {
+        REQUIRE(dataPtr[i] == expectedValue);
+        ++expectedValue;
+        if ((i + 1) % resetCounter == 0)
+            expectedValue = valueOffset;
+    }
+}
+
 TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
     smv::kSpadSize = 32 * 1024;
     auto convOp = new SmvConvolutionOp("conv", workspace());
@@ -42,6 +68,31 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
         REQUIRE(config.inputs.dims() == std::vector<int>{ 1, 16, 32, 16 });
         REQUIRE(config.weights == weightShape);
         REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 16, 32, 8 });
+
+        SECTION("Generated tiles have correct shape and data") {
+            fillTensorWithData(inputs);
+            std::vector<SmvTensor*> inputTiles =
+                    TilingOptimizer::generateBlockedTensor(
+                            inputs, config.inputs);
+            REQUIRE(inputTiles.size() == 2);
+            for (int i = 0; i < inputTiles.size(); i++) {
+                REQUIRE(inputTiles[i]->getShape().dims() ==
+                        std::vector<int>{ 1, 16, 32, 16 });
+                verifyTensorData(inputTiles[i], 0);
+            }
+
+            auto outputs = convOp->getOutput<SmvBackend>(0);
+            fillTensorWithData(outputs);
+            std::vector<SmvTensor*> outputTiles =
+                    TilingOptimizer::generateBlockedTensor(
+                            outputs, config.outputs);
+            REQUIRE(outputTiles.size() == 2);
+            for (int i = 0; i < inputTiles.size(); i++) {
+                REQUIRE(outputTiles[i]->getShape().dims() ==
+                        std::vector<int>{ 1, 16, 32, 8 });
+                verifyTensorData(outputTiles[i], 0);
+            }
+        }
     }
 
     SECTION("DimNC tiling on inputs and weights with > 32 channels") {
@@ -58,6 +109,19 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
         REQUIRE(config.inputs.dims() == std::vector<int>{ 1, 16, 8, 64 });
         REQUIRE(config.weights.dims() == std::vector<int>{ 8, 3, 3, 64 });
         REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 16, 8, 8 });
+
+        SECTION("Generated tiles have correct shape and data") {
+            fillTensorWithData(inputs);
+            std::vector<SmvTensor*> inputTiles =
+                    TilingOptimizer::generateBlockedTensor(
+                            inputs, config.inputs);
+            REQUIRE(inputTiles.size() == 2);
+            for (int i = 0; i < inputTiles.size(); i++) {
+                REQUIRE(inputTiles[i]->getShape().dims() ==
+                        std::vector<int>{ 1, 16, 8, 64});
+                verifyTensorData(inputTiles[i], i * 64);
+            }
+        }
     }
 
     SECTION("DimN tiling for weights, None for inputs") {
@@ -75,6 +139,37 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
         REQUIRE(config.inputs.dims() == std::vector<int>{ 1, 8, 8, 96 });
         REQUIRE(config.weights.dims() == std::vector<int>{ 8, 3, 3, 96 });
         REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 8, 8, 8 });
+
+        SECTION("Generated tiles have correct shape and data") {
+            std::vector<SmvTensor*> inputTiles =
+                    TilingOptimizer::generateBlockedTensor(
+                            inputs, config.inputs);
+            REQUIRE(inputTiles.size() == 1);
+
+            auto weights = convOp->getInput<SmvBackend>(1);
+            fillTensorWithData(weights);
+            std::vector<SmvTensor*> weightTiles =
+                    TilingOptimizer::generateBlockedTensor(
+                            weights, config.weights);
+            REQUIRE(weightTiles.size() == 128 / 8);
+            for (int i = 0; i < weightTiles.size(); i++) {
+                REQUIRE(weightTiles[i]->getShape().dims() ==
+                        std::vector<int>{ 8, 3, 3, 96 });
+                verifyTensorData(weightTiles[i], 0);
+            }
+
+            auto outputs = convOp->getOutput<SmvBackend>(0);
+            fillTensorWithData(outputs);
+            std::vector<SmvTensor*> outputTiles =
+                    TilingOptimizer::generateBlockedTensor(
+                            outputs, config.outputs);
+            REQUIRE(outputTiles.size() == 128 / 8);
+            for (int i = 0; i < outputTiles.size(); i++) {
+                REQUIRE(outputTiles[i]->getShape().dims() ==
+                        std::vector<int>{ 1, 8, 8, 8 });
+                verifyTensorData(outputTiles[i], i * 8);
+            }
+        }
     }
 
     SECTION("DimNC tiling for weights, None for inputs") {
@@ -98,5 +193,53 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
         // higher.
         REQUIRE(config.weights.dims() == std::vector<int>{ 24, 3, 3, 32 });
         REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 8, 8, 24 });
+
+        SECTION("Generated tiles have correct shape and data") {
+            std::vector<SmvTensor*> inputTiles =
+                    TilingOptimizer::generateBlockedTensor(
+                            inputs, config.inputs);
+            REQUIRE(inputTiles.size() == 1);
+
+            auto weights = convOp->getInput<SmvBackend>(1);
+            fillTensorWithData(weights);
+            std::vector<SmvTensor*> weightTiles =
+                    TilingOptimizer::generateBlockedTensor(
+                            weights, config.weights);
+            // 128 output channels in groups of 24 means 5 groups of 24 and 1
+            // group of 8 -> total of 6.
+            // 128 input channels in groups of 32 -> 4 groups of 32.
+            REQUIRE(weightTiles.size() == 4*6);
+            for (int i = 0; i < 6; i++) {
+                for (int j = 0; j < 4; j++) {
+                    int index = i * 4 + j;
+                    const std::vector<int>& tileDims =
+                            weightTiles[index]->getShape().dims();
+                    if (i < 5) {
+                        REQUIRE(tileDims == std::vector<int>{ 24, 3, 3, 32 });
+                    } else {
+                        REQUIRE(tileDims == std::vector<int>{ 8, 3, 3, 32 });
+                    }
+                    verifyTensorData(weightTiles[index], j * 32);
+                }
+            }
+
+            auto outputs = convOp->getOutput<SmvBackend>(0);
+            fillTensorWithData(outputs);
+            std::vector<SmvTensor*> outputTiles =
+                    TilingOptimizer::generateBlockedTensor(
+                            outputs, config.outputs);
+            REQUIRE(outputTiles.size() == ceil(128.0 / 24));
+            for (int i = 0; i < outputTiles.size(); i++) {
+                const std::vector<int>& tileDims =
+                        outputTiles[i]->getShape().dims();
+                if (i < outputTiles.size() - 1) {
+                    REQUIRE(tileDims == std::vector<int>{ 1, 8, 8, 24 });
+                } else {
+                    REQUIRE(tileDims == std::vector<int>{ 1, 8, 8, 8 });
+                }
+                verifyTensorData(outputTiles[i], i * 24);
+            }
+
+        }
     }
 }

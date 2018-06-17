@@ -36,6 +36,8 @@ struct TilingConfig {
 class TilingOptimizer {
   public:
     static TilingConfig computeBasicTileShapes(SmvConvolutionOp* op);
+    static std::vector<SmvTensor*> generateBlockedTensor(
+            SmvTensor* tensor, const TensorShape& tileShape);
 
   protected:
     static TilingDims findBestTilingDims(const TensorShape& shape,
