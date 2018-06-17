@@ -248,3 +248,162 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
         }
     }
 }
+
+TEST_CASE_METHOD(SmaugTest, "Kernel shape tests", "[smvtiling]") {
+    smv::kSpadSize = 32 * 1024;
+    auto convOp = new SmvConvolutionOp("conv", workspace());
+    // Outputs should be the same size as inputs.
+    convOp->setStride(1, 1);
+    convOp->setPadding(SamePadding);
+
+    SECTION("1x1 kernels") {
+        TensorShape inputShape({ 1, 32, 32, 8 }, DataLayout::NHWC);
+        Tensor<SmvBackend>* inputs =
+                new Tensor<SmvBackend>("inputs", inputShape);
+        convOp->setInput(inputs, 0);
+        convOp->setWeightDims(1, 1, 128);
+        convOp->createAllTensors();
+        allocateAllTensors<float, SmvBackend>(convOp);
+        TilingConfig config = TilingOptimizer::computeBasicTileShapes(convOp);
+        REQUIRE(config.inputs == inputShape);
+        REQUIRE(config.weights.dims() == std::vector<int>{ 128, 1, 1, 8 });
+        REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 32, 32, 8 });
+
+        SECTION("Weights are not tiled but outputs are.") {
+            auto weights = convOp->getInput<SmvBackend>(1);
+            fillTensorWithData(weights);
+            std::vector<SmvTensor*> weightTiles =
+                    TilingOptimizer::generateBlockedTensor(
+                            weights, config.weights, {0, 0, 0, 0});
+            REQUIRE(weightTiles.size() == 1);
+            // Don't need to verify shape again.
+            verifyTensorData(weightTiles[0], 0);
+
+            auto outputs = convOp->getOutput<SmvBackend>(0);
+            fillTensorWithData(outputs);
+            std::vector<SmvTensor*> outputTiles =
+                    TilingOptimizer::generateBlockedTensor(
+                            outputs, config.outputs, { 0, 0, 0, 0 });
+            REQUIRE(outputTiles.size() == 128 / 8);
+            for (int i = 0; i < outputTiles.size(); i++) {
+                REQUIRE(outputTiles[i]->getShape().dims() ==
+                        std::vector<int>{ 1, 32, 32, 8 });
+                verifyTensorData(outputTiles[i], i * 8);
+            }
+        }
+    }
+
+    SECTION("2x2 kernels") {
+        TensorShape inputShape({ 1, 32, 32, 32 }, DataLayout::NHWC);
+        Tensor<SmvBackend>* inputs =
+                new Tensor<SmvBackend>("inputs", inputShape);
+        convOp->setInput(inputs, 0);
+        convOp->setWeightDims(2, 2, 512);
+        convOp->createAllTensors();
+        allocateAllTensors<float, SmvBackend>(convOp);
+        TilingConfig config = TilingOptimizer::computeBasicTileShapes(convOp);
+        REQUIRE(config.inputs.dims() == std::vector<int>{ 1, 4, 32, 32 });
+        REQUIRE(config.weights.dims() == std::vector<int>{ 64, 2, 2, 32 });
+        REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 4, 32, 64 });
+
+        SECTION("Inputs and outputs tiled DimNH, weights tiled DimN") {
+            fillTensorWithData(inputs);
+            std::vector<SmvTensor*> inputTiles =
+                    TilingOptimizer::generateBlockedTensor(
+                            inputs, config.inputs, { 0, 1, 0, 0 });
+            // Halo size 1: 0-3, 3-6, 6-9, ... 30-31, total 11 tiles.
+            REQUIRE(inputTiles.size() == 11);
+            for (int i = 0; i < inputTiles.size(); i++) {
+                auto& testDims = inputTiles[i]->getShape().dims();
+                if (i < inputTiles.size() - 1)
+                    REQUIRE(testDims == std::vector<int>{ 1, 4, 32, 32 });
+                else
+                    REQUIRE(testDims == std::vector<int>{ 1, 2, 32, 32 });
+                verifyTensorData(inputTiles[i], 0);
+            }
+
+            auto weights = convOp->getInput<SmvBackend>(1);
+            fillTensorWithData(weights);
+            std::vector<SmvTensor*> weightTiles =
+                    TilingOptimizer::generateBlockedTensor(
+                            weights, config.weights, { 0, 0, 0, 0 });
+            REQUIRE(weightTiles.size() == 8);
+            for (int i = 0; i < weightTiles.size(); ++i)
+                verifyTensorData(weightTiles[0], 0);
+
+            auto outputs = convOp->getOutput<SmvBackend>(0);
+            fillTensorWithData(outputs);
+            std::vector<SmvTensor*> outputTiles =
+                    TilingOptimizer::generateBlockedTensor(
+                            outputs, config.outputs, { 0, 1, 0, 0 });
+            // There are 11 tiles in the rowwise dimension and 8 in the output
+            // channel dim.
+            REQUIRE(outputTiles.size() == 8*11);
+            for (int r = 0; r < 11; r++) {
+                for (int c = 0; c < 8; c++) {
+                    int idx = r * 8 + c;
+                    auto& testDims = outputTiles[idx]->getShape().dims();
+                    if (r < 10)
+                        REQUIRE(testDims == std::vector<int>{ 1, 4, 32, 64 });
+                    else
+                        REQUIRE(testDims == std::vector<int>{ 1, 2, 32, 64 });
+                    verifyTensorData(outputTiles[idx], c * 64);
+                }
+            }
+        }
+    }
+
+    SECTION("5x5 kernels") {
+        TensorShape inputShape({ 1, 32, 32, 32}, DataLayout::NHWC);
+        Tensor<SmvBackend>* inputs =
+                new Tensor<SmvBackend>("inputs", inputShape);
+        convOp->setInput(inputs, 0);
+        convOp->setWeightDims(5, 5, 16);
+        convOp->createAllTensors();
+        allocateAllTensors<float, SmvBackend>(convOp);
+        TilingConfig config = TilingOptimizer::computeBasicTileShapes(convOp);
+        // The inputs must have at least five rows (same as weights).
+        REQUIRE(config.inputs.dims() == std::vector<int>{ 1, 8, 32, 32 });
+        REQUIRE(config.weights.dims() == std::vector<int>{ 8, 5, 5, 32 });
+        REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 8, 32, 8 });
+
+        SECTION("Test if the halo region of 2 is handled") {
+            fillTensorWithData(inputs);
+            std::vector<SmvTensor*> inputTiles =
+                    TilingOptimizer::generateBlockedTensor(
+                            inputs, config.inputs, { 0, 2, 2, 0});
+            // Halo size 2: 0-7, 6-13, 12-19, 18-25, 24-31
+            REQUIRE(inputTiles.size() == 5);
+            for (int i = 0; i < inputTiles.size(); i++) {
+                auto& testDims = inputTiles[i]->getShape().dims();
+                REQUIRE(testDims == std::vector<int>{ 1, 8, 32, 32 });
+                verifyTensorData(inputTiles[i], 0);
+            }
+
+            auto weights = convOp->getInput<SmvBackend>(1);
+            fillTensorWithData(weights);
+            std::vector<SmvTensor*> weightTiles =
+                    TilingOptimizer::generateBlockedTensor(
+                            weights, config.weights, { 0, 0, 0, 0 });
+            REQUIRE(weightTiles.size() == 2);
+            for (int i = 0; i < weightTiles.size(); ++i)
+                verifyTensorData(weightTiles[0], 0);
+
+            auto outputs = convOp->getOutput<SmvBackend>(0);
+            fillTensorWithData(outputs);
+            std::vector<SmvTensor*> outputTiles =
+                    TilingOptimizer::generateBlockedTensor(
+                            outputs, config.outputs, { 0, 2, 2, 0});
+            // 5 tiles in rowwise direction, 2 in channelwise.
+            REQUIRE(outputTiles.size() == 5*2);
+            for (int r = 0; r < 5; r++) {
+                for (int c = 0; c < 2; c++) {
+                    int idx = r * 2 + c;
+                    auto& testDims = outputTiles[idx]->getShape().dims();
+                    REQUIRE(testDims == std::vector<int>{ 1, 8, 32, 8 });
+                    verifyTensorData(outputTiles[idx], c * 8);
+                }
+            }
+        }
+    }
+}
