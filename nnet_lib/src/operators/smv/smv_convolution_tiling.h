@@ -34,12 +34,14 @@ struct TilingConfig {
 };
 
 class TilingOptimizer {
-  public:
+   public:
     static TilingConfig computeBasicTileShapes(SmvConvolutionOp* op);
     static std::vector<SmvTensor*> generateBlockedTensor(
-            SmvTensor* tensor, const TensorShape& tileShape);
+            SmvTensor* tensor,
+            const TensorShape& tileShape,
+            std::vector<int> halos);
 
-  protected:
+   protected:
     static TilingDims findBestTilingDims(const TensorShape& shape,
                                          int maxTileSize,
                                          int minN,
@@ -50,7 +52,6 @@ class TilingOptimizer {
                                                              SmvTensor* outputs,
                                                              int maxTileSize);
 };
-
 
 }  // namespace conv
 }  // namespace smv

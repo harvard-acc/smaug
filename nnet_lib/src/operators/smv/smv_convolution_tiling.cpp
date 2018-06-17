@@ -324,12 +324,22 @@ TilingConfig TilingOptimizer::computeBasicTileShapes(SmvConvolutionOp* op) {
 }
 
 std::vector<SmvTensor*> TilingOptimizer::generateBlockedTensor(
-        SmvTensor* tensor, const TensorShape& tileShape) {
+        SmvTensor* tensor,
+        const TensorShape& tileShape,
+        std::vector<int> halos) {
+    assert(halos.size() == tileShape.ndims());
     const TensorShape& inputShape = tensor->getShape();
     const int ndims = inputShape.ndims();
     std::vector<int> numBlocksInDim(ndims, 0);
-    for (int i = 0; i < ndims; i++)
-        numBlocksInDim[i] = ceil((float)inputShape[i] / tileShape[i]);
+    for (int i = 0; i < ndims; i++) {
+        int remaining = inputShape[i];
+        while (remaining > 0) {
+            numBlocksInDim[i]++;
+            remaining -= tileShape[i];
+            if (remaining > 0)
+                remaining += halos[i];
+        }
+    }
     int totalTiles = product(numBlocksInDim);
     std::vector<SmvTensor*> tiles;
     std::vector<int> currentBlock(ndims, 0);
@@ -351,12 +361,13 @@ std::vector<SmvTensor*> TilingOptimizer::generateBlockedTensor(
                          currentShape.dims());
         for (int i = ndims - 1; i >= 0; i--) {
             currentOrigin[i] += currentShape[i];
-            if (currentOrigin[i] >= inputShape[i])
+            if (currentOrigin[i] >= inputShape[i]) {
                 currentOrigin[i] = 0;
-            else
+            } else {
+                currentOrigin[i] -= halos[i];
                 break;
+            }
         }
-        TensorShape temp(currentOrigin, DataLayout::NHWC);
         tiles.push_back(tile);
     }
     return tiles;
