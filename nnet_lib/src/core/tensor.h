@@ -317,6 +317,35 @@ class Tensor : public TensorBase {
     std::shared_ptr<void> tensorData;
 };
 
+/* A container of tensors.
+ *
+ * Each of the tensors in a TiledTensor represents one tile of a large tensor.
+ * Tensors can be accessed via an index iterator, such like scalar data in an
+ * ordinary Tensor is accessed.
+ */
+template <typename Backend>
+class TiledTensor : public TensorBase {
+  public:
+    TiledTensor() : TensorBase() {}
+    TiledTensor(const TensorShape& shape) : TensorBase("", shape) {
+        tensors.resize(shape.size());
+    }
+    virtual bool containsData() const { return !tensors.empty(); }
+
+    TensorIndexIterator startIndex() const {
+        return TensorIndexIterator(shape);
+    }
+
+    const Tensor<Backend>* operator[](int index) const {
+        return tensors.at(index);
+    }
+    Tensor<Backend>*& operator[](int index) { return tensors[index]; }
+    int size() const { return shape.size(); }
+
+   protected:
+    std::vector<Tensor<Backend>*> tensors;
+};
+
 template <typename DType, typename Backend>
 void writeTensorToOstream(std::ostream& os, const Tensor<Backend>& tensor) {
     const TensorShape& shape = tensor.template getShape();
