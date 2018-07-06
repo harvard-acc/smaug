@@ -8,6 +8,7 @@ namespace smaug {
 
 class SmvConvolutionOp;
 typedef Tensor<SmvBackend> SmvTensor;
+typedef TiledTensor<SmvBackend> SmvTiledTensor;
 
 namespace smv {
 namespace conv {
@@ -23,6 +24,7 @@ enum TilingDims {
 struct TilingConfig {
   public:
     TilingConfig() {}
+
     int getTotalSize() const {
         return inputs.storageSize() + weights.storageSize() +
                outputs.storageSize();
@@ -36,10 +38,9 @@ struct TilingConfig {
 class TilingOptimizer {
    public:
     static TilingConfig computeBasicTileShapes(SmvConvolutionOp* op);
-    static std::vector<SmvTensor*> generateBlockedTensor(
-            SmvTensor* tensor,
-            const TensorShape& tileShape,
-            std::vector<int> halos);
+    static SmvTiledTensor generateBlockedTensor(SmvTensor* tensor,
+                                                const TensorShape& tileShape,
+                                                std::vector<int> halos);
 
    protected:
     static TilingDims findBestTilingDims(const TensorShape& shape,
