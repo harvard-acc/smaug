@@ -6,6 +6,7 @@
 
 #include "confuse.h"
 
+#include "core/backend.h"
 #include "core/globals.h"
 #include "core/tensor.h"
 #include "core/network.h"
@@ -24,6 +25,7 @@
 #include "operators/sigmoid_op.h"
 #include "operators/softmax_op.h"
 #include "operators/tanh_op.h"
+#include "operators/smv/smv_convolution_op.h"
 #include "utility/utils.h"
 
 using namespace smaug;
@@ -329,8 +331,7 @@ static void createAndAddOperator(
         inputs.push_back(network->getLastOperator());
     if (type == CONV_STANDARD_TYPE) {
         cfg_t* convParams = cfg_getsec(opCfg, "convolution_param");
-        ConvolutionOp<GlobalBackend>* op =
-                new ConvolutionOp<GlobalBackend>(name, workspace);
+        auto op = GlobalBackend::createConvolutionOp(name, workspace);
         op->setWeightDims(cfg_getint(convParams, "kernel_rows"),
                           cfg_getint(convParams, "kernel_cols"),
                           cfg_getint(convParams, "num_output"));
@@ -340,8 +341,7 @@ static void createAndAddOperator(
         network->addOperator(op, inputs);
     } else if (type == CONV_DEPTHWISE_TYPE) {
         cfg_t* convParams = cfg_getsec(opCfg, "convolution_param");
-        DepthwiseConvolutionOp<GlobalBackend>* op =
-                new DepthwiseConvolutionOp<GlobalBackend>(name, workspace);
+        auto op = GlobalBackend::createDepthwiseConvolutionOp(name, workspace);
         op->setWeightDims(cfg_getint(convParams, "kernel_rows"),
                           cfg_getint(convParams, "kernel_cols"),
                           cfg_getint(convParams, "num_output"));
@@ -354,68 +354,64 @@ static void createAndAddOperator(
     } else if (type == POOLING_TYPE) {
         cfg_t* poolCfg = cfg_getsec(opCfg, "pooling_param");
         std::string poolingType = cfg_getstr(poolCfg, "pool");
+        int poolSize = cfg_getint(poolCfg, "size");
         PoolingOp<GlobalBackend>* op;
         if (poolingType == MAX_POOL_TYPE) {
-            op = new MaxPoolingOp<GlobalBackend>(name, workspace);
+            auto op = GlobalBackend::createMaxPoolingOp(name, workspace);
+            op->setPoolingSize(poolSize, poolSize);
+            op->setPoolingStride(cfg_getint(poolCfg, "row_stride"),
+                                 cfg_getint(poolCfg, "col_stride"));
+            network->addOperator(op, inputs);
         } else if (poolingType == AVG_POOL_TYPE) {
-            op = new AvgPoolingOp<GlobalBackend>(name, workspace);
+            auto op = GlobalBackend::createAvgPoolingOp(name, workspace);
+            op->setPoolingSize(poolSize, poolSize);
+            op->setPoolingStride(cfg_getint(poolCfg, "row_stride"),
+                                 cfg_getint(poolCfg, "col_stride"));
+            network->addOperator(op, inputs);
         } else {
             assert(false && "Invalid type of pooling layer!");
         }
-        cfg_t* poolParams = cfg_getsec(opCfg, "pooling_param");
-        int poolSize = cfg_getint(poolParams, "size");
-        op->setPoolingSize(poolSize, poolSize);
-        op->setPoolingStride(cfg_getint(poolParams, "row_stride"),
-                             cfg_getint(poolParams, "col_stride"));
-        network->addOperator(op, inputs);
     } else if (type == FC_TYPE) {
         cfg_t* fcParams = cfg_getsec(opCfg, "inner_product_param");
-        InnerProductOp<GlobalBackend>* op =
-                new InnerProductOp<GlobalBackend>(name, workspace);
+        auto op = GlobalBackend::createInnerProductOp(name, workspace);
         op->setNumOutputs(cfg_getint(fcParams, "num_output"));
         network->addOperator(op, inputs);
         // TODO: This does not include the bias! Add an elementwise add
         // operation.
     } else if (type == SOFTMAX_TYPE) {
-        SoftmaxOp<GlobalBackend>* op =
-                new SoftmaxOp<GlobalBackend>(name, workspace);
+        auto op = GlobalBackend::createSoftmaxOp(name, workspace);
         network->addOperator(op, inputs);
     } else if (type == FLATTEN_TYPE) {
-        FlattenOp<GlobalBackend>* op =
-                new FlattenOp<GlobalBackend>(name, workspace);
+        auto op = GlobalBackend::createFlattenOp(name, workspace);
         network->addOperator(op, inputs);
     } else if (type == BATCH_NORM_TYPE) {
-        BatchNormOp<GlobalBackend>* op =
-                new BatchNormOp<GlobalBackend>(name, workspace);
+        auto op = GlobalBackend::createBatchNormOp(name, workspace);
         network->addOperator(op, inputs);
     } else if (type == ADD_TYPE) {
-        EltwiseAddOp<GlobalBackend>* op =
-                new EltwiseAddOp<GlobalBackend>(name, workspace);
+        auto op = GlobalBackend::createEltwiseAddOp(name, workspace);
         network->addOperator(op, inputs);
     } else if (type == RELU_TYPE) {
-        ReluOp<GlobalBackend>* op = new ReluOp<GlobalBackend>(name, workspace);
+        auto op = GlobalBackend::createReluOp(name, workspace);
         network->addOperator(op, inputs);
     } else if (type == LRELU_TYPE) {
         // TODO: Add parameter to enable customization of this behavior.
-        ReluOp<GlobalBackend>* op =
-                new ReluOp<GlobalBackend>(name, workspace, 0.1);
+        auto op = GlobalBackend::createReluOp(name, workspace);
+        op->setSlope(0.1);
         network->addOperator(op, inputs);
     } else if (type == ELU_TYPE) {
-        EluOp<GlobalBackend>* op = new EluOp<GlobalBackend>(name, workspace);
+        auto op = GlobalBackend::createEluOp(name, workspace);
         network->addOperator(op, inputs);
     } else if (type == SELU_TYPE) {
-        SeluOp<GlobalBackend>* op = new SeluOp<GlobalBackend>(name, workspace);
+        auto op = GlobalBackend::createSeluOp(name, workspace);
         network->addOperator(op, inputs);
     } else if (type == SIGMOID_TYPE) {
-        SigmoidOp<GlobalBackend>* op =
-                new SigmoidOp<GlobalBackend>(name, workspace);
+        auto op = GlobalBackend::createSigmoidOp(name, workspace);
         network->addOperator(op, inputs);
     } else if (type == TANH_TYPE) {
-        TanhOp<GlobalBackend>* op = new TanhOp<GlobalBackend>(name, workspace);
+        auto op = GlobalBackend::createTanhOp(name, workspace);
         network->addOperator(op, inputs);
     } else if (type == HARD_TANH_TYPE) {
-        HardTanhOp<GlobalBackend>* op =
-                new HardTanhOp<GlobalBackend>(name, workspace);
+        auto op = GlobalBackend::createHardTanhOp(name, workspace);
         network->addOperator(op, inputs);
     } else if (type == NONE_TYPE) {
         return;
@@ -673,7 +669,7 @@ static void readInputDataConfig(Network* network,
     Tensor<GlobalBackend>* inputData =
             new Tensor<GlobalBackend>("input", shape);
     DataOp<GlobalBackend>* inputOp =
-            new DataOp<GlobalBackend>("input", workspace);
+            GlobalBackend::createDataOp("input", workspace);
     inputOp->setData(inputData);
     workspace->addTensor(inputData);
     network->addOperator(inputOp);
