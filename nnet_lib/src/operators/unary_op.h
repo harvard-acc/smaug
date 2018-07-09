@@ -9,7 +9,7 @@
 namespace smaug {
 
 template <typename Backend>
-class UnaryOp: public Operator {
+class UnaryOp : public Operator {
    public:
     UnaryOp(const std::string& name, OpType opType, Workspace* workspace)
             : Operator(name, opType, workspace) {
@@ -21,6 +21,12 @@ class UnaryOp: public Operator {
     virtual bool validate() { return Operator::validate(); }
     virtual std::string opTypeName() const = 0;
 
+    virtual DataLayoutSet getInputDataLayouts() const {
+        return DataLayoutSet(DataLayout::X);
+    }
+    virtual DataLayoutSet getOutputDataLayouts() const {
+        return DataLayoutSet(DataLayout::X);
+    }
     virtual void createAllTensors() {
         createOutputTensors();
     }

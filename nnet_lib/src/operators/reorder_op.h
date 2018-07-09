@@ -102,7 +102,8 @@ class ReorderOp : public Operator {
     }
     virtual DataLayoutSet getInputDataLayouts() const {
         // TODO: Use the input tensor.
-        return DataLayoutSet(DataLayout::UnknownLayout);
+        return DataLayoutSet(getInput<Backend>(Inputs)->getShape().getLayout());
+        // return DataLayoutSet(DataLayout::UnknownLayout);
     }
     virtual DataLayoutSet getOutputDataLayouts() const {
         return DataLayoutSet(targetLayout);

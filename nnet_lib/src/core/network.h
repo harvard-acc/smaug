@@ -92,7 +92,7 @@ class Network {
                                 dataLayoutToStr(targetLayout),
                         targetLayout,
                         workspace);
-                addOperator(reorder);
+                addOperator(reorder, { sourceOp });
                 reorders.push_back({ reorder, sourceOp, elem.second });
             }
         }
