@@ -664,7 +664,7 @@ static void readInputDataConfig(Network* network,
     int cols = cfg_getint(network_opts, "input_cols");
     // TODO: Add a config parameter to specify the data layout of the model.
     // For now, assume NCHW format.
-    DataLayout layout = DataLayout::NCHW;
+    DataLayout layout = GlobalBackend::DefaultInputDataLayout;
     TensorShape shape({ 1, height, rows, cols }, layout);
     Tensor<GlobalBackend>* inputData =
             new Tensor<GlobalBackend>("input", shape);

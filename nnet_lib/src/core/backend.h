@@ -3,6 +3,8 @@
 
 #include <string>
 
+#include "core/datatypes.h"
+
 // These are compile-time switches that selectively build a copy of SMAUG with
 // a particular backend.
 #define REFERENCE 0
@@ -45,6 +47,7 @@ class ReferenceBackend {
     static const bool PrecomputeBNVariance = true;
     static const bool ColumnMajorFCWeights = true;
     static const std::string Name;
+    static const DataLayout DefaultInputDataLayout = DataLayout::NCHW;
 
     DECL_CREATE_OP(ConvolutionOp);
     DECL_CREATE_OP(DataOp);
@@ -86,6 +89,7 @@ class SmvBackend {
     static const bool PrecomputeBNVariance = true;
     static const bool ColumnMajorFCWeights = true;
     static const std::string Name;
+    static const DataLayout DefaultInputDataLayout = DataLayout::NHWC;
 
     static int SpadSize() { return smv::kSpadSize; }
 
