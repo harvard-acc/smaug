@@ -18,6 +18,7 @@ int main(int argc, char* argv[]) {
     std::string datamode = "RANDOM";
     int debugLevel = -1;
     std::string lastOutputFile;
+    bool dumpGraph = false;
     po::options_description options(
             "SMAUG Usage:  ./smaug model.conf [options]");
     options.add_options()
@@ -28,6 +29,8 @@ int main(int argc, char* argv[]) {
             "Set the debugging output level. If omitted, all debugging output "
             "is ignored. If specified without a value, the debug level is set to "
             "zero.")
+        ("dump-graph", po::value(&dumpGraph)->implicit_value(true),
+            "Dump the network in GraphViz format.")
         ("print-last-output,p",
             po::value(&lastOutputFile)->implicit_value("stdout"),
             "Dump the output of the last layer to this file. If specified with "
@@ -76,7 +79,9 @@ int main(int argc, char* argv[]) {
 
     Workspace* workspace = new Workspace();
     Network* network = readModelConfiguration(modelconf, workspace);
-    network->dumpDataflowGraph();
+    if (dumpGraph)
+        network->dumpDataflowGraph();
+
     DataGenerator<float>* generator;
     if (datamode == "FIXED") {
         generator = new FixedDataGenerator<float>(0.1);
