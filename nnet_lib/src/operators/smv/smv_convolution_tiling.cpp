@@ -323,7 +323,7 @@ TilingConfig TilingOptimizer::computeBasicTileShapes(SmvConvolutionOp* op) {
     return *maxIt;
 }
 
-SmvTiledTensor TilingOptimizer::generateBlockedTensor(
+SmvTiledTensor TilingOptimizer::generateTiledTensor(
         SmvTensor* tensor,
         const TensorShape& tileShape,
         std::vector<int> halos) {

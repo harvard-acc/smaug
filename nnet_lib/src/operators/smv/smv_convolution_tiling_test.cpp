@@ -10,7 +10,7 @@ using namespace smaug::smv::conv;
 
 void fillTensorWithData(SmvTensor* tensor) {
     const TensorShape& shape = tensor->getShape();
-    // Each dimension C is iniialized to a different constant value.
+    // Each dimension C is initialized to a different constant value.
     float* dataPtr = tensor->data<float>();
     int resetCounter = shape.getStorageDim(3);
     int value = 0;
@@ -71,30 +71,37 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithData(inputs);
             SmvTiledTensor inputTiles =
-                    TilingOptimizer::generateBlockedTensor(
-                            inputs, config.inputs, { 0, 1, 1, 0});
+                    TilingOptimizer::generateTiledTensor(
+                            inputs, config.inputs, { 0, 2, 0, 0});
             REQUIRE(inputTiles.size() == 3);
             for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
                 auto& testDims = inputTiles[i]->getShape().dims();
                 if (i < inputTiles.size() - 1)
                     REQUIRE(testDims == std::vector<int>{ 1, 16, 32, 16 });
                 else
-                    REQUIRE(testDims == std::vector<int>{ 1, 2, 32, 16 });
+                    REQUIRE(testDims == std::vector<int>{ 1, 4, 32, 16 });
                 verifyTensorData(inputTiles[i], 0);
             }
 
+            auto weights = convOp->getInput<SmvBackend>(1);
+            SmvTiledTensor weightTiles =
+                    TilingOptimizer::generateTiledTensor(
+                            weights, config.weights, { 0, 0, 0, 0 });
             auto outputs = convOp->getOutput<SmvBackend>(0);
             fillTensorWithData(outputs);
             SmvTiledTensor outputTiles =
-                    TilingOptimizer::generateBlockedTensor(
-                            outputs, config.outputs, { 0, 1, 1, 0 });
+                    TilingOptimizer::generateDimNHOutputTiledTensor(
+                            convOp, inputTiles, weightTiles, config.outputs,
+                            outputs, true);
+
             REQUIRE(outputTiles.size() == 3);
+            REQUIRE(outputTiles[0]->getShape().dims() ==
+                    std::vector<int>{ 1, 15, 32, 8 });
+            REQUIRE(outputTiles[1]->getShape().dims() ==
+                    std::vector<int>{ 1, 14, 32, 8 });
+            REQUIRE(outputTiles[2]->getShape().dims() ==
+                    std::vector<int>{ 1, 3, 32, 8 });
             for (auto i = outputTiles.startIndex(); !i.end(); ++i) {
-                auto& testDims = outputTiles[i]->getShape().dims();
-                if (i < outputTiles.size() - 1)
-                    REQUIRE(testDims == std::vector<int>{ 1, 16, 32, 8 });
-                else
-                    REQUIRE(testDims == std::vector<int>{ 1, 2, 32, 8 });
                 verifyTensorData(outputTiles[i], 0);
             }
         }
@@ -117,8 +124,8 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithData(inputs);
-            SmvTiledTensor inputTiles = TilingOptimizer::generateBlockedTensor(
-                    inputs, config.inputs, { 0, 1, 1, 0 });
+            SmvTiledTensor inputTiles = TilingOptimizer::generateTiledTensor(
+                    inputs, config.inputs, { 0, 2, 0, 0 });
             REQUIRE(inputTiles.size() == 2);
             for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(inputTiles[i]->getShape().dims() ==
@@ -146,14 +153,14 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
 
         SECTION("Generated tiles have correct shape and data") {
             SmvTiledTensor inputTiles =
-                    TilingOptimizer::generateBlockedTensor(
-                            inputs, config.inputs, { 0, 1, 1, 0});
+                    TilingOptimizer::generateTiledTensor(
+                            inputs, config.inputs, { 0, 2, 0, 0});
             REQUIRE(inputTiles.size() == 1);
 
             auto weights = convOp->getInput<SmvBackend>(1);
             fillTensorWithData(weights);
             SmvTiledTensor weightTiles =
-                    TilingOptimizer::generateBlockedTensor(
+                    TilingOptimizer::generateTiledTensor(
                             weights, config.weights, { 0, 0, 0, 0 });
             REQUIRE(weightTiles.size() == 128 / 8);
             for (auto i = weightTiles.startIndex(); !i.end(); ++i) {
@@ -165,8 +172,8 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
             auto outputs = convOp->getOutput<SmvBackend>(0);
             fillTensorWithData(outputs);
             SmvTiledTensor outputTiles =
-                    TilingOptimizer::generateBlockedTensor(
-                            outputs, config.outputs, { 0, 1, 1, 0 });
+                    TilingOptimizer::generateTiledTensor(
+                            outputs, config.outputs, { 0, 2, 0, 0 });
             REQUIRE(outputTiles.size() == 128 / 8);
             for (auto i = outputTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(outputTiles[i]->getShape().dims() ==
@@ -199,14 +206,14 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
         REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 8, 8, 24 });
 
         SECTION("Generated tiles have correct shape and data") {
-            SmvTiledTensor inputTiles = TilingOptimizer::generateBlockedTensor(
-                    inputs, config.inputs, { 0, 1, 1, 0 });
+            SmvTiledTensor inputTiles = TilingOptimizer::generateTiledTensor(
+                    inputs, config.inputs, { 0, 2, 0, 0 });
             REQUIRE(inputTiles.size() == 1);
 
             auto weights = convOp->getInput<SmvBackend>(1);
             fillTensorWithData(weights);
             SmvTiledTensor weightTiles =
-                    TilingOptimizer::generateBlockedTensor(
+                    TilingOptimizer::generateTiledTensor(
                             weights, config.weights, { 0, 0, 0, 0 });
             // 128 output channels in groups of 24 means 5 groups of 24 and 1
             // group of 8 -> total of 6.
@@ -229,8 +236,8 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
             auto outputs = convOp->getOutput<SmvBackend>(0);
             fillTensorWithData(outputs);
             SmvTiledTensor outputTiles =
-                    TilingOptimizer::generateBlockedTensor(
-                            outputs, config.outputs, { 0, 1, 1, 0 });
+                    TilingOptimizer::generateTiledTensor(
+                            outputs, config.outputs, { 0, 2, 0, 0 });
             REQUIRE(outputTiles.size() == ceil(128.0 / 24));
             for (auto i = outputTiles.startIndex(); !i.end(); ++i) {
                 const std::vector<int>& tileDims =
@@ -271,7 +278,7 @@ TEST_CASE_METHOD(SmaugTest, "Kernel shape tests", "[smvtiling]") {
             auto weights = convOp->getInput<SmvBackend>(1);
             fillTensorWithData(weights);
             SmvTiledTensor weightTiles =
-                    TilingOptimizer::generateBlockedTensor(
+                    TilingOptimizer::generateTiledTensor(
                             weights, config.weights, { 0, 0, 0, 0 });
             REQUIRE(weightTiles.size() == 1);
             // Don't need to verify shape again.
@@ -280,7 +287,7 @@ TEST_CASE_METHOD(SmaugTest, "Kernel shape tests", "[smvtiling]") {
             auto outputs = convOp->getOutput<SmvBackend>(0);
             fillTensorWithData(outputs);
             SmvTiledTensor outputTiles =
-                    TilingOptimizer::generateBlockedTensor(
+                    TilingOptimizer::generateTiledTensor(
                             outputs, config.outputs, { 0, 0, 0, 0 });
             REQUIRE(outputTiles.size() == 128 / 8);
             for (auto i = outputTiles.startIndex(); !i.end(); ++i) {
@@ -306,7 +313,7 @@ TEST_CASE_METHOD(SmaugTest, "Kernel shape tests", "[smvtiling]") {
 
         SECTION("Inputs and outputs tiled DimNH, weights tiled DimN") {
             fillTensorWithData(inputs);
-            SmvTiledTensor inputTiles = TilingOptimizer::generateBlockedTensor(
+            SmvTiledTensor inputTiles = TilingOptimizer::generateTiledTensor(
                     inputs, config.inputs, { 0, 1, 0, 0 });
             // Halo size 1: 0-3, 3-6, 6-9, ... 30-31, total 11 tiles.
             REQUIRE(inputTiles.size() == 11);
@@ -322,7 +329,7 @@ TEST_CASE_METHOD(SmaugTest, "Kernel shape tests", "[smvtiling]") {
             auto weights = convOp->getInput<SmvBackend>(1);
             fillTensorWithData(weights);
             SmvTiledTensor weightTiles =
-                    TilingOptimizer::generateBlockedTensor(
+                    TilingOptimizer::generateTiledTensor(
                             weights, config.weights, { 0, 0, 0, 0 });
             REQUIRE(weightTiles.size() == 8);
             for (int i = 0; i < weightTiles.size(); ++i)
@@ -331,8 +338,9 @@ TEST_CASE_METHOD(SmaugTest, "Kernel shape tests", "[smvtiling]") {
             auto outputs = convOp->getOutput<SmvBackend>(0);
             fillTensorWithData(outputs);
             SmvTiledTensor outputTiles =
-                    TilingOptimizer::generateBlockedTensor(
-                            outputs, config.outputs, { 0, 1, 0, 0 });
+                    TilingOptimizer::generateDimNHOutputTiledTensor(
+                            convOp, inputTiles, weightTiles, config.outputs,
+                            outputs, true);
             // There are 11 tiles in the rowwise dimension and 8 in the output
             // channel dim.
             REQUIRE(outputTiles.size() == 8*11);
@@ -340,8 +348,8 @@ TEST_CASE_METHOD(SmaugTest, "Kernel shape tests", "[smvtiling]") {
                 for (int c = 0; c < 8; c++) {
                     int idx = r * 8 + c;
                     auto& testDims = outputTiles[idx]->getShape().dims();
-                    if (r < 10)
-                        REQUIRE(testDims == std::vector<int>{ 1, 4, 32, 64 });
+                    if (r == 0)
+                        REQUIRE(testDims == std::vector<int>{ 1, 3, 32, 64 });
                     else
                         REQUIRE(testDims == std::vector<int>{ 1, 2, 32, 64 });
                     verifyTensorData(outputTiles[idx], c * 64);
@@ -366,8 +374,8 @@ TEST_CASE_METHOD(SmaugTest, "Kernel shape tests", "[smvtiling]") {
 
         SECTION("Test if the halo region of 2 is handled") {
             fillTensorWithData(inputs);
-            SmvTiledTensor inputTiles = TilingOptimizer::generateBlockedTensor(
-                    inputs, config.inputs, { 0, 2, 2, 0 });
+            SmvTiledTensor inputTiles = TilingOptimizer::generateTiledTensor(
+                    inputs, config.inputs, { 0, 2, 0, 0 });
             // Halo size 2: 0-7, 6-13, 12-19, 18-25, 24-31
             REQUIRE(inputTiles.size() == 5);
             for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
@@ -379,7 +387,7 @@ TEST_CASE_METHOD(SmaugTest, "Kernel shape tests", "[smvtiling]") {
             auto weights = convOp->getInput<SmvBackend>(1);
             fillTensorWithData(weights);
             SmvTiledTensor weightTiles =
-                    TilingOptimizer::generateBlockedTensor(
+                    TilingOptimizer::generateTiledTensor(
                             weights, config.weights, { 0, 0, 0, 0 });
             REQUIRE(weightTiles.size() == 2);
             for (auto i = weightTiles.startIndex(); !i.end(); ++i)
@@ -388,8 +396,8 @@ TEST_CASE_METHOD(SmaugTest, "Kernel shape tests", "[smvtiling]") {
             auto outputs = convOp->getOutput<SmvBackend>(0);
             fillTensorWithData(outputs);
             SmvTiledTensor outputTiles =
-                    TilingOptimizer::generateBlockedTensor(
-                            outputs, config.outputs, { 0, 2, 2, 0 });
+                    TilingOptimizer::generateTiledTensor(
+                            outputs, config.outputs, { 0, 2, 0, 0 });
             // 5 tiles in rowwise direction, 2 in channelwise.
             REQUIRE(outputTiles.size() == 5*2);
             for (int r = 0; r < 5; r++) {
