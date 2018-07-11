@@ -41,6 +41,13 @@ class TilingOptimizer {
     static SmvTiledTensor generateBlockedTensor(SmvTensor* tensor,
                                                 const TensorShape& tileShape,
                                                 std::vector<int> halos);
+    static SmvTiledTensor generateDimNHOutputTiledTensor(
+            SmvConvolutionOp* op,
+            const SmvTiledTensor& inputTiledTensor,
+            const SmvTiledTensor& weightsTiledTensor,
+            const TensorShape& maxOutputTileSize,
+            SmvTensor* outputTensor,
+            bool copyData = false);
 
    protected:
     static TilingDims findBestTilingDims(const TensorShape& shape,

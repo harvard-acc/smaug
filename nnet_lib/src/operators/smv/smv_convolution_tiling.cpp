@@ -374,6 +374,83 @@ SmvTiledTensor TilingOptimizer::generateBlockedTensor(
     return tiledTensor;
 }
 
+SmvTiledTensor TilingOptimizer::generateDimNHOutputTiledTensor(
+        SmvConvolutionOp* op,
+        const SmvTiledTensor& inputTiledTensor,
+        const SmvTiledTensor& weightsTiledTensor,
+        const TensorShape& maxOutputTileSize,
+        SmvTensor* outputTensor,
+        bool copyData) {
+    const TensorShape& inputShape = inputTiledTensor.getShape();
+    const TensorShape& weightsShape = weightsTiledTensor.getShape();
+    const TensorShape& outputShape = outputTensor->getShape();
+    std::vector<int> numBlocksInDim{ inputShape[0], inputShape[1],
+                                     inputShape[2], weightsShape[0] };
+    SmvTiledTensor outputTiledTensor(
+            TensorShape(numBlocksInDim, inputShape.getLayout()));
+    const int ndims = outputShape.ndims();
+    std::vector<int> currentOrigin(ndims, 0);
+    auto inputIndex = inputTiledTensor.startIndex();
+    auto weightIndex = weightsTiledTensor.startIndex();
+    auto outputIndex = outputTiledTensor.startIndex();
+    int weightRows = op->getWeightRows();
+    int topRowPad = (weightRows - 1) / 2;
+    int bottomRowPad = weightRows - 1 - topRowPad;
+    for (int n = 0; n < numBlocksInDim[0]; n++) {
+        for (int h = 0; h < numBlocksInDim[1]; h++) {
+            for (int w = 0; w < numBlocksInDim[2]; w++) {
+                for (int c = 0; c < numBlocksInDim[3]; c++) {
+                    const SmvTensor* inputTile =
+                            inputTiledTensor[inputIndex(n, h, w, 0)];
+                    const SmvTensor* weightsTile =
+                            weightsTiledTensor[weightIndex(c, 0, 0, 0)];
+                    const TensorShape& inputTileShape = inputTile->getShape();
+
+                    // DimNH tiling only affects rows, not columns.
+                    int effInputRows = inputTileShape[1];
+                    if (h == 0)
+                        effInputRows += topRowPad;
+                    else if (h == numBlocksInDim[1] - 1)
+                        effInputRows += bottomRowPad;
+                    int outputRows = op->computeOutputDim(effInputRows,
+                                                          weightRows,
+                                                          op->getRowStride(),
+                                                          ValidPadding);
+                    TensorShape outputTileShape(
+                            { inputTileShape[0], outputRows, inputTileShape[2],
+                              weightsTile->getShape()[0] },
+                            outputTensor->getShape().getLayout());
+                    assert(outputTileShape.storageSize() <=
+                                   maxOutputTileSize.storageSize() &&
+                           "DimNH input tiling results in output tile sizes "
+                           "larger than the max tile size!");
+                    int oi = outputIndex(n, h, w, c);
+                    std::string tileName = outputTensor->getName() +
+                                           "/tile:" + std::to_string((int)oi);
+                    SmvTensor* outputTile = new SmvTensor(tileName, outputTileShape);
+                    outputTile->allocateStorage(outputTensor->getDataType());
+                    if (copyData) {
+                        copyTensorRegion(outputTile,
+                                         outputTensor,
+                                         { 0, 0, 0, 0 },
+                                         currentOrigin,
+                                         outputTileShape.dims());
+                        for (int i = ndims - 1; i >= 0; i--) {
+                            currentOrigin[i] += outputTileShape[i];
+                            if (currentOrigin[i] >= outputShape[i])
+                                currentOrigin[i] = 0;
+                            else
+                                break;
+                        }
+                    }
+                    outputTiledTensor[oi] = outputTile;
+                }
+            }
+        }
+    }
+    return outputTiledTensor;
+}
+
 }  // namespace conv
 }  // namespace smv
 }  // namespace smaug
