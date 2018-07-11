@@ -40,6 +40,7 @@ class TensorShape {
     int size() const { return product(dims_); }
     int storageSize() const { return product(sum(dims_, padding_)); }
     int getAlignment() const { return alignment; }
+    int getPadding(int index) const { return padding_[index]; }
 
    protected:
     int getIndex(int index) const {
@@ -341,6 +342,17 @@ class TiledTensor : public TensorBase {
     }
     Tensor<Backend>*& operator[](int index) { return tensors[index]; }
     int size() const { return shape.size(); }
+
+    bool isDimNHTiled() const {
+        if (tensors.empty())
+            return false;
+        if (shape.ndims() != 4)
+            return false;
+        // DimNH tiled means that there is more than one block in the row
+        // dimension.
+        return ((shape.getLayout() == DataLayout::NHWC && shape[1] > 1) ||
+                (shape.getLayout() == DataLayout::NCHW && shape[2] > 1));
+    }
 
    protected:
     std::vector<Tensor<Backend>*> tensors;

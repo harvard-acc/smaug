@@ -17,6 +17,7 @@ SRCS = src/modelconf/read_model_conf.cpp \
        src/operators/ref/ref_tanh_op.cpp \
        src/operators/smv/smv_convolution_op.cpp \
        src/operators/smv/smv_convolution_tiling.cpp \
+			 src/operators/smv/kernels/convolution_simd.c \
        src/core/backend.cpp \
        src/core/tensor.cpp \
        src/core/network.cpp \
@@ -31,13 +32,18 @@ TESTS = src/operators/ref/ref_convolution_op_test.cpp \
 				src/operators/ref/ref_pooling_op_test.cpp \
 				src/operators/ref/ref_softmax_op_test.cpp \
 				src/operators/reorder_op_test.cpp \
-				src/operators/smv/smv_convolution_tiling_test.cpp
+				src/operators/smv/smv_convolution_tiling_test.cpp \
+				src/operators/smv/smv_convolution_op_test.cpp
 
 GEM5_DMA_SRC = gem5/dma_interface.c gem5/dma_interface.h
 
+ifeq ($(ARCH),)
+ARCH=REFERENCE
+endif
+
 LFLAGS = -L$(BOOST_ROOT)/lib -lm -lrt -lconfuse -lboost_graph -lboost_program_options
-CPPFLAGS = -DCONFIG_BACKEND=REFERENCE
-CFLAGS = -O3 -g
+CPPFLAGS = -DCONFIG_BACKEND=$(ARCH)
+CFLAGS = -O0 -g
 CXXFLAGS = -std=c++11 $(CFLAGS)
 INCLUDES = -Isrc \
 					 -I$(BUILD_DIR)/gem5 \

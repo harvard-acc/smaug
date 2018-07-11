@@ -1,8 +1,14 @@
+#include <stdbool.h>
 #include <stdio.h>
 
-#include "core/nnet_fwd_defs.h"
-#include "core/smiv/params.h"
-#include "core/smv/params.h"
+#include "operators/common.h"
+
+#define NUM_PE_INSTS 8
+#define NUM_MACC_INSTS 4
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 // Perform a 3D convolution with one kernel on an image, with reduction in NHWC
 // format. This is the vectorized implementation.
@@ -17,30 +23,43 @@
 //
 // Returns:
 //   The reduced 3D convolution values in result in NCHW format.
-void convolution3d_smv_nhwc_vec_fxp(float* a,
-                                    float* kernels,
-                                    layer_t curr_layer,
-                                    int kern_start,
-                                    float* result) {
-    int result_rows = curr_layer.outputs.rows;
-    int result_cols = curr_layer.outputs.cols;
-    int result_pad = curr_layer.outputs.align_pad;
+void smv_conv3d_f32_nhwc_same_padding_vec_fxp(float* inputs,
+                                              float* weights,
+                                              float* results,
+                                              int inputs_dims[4],
+                                              int weights_dims[4],
+                                              int results_dims[4],
+                                              int inputs_pad,
+                                              int weights_pad,
+                                              int results_pad,
+                                              int row_stride,
+                                              int col_stride,
+                                              int ofmap_start,
+                                              int ifmap_start,
+                                              bool accumulate) {
+    int result_rows = results_dims[1];
+    int result_cols = results_dims[2];
+    int result_height = results_dims[3];
 
-    int k_rows = curr_layer.weights.rows;
-    int k_cols = curr_layer.weights.cols;
-    int k_height = curr_layer.weights.height;
-    int k_pad = curr_layer.weights.align_pad;
-    int row_stride = curr_layer.stride.rows;
-    int col_stride = curr_layer.stride.cols;
+    int k_rows = weights_dims[1];
+    int k_cols = weights_dims[2];
+    int k_height = weights_dims[3];
+    int k_pad = weights_pad;
 
-    int a_rows = curr_layer.inputs.rows;
-    int a_cols = curr_layer.inputs.cols;
-    int a_height = curr_layer.inputs.height;
-    int a_pad = curr_layer.inputs.align_pad;
+    int a_rows = inputs_dims[1];
+    int a_cols = inputs_dims[2];
+    int a_height = inputs_dims[3];
+    int a_pad = inputs_pad;
 
-    padding pad = curr_layer.pad;
-    int end_row = a_rows + pad.top + pad.bottom - k_rows + 1;
-    int end_col = a_cols + pad.left + pad.right - k_cols + 1;
+    int total_row_pad = k_rows - 1;
+    int total_col_pad = k_cols - 1;
+    int left_pad = k_rows / 2;
+    int right_pad = total_col_pad - left_pad;
+    int top_pad = k_cols / 2;
+    int bottom_pad = total_row_pad - top_pad;
+
+    int end_row = a_rows + top_pad + bottom_pad - k_rows + 1;
+    int end_col = a_cols + left_pad + right_pad - k_cols + 1;
 
     int valid_row_end = a_rows - 1;
     int valid_col_end = a_cols - 1;
@@ -48,16 +67,16 @@ void convolution3d_smv_nhwc_vec_fxp(float* a,
     int in_row, in_col;
     const int pe_depth = VECTOR_SIZE * NUM_MACC_INSTS;
     // If we have less than four channels, don't run the extra ones.
-    const int kEffNumPeInsts =
-            min2(curr_layer.outputs.height - kern_start, NUM_PE_INSTS);
+    const int kEffNumPeInsts = min2(result_height - ofmap_start, NUM_PE_INSTS);
     const v8fp_t zero = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
     // Kernels and input are in NHWC.
-    VEC_ARRAY_4D(v8fp_t, _kernels, kernels, k_rows, k_cols, k_height + k_pad);
-    VEC_ARRAY_3D(v8fp_t, _a, a, a_cols, a_height + a_pad);
-    // Results in NCHW.
+    VEC_ARRAY_4D(v8fp_t, _kernels, weights, k_rows, k_cols, k_height + k_pad);
+    // TODO: Support input batches.
+    VEC_ARRAY_3D(v8fp_t, _a, inputs, a_cols, a_height + a_pad);
+    // Results in NHWC.
     VEC_ARRAY_3D(
-            v8fp_t, _result, result, result_rows, result_cols + result_pad);
+            v8fp_t, _result, results, result_cols, result_height + results_pad);
     int num_chan_blocks = (k_height - 1) / pe_depth;
 
     k_col:
@@ -69,14 +88,14 @@ void convolution3d_smv_nhwc_vec_fxp(float* a,
             pe_iteration:
             for (int ifmap_iters = 0; ifmap_iters < num_chan_blocks + 1;
                  ifmap_iters++) {
-                bool start_from_zero =
-                        (kern_row == 0 && kern_col == 0 && ifmap_iters == 0);
+                bool start_from_zero = (!accumulate && kern_row == 0 &&
+                                        kern_col == 0 && ifmap_iters == 0);
                 int ifmap_offset = (ifmap_iters * pe_depth) / VECTOR_SIZE;
                 int out_i = 0;  // The result row.
 
                 int max_ch_grp = NUM_MACC_INSTS;
-                // this is just computing the remaining groups of
-                // channels on the last iteration.
+                // This is just computing the remaining groups of channels on
+                // the last iteration.
                 if (ifmap_iters == num_chan_blocks) {
                     max_ch_grp = FRAC_CEIL(
                             (k_height - ifmap_iters * pe_depth), VECTOR_SIZE);
@@ -97,7 +116,7 @@ void convolution3d_smv_nhwc_vec_fxp(float* a,
                         kernel_reg[pe_id][macc_idx] =
                                 (macc_idx >= max_ch_grp)
                                         ? zero
-                                        : _kernels[kern_start + pe_id][kern_row]
+                                        : _kernels[ofmap_start + pe_id][kern_row]
                                                   [kern_col]
                                                   [ifmap_offset + macc_idx];
                     }
@@ -126,14 +145,14 @@ void convolution3d_smv_nhwc_vec_fxp(float* a,
                                 results_buffer[i] =
                                         start_from_zero
                                                 ? zero
-                                                : _result[kern_start + i]
+                                                : _result[ofmap_start + i]
                                                                [out_i]
                                                                [out_j /
                                                                 VECTOR_SIZE];
                             }
                         }
-                        in_row = out_row - pad.top + kern_row;
-                        in_col = out_col - pad.left + kern_col;
+                        in_row = out_row - top_pad + kern_row;
+                        in_col = out_col - left_pad + kern_col;
                         bool in_padding_row =
                                 in_row < 0 || in_row > valid_row_end;
                         bool in_padding_col =
@@ -183,7 +202,7 @@ void convolution3d_smv_nhwc_vec_fxp(float* a,
                             pe_commit:
                             for (int pe_id = 0; pe_id < kEffNumPeInsts;
                                  pe_id++) {
-                                _result[kern_start + pe_id][out_i]
+                                _result[ofmap_start + pe_id][out_i]
                                              [out_j / VECTOR_SIZE] =
                                                      results_buffer[pe_id];
                             }
@@ -197,3 +216,7 @@ void convolution3d_smv_nhwc_vec_fxp(float* a,
         }
     }
 }
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif

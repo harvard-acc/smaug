@@ -7,13 +7,14 @@
 
 namespace smaug {
 
+using SmvTensor = Tensor<SmvBackend>;
+using SmvTiledTensor = TiledTensor<SmvBackend>;
+
 namespace smv {
 namespace conv {
 
 extern const int kNumPEs;
 extern const int kNumMaccsPerPE;
-
-using SmvTensor = Tensor<SmvBackend>;
 
 class TilingOptimizer;
 
@@ -24,7 +25,18 @@ class SmvConvolutionOp : public ConvolutionOp<SmvBackend> {
   public:
     using ConvolutionOp<SmvBackend>::ConvolutionOp;
     virtual void run();
+    virtual DataLayoutSet getInputDataLayouts() const {
+        return DataLayoutSet(DataLayout::NHWC);
+    }
+    virtual DataLayoutSet getOutputDataLayouts() const {
+        return DataLayoutSet(DataLayout::NHWC);
+    }
     friend class smv::conv::TilingOptimizer;
+
+  protected:
+   void runNHMC(SmvTiledTensor& inputs,
+                SmvTiledTensor& weights,
+                SmvTiledTensor& outputs);
 };
 
 }  // namespace smaug

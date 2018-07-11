@@ -1,6 +1,44 @@
 #ifndef _OPERATORS_COMMON_H_
 #define _OPERATORS_COMMON_H_
 
+#include <stdint.h>
+
+// Scalar types.
+typedef float fp_t;
+typedef int sfx_t;
+typedef unsigned ufx_t;
+typedef uint16_t fp16_t;
+
+#ifndef VECTOR_SIZE
+#define VECTOR_SIZE 8
+#endif
+
+// 16 packed 32-bit floating point values.
+typedef fp16_t v16fp_t
+        __attribute__((__vector_size__(VECTOR_SIZE * 2 * sizeof(fp_t))));
+// 8 packed 32-bit floating point values.
+typedef fp_t v8fp_t
+        __attribute__((__vector_size__(VECTOR_SIZE * sizeof(fp_t))));
+// 4 packed 32-bit floating point values.
+typedef fp_t v4fp_t
+        __attribute__((__vector_size__(VECTOR_SIZE / 2 * sizeof(fp_t))));
+
+// 16 packed 16-bit floating point values.
+typedef fp16_t v16ph_t
+        __attribute__((__vector_size__(VECTOR_SIZE * 2 * sizeof(fp16_t))));
+// 8 packed 16-bit floating point values.
+typedef fp16_t v8ph_t
+        __attribute__((__vector_size__(VECTOR_SIZE * sizeof(fp16_t))));
+// 4 packed 16-bit floating point values.
+typedef fp16_t v4ph_t
+        __attribute__((__vector_size__(VECTOR_SIZE / 2 * sizeof(fp16_t))));
+
+// 8 packed 32-bit integer values.
+typedef sfx_t v8sfx_t
+        __attribute__((__vector_size__(VECTOR_SIZE * sizeof(sfx_t))));
+typedef sfx_t v4sfx_t
+        __attribute__((__vector_size__(VECTOR_SIZE / 2 * sizeof(sfx_t))));
+
 // Use these convenience macros to cast a raw pointer into a multidimensional
 // variable-length array, which lets us use [] notation inside of the ugly
 // sub2ind syntax!
@@ -44,6 +82,22 @@
     typedef TYPE(*output_array_name##_t)[DIM_1][DIM_2][DIM_3][DIM_4];          \
     TO_TYPE(output_array_name, input_array_name)
 
+#define VEC_ARRAY_1D(TYPE, output_array_name, input_array_name)                \
+    TYPE* output_array_name = (TYPE*)input_array_name
+
+#define VEC_ARRAY_2D(type, output_array_name, input_array_name)                \
+    typedef TYPE(*output_array_name##_t)[(cols) / VECTOR_SIZE];                \
+    TO_TYPE(output_array_name, input_array_name)
+
+#define VEC_ARRAY_3D(type, output_name, input_name, rows, cols)                \
+    typedef TYPE(*output_array_name##_t)[(rows)][(cols) / VECTOR_SIZE];        \
+    TO_TYPE(output_array_name, input_array_name)
+
+#define VEC_ARRAY_4D(type, output_name, input_name, height, rows, cols)        \
+    typedef TYPE(                                                              \
+            *output_array_name##_t)[(height)][(rows)][(cols) / VECTOR_SIZE];   \
+    TO_TYPE(output_array_name, input_array_name)
+
 #elif defined(__GNUC__)
 
 #define ARRAY_1D(TYPE, output_array_name, input_array_name)                    \
@@ -65,6 +119,26 @@
     TYPE, output_array_name, input_array_name, DIM_1, DIM_2, DIM_3, DIM_4)     \
         TYPE(*output_array_name)[DIM_1][DIM_2][DIM_3][DIM_4] =                 \
             (TYPE(*)[DIM_1][DIM_2][DIM_3][DIM_4])input_array_name
+
+#define VEC_ARRAY_1D(TYPE, output_array_name, input_array_name)                \
+    TYPE* output_array_name = (TYPE*)(input_array_name)
+
+#define VEC_ARRAY_2D(TYPE, output_array_name, input_array_name, cols)          \
+    TYPE(*output_array_name)                                                   \
+    [(cols) / (VECTOR_SIZE)] =                                                 \
+            (TYPE(*)[(cols) / (VECTOR_SIZE)]) input_array_name
+
+#define VEC_ARRAY_3D(TYPE, output_array_name, input_array_name, rows, cols)    \
+    TYPE(*output_array_name)                                                   \
+    [(rows)][(cols) / (VECTOR_SIZE)] =                                         \
+            (TYPE(*)[(rows)][(cols) / (VECTOR_SIZE)]) input_array_name
+
+#define VEC_ARRAY_4D(                                                          \
+        TYPE, output_array_name, input_array_name, height, rows, cols)         \
+    TYPE(*output_array_name)                                                   \
+    [(height)][(rows)][(cols) / (VECTOR_SIZE)] =                               \
+            (TYPE(*)[(height)][(rows)][(cols) / (VECTOR_SIZE)])                \
+                    input_array_name
 
 #endif
 
