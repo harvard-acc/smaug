@@ -5,7 +5,7 @@
 #include "core/backend.h"
 #include "core/globals.h"
 #include "core/scheduler.h"
-#include "modelconf/read_model_conf.h"
+#include "core/network_builder.h"
 #include "utility/debug_stream.h"
 
 namespace po = boost::program_options;

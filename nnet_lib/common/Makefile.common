@@ -2,9 +2,7 @@
 
 EXEC = smaug
 MAIN = src/smaug.cpp
-SRCS = src/modelconf/read_model_conf.cpp \
-       src/modelconf/model_conf_params.cpp \
-       src/operators/ref/ref_batch_norm_op.cpp \
+SRCS = src/operators/ref/ref_batch_norm_op.cpp \
        src/operators/ref/ref_eltwise_add_op.cpp \
        src/operators/ref/ref_convolution_op.cpp \
        src/operators/ref/ref_depthwise_convolution_op.cpp \
@@ -21,6 +19,7 @@ SRCS = src/modelconf/read_model_conf.cpp \
        src/core/backend.cpp \
        src/core/tensor.cpp \
        src/core/network.cpp \
+       src/core/network_builder.cpp \
        src/utility/debug_stream.cpp \
        src/utility/utils.cpp
 PROTO_SRCS = src/core/graph.proto \
