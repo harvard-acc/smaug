@@ -1,5 +1,5 @@
-#ifndef _MODELCONF_READ_MODEL_CONF_H_
-#define _MODELCONF_READ_MODEL_CONF_H_
+#ifndef _CORE_NETWORK_BUILDER_H_
+#define _CORE_NETWORK_BUILDER_H_
 
 #include <string>
 
