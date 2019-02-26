@@ -3,34 +3,9 @@
 
 #include <cstdint>
 #include <vector>
+#include "types.pb.h"
 
 namespace smaug {
-
-enum DataLayout {
-    UnknownLayout = 0,
-    NCHW = 0x1,
-    NHWC = 0x2,
-    NC = 0x4,
-    X = NCHW | NHWC | NC,  // elementwise.
-    EndDataLayout = NC,
-};
-
-enum DataStorageFormat {
-    UnknownStorageFormat,
-    Uncompressed,
-    CSR,
-    PackedCSR,
-    UncompressedHalfPrecision,
-};
-
-enum DataType {
-    UnknownDataType,
-    Int32,
-    Int64,
-    Float16,
-    Float32,
-    Float64,
-};
 
 class DataLayoutSet {
   public:

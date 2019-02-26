@@ -79,10 +79,11 @@ class InnerProductOp : public Operator {
         return { inputs[Weights] };
     }
 
-   protected:
+   public:
     enum { Inputs, Weights, kNumInputs };
     enum { Outputs, kNumOutputs };
 
+   protected:
     int numOutputs;
     bool weightsTensorsCreated;
     bool outputTensorsCreated;

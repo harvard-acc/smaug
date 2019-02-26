@@ -6,6 +6,7 @@
 #include "core/backend.h"
 #include "core/operator.h"
 #include "core/workspace.h"
+#include "core/types.pb.h"
 
 namespace smaug {
 
@@ -29,15 +30,6 @@ class ConvolutionOp : public Operator {
     void setStride(int _rowStride, int _colStride) {
         rowStride = _rowStride;
         colStride = _colStride;
-    }
-
-    void setPadding(std::string padding) {
-        if (padding == "SAME")
-            paddingType = SamePadding;
-        else if (padding == "VALID")
-            paddingType = ValidPadding;
-        else
-            assert(false && "Invalid padding type!");
     }
 
     void setPadding(PaddingType padding) {
@@ -151,9 +143,11 @@ class ConvolutionOp : public Operator {
         return (inputDim - weightDim + padding) / stride + 1;
     }
 
+  public:
     enum { Inputs, Kernels, kNumInputs };
     enum { Outputs, kNumOutputs };
 
+  protected:
     int weightRows;
     int weightCols;
     int numOfmaps;

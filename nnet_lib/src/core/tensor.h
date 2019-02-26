@@ -8,7 +8,10 @@
 #include <memory>
 #include <vector>
 
+#include <google/protobuf/repeated_field.h>
+
 #include "core/datatypes.h"
+#include "core/tensor.pb.h"
 #include "utility/utils.h"
 
 namespace smaug {
@@ -24,6 +27,14 @@ class TensorShape {
     TensorShape(const TensorShape& shape)
             : dims_(shape.dims_), padding_(shape.padding_),
               layout(shape.layout), alignment(shape.alignment) {}
+    TensorShape(const TensorShapeProto& shapeProto) {
+        std::copy(shapeProto.dims().begin(),
+                  shapeProto.dims().end(),
+                  std::back_inserter(dims_));
+        padding_.resize(shapeProto.dims_size());
+        layout = shapeProto.layout();
+        alignment = shapeProto.alignment();
+    }
 
     const std::vector<int>& dims() const { return dims_; }
     const std::vector<int>& padding() const { return padding_; }
@@ -200,6 +211,11 @@ class TensorBase {
             : name(_name), shape(_shape), dataFormat(Uncompressed),
               dataType(UnknownDataType) {}
 
+    TensorBase(const TensorProto& tensorProto)
+            : name(tensorProto.name()), shape(tensorProto.shape()),
+              dataFormat(tensorProto.data_format()),
+              dataType(tensorProto.data_type()) {}
+
     // TODO: Do we need a copy constructor?
 
     std::string getName() const { return name; }
@@ -240,6 +256,29 @@ class Tensor : public TensorBase {
             : TensorBase(_name, _shape), tensorData(NULL) {}
     virtual ~Tensor() {}
 
+    Tensor(const TensorProto& tensorProto)
+            : TensorBase(tensorProto), tensorData(NULL) {
+        DataType dataType = tensorProto.data_type();
+        switch (dataType) {
+            case Float16:
+                fillData<int>(tensorProto.half_data());
+                break;
+            case Float32:
+                fillData<float>(tensorProto.float_data());
+                break;
+            case Float64:
+                fillData<double>(tensorProto.double_data());
+                break;
+            case Int32:
+                fillData<int>(tensorProto.int_data());
+                break;
+            case Int64:
+                fillData<int64_t>(tensorProto.int64_data());
+            default:
+                assert(false && "Unknown data format!");
+        }
+    }
+
     TensorIndexIterator startIndex() const {
         return TensorIndexIterator(shape);
     }
@@ -256,6 +295,17 @@ class Tensor : public TensorBase {
 
     template <typename T>
     void fillData(std::initializer_list<T> externalData) {
+        T* rawPtr = data<T>();
+        int i = 0;
+        for (auto dataPtr = externalData.begin(); dataPtr != externalData.end();
+             ++dataPtr, ++i) {
+            rawPtr[i] = *dataPtr;
+        }
+    }
+
+    template <typename T>
+    void fillData(const google::protobuf::RepeatedField<T>& externalData) {
+        allocateStorage<T>();
         T* rawPtr = data<T>();
         int i = 0;
         for (auto dataPtr = externalData.begin(); dataPtr != externalData.end();

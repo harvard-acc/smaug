@@ -17,8 +17,9 @@ class Workspace {
     }
 
     template <typename Backend>
-    void addTensor(Tensor<Backend>* tensor) {
+    Tensor<Backend>* addTensor(Tensor<Backend>* tensor) {
         tensors[tensor->getName()] = static_cast<TensorBase*>(tensor);
+        return tensor;
     }
 
     template <typename Backend>

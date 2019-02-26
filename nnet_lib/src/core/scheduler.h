@@ -1,3 +1,4 @@
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -16,12 +17,15 @@ Tensor<Backend>* runNetwork(Network* network, Workspace* workspace) {
     std::list<Vertex> vertices;
     boost::topological_sort(graph, std::front_inserter(vertices));
     Tensor<Backend>* output;
+    std::cout << "======================================================\n";
+    std::cout << "      Scheduling operators of the network...\n";
+    std::cout << "======================================================\n";
     for (auto v : vertices) {
         Operator* op = get(boost::vertex_op, graph, v);
-        dout(0) << op->getName() << "\n";
+        dout(0) << "Scheduling " << op->getName() << ".\n";
         op->run();
         output = op->getOutput<Backend>(0);
-        dout(0) << *output << "\n";
+        dout(1) << *output << "\n";
     }
     return output;
 }

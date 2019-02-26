@@ -7,6 +7,7 @@
 
 #include "core/typedefs.h"
 #include "core/tensor.h"
+#include "core/types.pb.h"
 
 #define REGISTER_SPECIAL_OP(Operator, Backend)                                 \
     template <>                                                                \
@@ -15,32 +16,6 @@
 namespace smaug {
 
 class Workspace;
-
-enum OpType {
-    UnknownOp,
-    Convolution3d,
-    ConvolutionDepthwise,
-    MaxPooling,
-    AveragePooling,
-    InnerProduct,
-    BatchNorm,
-    Data,
-    ReLU,
-    ELU,
-    SELU,
-    Tanh,
-    HardTanh,
-    Sigmoid,
-    Softmax,
-    EltwiseAdd,
-    Reorder,
-};
-
-enum PaddingType {
-    UnknownPadding,
-    SamePadding,
-    ValidPadding,
-};
 
 class Operator {
    public:
