@@ -393,6 +393,15 @@ template <typename Backend>
 std::ostream& operator<<(std::ostream& os, const Tensor<Backend>& tensor) {
     DataType type = tensor.template getDataType();
     switch (type) {
+        case Float16:
+            writeTensorToOstream<uint16_t>(os, tensor);
+            break;
+        case Float32:
+            writeTensorToOstream<float>(os, tensor);
+            break;
+        case Float64:
+            writeTensorToOstream<double>(os, tensor);
+            break;
         case Int32:
             writeTensorToOstream<int>(os, tensor);
             break;

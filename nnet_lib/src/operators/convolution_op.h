@@ -140,6 +140,7 @@ class ConvolutionOp : public Operator {
     int getColStride() const { return colStride; }
     int getWeightRows() const { return weightRows; }
     int getWeightCols() const { return weightCols; }
+    PaddingType getPadding() const {return paddingType;}
 
    protected:
     int computeOutputDim(int inputDim,

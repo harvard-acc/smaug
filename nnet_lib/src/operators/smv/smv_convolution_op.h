@@ -34,7 +34,7 @@ class SmvConvolutionOp : public ConvolutionOp<SmvBackend> {
     friend class smv::conv::TilingOptimizer;
 
   protected:
-   void runNHMC(SmvTiledTensor& inputs,
+   void runNHWC(SmvTiledTensor& inputs,
                 SmvTiledTensor& weights,
                 SmvTiledTensor& outputs);
 };
