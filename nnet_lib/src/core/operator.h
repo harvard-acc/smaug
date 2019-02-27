@@ -5,7 +5,7 @@
 #include <vector>
 #include <map>
 
-#include "core/graph.h"
+#include "core/typedefs.h"
 #include "core/tensor.h"
 
 #define REGISTER_SPECIAL_OP(Operator, Backend)                                 \

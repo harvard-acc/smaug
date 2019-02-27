@@ -14,18 +14,22 @@ native: CFLAGS+=-Wno-attributes
 ######################################
 
 # Create object files for each cpp/c file.
+PROTO_PY_SRCS = $(patsubst src/core/%.proto, $(PYTHON_DIR)/%_pb2.py, $(PROTO_SRCS))
+BUILD_PROTO_SRCS = $(patsubst src/%, $(BUILD_DIR)/%, $(PROTO_SRCS))
+BUILD_PROTO_CPP_SRCS = $(patsubst %.proto, %.pb.cpp, $(BUILD_PROTO_SRCS))
 BUILD_SRCS = $(patsubst src/%, $(BUILD_DIR)/%, $(SRCS))
+BUILD_SRCS += $(BUILD_PROTO_CPP_SRCS)
 BUILD_SRCS_OBJS := $(patsubst %.cpp, %.o, $(BUILD_SRCS))
 BUILD_SRCS_OBJS := $(patsubst %.c, %.o, $(BUILD_SRCS_OBJS))
 
 BUILD_TESTS = $(patsubst src/%, $(BUILD_DIR)/%, $(TESTS))
 BUILD_TESTS_OBJS := $(patsubst %.cpp, %.o, $(BUILD_TESTS))
-BUILD_TESTS_OBJS := $(patsubst %.cpp, %.o, $(BUILD_TESTS_OBJS))
+BUILD_TESTS_OBJS := $(patsubst %.c, %.o, $(BUILD_TESTS_OBJS))
 
 BUILD_MAIN_SRC = $(patsubst src/%, $(BUILD_DIR)/%, $(MAIN))
 BUILD_MAIN_OBJ = $(patsubst %.cpp, %.o, $(BUILD_MAIN_SRC))
 
-all: src-symlinks $(BUILD_DIR)/$(EXEC)
+all: src-symlinks $(BUILD_PROTO_CPP_SRCS) $(PROTO_PY_SRCS) $(BUILD_DIR)/$(EXEC)
 
 $(BUILD_DIR)/$(EXEC): $(BUILD_SRCS_OBJS) $(BUILD_MAIN_OBJ)
 	$(CXX) $^ $(LFLAGS) -o $@
@@ -60,6 +64,5 @@ run-tests: $(TEST_BIN)
 ###########################
 
 clean:
-	rm -f $(BUILD_DIR)/$(EXEC) $(TEST_BIN) $(TEST_OBJ) $(BUILD_SRCS_OBJS) \
-		$(BUILD_MAIN_OBJ)
-	find $(BUILD_DIR) . -name "*.llvm" | xargs rm -f
+	rm -f $(BUILD_DIR)/$(EXEC) $(TEST_BIN) $(TEST_OBJ)
+	find $(BUILD_DIR) -name "*.llvm" -o -name "*.o" | xargs rm -f

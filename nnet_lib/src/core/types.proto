@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package smaug;
+
+enum DataType {
+  UnknownDataType = 0;
+  Int32 = 1;
+  Int64 = 2;
+  Float16 = 3;
+  Float32 = 4;
+  Float64 = 5;
+}
+
+enum DataLayout {
+  option allow_alias = true;
+  UnknownLayout = 0;
+  NCHW = 1;
+  NHWC = 2;
+  NC = 4;
+  X = 7; // Elementwise
+  EndDataLayout = 4;
+}
+
+enum DataStorageFormat {
+  UnknownStorageFormat = 0;
+  Uncompressed = 1;
+  CSR = 2;
+  PackedCSR = 3;
+  UncompressedHalfPrecision = 4;
+}
+
+enum OpType {
+  UnknownOp = 0;
+  Convolution3d = 1;
+  ConvolutionDepthwise = 2;
+  MaxPooling = 3;
+  AveragePooling = 4;
+  InnerProduct = 5;
+  BatchNorm = 6;
+  Data = 7;
+  ReLU = 8;
+  LReLU = 9;
+  ELU = 10;
+  SELU = 11;
+  Tanh = 12;
+  HardTanh = 13;
+  Sigmoid = 14;
+  Softmax = 15;
+  EltwiseAdd = 16;
+  Reorder = 17;
+}
+
+enum PaddingType {
+  UnknownPadding = 0;
+  SamePadding = 1;
+  ValidPadding = 2;
+}

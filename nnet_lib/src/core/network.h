@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-#include "core/graph.h"
+#include "core/typedefs.h"
 #include "core/operator.h"
 #include "core/workspace.h"
 

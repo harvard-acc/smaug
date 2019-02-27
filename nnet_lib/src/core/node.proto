@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package smaug;
+
+import "tensor.proto";
+import "types.proto";
+
+message ConvParams {
+  PaddingType padding = 1;
+  repeated int32 stride = 2;
+}
+
+message PoolParams {
+  repeated int32 stride = 1;
+  repeated int32 pool_size = 2;
+}
+
+message Params {
+  oneof value {
+    ConvParams conv_params = 1;
+    PoolParams pool_params = 2;
+  }
+}
+
+message NodeProto {
+  string name = 1;
+  OpType op = 2;
+  repeated string parents = 3;
+  repeated string children = 4;
+  repeated TensorProto input_tensors = 5;
+  repeated TensorProto output_tensors = 6;
+  // Parameters
+  Params params = 7;
+}

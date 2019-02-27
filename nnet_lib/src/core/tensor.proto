@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package smaug;
+
+import "types.proto";
+
+message TensorShapeProto {
+  repeated int32 dims = 1;
+  DataLayout layout = 2;
+  int32 alignment = 3;
+}
+
+message TensorProto {
+  string name = 1;
+  DataType data_type = 2;
+  TensorShapeProto shape = 3;
+  DataStorageFormat data_format = 4;
+
+  // The data stored in the tensor. Only the field with data_type will be set.
+
+  // Float16. This will be used for quantization. Note that since protobuf has
+  // no int16 type, we will pack two half-precision floats into one element
+  // here.
+  repeated int32 half_data = 5 [packed = true];
+
+  // Float32.
+  repeated float float_data = 6 [packed = true];
+
+  // Float64.
+  repeated double double_data = 7 [packed = true];
+
+  // Int32
+  repeated int32 int_data = 8 [packed = true];
+
+  // Int64
+  repeated int64 int64_data = 9 [packed = true];
+}
