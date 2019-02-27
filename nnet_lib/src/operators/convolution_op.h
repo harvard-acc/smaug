@@ -68,16 +68,14 @@ class ConvolutionOp : public Operator {
         bool isNCHW = (layout == DataLayout::NCHW);
         int channelsIdx = isNCHW ? 1 : 3;
         int inputChannels = input->dim(channelsIdx);
-        int padding = calc_padding(
-                isNCHW ? weightCols : inputChannels, Backend::Alignment);
         if (isNCHW) {
-            return TensorShape({ numOfmaps, inputChannels, weightRows,
-                                 weightCols + padding },
-                               layout);
+            return TensorShape(
+                    { numOfmaps, inputChannels, weightRows, weightCols },
+                    layout);
         } else {
-            return TensorShape({ numOfmaps, weightRows, weightCols,
-                                 inputChannels + padding },
-                               layout);
+            return TensorShape(
+                    { numOfmaps, weightRows, weightCols, inputChannels },
+                    layout);
         }
     }
 
