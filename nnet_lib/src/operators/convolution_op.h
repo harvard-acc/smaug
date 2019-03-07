@@ -43,7 +43,7 @@ class ConvolutionOp : public Operator {
     }
 
     virtual TensorShape inferOutputShape() const {
-        Tensor<Backend>* input = getInput<Backend>(Inputs);
+        Tensor* input = getInput(Inputs);
         assert(input && "Unable to get input for convolution op!");
         DataLayout layout = input->getShape().getLayout();
         bool isNCHW = (layout == DataLayout::NCHW);
@@ -63,7 +63,7 @@ class ConvolutionOp : public Operator {
     }
 
     virtual TensorShape inferWeightsShape() const {
-        Tensor<Backend>* input = getInput<Backend>(Inputs);
+        Tensor* input = getInput(Inputs);
         DataLayout layout = input->getShape().getLayout();
         bool isNCHW = (layout == DataLayout::NCHW);
         int channelsIdx = isNCHW ? 1 : 3;
@@ -85,7 +85,7 @@ class ConvolutionOp : public Operator {
         if (inputs.at(Kernels) != nullptr)
             return;
         TensorShape shape = inferWeightsShape();
-        Tensor<Backend>* kernels = new Tensor<Backend>(weightsName, shape);
+        Tensor* kernels = new Tensor(weightsName, shape);
         workspace->addTensor(kernels);
         inputs[Kernels] = kernels;
     }
@@ -94,7 +94,7 @@ class ConvolutionOp : public Operator {
         if (outputs.at(Outputs) != nullptr)
             return;
         TensorShape shape = inferOutputShape();
-        Tensor<Backend>* output = new Tensor<Backend>(name, shape);
+        Tensor* output = new Tensor(name, shape);
         workspace->addTensor(output);
         outputs.at(Outputs) = output;
     }

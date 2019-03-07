@@ -19,8 +19,7 @@ class DepthwiseConvolutionOp : public ConvolutionOp<Backend> {
     virtual void run() {}
 
     virtual TensorShape inferOutputShape() const {
-        Tensor<Backend>* input =
-                this->template getInput<Backend>(Parent::Inputs);
+        Tensor* input = this->template getInput(Parent::Inputs);
         assert(input && "Unable to get input for convolution op!");
         const TensorShape& shape = input->getShape();
         DataLayout layout = shape.getLayout();
@@ -45,8 +44,7 @@ class DepthwiseConvolutionOp : public ConvolutionOp<Backend> {
     }
 
     virtual TensorShape inferWeightsShape() const {
-        Tensor<Backend>* input =
-                this->template getInput<Backend>(Parent::Inputs);
+        Tensor* input = this->template getInput(Parent::Inputs);
         const TensorShape& shape = input->getShape();
         DataLayout layout = shape.getLayout();
         bool isNCHW = (layout == DataLayout::NCHW);

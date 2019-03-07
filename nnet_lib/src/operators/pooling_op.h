@@ -49,9 +49,10 @@ class PoolingOp : public Operator {
     }
 
     int getNumOfmaps() const {
-        Tensor<Backend>* input = workspace->getTensor<Backend>(inputs[0]);
+        Tensor* input = getInput(0);
         assert(input && "Unable to find input for pooling layer!");
-        bool isNCHW = input->getDataLayout() == DataLayout::NCHW;
+        const TensorShape& inputShape = inputs.at(Inputs)->getShape();
+        bool isNCHW = inputShape.getLayout() == DataLayout::NCHW;
         int chanIdx = isNCHW ? 1 : 3;
         return input->dim(chanIdx);
     }
@@ -81,7 +82,7 @@ class PoolingOp : public Operator {
         if (outputs.at(Outputs))
             return;
         TensorShape shape = inferOutputShape();
-        Tensor<Backend>* output = new Tensor<Backend>(name, shape);
+        Tensor* output = new Tensor(name, shape);
         workspace->addTensor(output);
         outputs.at(Outputs) = output;
     }

@@ -24,13 +24,13 @@ class InnerProductOp : public Operator {
     virtual void run() {}
     virtual bool validate() { return numOutputs > 0 && Operator::validate(); }
     TensorShape inferOutputShape() const {
-        const TensorShape& shape = getInput<Backend>(Inputs)->getShape();
+        const TensorShape& shape = getInput(Inputs)->getShape();
         assert(shape.getLayout() == DataLayout::NC);
         return TensorShape({ shape[0], numOutputs }, DataLayout::NC);
     }
 
     TensorShape inferWeightsShape() const {
-        const TensorShape& shape = getInput<Backend>(Inputs)->getShape();
+        const TensorShape& shape = getInput(Inputs)->getShape();
         assert(shape.getLayout() == DataLayout::NC);
         return TensorShape({ shape[1], numOutputs }, DataLayout::NC);
     }
@@ -46,7 +46,7 @@ class InnerProductOp : public Operator {
         if (inputs.at(Weights))
             return;
         TensorShape shape = inferWeightsShape();
-        Tensor<Backend>* weights = new Tensor<Backend>(weightsName, shape);
+        Tensor* weights = new Tensor(weightsName, shape);
         workspace->addTensor(weights);
         inputs.at(Weights) = weights;
         weightsTensorsCreated = true;
@@ -56,7 +56,7 @@ class InnerProductOp : public Operator {
         if (outputs.at(Outputs))
             return;
         TensorShape shape = inferOutputShape();
-        Tensor<Backend>* output = new Tensor<Backend>(name, shape);
+        Tensor* output = new Tensor(name, shape);
         workspace->addTensor(output);
         outputs[Outputs] = output;
     }

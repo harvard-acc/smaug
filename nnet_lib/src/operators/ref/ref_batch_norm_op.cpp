@@ -93,12 +93,12 @@ namespace smaug {
 
 template <>
 void BatchNormOp<ReferenceBackend>::run() {
-    auto input = getInput<ReferenceBackend>(Inputs);
-    auto mean = getInput<ReferenceBackend>(Mean);
-    auto variance = getInput<ReferenceBackend>(Variance);
-    auto gamma = getInput<ReferenceBackend>(Gamma);
-    auto beta = getInput<ReferenceBackend>(Beta);
-    auto output = getOutput<ReferenceBackend>(Outputs);
+    auto input = getInput(Inputs);
+    auto mean = getInput(Mean);
+    auto variance = getInput(Variance);
+    auto gamma = getInput(Gamma);
+    auto beta = getInput(Beta);
+    auto output = getOutput(Outputs);
     const TensorShape& inputShape = input->getShape();
     const TensorShape& kernelShape = mean->getShape();
     const TensorShape& outputShape = output->getShape();

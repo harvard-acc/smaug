@@ -49,18 +49,14 @@ class Operator {
     void setVertex(Vertex v) { vertex = v; }
     OpType getOpType() const { return opType; }
 
-    template <typename Backend>
-    Tensor<Backend>* getInput(int index) const {
-        return dynamic_cast<Tensor<Backend>*>(inputs.at(index));
+    Tensor* getInput(int index) const {
+        return dynamic_cast<Tensor*>(inputs.at(index));
     }
-    TensorBase* getInput(int index) const { return inputs.at(index); }
     const std::vector<TensorBase*>& getInputs() const { return inputs; }
 
-    template <typename Backend>
-    Tensor<Backend>* getOutput(int index) const {
-        return dynamic_cast<Tensor<Backend>*>(outputs.at(index));
+    Tensor* getOutput(int index) const {
+        return dynamic_cast<Tensor*>(outputs.at(index));
     }
-    TensorBase* getOutput(int index) const { return outputs.at(index); }
     const std::vector<TensorBase*>& getOutputs() const { return outputs; }
 
    protected:

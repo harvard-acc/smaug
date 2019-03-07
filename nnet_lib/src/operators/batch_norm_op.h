@@ -35,10 +35,10 @@ class BatchNormOp : public Operator {
 
     virtual void run() {}
     TensorShape inferOutputShape() const {
-        return getInput<Backend>(Inputs)->getShape();
+        return getInput(Inputs)->getShape();
     }
     TensorShape inferWeightsShape() const {
-        TensorShape shape = getInput<Backend>(Inputs)->getShape();
+        TensorShape shape = getInput(Inputs)->getShape();
         DataLayout layout = shape.getLayout();
         int ndims = shape.ndims();
         if (ndims >= 4) {
@@ -61,20 +61,20 @@ class BatchNormOp : public Operator {
         if (inputs[Mean] && inputs[Variance] && inputs[Gamma] && inputs[Beta])
             return;
         TensorShape shape = inferWeightsShape();
-        inputs[Mean] = new Tensor<Backend>(meanName, shape);
-        inputs[Variance] = new Tensor<Backend>(varianceName, shape);
-        inputs[Gamma] = new Tensor<Backend>(gammaName, shape);
-        inputs[Beta] = new Tensor<Backend>(betaName, shape);
+        inputs[Mean] = new Tensor(meanName, shape);
+        inputs[Variance] = new Tensor(varianceName, shape);
+        inputs[Gamma] = new Tensor(gammaName, shape);
+        inputs[Beta] = new Tensor(betaName, shape);
         for (int i = Mean; i <= Beta; i++)
-            workspace->addTensor(static_cast<Tensor<Backend>*>(inputs[i]));
+            workspace->addTensor(static_cast<Tensor*>(inputs[i]));
     }
 
     void createOutputTensors() {
         if (outputs[Outputs])
             return;
         TensorShape shape = inferOutputShape();
-        Tensor<Backend>* output = new Tensor<Backend>(name, shape);
-        workspace->addTensor<Backend>(output);
+        Tensor* output = new Tensor(name, shape);
+        workspace->addTensor(output);
         outputs[Outputs] = output;
     }
 

@@ -26,8 +26,8 @@ class ReorderOp : public Operator {
     void setTargetLayout(DataLayout layout) { targetLayout = layout; }
 
     virtual void run() {
-        Tensor<Backend>* input = getInput<Backend>(Inputs);
-        Tensor<Backend>* output = getOutput<Backend>(Outputs);
+        Tensor* input = getInput(Inputs);
+        Tensor* output = getOutput(Outputs);
         DataLayout srcLayout = input->getShape().getLayout();
         if (srcLayout == DataLayout::NCHW) {
             if (targetLayout == DataLayout::NHWC) {
@@ -69,7 +69,7 @@ class ReorderOp : public Operator {
     }
 
     TensorShape inferOutputShape() const {
-        TensorShape inputShape = getInput<Backend>(Inputs)->getShape();
+        TensorShape inputShape = getInput(Inputs)->getShape();
         if (targetLayout == DataLayout::NC) {
             std::vector<int> dims(2, 1);
             dims[0] = inputShape[0];
@@ -93,7 +93,7 @@ class ReorderOp : public Operator {
         assert(targetLayout != DataLayout::UnknownLayout &&
                "Cannot create output tensor with unknown target data layout!");
         TensorShape shape = inferOutputShape();
-        Tensor<Backend>* output = new Tensor<Backend>(name, shape);
+        Tensor* output = new Tensor(name, shape);
         workspace->addTensor(output);
         outputs.at(Outputs) = output;
     }
@@ -102,7 +102,7 @@ class ReorderOp : public Operator {
     }
     virtual DataLayoutSet getInputDataLayouts() const {
         // TODO: Use the input tensor.
-        return DataLayoutSet(getInput<Backend>(Inputs)->getShape().getLayout());
+        return DataLayoutSet(getInput(Inputs)->getShape().getLayout());
         // return DataLayoutSet(DataLayout::UnknownLayout);
     }
     virtual DataLayoutSet getOutputDataLayouts() const {

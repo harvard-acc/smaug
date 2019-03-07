@@ -10,8 +10,7 @@ TEST_CASE_METHOD(SmaugTest, "Reference convolution operator", "[refop]") {
     auto convOp =
             new DepthwiseConvolutionOp<ReferenceBackend>("conv", workspace());
     TensorShape inputShape({ 1, 2, 5, 5 }, DataLayout::NCHW);
-    Tensor<ReferenceBackend>* input = new Tensor<ReferenceBackend>(
-            "input", inputShape);
+    Tensor* input = new Tensor("input", inputShape);
     input->allocateStorage<float>();
     // Input data looks like:
     input->fillData<float>({ 1, 1, 1, 1, 1,  // chan 1
@@ -32,7 +31,7 @@ TEST_CASE_METHOD(SmaugTest, "Reference convolution operator", "[refop]") {
         convOp->setWeightDims(3, 3, 1);
         convOp->setStride(1, 1);
         convOp->createAllTensors();
-        allocateAllTensors<float, ReferenceBackend>(convOp);
+        allocateAllTensors<float>(convOp);
         // Weight kernel:
         // 1  2  3  // chan 1
         // 4  5  6
@@ -40,7 +39,7 @@ TEST_CASE_METHOD(SmaugTest, "Reference convolution operator", "[refop]") {
         // 2  3  4  // chan 2
         // 5  6  7
         // 8  9  10
-        auto weightsTensor = convOp->getInput<ReferenceBackend>(1);
+        auto weightsTensor = convOp->getInput(1);
         weightsTensor->fillData<float>(
                 { 1, 2, 3, 4, 5, 6, 7, 8, 9, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
 
@@ -66,7 +65,7 @@ TEST_CASE_METHOD(SmaugTest, "Reference convolution operator", "[refop]") {
                                            168, 234, 234, 234, 144,
                                            207, 288, 288, 288, 177,
                                            113, 153, 153, 153, 91 };
-        auto outputsTensor = convOp->getOutput<ReferenceBackend>(0);
+        auto outputsTensor = convOp->getOutput(0);
         verifyOutputs(outputsTensor, expectedValues);
     }
 
@@ -75,12 +74,12 @@ TEST_CASE_METHOD(SmaugTest, "Reference convolution operator", "[refop]") {
         convOp->setWeightDims(3, 3, 1);
         convOp->setStride(1, 1);
         convOp->createAllTensors();
-        allocateAllTensors<float, ReferenceBackend>(convOp);
+        allocateAllTensors<float>(convOp);
         // Weight kernel:
         // 1  2  3
         // 4  5  6
         // 7  8  9
-        auto weightsTensor = convOp->getInput<ReferenceBackend>(1);
+        auto weightsTensor = convOp->getInput(1);
         weightsTensor->fillData<float>(
                 { 1, 2, 3, 4, 5, 6, 7, 8, 9, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
 
@@ -97,7 +96,7 @@ TEST_CASE_METHOD(SmaugTest, "Reference convolution operator", "[refop]") {
                                            180, 180, 180,
                                            234, 234, 234,
                                            288, 288, 288 };
-        auto outputsTensor = convOp->getOutput<ReferenceBackend>(0);
+        auto outputsTensor = convOp->getOutput(0);
         verifyOutputs(outputsTensor, expectedValues);
     }
 }

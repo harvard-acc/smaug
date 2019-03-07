@@ -95,8 +95,8 @@ namespace smaug {
 
 template <>
 void SoftmaxOp<ReferenceBackend>::run() {
-    auto inputs = getInput<ReferenceBackend>(Inputs);
-    auto outputs = getOutput<ReferenceBackend>(Outputs);
+    auto inputs = getInput(Inputs);
+    auto outputs = getOutput(Outputs);
     const TensorShape& inputShape = inputs->getShape();
     assert(inputShape == outputs->getShape());
     ref_softmax_f32_nc(inputs->data<float>(), outputs->data<float>(),

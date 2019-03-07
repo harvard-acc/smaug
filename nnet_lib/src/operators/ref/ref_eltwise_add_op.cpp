@@ -23,9 +23,9 @@ namespace smaug {
 
 template <>
 void EltwiseAddOp<ReferenceBackend>::run() {
-    auto input0 = getInput<ReferenceBackend>(Input0);
-    auto input1 = getInput<ReferenceBackend>(Input1);
-    auto output = getOutput<ReferenceBackend>(Outputs);
+    auto input0 = getInput(Input0);
+    auto input1 = getInput(Input1);
+    auto output = getOutput(Outputs);
     const TensorShape& input0Shape = input0->getShape();
     const TensorShape& input1Shape = input1->getShape();
     const TensorShape& outputShape = output->getShape();

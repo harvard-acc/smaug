@@ -35,7 +35,7 @@ using namespace std;
 // for every tensor, we ensure that a tensor always has a source operator.
 template <typename Backend>
 static DataOp<Backend>* createTensorOperator(
-        Tensor<Backend>* tensor, Network* network, Workspace* workspace) {
+        Tensor* tensor, Network* network, Workspace* workspace) {
     auto tensor_op = Backend::createDataOp(tensor->getName(), workspace);
     tensor_op->setData(tensor);
     network->addOperator(tensor_op);
@@ -61,8 +61,8 @@ static void createAndAddOperator(const NodeProto& node,
     }
 
     if (type == OpType::Data) {
-        auto input_tensor = workspace->addTensor(
-                new Tensor<Backend>(node.input_tensors(0)));
+        auto input_tensor =
+                workspace->addTensor(new Tensor(node.input_tensors(0)));
         createTensorOperator<Backend>(input_tensor, network, workspace);
     } else if (type == OpType::Convolution3d ||
                type == OpType::ConvolutionDepthwise) {
@@ -73,8 +73,7 @@ static void createAndAddOperator(const NodeProto& node,
             op = Backend::createDepthwiseConvolutionOp(name, workspace);
         assert(node.input_tensors_size() == 2);
         const TensorProto& filterTensorProto = node.input_tensors(1);
-        auto filterTensor = workspace->addTensor(
-                new Tensor<Backend>(filterTensorProto));
+        auto filterTensor = workspace->addTensor(new Tensor(filterTensorProto));
         DataOp<Backend>* filterTensorOp =
                 createTensorOperator<Backend>(filterTensor, network, workspace);
         inputs.push_back(filterTensorOp);
@@ -103,8 +102,7 @@ static void createAndAddOperator(const NodeProto& node,
         auto op = Backend::createInnerProductOp(name, workspace);
         assert(node.input_tensors_size() == 2);
         const TensorProto& weightTensorProto = node.input_tensors(1);
-        auto weightTensor = workspace->addTensor(
-                new Tensor<Backend>(weightTensorProto));
+        auto weightTensor = workspace->addTensor(new Tensor(weightTensorProto));
         DataOp<Backend>* weightTensorOp =
                 createTensorOperator<Backend>(weightTensor, network, workspace);
         inputs.push_back(weightTensorOp);
@@ -120,8 +118,8 @@ static void createAndAddOperator(const NodeProto& node,
         for (int i = BatchNormOp<Backend>::Mean;
              i < BatchNormOp<Backend>::kNumInputs;
              i++) {
-            auto tensor = workspace->addTensor(
-                    new Tensor<Backend>(node.input_tensors(i)));
+            auto tensor =
+                    workspace->addTensor(new Tensor(node.input_tensors(i)));
             DataOp<Backend>* tensor_op =
                     createTensorOperator<Backend>(tensor, network, workspace);
             inputs.push_back(tensor_op);
@@ -178,13 +176,12 @@ static Network* createNetworkFromProto(const GraphProto& graph,
 // TODO: the data type is currently fixed to float. Change that to the
 // output data type of the operator. We will have a getOutputDataType()
 // function in the operator.
-template <typename Backend>
 static void allocateTensorStorage(Network* network) {
     for (auto iter = network->begin(); iter != network->end(); ++iter) {
         Operator* op = iter->second;
         for (auto output : op->getOutputs()) {
-            Tensor<Backend>* tensor = dynamic_cast<Tensor<Backend>*>(output);
-            tensor->template allocateStorage<float>();
+            Tensor* tensor = dynamic_cast<Tensor*>(output);
+            tensor->allocateStorage<float>();
         }
     }
 }
@@ -207,15 +204,15 @@ Network* smaug::buildNetwork(const std::string& modelFile,
     Network* network = nullptr;
     if (graph.backend() == ReferenceBackend::Name) {
         network = createNetworkFromProto<ReferenceBackend>(graph, workspace);
-        allocateTensorStorage<ReferenceBackend>(network);
     } else if (graph.backend() == SmvBackend::Name) {
         network = createNetworkFromProto<SmvBackend>(graph, workspace);
-        allocateTensorStorage<SmvBackend>(network);
     } else {
         assert(false && "Unknown backend!");
     }
 
-    smv::kSpadSize = 32 * 1024;
+    allocateTensorStorage(network);
+
+    smv::kSpadSize = 32*1024;
 
     cout << "======================================================\n";
     cout << "      Summary of the network.\n";

@@ -16,7 +16,7 @@ class DataOp : public Operator {
         outputs.resize(1, nullptr);
     }
 
-    void setData(Tensor<Backend>* _data) {
+    void setData(Tensor* _data) {
         data = _data;
         inputs[0] = data;
         outputs[0] = data;
@@ -38,7 +38,7 @@ class DataOp : public Operator {
     }
 
    protected:
-    Tensor<Backend>* data;
+    Tensor* data;
 };
 
 } // namespace smaug

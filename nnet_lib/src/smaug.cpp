@@ -73,6 +73,16 @@ int main(int argc, char* argv[]) {
     if (!network->validate())
         return -1;
 
+    Tensor* output = runNetwork(network, workspace);
+    if (!lastOutputFile.empty()) {
+        if (lastOutputFile == "stdout") {
+            std::cout << "Final network output:\n" << *output << "\n";
+        } else {
+            std::ofstream outfile(lastOutputFile);
+            outfile << "Final network output:\n" << *output << "\n";
+        }
+    }
+
     delete network;
     delete workspace;
 

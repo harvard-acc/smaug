@@ -36,15 +36,15 @@ struct TilingConfig {
 class TilingOptimizer {
    public:
     static TilingConfig computeBasicTileShapes(SmvConvolutionOp* op);
-    static SmvTiledTensor generateTiledTensor(SmvTensor* tensor,
-                                              const TensorShape& tileShape,
-                                              std::vector<int> halos);
-    static SmvTiledTensor generateDimNHOutputTiledTensor(
+    static TiledTensor generateTiledTensor(Tensor* tensor,
+                                           const TensorShape& tileShape,
+                                           std::vector<int> halos);
+    static TiledTensor generateDimNHOutputTiledTensor(
             SmvConvolutionOp* op,
-            const SmvTiledTensor& inputTiledTensor,
-            const SmvTiledTensor& weightsTiledTensor,
+            const TiledTensor& inputTiledTensor,
+            const TiledTensor& weightsTiledTensor,
             const TensorShape& maxOutputTileSize,
-            SmvTensor* outputTensor,
+            Tensor* outputTensor,
             bool copyData = false);
 
    protected:
@@ -53,9 +53,9 @@ class TilingOptimizer {
                                          int minN,
                                          int minH,
                                          int minC);
-    static std::array<TilingDims, 3> determineBestTilingDims(SmvTensor* inputs,
-                                                             SmvTensor* weights,
-                                                             SmvTensor* outputs,
+    static std::array<TilingDims, 3> determineBestTilingDims(Tensor* inputs,
+                                                             Tensor* weights,
+                                                             Tensor* outputs,
                                                              int maxTileSize);
 };
 

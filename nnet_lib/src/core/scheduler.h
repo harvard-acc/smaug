@@ -11,12 +11,11 @@
 
 namespace smaug {
 
-template <typename Backend>
-Tensor<Backend>* runNetwork(Network* network, Workspace* workspace) {
+Tensor* runNetwork(Network* network, Workspace* workspace) {
     const Graph& graph = network->getGraph();
     std::list<Vertex> vertices;
     boost::topological_sort(graph, std::front_inserter(vertices));
-    Tensor<Backend>* output;
+    Tensor* output;
     std::cout << "======================================================\n";
     std::cout << "      Scheduling operators of the network...\n";
     std::cout << "======================================================\n";
@@ -24,7 +23,7 @@ Tensor<Backend>* runNetwork(Network* network, Workspace* workspace) {
         Operator* op = get(boost::vertex_op, graph, v);
         dout(0) << "Scheduling " << op->getName() << ".\n";
         op->run();
-        output = op->getOutput<Backend>(0);
+        output = op->getOutput(0);
         dout(1) << *output << "\n";
     }
     return output;

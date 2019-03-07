@@ -171,8 +171,8 @@ namespace smaug {
 
 template <>
 void MaxPoolingOp<ReferenceBackend>::run() {
-    auto input = getInput<ReferenceBackend>(Inputs);
-    auto output = getOutput<ReferenceBackend>(Outputs);
+    auto input = getInput(Inputs);
+    auto output = getOutput(Outputs);
     const TensorShape& inputShape = input->getShape();
     const TensorShape& outputShape = output->getShape();
     assert(inputShape.getLayout() == DataLayout::NCHW);
@@ -203,8 +203,8 @@ void MaxPoolingOp<ReferenceBackend>::run() {
 
 template <>
 void AvgPoolingOp<ReferenceBackend>::run() {
-    auto input = getInput<ReferenceBackend>(Inputs);
-    auto output = getOutput<ReferenceBackend>(Outputs);
+    auto input = getInput(Inputs);
+    auto output = getOutput(Outputs);
     const TensorShape& inputShape = input->getShape();
     const TensorShape& outputShape = output->getShape();
     assert(inputShape.getLayout() == DataLayout::NCHW);

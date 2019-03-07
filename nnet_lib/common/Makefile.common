@@ -7,7 +7,8 @@ endif
 
 EXEC = smaug
 MAIN = src/smaug.cpp
-SRCS = src/operators/ref/ref_batch_norm_op.cpp \
+SRCS = src/operators/reorder_op_impl.cpp \
+       src/operators/ref/ref_batch_norm_op.cpp \
        src/operators/ref/ref_eltwise_add_op.cpp \
        src/operators/ref/ref_convolution_op.cpp \
        src/operators/ref/ref_depthwise_convolution_op.cpp \

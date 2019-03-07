@@ -15,7 +15,7 @@ TEST_CASE_METHOD(SmaugTest, "Unpacking of float16 tensor data", "[fp16]") {
     SECTION("Unpacking tensor of [8] shape") {
         Network* network = buildNetwork("python/test_inputs/fp16_even.pb");
         auto dataOp = network->getOperator("input");
-        auto inputTensor = dataOp->getInput<ReferenceBackend>(0);
+        auto inputTensor = dataOp->getInput(0);
         std::vector<float16> expectedValues{
             // Expected data values of 8 float16 tensors:
             // [1.1, 2.2, 3.3, 4.4, 5.5, 6.6, 7.7, 8.8]
@@ -28,7 +28,7 @@ TEST_CASE_METHOD(SmaugTest, "Unpacking of float16 tensor data", "[fp16]") {
     SECTION("Unpacking tensor of [4, 3] shape") {
         Network* network = buildNetwork("python/test_inputs/fp16_odd.pb");
         auto dataOp = network->getOperator("input");
-        auto inputTensor = dataOp->getInput<ReferenceBackend>(0);
+        auto inputTensor = dataOp->getInput(0);
         std::vector<float16> expectedValues{
             // Expected data values of 12 float16 tensors:
             // [1.1, 2.2, 3.3, 4.4, 5.5, 6.6, 7.7, 8.8, 9.9, 10.1, 11.11, 12.12]
@@ -42,7 +42,7 @@ TEST_CASE_METHOD(SmaugTest, "Unpacking of float16 tensor data", "[fp16]") {
     SECTION("Unpacking tensor of [3, 3] shape") {
         Network* network = buildNetwork("python/test_inputs/fp16_odd_odd.pb");
         auto dataOp = network->getOperator("input");
-        auto inputTensor = dataOp->getInput<ReferenceBackend>(0);
+        auto inputTensor = dataOp->getInput(0);
         std::vector<float16> expectedValues{
             // Expected data values of 9 float16 tensors:
             // [1.1, 2.2, 3.3, 4.4, 5.5, 6.6, 7.7, 8.8, 9.9]

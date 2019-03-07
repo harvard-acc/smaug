@@ -15,9 +15,9 @@ const int kNumMaccsPerPE = 32;
 }  // namespace conv
 }  // namespace smv
 
-void SmvConvolutionOp::runNHWC(SmvTiledTensor& inputs,
-                               SmvTiledTensor& weights,
-                               SmvTiledTensor& outputs) {
+void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
+                               TiledTensor& weights,
+                               TiledTensor& outputs) {
     auto inputIdx = inputs.startIndex();
     auto weightIdx = weights.startIndex();
     auto outputIdx = outputs.startIndex();
@@ -31,9 +31,9 @@ void SmvConvolutionOp::runNHWC(SmvTiledTensor& inputs,
                     std::cout << "Input: " << inputIdx(N, H, 0, iC)
                               << ", weights: " << weightIdx(W, 0, 0, wC)
                               << ", output: " << outputIdx(N, H, 0, W) << "\n";
-                    SmvTensor* inputTile = inputs[inputIdx(N, H, 0, iC)];
-                    SmvTensor* weightsTile = weights[weightIdx(W, 0, 0, wC)];
-                    SmvTensor* outputTile = outputs[outputIdx(N, H, 0, W)];
+                    Tensor* inputTile = inputs[inputIdx(N, H, 0, iC)];
+                    Tensor* weightsTile = weights[weightIdx(W, 0, 0, wC)];
+                    Tensor* outputTile = outputs[outputIdx(N, H, 0, W)];
                     const TensorShape& inputShape = inputTile->getShape();
                     const TensorShape& weightsShape = weightsTile->getShape();
                     const TensorShape& outputShape = outputTile->getShape();
@@ -75,9 +75,9 @@ void SmvConvolutionOp::runNHWC(SmvTiledTensor& inputs,
 
 void SmvConvolutionOp::run() {
     using namespace smaug::smv::conv;
-    auto input = getInput<SmvBackend>(Inputs);
-    auto kernels = getInput<SmvBackend>(Kernels);
-    auto output = getOutput<SmvBackend>(Outputs);
+    auto input = getInput(Inputs);
+    auto kernels = getInput(Kernels);
+    auto output = getOutput(Outputs);
     const TensorShape& inputShape = input->getShape();
     const TensorShape& kernelShape = kernels->getShape();
     const TensorShape& outputShape = output->getShape();
@@ -88,11 +88,11 @@ void SmvConvolutionOp::run() {
 
     TilingConfig tileShapes = TilingOptimizer::computeBasicTileShapes(this);
     std::vector<int> inputHalos{ 0, weightRows / 2, weightCols / 2, 0 };
-    SmvTiledTensor tiledInputs = TilingOptimizer::generateTiledTensor(
+    TiledTensor tiledInputs = TilingOptimizer::generateTiledTensor(
             input, tileShapes.inputs, inputHalos);
-    SmvTiledTensor tiledWeights = TilingOptimizer::generateTiledTensor(
+    TiledTensor tiledWeights = TilingOptimizer::generateTiledTensor(
             kernels, tileShapes.weights, { 0, 0, 0, 0 });
-    SmvTiledTensor tiledOutputs = TilingOptimizer::generateTiledTensor(
+    TiledTensor tiledOutputs = TilingOptimizer::generateTiledTensor(
             output, tileShapes.outputs, { 0, 0, 0, 0 });
 
     runNHWC(tiledInputs, tiledWeights, tiledOutputs);

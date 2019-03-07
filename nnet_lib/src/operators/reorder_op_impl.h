@@ -2,8 +2,8 @@
 
 namespace smaug {
 
-template <typename DType, typename Backend>
-void convertNchwToNhwcImpl(Tensor<Backend>* input, Tensor<Backend>* output) {
+template <typename DType>
+void convertNchwToNhwcImpl(Tensor* input, Tensor* output) {
     TensorIndexIterator inputIdx = input->startIndex();
     TensorIndexIterator outputIdx = output->startIndex();
     const TensorShape& inputShape = input->getShape();
@@ -21,8 +21,8 @@ void convertNchwToNhwcImpl(Tensor<Backend>* input, Tensor<Backend>* output) {
     }
 }
 
-template <typename DType, typename Backend>
-void convertNhwcToNchwImpl(Tensor<Backend>* input, Tensor<Backend>* output) {
+template <typename DType>
+void convertNhwcToNchwImpl(Tensor* input, Tensor* output) {
     TensorIndexIterator inputIdx = input->startIndex();
     TensorIndexIterator outputIdx = output->startIndex();
     const TensorShape& inputShape = input->getShape();
@@ -40,8 +40,8 @@ void convertNhwcToNchwImpl(Tensor<Backend>* input, Tensor<Backend>* output) {
     }
 }
 
-template <typename DType, typename Backend>
-void flattenImpl(Tensor<Backend>* input, Tensor<Backend>* output) {
+template <typename DType>
+void flattenImpl(Tensor* input, Tensor* output) {
     TensorIndexIterator inputIdx = input->startIndex();
     TensorIndexIterator outputIdx = output->startIndex();
     const TensorShape& inputShape = input->getShape();
@@ -63,79 +63,10 @@ void flattenImpl(Tensor<Backend>* input, Tensor<Backend>* output) {
     }
 }
 
-template <typename Backend>
-void convertNchwToNhwc(Tensor<Backend>* input, Tensor<Backend>* output) {
-    DataType datatype = input->getDataType();
-    assert(input->ndims() == output->ndims() && input->ndims() == 4);
-    switch (datatype) {
-        case Float16:
-            convertNchwToNhwcImpl<float16, Backend>(input, output);
-            return;
-        case Float32:
-            convertNchwToNhwcImpl<float, Backend>(input, output);
-            return;
-        case Float64:
-            convertNchwToNhwcImpl<double, Backend>(input, output);
-            return;
-        case Int32:
-            convertNchwToNhwcImpl<int, Backend>(input, output);
-            return;
-        case Int64:
-            convertNchwToNhwcImpl<int64_t, Backend>(input, output);
-            return;
-        default:
-            assert(false && "Unknown data format!");
-    }
-}
+void convertNchwToNhwc(Tensor* input, Tensor* output);
 
-template <typename Backend>
-void convertNhwcToNchw(Tensor<Backend>* input, Tensor<Backend>* output) {
-    DataType datatype = input->getDataType();
-    assert(input->ndims() == output->ndims() && input->ndims() == 4);
-    switch (datatype) {
-        case Float16:
-            convertNhwcToNchwImpl<float16, Backend>(input, output);
-            return;
-        case Float32:
-            convertNhwcToNchwImpl<float, Backend>(input, output);
-            return;
-        case Float64:
-            convertNhwcToNchwImpl<double, Backend>(input, output);
-            return;
-        case Int32:
-            convertNhwcToNchwImpl<int, Backend>(input, output);
-            return;
-        case Int64:
-            convertNhwcToNchwImpl<int64_t, Backend>(input, output);
-            return;
-        default:
-            assert(false && "Unknown data format!");
-    }
-}
+void convertNhwcToNchw(Tensor* input, Tensor* output);
 
-template <typename Backend>
-void flatten(Tensor<Backend>* input, Tensor<Backend>* output) {
-    DataType datatype = input->getDataType();
-    assert(input->ndims() == 4 && output->ndims() == 2);
-    switch (datatype) {
-        case Float16:
-            flattenImpl<float16, Backend>(input, output);
-            return;
-        case Float32:
-            flattenImpl<float, Backend>(input, output);
-            return;
-        case Float64:
-            flattenImpl<double, Backend>(input, output);
-            return;
-        case Int32:
-            flattenImpl<int, Backend>(input, output);
-            return;
-        case Int64:
-            flattenImpl<int64_t, Backend>(input, output);
-            return;
-        default:
-            assert(false && "Unknown data format!");
-    }
-}
+void flatten(Tensor* input, Tensor* output);
 
 }  // namespace smaug

@@ -40,8 +40,8 @@ class UnaryOp : public Operator {
         if (outputs[Outputs])
             return;
         TensorShape shape = inputs.at(Inputs)->getShape();
-        Tensor<Backend>* output = new Tensor<Backend>(name, shape);
-        workspace->addTensor<Backend>(output);
+        Tensor* output = new Tensor(name, shape);
+        workspace->addTensor(output);
         outputs[Outputs] = output;
     }
 

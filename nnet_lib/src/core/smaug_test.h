@@ -20,24 +20,24 @@ class SmaugTest {
         delete workspace_;
     }
 
-    template <typename T, typename Backend>
+    template <typename T>
     void allocateAllTensors(Operator* op) {
         for (auto t : op->getInputs()) {
-            auto tensor = dynamic_cast<Tensor<Backend>*>(t);
+            auto tensor = dynamic_cast<Tensor*>(t);
             tensor->template allocateStorage<T>();
         }
         for (auto t : op->getOutputs()) {
-            auto tensor = dynamic_cast<Tensor<Backend>*>(t);
+            auto tensor = dynamic_cast<Tensor*>(t);
             tensor->template allocateStorage<T>();
         }
     }
 
-    template <typename DType, typename Backend>
-    void verifyOutputs(Tensor<Backend>* output,
+    template <typename DType>
+    void verifyOutputs(Tensor* output,
                        const std::vector<DType>& expected) {
         auto ptr = output->template data<DType>();
         int i = 0;
-        for (auto idx = output->template startIndex(); !idx.end(); ++idx, ++i) {
+        for (auto idx = output->startIndex(); !idx.end(); ++idx, ++i) {
             REQUIRE(Approx(ptr[idx]) == expected[i]);
         }
         REQUIRE(i == expected.size());

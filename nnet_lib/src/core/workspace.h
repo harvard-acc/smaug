@@ -16,22 +16,19 @@ class Workspace {
             delete tensor.second;
     }
 
-    template <typename Backend>
-    Tensor<Backend>* addTensor(Tensor<Backend>* tensor) {
+    Tensor* addTensor(Tensor* tensor) {
         tensors[tensor->getName()] = static_cast<TensorBase*>(tensor);
         return tensor;
     }
 
-    template <typename Backend>
-    Tensor<Backend>* getTensor(const std::string& name) const {
+    Tensor* getTensor(const std::string& name) const {
         if (tensors.find(name) == tensors.end())
             return nullptr;
-        return dynamic_cast<Tensor<Backend>*>(tensors.at(name));
+        return dynamic_cast<Tensor*>(tensors.at(name));
     }
 
-    template <typename Backend>
-    Tensor<Backend>* getTensor(Operator* op) const {
-        return getTensor<Backend>(op->getName());
+    Tensor* getTensor(Operator* op) const {
+        return getTensor(op->getName());
     }
 
    protected:

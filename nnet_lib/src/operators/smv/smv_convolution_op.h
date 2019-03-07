@@ -7,9 +7,6 @@
 
 namespace smaug {
 
-using SmvTensor = Tensor<SmvBackend>;
-using SmvTiledTensor = TiledTensor<SmvBackend>;
-
 namespace smv {
 namespace conv {
 
@@ -34,9 +31,9 @@ class SmvConvolutionOp : public ConvolutionOp<SmvBackend> {
     friend class smv::conv::TilingOptimizer;
 
   protected:
-   void runNHWC(SmvTiledTensor& inputs,
-                SmvTiledTensor& weights,
-                SmvTiledTensor& outputs);
+   void runNHWC(TiledTensor& inputs,
+                TiledTensor& weights,
+                TiledTensor& outputs);
 };
 
 }  // namespace smaug

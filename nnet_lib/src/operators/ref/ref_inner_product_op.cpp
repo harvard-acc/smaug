@@ -42,9 +42,9 @@ namespace smaug {
 
 template <>
 void InnerProductOp<ReferenceBackend>::run() {
-    auto input = getInput<ReferenceBackend>(Inputs);
-    auto weights = getInput<ReferenceBackend>(Weights);
-    auto output = getOutput<ReferenceBackend>(Outputs);
+    auto input = getInput(Inputs);
+    auto weights = getInput(Weights);
+    auto output = getOutput(Outputs);
     const TensorShape& inputShape = input->getShape();
     const TensorShape& weightShape = weights->getShape();
     const TensorShape& outputShape = output->getShape();

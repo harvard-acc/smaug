@@ -9,8 +9,7 @@ using namespace smaug;
 TEST_CASE_METHOD(SmaugTest, "Reference inner product operator", "[refop]") {
     auto matMulOp = new InnerProductOp<ReferenceBackend>("matmul", workspace());
     TensorShape inputShape({ 1, 10 }, DataLayout::NC);
-    Tensor<ReferenceBackend>* input = new Tensor<ReferenceBackend>(
-            "input", inputShape);
+    Tensor* input = new Tensor("input", inputShape);
     input->allocateStorage<float>();
     // Input data looks like:
     input->fillData<float>({ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
@@ -19,8 +18,8 @@ TEST_CASE_METHOD(SmaugTest, "Reference inner product operator", "[refop]") {
     SECTION("10x10, constant weights per neuron") {
         matMulOp->setNumOutputs(10);
         matMulOp->createAllTensors();
-        allocateAllTensors<float, ReferenceBackend>(matMulOp);
-        auto weightsTensor = matMulOp->getInput<ReferenceBackend>(1);
+        allocateAllTensors<float>(matMulOp);
+        auto weightsTensor = matMulOp->getInput(1);
         weightsTensor->fillData<float>({
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
@@ -50,15 +49,15 @@ TEST_CASE_METHOD(SmaugTest, "Reference inner product operator", "[refop]") {
         // (1...10) * 10 = 550
         std::vector<float> expectedValues{ 55,  110, 165, 220, 275,
                                            330, 385, 440, 495, 550 };
-        auto outputsTensor = matMulOp->getOutput<ReferenceBackend>(0);
+        auto outputsTensor = matMulOp->getOutput(0);
         verifyOutputs(outputsTensor, expectedValues);
     }
 
     SECTION("10x10, distinct weights per neuron") {
         matMulOp->setNumOutputs(10);
         matMulOp->createAllTensors();
-        allocateAllTensors<float, ReferenceBackend>(matMulOp);
-        auto weightsTensor = matMulOp->getInput<ReferenceBackend>(1);
+        allocateAllTensors<float>(matMulOp);
+        auto weightsTensor = matMulOp->getInput(1);
         weightsTensor->fillData<float>({
             1,  2,  3,  4,  5,  6,  7,  8,  9,  10,
             2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
@@ -89,7 +88,7 @@ TEST_CASE_METHOD(SmaugTest, "Reference inner product operator", "[refop]") {
         // 385 440 495 550 605 660 715 770 825 880
         std::vector<float> expectedValues{ 385, 440, 495, 550, 605,
                                            660, 715, 770, 825, 880 };
-        auto outputsTensor = matMulOp->getOutput<ReferenceBackend>(0);
+        auto outputsTensor = matMulOp->getOutput(0);
         verifyOutputs(outputsTensor, expectedValues);
     }
 }

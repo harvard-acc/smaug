@@ -141,9 +141,9 @@ namespace smaug {
 
 template <>
 void DepthwiseConvolutionOp<ReferenceBackend>::run() {
-    auto input = getInput<ReferenceBackend>(Inputs);
-    auto kernels = getInput<ReferenceBackend>(Kernels);
-    auto output = getOutput<ReferenceBackend>(Outputs);
+    auto input = getInput(Inputs);
+    auto kernels = getInput(Kernels);
+    auto output = getOutput(Outputs);
     const TensorShape& inputShape = input->getShape();
     const TensorShape& kernelShape = kernels->getShape();
     const TensorShape& outputShape = output->getShape();

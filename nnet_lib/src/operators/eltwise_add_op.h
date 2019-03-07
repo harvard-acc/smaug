@@ -18,7 +18,7 @@ class EltwiseAddOp : public Operator {
 
     virtual void run() {}
     TensorShape inferOutputShape() const {
-        return getInput<Backend>(Input0)->getShape();
+        return getInput(Input0)->getShape();
     }
     virtual DataLayoutSet getInputDataLayouts() const {
         return DataLayoutSet(DataLayout::X);
@@ -28,7 +28,7 @@ class EltwiseAddOp : public Operator {
     }
     void createOutputTensors() {
         TensorShape shape = inferOutputShape();
-        Tensor<Backend>* output = new Tensor<Backend>(name, shape);
+        Tensor* output = new Tensor(name, shape);
         outputs.at(Outputs) = output;
         workspace->addTensor(output);
     }

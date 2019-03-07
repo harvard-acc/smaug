@@ -31,8 +31,8 @@ namespace smaug {
 
 template <>
 void SigmoidOp<ReferenceBackend>::run() {
-    auto inputs = getInput<ReferenceBackend>(Inputs);
-    auto outputs = getOutput<ReferenceBackend>(Outputs);
+    auto inputs = getInput(Inputs);
+    auto outputs = getOutput(Outputs);
     assert(inputs->getShape() == outputs->getShape());
     ref_sigmoid_f32(inputs->data<float>(), outputs->data<float>(),
                     inputs->getShape().size());

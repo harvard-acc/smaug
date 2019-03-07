@@ -9,8 +9,7 @@ using namespace smaug;
 TEST_CASE_METHOD(SmaugTest, "Reorder from NCHW", "[refop]") {
     auto reorderOp = new ReorderOp<ReferenceBackend>("reorder", workspace());
     TensorShape inputShape({ 2, 2, 2, 4 }, DataLayout::NCHW);
-    Tensor<ReferenceBackend>* input = new Tensor<ReferenceBackend>(
-            "input", inputShape);
+    Tensor* input = new Tensor("input", inputShape);
     input->allocateStorage<float>();
     std::vector<float> inputValues{ 1,   2,   3,   4,  // input 0, chan 0
                                     2,   3,   4,   5,
@@ -26,9 +25,9 @@ TEST_CASE_METHOD(SmaugTest, "Reorder from NCHW", "[refop]") {
     SECTION("To NHWC") {
         reorderOp->setTargetLayout(DataLayout::NHWC);
         reorderOp->createAllTensors();
-        allocateAllTensors<float, ReferenceBackend>(reorderOp);
+        allocateAllTensors<float>(reorderOp);
         reorderOp->run();
-        auto outputsTensor = reorderOp->getOutput<ReferenceBackend>(0);
+        auto outputsTensor = reorderOp->getOutput(0);
         std::vector<float> expectedValues{
             1,  11,  2,  12,  3,  13,  4,  14,   // input 0, row 0
             2,  12,  3,  13,  4,  14,  5,  15,   // input 0, row 1
@@ -42,9 +41,9 @@ TEST_CASE_METHOD(SmaugTest, "Reorder from NCHW", "[refop]") {
     SECTION("Flatten") {
         reorderOp->setTargetLayout(DataLayout::NC);
         reorderOp->createAllTensors();
-        allocateAllTensors<float, ReferenceBackend>(reorderOp);
+        allocateAllTensors<float>(reorderOp);
         reorderOp->run();
-        auto outputsTensor = reorderOp->getOutput<ReferenceBackend>(0);
+        auto outputsTensor = reorderOp->getOutput(0);
         REQUIRE(outputsTensor->getShape().getLayout() == DataLayout::NC);
         verifyOutputs(outputsTensor, inputValues);
     }
@@ -53,8 +52,7 @@ TEST_CASE_METHOD(SmaugTest, "Reorder from NCHW", "[refop]") {
 TEST_CASE_METHOD(SmaugTest, "Reorder from NHWC", "[refop]") {
     auto reorderOp = new ReorderOp<ReferenceBackend>("reorder", workspace());
     TensorShape inputShape({ 2, 2, 4, 2 }, DataLayout::NHWC);
-    Tensor<ReferenceBackend>* input = new Tensor<ReferenceBackend>(
-            "input", inputShape);
+    Tensor* input = new Tensor("input", inputShape);
     input->allocateStorage<float>();
     std::vector<float> inputValues{
         1,  11,  2,  12,  3,  13,  4,  14,   // input 0, row 0
@@ -68,9 +66,9 @@ TEST_CASE_METHOD(SmaugTest, "Reorder from NHWC", "[refop]") {
     SECTION("To NCHW") {
         reorderOp->setTargetLayout(DataLayout::NCHW);
         reorderOp->createAllTensors();
-        allocateAllTensors<float, ReferenceBackend>(reorderOp);
+        allocateAllTensors<float>(reorderOp);
         reorderOp->run();
-        auto outputsTensor = reorderOp->getOutput<ReferenceBackend>(0);
+        auto outputsTensor = reorderOp->getOutput(0);
         std::vector<float> expectedValues{
             1,   2,   3,   4,   // input 0, chan 0
             2,   3,   4,   5,
@@ -88,9 +86,9 @@ TEST_CASE_METHOD(SmaugTest, "Reorder from NHWC", "[refop]") {
     SECTION("Flatten") {
         reorderOp->setTargetLayout(DataLayout::NC);
         reorderOp->createAllTensors();
-        allocateAllTensors<float, ReferenceBackend>(reorderOp);
+        allocateAllTensors<float>(reorderOp);
         reorderOp->run();
-        auto outputsTensor = reorderOp->getOutput<ReferenceBackend>(0);
+        auto outputsTensor = reorderOp->getOutput(0);
         REQUIRE(outputsTensor->getShape().getLayout() == DataLayout::NC);
         verifyOutputs(outputsTensor, inputValues);
     }

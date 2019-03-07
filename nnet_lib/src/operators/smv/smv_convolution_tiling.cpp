@@ -77,10 +77,7 @@ TilingDims TilingOptimizer::findBestTilingDims(const TensorShape& shape,
 // Returns:
 //   A 3-element array of TilingDims enums (inputs, weights, outputs).
 std::array<TilingDims, 3> TilingOptimizer::determineBestTilingDims(
-        SmvTensor* inputs,
-        SmvTensor* weights,
-        SmvTensor* outputs,
-        int maxTileSize) {
+        Tensor* inputs, Tensor* weights, Tensor* outputs, int maxTileSize) {
     std::vector<TilingConfig> allTilingConfigs;
     // Determine the best tiling strategy for each of inputs, weights, and
     // outputs. Don't try to figure out the actual tile sizes yet.
@@ -144,9 +141,9 @@ std::array<TilingDims, 3> TilingOptimizer::determineBestTilingDims(
 //    The TilingConfig that describes the best tiling shapes.
 //
 TilingConfig TilingOptimizer::computeBasicTileShapes(SmvConvolutionOp* op) {
-    SmvTensor* inputs = op->getInput<SmvBackend>(op->Inputs);
-    SmvTensor* weights = op->getInput<SmvBackend>(op->Kernels);
-    SmvTensor* outputs = op->getOutput<SmvBackend>(op->Outputs);
+    Tensor* inputs = op->getInput(op->Inputs);
+    Tensor* weights = op->getInput(op->Kernels);
+    Tensor* outputs = op->getOutput(op->Outputs);
     int maxTileSize = SmvBackend::SpadSize() / inputs->getDataTypeSize();
     std::array<TilingDims, 3> strategies =
             determineBestTilingDims(inputs, weights, outputs, maxTileSize);
@@ -323,10 +320,9 @@ TilingConfig TilingOptimizer::computeBasicTileShapes(SmvConvolutionOp* op) {
     return *maxIt;
 }
 
-SmvTiledTensor TilingOptimizer::generateTiledTensor(
-        SmvTensor* tensor,
-        const TensorShape& tileShape,
-        std::vector<int> halos) {
+TiledTensor TilingOptimizer::generateTiledTensor(Tensor* tensor,
+                                                 const TensorShape& tileShape,
+                                                 std::vector<int> halos) {
     assert(halos.size() == tileShape.ndims());
     const TensorShape& inputShape = tensor->getShape();
     const int ndims = inputShape.ndims();
@@ -340,7 +336,7 @@ SmvTiledTensor TilingOptimizer::generateTiledTensor(
                 remaining += halos[i];
         }
     }
-    SmvTiledTensor tiledTensor(
+    TiledTensor tiledTensor(
             TensorShape(numBlocksInDim, inputShape.getLayout()));
     std::vector<int> currentOrigin(ndims, 0);
     for (auto tileIndex = tiledTensor.startIndex(); !tileIndex.end();
@@ -353,7 +349,7 @@ SmvTiledTensor TilingOptimizer::generateTiledTensor(
         TensorShape currentShape(currentTileShape, tileShape.getLayout());
         std::string tileName =
                 tensor->getName() + "/tile:" + std::to_string((int)tileIndex);
-        SmvTensor* tile = new SmvTensor(tileName, currentShape);
+        Tensor* tile = new Tensor(tileName, currentShape);
         tile->allocateStorage(tensor->getDataType());
         copyTensorRegion(tile,
                          tensor,
@@ -374,19 +370,19 @@ SmvTiledTensor TilingOptimizer::generateTiledTensor(
     return tiledTensor;
 }
 
-SmvTiledTensor TilingOptimizer::generateDimNHOutputTiledTensor(
+TiledTensor TilingOptimizer::generateDimNHOutputTiledTensor(
         SmvConvolutionOp* op,
-        const SmvTiledTensor& inputTiledTensor,
-        const SmvTiledTensor& weightsTiledTensor,
+        const TiledTensor& inputTiledTensor,
+        const TiledTensor& weightsTiledTensor,
         const TensorShape& maxOutputTileSize,
-        SmvTensor* outputTensor,
+        Tensor* outputTensor,
         bool copyData) {
     const TensorShape& inputShape = inputTiledTensor.getShape();
     const TensorShape& weightsShape = weightsTiledTensor.getShape();
     const TensorShape& outputShape = outputTensor->getShape();
     std::vector<int> numBlocksInDim{ inputShape[0], inputShape[1],
                                      inputShape[2], weightsShape[0] };
-    SmvTiledTensor outputTiledTensor(
+    TiledTensor outputTiledTensor(
             TensorShape(numBlocksInDim, inputShape.getLayout()));
     const int ndims = outputShape.ndims();
     std::vector<int> currentOrigin(ndims, 0);
@@ -405,9 +401,9 @@ SmvTiledTensor TilingOptimizer::generateDimNHOutputTiledTensor(
         for (int h = 0; h < numBlocksInDim[1]; h++) {
             for (int w = 0; w < numBlocksInDim[2]; w++) {
                 for (int c = 0; c < numBlocksInDim[3]; c++) {
-                    const SmvTensor* inputTile =
+                    const Tensor* inputTile =
                             inputTiledTensor[inputIndex(n, h, w, 0)];
-                    const SmvTensor* weightsTile =
+                    const Tensor* weightsTile =
                             weightsTiledTensor[weightIndex(c, 0, 0, 0)];
                     const TensorShape& inputTileShape = inputTile->getShape();
 
@@ -432,7 +428,7 @@ SmvTiledTensor TilingOptimizer::generateDimNHOutputTiledTensor(
                     int oi = outputIndex(n, h, w, c);
                     std::string tileName = outputTensor->getName() +
                                            "/tile:" + std::to_string((int)oi);
-                    SmvTensor* outputTile = new SmvTensor(tileName, outputTileShape);
+                    Tensor* outputTile = new Tensor(tileName, outputTileShape);
                     outputTile->allocateStorage(outputTensor->getDataType());
                     if (copyData) {
                         copyTensorRegion(outputTile,

@@ -10,8 +10,7 @@ TEST_CASE_METHOD(SmaugTest,
                  "Reference pooling operators",
                  "[refop]") {
     TensorShape inputShape({ 1, 2, 10, 10 }, DataLayout::NCHW);
-    Tensor<ReferenceBackend>* input = new Tensor<ReferenceBackend>(
-            "input", inputShape);
+    Tensor* input = new Tensor("input", inputShape);
     input->allocateStorage<float>();
     input->fillData<float>({ 1,  2,  3,  4,  5,  6,  7,  8,  9,  10,
                              2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
@@ -41,7 +40,7 @@ TEST_CASE_METHOD(SmaugTest,
         poolOp->setPoolingSize(2, 2);
         poolOp->setPoolingStride(2, 2);
         poolOp->createAllTensors();
-        allocateAllTensors<float, ReferenceBackend>(poolOp);
+        allocateAllTensors<float>(poolOp);
         poolOp->run();
 
         std::vector<float> expectedValues{ 3,  5,  7,  9,  11,
@@ -54,7 +53,7 @@ TEST_CASE_METHOD(SmaugTest,
                                            -5, -7,  -9,  -11, -13,
                                            -7, -9,  -11, -13, -15,
                                            -9, -11, -13, -15, -17 };
-        auto outputsTensor = poolOp->getOutput<ReferenceBackend>(0);
+        auto outputsTensor = poolOp->getOutput(0);
         verifyOutputs(outputsTensor, expectedValues);
     }
 
@@ -64,7 +63,7 @@ TEST_CASE_METHOD(SmaugTest,
         poolOp->setPoolingSize(2, 2);
         poolOp->setPoolingStride(2, 2);
         poolOp->createAllTensors();
-        allocateAllTensors<float, ReferenceBackend>(poolOp);
+        allocateAllTensors<float>(poolOp);
         poolOp->run();
 
         std::vector<float> expectedValues{ 2,  4,  6,  8,  10,
@@ -77,7 +76,7 @@ TEST_CASE_METHOD(SmaugTest,
                                            -6, -8, -10,-12,-14,
                                            -8, -10,-12,-14,-16,
                                            -10,-12,-14,-16,-18 };
-        auto outputsTensor = poolOp->getOutput<ReferenceBackend>(0);
+        auto outputsTensor = poolOp->getOutput(0);
         verifyOutputs(outputsTensor, expectedValues);
     }
 }
