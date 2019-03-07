@@ -34,7 +34,7 @@ class Tensor:
     if self.tensor_data is not None:
       pad_width = [(0, 0) for i in xrange(len(dims) - 1)]
       pad_width.append((0, self.calc_padding(dims[-1])))
-      tensor_data = np.pad(tensor_data, pad_width, 'constant')
+      self.tensor_data = np.pad(self.tensor_data, pad_width, 'constant')
 
   # This returns the size we need to pad on the last dimension.
   def calc_padding(self, value):
