@@ -110,10 +110,12 @@ class Graph:
         print o,
       print "\nInput tensors:"
       for t in node.input_tensors:
-        print " ", t.name, t.shape.dims, DataLayout.Name(
-            t.shape.layout), "alignment(%d)" % t.shape.alignment
+        print " ", t.name, DataType.Name(
+            t.data_type), t.shape.dims, DataLayout.Name(
+                t.shape.layout), "alignment(%d)" % t.shape.alignment
       print "Output tensors:"
       for t in node.output_tensors:
-        print " ", t.name, t.shape.dims, DataLayout.Name(
-            t.shape.layout), "alignment(%d)" % t.shape.alignment
+        print " ", t.name, DataType.Name(
+            t.data_type), t.shape.dims, DataLayout.Name(
+                t.shape.layout), "alignment(%d)" % t.shape.alignment
       print "------------------------------------------------------"

@@ -261,7 +261,7 @@ class Tensor : public TensorBase {
         DataType dataType = tensorProto.data_type();
         switch (dataType) {
             case Float16:
-                fillData<int>(tensorProto.half_data());
+                fillHalfData(tensorProto.half_data());
                 break;
             case Float32:
                 fillData<float>(tensorProto.float_data());
@@ -311,6 +311,18 @@ class Tensor : public TensorBase {
         for (auto dataPtr = externalData.begin(); dataPtr != externalData.end();
              ++dataPtr, ++i) {
             rawPtr[i] = *dataPtr;
+        }
+    }
+
+    // Fill the tensor with float16 data. This is needed because the data in
+    // tensor proto packs two float16 into one int32. Here we do the unpacking.
+    void fillHalfData(
+            const google::protobuf::RepeatedField<int>& externalData) {
+        allocateStorage<float16>();
+        float16* rawPtr = data<float16>();
+        for (int i = 0; i < shape.storageSize(); i++) {
+            bool useLowHalf = (i % 2 == 0);
+            rawPtr[i] = externalData[i / 2] >> (useLowHalf ? 0 : 16);
         }
     }
 

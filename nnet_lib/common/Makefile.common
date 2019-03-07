@@ -1,5 +1,10 @@
 .PHONY: src-symlinks
 
+# SMAUG_HOME is needed for unit tests to find the test inputs.
+ifeq (${SMAUG_HOME},)
+$(error SMAUG_HOME is not set!)
+endif
+
 EXEC = smaug
 MAIN = src/smaug.cpp
 SRCS = src/operators/ref/ref_batch_norm_op.cpp \
@@ -27,7 +32,8 @@ PROTO_SRCS = src/core/graph.proto \
              src/core/tensor.proto \
              src/core/types.proto
 
-TESTS = src/operators/ref/ref_convolution_op_test.cpp \
+TESTS = src/core/tensor_test.cpp \
+        src/operators/ref/ref_convolution_op_test.cpp \
         src/operators/ref/ref_batch_norm_op_test.cpp \
         src/operators/ref/ref_depthwise_convolution_op_test.cpp \
         src/operators/ref/ref_eltwise_ops_test.cpp \
@@ -37,6 +43,8 @@ TESTS = src/operators/ref/ref_convolution_op_test.cpp \
         src/operators/reorder_op_test.cpp \
         src/operators/smv/smv_convolution_tiling_test.cpp \
         src/operators/smv/smv_convolution_op_test.cpp
+PY_TESTS = src/python/tensor_test.py
+
 
 GEM5_DMA_SRC = gem5/dma_interface.c gem5/dma_interface.h
 
@@ -51,7 +59,8 @@ CXXFLAGS = -std=c++11 $(CFLAGS) -Wno-deprecated-declarations
 INCLUDES = -I$(BUILD_DIR) \
            -I$(BUILD_DIR)/gem5 \
            -I$(BOOST_ROOT)/include \
-           -Isrc/third_party/Catch2/single_include
+           -Isrc/third_party/Catch2/single_include \
+           -Isrc/third_party/FP16/include
 
 export WORKLOAD=ref_conv3d_f32_nchw_same_padding,ref_conv3d_f32_nchw_valid_padding,ref_batch_norm_f32_nchw_post_conv,ref_batch_norm_f32_post_fc,ref_inner_product_f32_nc,ref_max_pooling_f32_nchw_treemax,ref_max_pooling_f32_nchw_itermax,ref_avg_pooling_f32_nchw,ref_conv2d_f32_nchw_valid_padding,ref_conv2d_f32_nchw_same_padding,ref_eltwise_add_f32
 
@@ -66,7 +75,7 @@ PYTHON_DIR = $(CURRENT_DIR)/../src/python
 # The find command doesn't handle spaces in filenames, which will lead to
 # errors when creating symlinks later. The sed part resolves this by replacing
 # the spaces with "\\ ".
-SRC_SYMLINKS := $(shell find src | sed 's: :\\ :g')
+SRC_SYMLINKS := $(shell find src ! -name '*.swp' | sed 's: :\\ :g')
 SRC_SYMLINKS := $(patsubst src/%, $(BUILD_DIR)/%, $(SRC_SYMLINKS))
 
 # Create a build directory that just has symlinks to all the source files, so

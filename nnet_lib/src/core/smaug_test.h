@@ -1,5 +1,6 @@
 #include "catch.hpp"
 #include "core/network.h"
+#include "core/network_builder.h"
 #include "core/tensor.h"
 #include "core/workspace.h"
 
@@ -42,10 +43,24 @@ class SmaugTest {
         REQUIRE(i == expected.size());
     }
 
+    Network* buildNetwork(const std::string& modelpb) {
+        if (network_ != nullptr)
+            delete network_;
+        network_ = smaug::buildNetwork(resolvePath(modelpb), workspace_);
+        return network_;
+    }
+
     Network* network() const { return network_; }
     Workspace* workspace() const { return workspace_; }
 
    protected:
+    std::string resolvePath(const std::string& relPath) {
+        const char* baseDir = std::getenv("SMAUG_HOME");
+        if (baseDir == NULL)
+            assert(false && "SMAUG_HOME is not set.");
+        return std::string(baseDir) + "/nnet_lib/src/" + relPath;
+    }
+
     Network* network_;
     Workspace* workspace_;
 };

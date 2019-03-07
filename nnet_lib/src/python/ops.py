@@ -9,11 +9,13 @@ def add_node(name,
              input_tensors,
              output_tensor_dims,
              output_tensor_layout=NCHW,
-             output_tensor_dtype=Float32,
+             output_tensor_dtype=None,
              output_tensor_dformat=Uncompressed,
              params=None):
   if get_graph() == None:
     assert False, "No available active graph!"
+  if output_tensor_dtype == None:
+    output_tensor_dtype = input_tensors[0].data_type
   return get_graph().add_node(
       name, op, input_tensors, output_tensor_dims, output_tensor_layout,
       output_tensor_dtype, output_tensor_dformat, params)
