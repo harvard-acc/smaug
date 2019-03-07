@@ -48,12 +48,7 @@ PY_TESTS = src/python/tensor_test.py
 
 GEM5_DMA_SRC = gem5/dma_interface.c gem5/dma_interface.h
 
-ifeq ($(ARCH),)
-ARCH=REFERENCE
-endif
-
 LFLAGS = -L$(BOOST_ROOT)/lib -lm -lrt -lboost_graph -lboost_program_options -lprotobuf -lpthread
-CPPFLAGS = -DCONFIG_BACKEND=$(ARCH)
 CFLAGS = -O0 -g
 CXXFLAGS = -std=c++11 $(CFLAGS) -Wno-deprecated-declarations
 INCLUDES = -I$(BUILD_DIR) \

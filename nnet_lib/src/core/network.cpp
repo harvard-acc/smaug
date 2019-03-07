@@ -3,7 +3,6 @@
 #include <vector>
 
 #include "core/datatypes.h"
-#include "core/globals.h"
 #include "core/typedefs.h"
 #include "core/network.h"
 #include "utility/utils.h"

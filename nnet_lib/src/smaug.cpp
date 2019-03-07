@@ -3,7 +3,6 @@
 #include <boost/program_options.hpp>
 
 #include "core/backend.h"
-#include "core/globals.h"
 #include "core/scheduler.h"
 #include "core/network_builder.h"
 #include "utility/debug_stream.h"
@@ -73,17 +72,6 @@ int main(int argc, char* argv[]) {
 
     if (!network->validate())
         return -1;
-
-    Tensor<GlobalBackend>* output =
-            runNetwork<GlobalBackend>(network, workspace);
-    if (!lastOutputFile.empty()) {
-        if (lastOutputFile == "stdout") {
-            std::cout << "Final network output:\n" << *output << "\n";
-        } else {
-            std::ofstream outfile(lastOutputFile);
-            outfile << "Final network output:\n" << *output << "\n";
-        }
-    }
 
     delete network;
     delete workspace;
