@@ -76,15 +76,15 @@ class ReorderOp : public Operator {
             for (int i = 1; i < inputShape.ndims(); ++i) {
                 dims[1] *= inputShape[i];
             }
-            return TensorShape(dims, targetLayout);
+            return TensorShape(dims, targetLayout, Backend::Alignment);
         } else if (targetLayout == DataLayout::NCHW) {
             return TensorShape({ inputShape[0], inputShape[3], inputShape[1],
                                  inputShape[2] },
-                               targetLayout);
+                               targetLayout, Backend::Alignment);
         } else if (targetLayout == DataLayout::NHWC) {
             return TensorShape({ inputShape[0], inputShape[2], inputShape[3],
                                  inputShape[1] },
-                               targetLayout);
+                               targetLayout, Backend::Alignment);
         }
         return TensorShape();
     }

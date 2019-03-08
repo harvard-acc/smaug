@@ -35,11 +35,13 @@ class DepthwiseConvolutionOp : public ConvolutionOp<Backend> {
                                                 this->colStride,
                                                 this->paddingType);
         if (isNCHW) {
-            return TensorShape(
-                    { shape[0], shape[1], outputRows, outputCols }, layout);
+            return TensorShape({ shape[0], shape[1], outputRows, outputCols },
+                               layout,
+                               Backend::Alignment);
         } else {
-            return TensorShape(
-                    { shape[0], outputRows, outputCols, shape[3] }, layout);
+            return TensorShape({ shape[0], outputRows, outputCols, shape[3] },
+                               layout,
+                               Backend::Alignment);
         }
     }
 
@@ -49,16 +51,14 @@ class DepthwiseConvolutionOp : public ConvolutionOp<Backend> {
         DataLayout layout = shape.getLayout();
         bool isNCHW = (layout == DataLayout::NCHW);
         int inputChannels = isNCHW ? shape[1] : shape[3];
-        int padding = calc_padding(
-                isNCHW ? this->weightCols : inputChannels, Backend::Alignment);
         if (isNCHW) {
-            return TensorShape({ 1, inputChannels, this->weightRows,
-                                 this->weightCols + padding },
-                               layout);
+            return TensorShape(
+                    { 1, inputChannels, this->weightRows, this->weightCols },
+                    layout, Backend::Alignment);
         } else {
-            return TensorShape({ 1, this->weightRows, this->weightCols,
-                                 inputChannels + padding },
-                               layout);
+            return TensorShape(
+                    { 1, this->weightRows, this->weightCols, inputChannels },
+                    layout, Backend::Alignment);
         }
     }
 

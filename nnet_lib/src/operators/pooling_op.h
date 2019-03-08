@@ -70,11 +70,11 @@ class PoolingOp : public Operator {
         if (isNCHW) {
             return TensorShape(
                     { inputShape[0], inputChans, outputRows, outputCols },
-                    inputShape.getLayout());
+                    inputShape.getLayout(), Backend::Alignment);
         } else {
             return TensorShape(
                     { inputShape[0], outputRows, outputCols, inputChans },
-                    inputShape.getLayout());
+                    inputShape.getLayout(), Backend::Alignment);
         }
     }
 

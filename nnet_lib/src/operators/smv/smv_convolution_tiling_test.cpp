@@ -42,7 +42,8 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
     convOp->setPadding(SamePadding);
 
     SECTION("No tiling needed") {
-        TensorShape inputShape({ 1, 32, 32, 8 }, DataLayout::NHWC);
+        TensorShape inputShape(
+                { 1, 32, 32, 8 }, DataLayout::NHWC, SmvBackend::Alignment);
         Tensor* inputs = new Tensor("inputs", inputShape);
         convOp->setInput(inputs, 0);
         convOp->setWeightDims(5, 5, 8);
@@ -55,7 +56,8 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
     }
 
     SECTION("DimNH tiling on inputs when less than 32 channels") {
-        TensorShape inputShape({ 1, 32, 32, 16 }, DataLayout::NHWC);
+        TensorShape inputShape(
+                { 1, 32, 32, 16 }, DataLayout::NHWC, SmvBackend::Alignment);
         Tensor* inputs = new Tensor("inputs", inputShape);
         convOp->setInput(inputs, 0);
         convOp->setWeightDims(3, 3, 8);
@@ -106,7 +108,8 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
     SECTION("DimNC tiling on inputs and weights with > 32 channels") {
         // Pick 16x8 plane size so that there are more possibilities for channel
         // sizes than just one.
-        TensorShape inputShape({ 1, 16, 8, 128 }, DataLayout::NHWC);
+        TensorShape inputShape(
+                { 1, 16, 8, 128 }, DataLayout::NHWC, SmvBackend::Alignment);
         Tensor* inputs = new Tensor("inputs", inputShape);
         convOp->setInput(inputs, 0);
         convOp->setWeightDims(3, 3, 8);
@@ -132,7 +135,8 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
 
     SECTION("DimN tiling for weights, None for inputs") {
         // Inputs can all fit.
-        TensorShape inputShape({ 1, 8, 8, 96}, DataLayout::NHWC);
+        TensorShape inputShape(
+                { 1, 8, 8, 96 }, DataLayout::NHWC, SmvBackend::Alignment);
         Tensor* inputs = new Tensor("inputs", inputShape);
         convOp->setInput(inputs, 0);
         // ...but weights can't. The scratchpad can fit up to 9 complete
@@ -176,7 +180,8 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
 
     SECTION("DimNC tiling for weights, None for inputs") {
         // Inputs can all fit.
-        TensorShape inputShape({ 1, 8, 8, 128}, DataLayout::NHWC);
+        TensorShape inputShape(
+                { 1, 8, 8, 128 }, DataLayout::NHWC, SmvBackend::Alignment);
         Tensor* inputs = new Tensor("inputs", inputShape);
         convOp->setInput(inputs, 0);
         // ...but weights can't. The scratchpad can only fit up to 7 complete
@@ -250,7 +255,8 @@ TEST_CASE_METHOD(SmaugTest, "Kernel shape tests", "[smvtiling]") {
     convOp->setPadding(SamePadding);
 
     SECTION("1x1 kernels") {
-        TensorShape inputShape({ 1, 32, 32, 8 }, DataLayout::NHWC);
+        TensorShape inputShape(
+                { 1, 32, 32, 8 }, DataLayout::NHWC, SmvBackend::Alignment);
         Tensor* inputs = new Tensor("inputs", inputShape);
         convOp->setInput(inputs, 0);
         convOp->setWeightDims(1, 1, 128);
@@ -284,7 +290,8 @@ TEST_CASE_METHOD(SmaugTest, "Kernel shape tests", "[smvtiling]") {
     }
 
     SECTION("2x2 kernels") {
-        TensorShape inputShape({ 1, 32, 32, 32 }, DataLayout::NHWC);
+        TensorShape inputShape(
+                { 1, 32, 32, 32 }, DataLayout::NHWC, SmvBackend::Alignment);
         Tensor* inputs = new Tensor("inputs", inputShape);
         convOp->setInput(inputs, 0);
         convOp->setWeightDims(2, 2, 512);
@@ -354,7 +361,8 @@ TEST_CASE_METHOD(SmaugTest, "Kernel shape tests", "[smvtiling]") {
     }
 
     SECTION("5x5 kernels") {
-        TensorShape inputShape({ 1, 32, 32, 32}, DataLayout::NHWC);
+        TensorShape inputShape(
+                { 1, 32, 32, 32 }, DataLayout::NHWC, SmvBackend::Alignment);
         Tensor* inputs = new Tensor("inputs", inputShape);
         convOp->setInput(inputs, 0);
         convOp->setWeightDims(5, 5, 16);

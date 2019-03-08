@@ -336,8 +336,8 @@ TiledTensor TilingOptimizer::generateTiledTensor(Tensor* tensor,
                 remaining += halos[i];
         }
     }
-    TiledTensor tiledTensor(
-            TensorShape(numBlocksInDim, inputShape.getLayout()));
+    TiledTensor tiledTensor(TensorShape(
+            numBlocksInDim, inputShape.getLayout(), SmvBackend::Alignment));
     std::vector<int> currentOrigin(ndims, 0);
     for (auto tileIndex = tiledTensor.startIndex(); !tileIndex.end();
          ++tileIndex) {
@@ -346,7 +346,8 @@ TiledTensor TilingOptimizer::generateTiledTensor(Tensor* tensor,
             currentTileShape[i] =
                     std::min(inputShape[i] - currentOrigin[i], tileShape[i]);
         }
-        TensorShape currentShape(currentTileShape, tileShape.getLayout());
+        TensorShape currentShape(
+                currentTileShape, tileShape.getLayout(), SmvBackend::Alignment);
         std::string tileName =
                 tensor->getName() + "/tile:" + std::to_string((int)tileIndex);
         Tensor* tile = new Tensor(tileName, currentShape);
@@ -382,8 +383,8 @@ TiledTensor TilingOptimizer::generateDimNHOutputTiledTensor(
     const TensorShape& outputShape = outputTensor->getShape();
     std::vector<int> numBlocksInDim{ inputShape[0], inputShape[1],
                                      inputShape[2], weightsShape[0] };
-    TiledTensor outputTiledTensor(
-            TensorShape(numBlocksInDim, inputShape.getLayout()));
+    TiledTensor outputTiledTensor(TensorShape(
+            numBlocksInDim, inputShape.getLayout(), SmvBackend::Alignment));
     const int ndims = outputShape.ndims();
     std::vector<int> currentOrigin(ndims, 0);
     auto inputIndex = inputTiledTensor.startIndex();
@@ -420,7 +421,8 @@ TiledTensor TilingOptimizer::generateDimNHOutputTiledTensor(
                     TensorShape outputTileShape(
                             { inputTileShape[0], outputRows, inputTileShape[2],
                               weightsTile->getShape()[0] },
-                            outputTensor->getShape().getLayout());
+                            outputTensor->getShape().getLayout(),
+                            SmvBackend::Alignment);
                     assert(outputTileShape.storageSize() <=
                                    maxOutputTileSize.storageSize() &&
                            "DimNH input tiling results in output tile sizes "

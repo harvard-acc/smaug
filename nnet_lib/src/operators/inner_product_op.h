@@ -26,13 +26,15 @@ class InnerProductOp : public Operator {
     TensorShape inferOutputShape() const {
         const TensorShape& shape = getInput(Inputs)->getShape();
         assert(shape.getLayout() == DataLayout::NC);
-        return TensorShape({ shape[0], numOutputs }, DataLayout::NC);
+        return TensorShape(
+                { shape[0], numOutputs }, DataLayout::NC, Backend::Alignment);
     }
 
     TensorShape inferWeightsShape() const {
         const TensorShape& shape = getInput(Inputs)->getShape();
         assert(shape.getLayout() == DataLayout::NC);
-        return TensorShape({ shape[1], numOutputs }, DataLayout::NC);
+        return TensorShape(
+                { shape[1], numOutputs }, DataLayout::NC, Backend::Alignment);
     }
 
     virtual DataLayoutSet getInputDataLayouts() const {

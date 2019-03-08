@@ -54,11 +54,13 @@ class ConvolutionOp : public Operator {
         int outputCols = computeOutputDim(
                 input->dim(colIdx), weightCols, colStride, paddingType);
         if (isNCHW) {
-            return TensorShape(
-                    { 1, numOfmaps, outputRows, outputCols }, layout);
+            return TensorShape({ 1, numOfmaps, outputRows, outputCols },
+                               layout,
+                               Backend::Alignment);
         } else {
-            return TensorShape(
-                    { 1, outputRows, outputCols, numOfmaps }, layout);
+            return TensorShape({ 1, outputRows, outputCols, numOfmaps },
+                               layout,
+                               Backend::Alignment);
         }
     }
 
@@ -71,11 +73,11 @@ class ConvolutionOp : public Operator {
         if (isNCHW) {
             return TensorShape(
                     { numOfmaps, inputChannels, weightRows, weightCols },
-                    layout);
+                    layout, Backend::Alignment);
         } else {
             return TensorShape(
                     { numOfmaps, weightRows, weightCols, inputChannels },
-                    layout);
+                    layout, Backend::Alignment);
         }
     }
 
