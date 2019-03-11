@@ -7,6 +7,70 @@ from tensor import *
 from ops import *
 from types_pb2 import *
 
+class TensorBasicTest(smaug_test.SmaugTest):
+  def test_attr_reference(self):
+    """Test tensor attributes with reference backend."""
+    tensor_data = np.random.rand(2, 2, 4, 4).astype(np.float32)
+    with Graph("test_graph", "Reference") as test_graph:
+      input_tensor = Tensor(data_layout=NHWC, tensor_data=tensor_data)
+      act = input_data("input", input_tensor)
+    self.assertEqual(test_graph.graph.backend, "Reference")
+    node = self.get_node(test_graph.graph, "input")
+    self.assertEqual(node.input_tensors[0].name, "input")
+    self.assertEqual(node.input_tensors[0].data_type, Float32)
+    self.assertEqual(node.input_tensors[0].shape.dims, [2, 2, 4, 4])
+    self.assertEqual(node.input_tensors[0].shape.layout, NHWC)
+    self.assertEqual(node.input_tensors[0].shape.alignment, 0)
+    self.assertEqual(node.input_tensors[0].float_data,
+                     list(tensor_data.flatten()))
+    self.assertEqual(len(node.input_tensors[0].half_data), 0)
+    self.assertEqual(len(node.input_tensors[0].double_data), 0)
+    self.assertEqual(len(node.input_tensors[0].int_data), 0)
+    self.assertEqual(len(node.input_tensors[0].int64_data), 0)
+
+  def test_attr_smv_no_padding(self):
+    """Test tensor attributes with SMV backend. No padding is required."""
+    tensor_data = np.random.rand(2, 2, 4, 8).astype(np.float16)
+    with Graph("test_graph", "SMV") as test_graph:
+      input_tensor = Tensor(data_layout=NCHW, tensor_data=tensor_data)
+      act = input_data("input", input_tensor)
+    self.assertEqual(test_graph.graph.backend, "SMV")
+    node = self.get_node(test_graph.graph, "input")
+    self.assertEqual(node.input_tensors[0].name, "input")
+    self.assertEqual(node.input_tensors[0].data_type, Float16)
+    self.assertEqual(node.input_tensors[0].shape.dims, [2, 2, 4, 8])
+    self.assertEqual(node.input_tensors[0].shape.layout, NCHW)
+    self.assertEqual(node.input_tensors[0].shape.alignment, 8)
+    self.assertEqualFP16(node.input_tensors[0].half_data, tensor_data.flatten())
+    self.assertEqual(len(node.input_tensors[0].float_data), 0)
+    self.assertEqual(len(node.input_tensors[0].double_data), 0)
+    self.assertEqual(len(node.input_tensors[0].int_data), 0)
+    self.assertEqual(len(node.input_tensors[0].int64_data), 0)
+
+  def test_attr_smv_padding(self):
+    """Test tensor attributes with SMV backend. Additional padding required."""
+    tensor_data = np.array([[1.1, 2.2, 3.3, 4.4], [5.5, 6.6, 7.7, 8.8]],
+                           dtype=np.float16)
+    with Graph("test_graph", "SMV") as test_graph:
+      input_tensor = Tensor(data_layout=NCHW, tensor_data=tensor_data)
+      act = input_data("input", input_tensor)
+    self.assertEqual(test_graph.graph.backend, "SMV")
+    node = self.get_node(test_graph.graph, "input")
+    self.assertEqual(node.input_tensors[0].name, "input")
+    self.assertEqual(node.input_tensors[0].data_type, Float16)
+    self.assertEqual(node.input_tensors[0].shape.dims, [2, 4])
+    self.assertEqual(node.input_tensors[0].shape.layout, NCHW)
+    self.assertEqual(node.input_tensors[0].shape.alignment, 8)
+    self.assertEqualFP16(
+        node.input_tensors[0].half_data,
+        np.array(
+            [1.1, 2.2, 3.3, 4.4, 0, 0, 0, 0, 5.5, 6.6, 7.7, 8.8, 0, 0, 0, 0],
+            dtype=np.float16))
+    self.assertEqual(len(node.input_tensors[0].float_data), 0)
+    self.assertEqual(len(node.input_tensors[0].double_data), 0)
+    self.assertEqual(len(node.input_tensors[0].int_data), 0)
+    self.assertEqual(len(node.input_tensors[0].int64_data), 0)
+
 class FP16Test(smaug_test.SmaugTest):
   def test_fp16_even(self):
     """Test float16 packing when tensor's last dimension is of even size"""
@@ -16,8 +80,7 @@ class FP16Test(smaug_test.SmaugTest):
       act = input_data("input", input_tensor)
     node = self.get_node(test_graph.graph, "input")
     self.assertEqual(node.input_tensors[0].data_type, Float16)
-    self.assertEqual(node.input_tensors[0].half_data,
-                     list(tensor_data.flatten().view(np.int32)))
+    self.assertEqualFP16(node.input_tensors[0].half_data, tensor_data.flatten())
 
   def test_fp16_odd(self):
     """Test float16 packing when tensor's last dimension is of odd size"""
@@ -27,8 +90,7 @@ class FP16Test(smaug_test.SmaugTest):
       act = input_data("input", input_tensor)
     node = self.get_node(test_graph.graph, "input")
     self.assertEqual(node.input_tensors[0].data_type, Float16)
-    self.assertEqual(node.input_tensors[0].half_data,
-                     list(tensor_data.flatten().view(np.int32)))
+    self.assertEqualFP16(node.input_tensors[0].half_data, tensor_data.flatten())
 
   def test_fp16_odd_odd(self):
     """Test float16 packing when tensor's last dimension is of odd size.
@@ -41,9 +103,8 @@ class FP16Test(smaug_test.SmaugTest):
       act = input_data("input", input_tensor)
     node = self.get_node(test_graph.graph, "input")
     self.assertEqual(node.input_tensors[0].data_type, Float16)
-    self.assertEqual(
-        node.input_tensors[0].half_data,
-        list(np.append(tensor_data.flatten(), np.float16(0)).view(np.int32)))
+    self.assertEqualFP16(node.input_tensors[0].half_data,
+                         np.append(tensor_data.flatten(), np.float16(0)))
 
 if __name__ == "__main__":
   unittest.main()
