@@ -6,22 +6,28 @@ from datatypes import *
 
 class Tensor:
   def __init__(self,
-               dims,
+               dims=None,
                name=None,
                data_layout=NCHW,
-               data_type=Float32,
+               data_type=None,
                data_format=Uncompressed,
                tensor_data=None,
                source=None,
                target=None,
                alignment=None):
     self.shape = TensorShapeProto()
-    self.shape.dims.extend(dims)
+    self.tensor_data = tensor_data
+    # If tensor_data is provided, deduce dims and data_type directly from it
+    # (the kwargs are ignored if they are provided).
+    if self.tensor_data is not None:
+      self.deduce_attrs_from_data()
+    else:
+      self.shape.dims.extend(dims)
+      self.data_type = data_type
+
     self.shape.layout = data_layout
     self.name = name
-    self.data_type = data_type
     self.data_format = data_format
-    self.tensor_data = tensor_data
     self.source = source
     self.target = target
     if alignment != None:
@@ -31,22 +37,24 @@ class Tensor:
     else:
       self.shape.alignment = get_graph().alignment
 
-    self.check_data_type()
     # Do data padding if this Tensor contains data.
     if self.tensor_data is not None:
-      pad_width = [(0, 0) for i in xrange(len(dims) - 1)]
-      pad_width.append((0, self.calc_padding(dims[-1])))
+      pad_width = [(0, 0) for i in xrange(len(self.shape.dims) - 1)]
+      pad_width.append((0, self.calc_padding(self.shape.dims[-1])))
       self.tensor_data = np.pad(self.tensor_data, pad_width, 'constant')
 
-  def check_data_type(self):
-    """Sanity check on the data type of the tensor data."""
-    if self.tensor_data is None:
-      return
+  def deduce_attrs_from_data(self):
+    """Deduce tensor attributes from the supplied tensor data.
+
+    The deducible attributes include tensor shape dimensions and data type.
+    """
+    # Deduce dims from tensor data.
+    self.shape.dims.extend(list(self.tensor_data.shape))
+    # Deduce data type from tensor data
     try:
-      expected_type = smaug_to_np_type[self.data_type]
-      assert self.tensor_data.dtype == expected_type
+      self.data_type = np_to_smaug_type[self.tensor_data.dtype.type]
     except KeyError:
-      assert False, "Unknown data type!"
+      assert False, "We don't support numpy dtype: %s" % self.tensor_data.dtype
 
   def calc_padding(self, value):
     """This returns the size we need to pad on the last dimension."""

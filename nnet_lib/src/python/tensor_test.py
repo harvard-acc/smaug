@@ -12,8 +12,7 @@ class FP16Test(smaug_test.SmaugTest):
     """Test float16 packing when tensor's last dimension is of even size"""
     tensor_data = np.random.rand(4, 2).astype(np.float16)
     with Graph("test_graph", "Reference") as test_graph:
-      input_tensor = Tensor(
-          dims=[4, 2], data_type=Float16, tensor_data=tensor_data)
+      input_tensor = Tensor(tensor_data=tensor_data)
       act = input_data("input", input_tensor)
     node = self.get_node(test_graph.graph, "input")
     self.assertEqual(node.input_tensors[0].data_type, Float16)
@@ -24,8 +23,7 @@ class FP16Test(smaug_test.SmaugTest):
     """Test float16 packing when tensor's last dimension is of odd size"""
     tensor_data = np.random.rand(4, 3).astype(np.float16)
     with Graph("test_graph", "Reference") as test_graph:
-      input_tensor = Tensor(
-          dims=[4, 3], data_type=Float16, tensor_data=tensor_data)
+      input_tensor = Tensor(tensor_data=tensor_data)
       act = input_data("input", input_tensor)
     node = self.get_node(test_graph.graph, "input")
     self.assertEqual(node.input_tensors[0].data_type, Float16)
@@ -39,8 +37,7 @@ class FP16Test(smaug_test.SmaugTest):
     """
     tensor_data = np.random.rand(3, 3).astype(np.float16)
     with Graph("test_graph", "Reference") as test_graph:
-      input_tensor = Tensor(
-          dims=[3, 3], data_type=Float16, tensor_data=tensor_data)
+      input_tensor = Tensor(tensor_data=tensor_data)
       act = input_data("input", input_tensor)
     node = self.get_node(test_graph.graph, "input")
     self.assertEqual(node.input_tensors[0].data_type, Float16)
