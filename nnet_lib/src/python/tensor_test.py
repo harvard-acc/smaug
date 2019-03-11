@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+"""Tests for python/tensor.py."""
+
 import unittest
 import smaug_test
 from graph import *
