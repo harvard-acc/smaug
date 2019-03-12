@@ -348,10 +348,22 @@ TEST_CASE_METHOD(SmaugTest, "Kernel shape tests", "[smvtiling]") {
                 for (int c = 0; c < 8; c++) {
                     int idx = r * 8 + c;
                     auto& testDims = outputTiles[idx]->getShape().dims();
-                    if (r == 0)
+                    // Since we use same padding here, for this 2x2 kernel size,
+                    // top padding is 1 and bottom padding is 0.
+                    if (r == 0) {
+                        // Top tile. Top padding size 1. Input tile row size 4.
+                        // Output tile row size is 4 because of the zero-padded
+                        // row at the top.
+                        REQUIRE(testDims == std::vector<int>{ 1, 4, 32, 64 });
+                    } else if (r < 10) {
+                        // Middle tiles. No top/bottom padding. Input tile row
+                        // size 4. Output tile row size 3.
                         REQUIRE(testDims == std::vector<int>{ 1, 3, 32, 64 });
-                    else
-                        REQUIRE(testDims == std::vector<int>{ 1, 2, 32, 64 });
+                    } else {
+                        // Bottom tile. Bottom padding size 0. Input tile row
+                        // size 2. Output tile row size 1.
+                        REQUIRE(testDims == std::vector<int>{ 1, 1, 32, 64 });
+                    }
                     verifyTensorData(outputTiles[idx], c * 64);
                 }
             }

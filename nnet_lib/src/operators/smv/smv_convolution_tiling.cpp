@@ -394,8 +394,13 @@ SmvTiledTensor TilingOptimizer::generateDimNHOutputTiledTensor(
     auto weightIndex = weightsTiledTensor.startIndex();
     auto outputIndex = outputTiledTensor.startIndex();
     int weightRows = op->getWeightRows();
-    int topRowPad = (weightRows - 1) / 2;
-    int bottomRowPad = weightRows - 1 - topRowPad;
+    // For even-sized filtered, FRAC_CEIL is needed to correctly handle padding.
+    int topRowPad = (op->getPadding() == SamePadding)
+                            ? FRAC_CEIL(weightRows - 1, 2)
+                            : 0;
+    int bottomRowPad = (op->getPadding() == SamePadding)
+                               ? (weightRows - 1 - topRowPad)
+                               : 0;
     for (int n = 0; n < numBlocksInDim[0]; n++) {
         for (int h = 0; h < numBlocksInDim[1]; h++) {
             for (int w = 0; w < numBlocksInDim[2]; w++) {
