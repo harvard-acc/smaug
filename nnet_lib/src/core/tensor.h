@@ -34,6 +34,7 @@ class TensorShape {
         padding_.resize(shapeProto.dims_size());
         layout = shapeProto.layout();
         alignment = shapeProto.alignment();
+        computePadding();
     }
 
     const std::vector<int>& dims() const { return dims_; }
@@ -62,7 +63,7 @@ class TensorShape {
     void computePadding() {
         int ndims = dims_.size();
         padding_[ndims - 1] = calc_padding(dims_[ndims - 1], alignment);
-        for (int i = 1; i < ndims; i++)
+        for (int i = 0; i < ndims - 1; i++)
             padding_[i] = 0;
     }
     std::vector<int> dims_;
