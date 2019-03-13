@@ -50,7 +50,7 @@ CATCH_SRC = $(CATCH_MAIN).cpp
 TEST_OBJ = $(patsubst %.cpp, %.o, $(BUILD_TESTS))
 TEST_BIN = $(patsubst %.cpp, %, $(BUILD_TESTS))
 
-tests: src-symlinks $(TEST_BIN)
+tests: src-symlinks $(TEST_BIN) $(BUILD_PROTO_CPP_SRCS) $(PROTO_PY_SRCS)
 
 $(TEST_BIN) : % : %.o $(CATCH_OBJ) $(BUILD_SRCS_OBJS)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ -o $@ $(LFLAGS)
