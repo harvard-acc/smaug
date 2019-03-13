@@ -9,14 +9,9 @@ from tensor import *
 from ops import *
 from types_pb2 import *
 
-class OperationTest(smaug_test.SmaugTest):
-  def __init__(self, *args, **kwargs):
-    """Create a test graph for all the tests."""
-    super(OperationTest, self).__init__(*args, **kwargs)
-    self.build_test_graph()
-
-  def build_test_graph(self):
-    with Graph(name="test_graph", backend="SMV") as graph:
+class OperationTest:
+  def build_test_graph(self, backend):
+    with Graph(name="test_graph", backend=backend) as graph:
       input_tensor = Tensor(
           data_layout=NCHW,
           tensor_data=np.random.rand(1, 3, 28, 28).astype(np.float16))
@@ -269,6 +264,16 @@ class OperationTest(smaug_test.SmaugTest):
     self.assertEqual(node.output_tensors[0].shape.dims, [1, 10])
     self.assertEqual(node.output_tensors[0].shape.layout, NC)
     self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
+
+class SMVOperationTest(smaug_test.SmaugTest, OperationTest):
+  def __init__(self, *args, **kwargs):
+    super(SMVOperationTest, self).__init__(*args, **kwargs)
+    self.build_test_graph("SMV")
+
+class RefOperationTest(smaug_test.SmaugTest, OperationTest):
+  def __init__(self, *args, **kwargs):
+    super(RefOperationTest, self).__init__(*args, **kwargs)
+    self.build_test_graph("Reference")
 
 if __name__ == "__main__":
   unittest.main()
