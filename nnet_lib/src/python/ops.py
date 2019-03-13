@@ -16,9 +16,23 @@ def add_node(name,
     assert False, "No available active graph!"
   if output_tensor_dtype == None:
     output_tensor_dtype = input_tensors[0].data_type
-  return get_graph().add_node(
-      name, op, input_tensors, output_tensor_dims, output_tensor_layout,
-      output_tensor_dtype, output_tensor_dformat, params)
+
+  # If any input tensor doesn't have a source operator, we create a DataOp
+  # for it. This makes the deserializing a lot easier in the C++ core. Note
+  # that we don't need to create a DataOp for input_data.
+  for i in range(len(input_tensors)):
+    if input_tensors[i].source == None and op != Data:
+      input_tensors[i] = get_graph().add_node(
+          name=input_tensors[i].name,
+          op=Data,
+          input_tensors=[input_tensors[i]],
+          output_tensor_dims=input_tensors[i].shape.dims,
+          output_tensor_layout=input_tensors[i].shape.layout,
+          output_tensor_dtype=output_tensor_dtype,
+          output_tensor_dformat=output_tensor_dformat)
+  return get_graph().add_node(name, op, input_tensors, output_tensor_dims,
+                              output_tensor_layout, output_tensor_dtype,
+                              output_tensor_dformat, params)
 
 def input_data(name, input_tensor):
   input_tensor.name = name

@@ -96,10 +96,10 @@ class Graph:
     node's name, operator type, input/output operators and
     input/output tensors.
     """
-    print "======================================================"
+    print "================================================================="
     print "      Summary of the network: %s (%s)" % (self.graph.name,
                                                      self.graph.backend)
-    print "======================================================"
+    print "================================================================="
     for node in self.graph.nodes:
       print "Name: %s (%s)" % (node.name, OpType.Name(node.op))
       print "Parents:",
@@ -118,4 +118,4 @@ class Graph:
         print " ", t.name, DataType.Name(
             t.data_type), t.shape.dims, DataLayout.Name(
                 t.shape.layout), "alignment(%d)" % t.shape.alignment
-      print "------------------------------------------------------"
+      print "-----------------------------------------------------------------"

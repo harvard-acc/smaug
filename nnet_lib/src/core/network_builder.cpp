@@ -30,18 +30,6 @@
 using namespace smaug;
 using namespace std;
 
-// This creates a data operator for a tensor. For a data operator, the input
-// tensor is simply forwarded to the output tensor. By creating a data operator
-// for every tensor, we ensure that a tensor always has a source operator.
-template <typename Backend>
-static DataOp<Backend>* createTensorOperator(
-        Tensor* tensor, Network* network, Workspace* workspace) {
-    auto tensor_op = Backend::createDataOp(tensor->getName(), workspace);
-    tensor_op->setData(tensor);
-    network->addOperator(tensor_op);
-    return tensor_op;
-}
-
 // Create an operator by deserializing a node in the graph, and add it to the
 // network.
 template <typename Backend>
@@ -61,9 +49,12 @@ static void createAndAddOperator(const NodeProto& node,
     }
 
     if (type == OpType::Data) {
-        auto input_tensor =
+        auto inputTensor =
                 workspace->addTensor(new Tensor(node.input_tensors(0)));
-        createTensorOperator<Backend>(input_tensor, network, workspace);
+        auto inputTensorOp =
+                Backend::createDataOp(inputTensor->getName(), workspace);
+        inputTensorOp->setData(inputTensor);
+        network->addOperator(inputTensorOp);
     } else if (type == OpType::Convolution3d ||
                type == OpType::ConvolutionDepthwise) {
         ConvolutionOp<Backend>* op;
@@ -73,10 +64,6 @@ static void createAndAddOperator(const NodeProto& node,
             op = Backend::createDepthwiseConvolutionOp(name, workspace);
         assert(node.input_tensors_size() == 2);
         const TensorProto& filterTensorProto = node.input_tensors(1);
-        auto filterTensor = workspace->addTensor(new Tensor(filterTensorProto));
-        DataOp<Backend>* filterTensorOp =
-                createTensorOperator<Backend>(filterTensor, network, workspace);
-        inputs.push_back(filterTensorOp);
         assert(filterTensorProto.shape().dims_size() == 4);
         op->setWeightDims(filterTensorProto.shape().dims(2),
                           filterTensorProto.shape().dims(3),
@@ -102,10 +89,6 @@ static void createAndAddOperator(const NodeProto& node,
         auto op = Backend::createInnerProductOp(name, workspace);
         assert(node.input_tensors_size() == 2);
         const TensorProto& weightTensorProto = node.input_tensors(1);
-        auto weightTensor = workspace->addTensor(new Tensor(weightTensorProto));
-        DataOp<Backend>* weightTensorOp =
-                createTensorOperator<Backend>(weightTensor, network, workspace);
-        inputs.push_back(weightTensorOp);
         op->setNumOutputs(weightTensorProto.shape().dims(0));
         network->addOperator(op, inputs);
     } else if (type == OpType::Reorder) {
@@ -113,17 +96,6 @@ static void createAndAddOperator(const NodeProto& node,
         network->addOperator(op, inputs);
     } else if (type == OpType::BatchNorm) {
         auto op = Backend::createBatchNormOp(name, workspace);
-        assert(node.input_tensors_size() ==
-               BatchNormOp<Backend>::kNumInputs);
-        for (int i = BatchNormOp<Backend>::Mean;
-             i < BatchNormOp<Backend>::kNumInputs;
-             i++) {
-            auto tensor =
-                    workspace->addTensor(new Tensor(node.input_tensors(i)));
-            DataOp<Backend>* tensor_op =
-                    createTensorOperator<Backend>(tensor, network, workspace);
-            inputs.push_back(tensor_op);
-        }
         network->addOperator(op, inputs);
     } else if (type == OpType::EltwiseAdd) {
         auto op = Backend::createEltwiseAddOp(name, workspace);
