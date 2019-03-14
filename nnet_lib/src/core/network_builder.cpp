@@ -89,7 +89,7 @@ static void createAndAddOperator(const NodeProto& node,
         auto op = Backend::createInnerProductOp(name, workspace);
         assert(node.input_tensors_size() == 2);
         const TensorProto& weightTensorProto = node.input_tensors(1);
-        op->setNumOutputs(weightTensorProto.shape().dims(0));
+        op->setNumOutputs(weightTensorProto.shape().dims(1));
         network->addOperator(op, inputs);
     } else if (type == OpType::Reorder) {
         DataLayout targetLayout = node.output_tensors(0).shape().layout();

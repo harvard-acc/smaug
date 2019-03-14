@@ -22,14 +22,22 @@ from types_pb2 import *
 def create_residual_model():
   with Graph(name="residual_graph", backend="SMV") as graph:
     # Tensors and kernels are initialized as NCHW layout.
-    input_tensor = Tensor(tensor_data=np.random.rand(1, 1, 28, 28))
-    filter_tensor0 = Tensor(tensor_data=np.random.rand(64, 1, 3, 3))
-    filter_tensor1 = Tensor(tensor_data=np.random.rand(64, 1, 3, 3))
-    filter_tensor2 = Tensor(tensor_data=np.random.rand(64, 64, 3, 3))
-    bn_mean_tensor = Tensor(data_layout=X, tensor_data=np.random.rand(64))
-    bn_var_tensor = Tensor(data_layout=X, tensor_data=np.random.rand(64))
-    bn_gamma_tensor = Tensor(data_layout=X, tensor_data=np.random.rand(64))
-    bn_beta_tensor = Tensor(data_layout=X, tensor_data=np.random.rand(64))
+    input_tensor = Tensor(
+        tensor_data=np.random.rand(1, 1, 28, 28).astype(np.float16))
+    filter_tensor0 = Tensor(
+        tensor_data=np.random.rand(64, 1, 3, 3).astype(np.float16))
+    filter_tensor1 = Tensor(
+        tensor_data=np.random.rand(64, 1, 3, 3).astype(np.float16))
+    filter_tensor2 = Tensor(
+        tensor_data=np.random.rand(64, 64, 3, 3).astype(np.float16))
+    bn_mean_tensor = Tensor(
+        data_layout=X, tensor_data=np.random.rand(64).astype(np.float16))
+    bn_var_tensor = Tensor(
+        data_layout=X, tensor_data=np.random.rand(64).astype(np.float16))
+    bn_gamma_tensor = Tensor(
+        data_layout=X, tensor_data=np.random.rand(64).astype(np.float16))
+    bn_beta_tensor = Tensor(
+        data_layout=X, tensor_data=np.random.rand(64).astype(np.float16))
 
     act = input_data("input", input_tensor)
     x = convolution("conv0", act, filter_tensor0, stride=[1, 1], padding="same")
@@ -48,16 +56,25 @@ def create_residual_model():
 def create_sequential_model():
   with Graph(name="sequential_graph", backend="Reference") as graph:
     # Tensors and weights are initialized as NCHW layout.
-    input_tensor = Tensor(tensor_data=np.random.rand(1, 3, 32, 32))
-    filter_tensor0 = Tensor(tensor_data=np.random.rand(64, 3, 3, 3))
-    filter_tensor1 = Tensor(tensor_data=np.random.rand(64, 64, 3, 3))
+    input_tensor = Tensor(
+        tensor_data=np.random.rand(1, 3, 32, 32).astype(np.float32))
+    filter_tensor0 = Tensor(
+        tensor_data=np.random.rand(64, 3, 3, 3).astype(np.float32))
+    filter_tensor1 = Tensor(
+        tensor_data=np.random.rand(64, 64, 3, 3).astype(np.float32))
     weight_tensor0 = Tensor(
-        data_layout=NC, tensor_data=np.random.rand(16384, 256))
-    weight_tensor1 = Tensor(data_layout=NC, tensor_data=np.random.rand(256, 10))
-    bn_mean_tensor = Tensor(data_layout=X, tensor_data=np.random.rand(64))
-    bn_var_tensor = Tensor(data_layout=X, tensor_data=np.random.rand(64))
-    bn_gamma_tensor = Tensor(data_layout=X, tensor_data=np.random.rand(64))
-    bn_beta_tensor = Tensor(data_layout=X, tensor_data=np.random.rand(64))
+        data_layout=NC,
+        tensor_data=np.random.rand(16384, 256).astype(np.float32))
+    weight_tensor1 = Tensor(
+        data_layout=NC, tensor_data=np.random.rand(256, 10).astype(np.float32))
+    bn_mean_tensor = Tensor(
+        data_layout=X, tensor_data=np.random.rand(64).astype(np.float32))
+    bn_var_tensor = Tensor(
+        data_layout=X, tensor_data=np.random.rand(64).astype(np.float32))
+    bn_gamma_tensor = Tensor(
+        data_layout=X, tensor_data=np.random.rand(64).astype(np.float32))
+    bn_beta_tensor = Tensor(
+        data_layout=X, tensor_data=np.random.rand(64).astype(np.float32))
 
     out = input_data("input", input_tensor)
     out = convolution(
