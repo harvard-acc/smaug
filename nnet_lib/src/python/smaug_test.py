@@ -17,7 +17,7 @@ class SmaugTest(unittest.TestCase):
         return graph.nodes[i]
 
   def assertEqualFP16(self, packed_fp16_data, unpacked_fp16_data):
-    """ Test equality between packed and unpacked float16 lists.
+    """Test equality between packed and unpacked float16 lists.
 
     Args:
       packed_fp16_data: A list of int32 values, each of which represents two
