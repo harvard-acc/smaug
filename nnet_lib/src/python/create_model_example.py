@@ -26,10 +26,10 @@ def create_residual_model():
     filter_tensor0 = Tensor(tensor_data=np.random.rand(64, 1, 3, 3))
     filter_tensor1 = Tensor(tensor_data=np.random.rand(64, 1, 3, 3))
     filter_tensor2 = Tensor(tensor_data=np.random.rand(64, 64, 3, 3))
-    bn_mean_tensor = Tensor(data_layout=X, tensor_data=np.random.rand(1, 64))
-    bn_var_tensor = Tensor(data_layout=X, tensor_data=np.random.rand(1, 64))
-    bn_gamma_tensor = Tensor(data_layout=X, tensor_data=np.random.rand(1, 64))
-    bn_beta_tensor = Tensor(data_layout=X, tensor_data=np.random.rand(1, 64))
+    bn_mean_tensor = Tensor(data_layout=X, tensor_data=np.random.rand(64))
+    bn_var_tensor = Tensor(data_layout=X, tensor_data=np.random.rand(64))
+    bn_gamma_tensor = Tensor(data_layout=X, tensor_data=np.random.rand(64))
+    bn_beta_tensor = Tensor(data_layout=X, tensor_data=np.random.rand(64))
 
     act = input_data("input", input_tensor)
     x = convolution("conv0", act, filter_tensor0, stride=[1, 1], padding="same")
@@ -54,10 +54,10 @@ def create_sequential_model():
     weight_tensor0 = Tensor(
         data_layout=NC, tensor_data=np.random.rand(16384, 256))
     weight_tensor1 = Tensor(data_layout=NC, tensor_data=np.random.rand(256, 10))
-    bn_mean_tensor = Tensor(data_layout=X, tensor_data=np.random.rand(1, 64))
-    bn_var_tensor = Tensor(data_layout=X, tensor_data=np.random.rand(1, 64))
-    bn_gamma_tensor = Tensor(data_layout=X, tensor_data=np.random.rand(1, 64))
-    bn_beta_tensor = Tensor(data_layout=X, tensor_data=np.random.rand(1, 64))
+    bn_mean_tensor = Tensor(data_layout=X, tensor_data=np.random.rand(64))
+    bn_var_tensor = Tensor(data_layout=X, tensor_data=np.random.rand(64))
+    bn_gamma_tensor = Tensor(data_layout=X, tensor_data=np.random.rand(64))
+    bn_beta_tensor = Tensor(data_layout=X, tensor_data=np.random.rand(64))
 
     out = input_data("input", input_tensor)
     out = convolution(

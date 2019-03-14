@@ -92,7 +92,14 @@ static void createAndAddOperator(const NodeProto& node,
         op->setNumOutputs(weightTensorProto.shape().dims(0));
         network->addOperator(op, inputs);
     } else if (type == OpType::Reorder) {
-        auto op = Backend::createFlattenOp(name, workspace);
+        DataLayout targetLayout = node.output_tensors(0).shape().layout();
+        ReorderOp<Backend>* op;
+        if (targetLayout == NC) {
+            op = Backend::createFlattenOp(name, workspace);
+        } else {
+            op = Backend::createReorderOp(name, workspace);
+            op->setTargetLayout(node.output_tensors(0).shape().layout());
+        }
         network->addOperator(op, inputs);
     } else if (type == OpType::BatchNorm) {
         auto op = Backend::createBatchNormOp(name, workspace);

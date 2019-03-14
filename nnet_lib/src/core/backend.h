@@ -26,6 +26,7 @@ template <typename Backend> class MaxPoolingOp;
 template <typename Backend> class AvgPoolingOp;
 template <typename Backend> class InnerProductOp;
 template <typename Backend> class SoftmaxOp;
+template <typename Backend> class ReorderOp;
 template <typename Backend> class FlattenOp;
 template <typename Backend> class BatchNormOp;
 template <typename Backend> class EltwiseAddOp;
@@ -56,6 +57,7 @@ class ReferenceBackend {
     DECL_CREATE_OP(AvgPoolingOp);
     DECL_CREATE_OP(InnerProductOp);
     DECL_CREATE_OP(SoftmaxOp);
+    DECL_CREATE_OP(ReorderOp);
     DECL_CREATE_OP(FlattenOp);
     DECL_CREATE_OP(BatchNormOp);
     DECL_CREATE_OP(EltwiseAddOp);
@@ -100,6 +102,7 @@ class SmvBackend {
     DECL_CREATE_OP(AvgPoolingOp);
     DECL_CREATE_OP(InnerProductOp);
     DECL_CREATE_OP(SoftmaxOp);
+    DECL_CREATE_OP(ReorderOp);
     DECL_CREATE_OP(FlattenOp);
     DECL_CREATE_OP(BatchNormOp);
     DECL_CREATE_OP(EltwiseAddOp);
