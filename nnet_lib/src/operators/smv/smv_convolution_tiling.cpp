@@ -336,8 +336,8 @@ TiledTensor TilingOptimizer::generateTiledTensor(Tensor* tensor,
                 remaining += halos[i];
         }
     }
-    TiledTensor tiledTensor(TensorShape(
-            numBlocksInDim, inputShape.getLayout(), SmvBackend::Alignment));
+    TiledTensor tiledTensor(
+            TensorShape(numBlocksInDim, inputShape.getLayout()));
     std::vector<int> currentOrigin(ndims, 0);
     for (auto tileIndex = tiledTensor.startIndex(); !tileIndex.end();
          ++tileIndex) {
@@ -383,8 +383,8 @@ TiledTensor TilingOptimizer::generateDimNHOutputTiledTensor(
     const TensorShape& outputShape = outputTensor->getShape();
     std::vector<int> numBlocksInDim{ inputShape[0], inputShape[1],
                                      inputShape[2], weightsShape[0] };
-    TiledTensor outputTiledTensor(TensorShape(
-            numBlocksInDim, inputShape.getLayout(), SmvBackend::Alignment));
+    TiledTensor outputTiledTensor(
+            TensorShape(numBlocksInDim, inputShape.getLayout()));
     const int ndims = outputShape.ndims();
     std::vector<int> currentOrigin(ndims, 0);
     auto inputIndex = inputTiledTensor.startIndex();

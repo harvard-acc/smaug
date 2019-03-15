@@ -29,7 +29,8 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
     convOp->setPadding(SamePadding);
 
     SECTION("DimN tiled convolution") {
-        TensorShape inputShape({ 1, 8, 8, 96}, DataLayout::NHWC);
+        TensorShape inputShape(
+                { 1, 8, 8, 96 }, DataLayout::NHWC, SmvBackend::Alignment);
         Tensor* inputs = new Tensor("inputs", inputShape);
         convOp->setInput(inputs, 0);
         convOp->setWeightDims(3, 3, 128);
@@ -43,7 +44,8 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
     SECTION("DimNH tiled convolution") {
         // TODO: This will fail because the tiling logic does not account for
         // padding, so it produces three input tiles but only two output tiles.
-        TensorShape inputShape({ 1, 32, 32, 16 }, DataLayout::NHWC);
+        TensorShape inputShape(
+                { 1, 32, 32, 16 }, DataLayout::NHWC, SmvBackend::Alignment);
         Tensor* inputs = new Tensor("inputs", inputShape);
         convOp->setInput(inputs, 0);
         convOp->setWeightDims(3, 3, 8);
@@ -55,7 +57,8 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
     }
 
     SECTION("DimNC tiled convolution") {
-        TensorShape inputShape({ 1, 16, 8, 128 }, DataLayout::NHWC);
+        TensorShape inputShape(
+                { 1, 16, 8, 128 }, DataLayout::NHWC, SmvBackend::Alignment);
         Tensor* inputs =
                 new Tensor("inputs", inputShape);
         convOp->setInput(inputs, 0);
