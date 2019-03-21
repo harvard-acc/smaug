@@ -133,6 +133,16 @@ static void createAndAddOperator(const NodeProto& node,
     } else if (type == OpType::UnknownOp) {
         assert(false && "Invalid operator type!");
     }
+
+    // Allocate storage for the output tensors of the newly added operator. We
+    // have filled data for all the parameterizable input tensors from the model
+    // file, now we only need to allocate storage for the output tensors.
+    Operator* op = network->getOperator(name);
+    DataType dataType = node.input_tensors(0).data_type();
+    for (auto output : op->getOutputs()) {
+        Tensor* tensor = dynamic_cast<Tensor*>(output);
+        tensor->allocateStorage(dataType);
+    }
 }
 
 // Create the network by deserializing the graph stored in the
@@ -146,23 +156,6 @@ static Network* createNetworkFromProto(const GraphProto& graph,
         createAndAddOperator<Backend>(node, network, workspace);
     }
     return network;
-}
-
-// Allocate storage for all of the output tensors. We have filled data for
-// all the parameterizable input tensors (including the input tensor of the
-// input layer) from the model file, now we only need to allocate storage
-// for the output tensors.
-// TODO: the data type is currently fixed to float. Change that to the
-// output data type of the operator. We will have a getOutputDataType()
-// function in the operator.
-static void allocateTensorStorage(Network* network) {
-    for (auto iter = network->begin(); iter != network->end(); ++iter) {
-        Operator* op = iter->second;
-        for (auto output : op->getOutputs()) {
-            Tensor* tensor = dynamic_cast<Tensor*>(output);
-            tensor->allocateStorage<float>();
-        }
-    }
 }
 
 Network* smaug::buildNetwork(const std::string& modelFile,
@@ -188,8 +181,6 @@ Network* smaug::buildNetwork(const std::string& modelFile,
     } else {
         assert(false && "Unknown backend!");
     }
-
-    allocateTensorStorage(network);
 
     smv::kSpadSize = 32*1024;
 

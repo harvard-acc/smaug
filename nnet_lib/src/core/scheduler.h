@@ -8,6 +8,7 @@
 #include "core/tensor.h"
 #include "core/workspace.h"
 #include "utility/debug_stream.h"
+#include "core/types.pb.h"
 
 namespace smaug {
 
@@ -21,7 +22,8 @@ Tensor* runNetwork(Network* network, Workspace* workspace) {
     std::cout << "======================================================\n";
     for (auto v : vertices) {
         Operator* op = get(boost::vertex_op, graph, v);
-        dout(0) << "Scheduling " << op->getName() << ".\n";
+        dout(0) << "Scheduling " << op->getName() << " ("
+                << OpType_Name(op->getOpType()) << ").\n";
         op->run();
         output = op->getOutput(0);
         dout(1) << *output << "\n";
