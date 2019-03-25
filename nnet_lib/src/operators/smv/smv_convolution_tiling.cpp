@@ -317,6 +317,10 @@ TilingConfig TilingOptimizer::computeBasicTileShapes(SmvConvolutionOp* op) {
                 return c1.getTotalSize() < c2.getTotalSize();
             });
     assert(maxIt != fullConfigs.end() && "Failed to get best tiling config!");
+    // Fill in the tiling dims.
+    (*maxIt).inputTilingDims = inputTilingDims;
+    (*maxIt).weightTilingDims = weightTilingDims;
+    (*maxIt).outputTilingDims = outputTilingDims;
     return *maxIt;
 }
 
@@ -452,6 +456,33 @@ TiledTensor TilingOptimizer::generateDimNHOutputTiledTensor(
         }
     }
     return outputTiledTensor;
+}
+
+std::array<TiledTensor, 3> TilingOptimizer::doTiling(SmvConvolutionOp* op) {
+    auto input = op->getInput(SmvConvolutionOp::Inputs);
+    auto kernels = op->getInput(SmvConvolutionOp::Kernels);
+    auto output = op->getOutput(SmvConvolutionOp::Outputs);
+    TilingConfig tileConfig = TilingOptimizer::computeBasicTileShapes(op);
+    std::vector<int> inputHalos{ 0, op->getWeightRows() - op->getRowStride(),
+                                 op->getWeightCols() - op->getColStride(), 0 };
+    TiledTensor tiledInputs = TilingOptimizer::generateTiledTensor(
+            input, tileConfig.inputs, inputHalos);
+    TiledTensor tiledWeights = TilingOptimizer::generateTiledTensor(
+            kernels, tileConfig.weights, { 0, 0, 0, 0 });
+    TiledTensor tiledOutputs;
+    if (tileConfig.outputTilingDims == DimNH) {
+        tiledOutputs = TilingOptimizer::generateDimNHOutputTiledTensor(
+                op,
+                tiledInputs,
+                tiledWeights,
+                tileConfig.outputs,
+                output,
+                true);
+    } else {
+        tiledOutputs = TilingOptimizer::generateTiledTensor(
+                output, tileConfig.outputs, { 0, 0, 0, 0 });
+    }
+    return { tiledInputs, tiledWeights, tiledOutputs };
 }
 
 }  // namespace conv

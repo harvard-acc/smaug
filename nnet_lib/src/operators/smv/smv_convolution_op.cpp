@@ -86,16 +86,8 @@ void SmvConvolutionOp::run() {
     assert(outputShape.getLayout() == DataLayout::NHWC);
     dout(2) << *kernels << "\n";
 
-    TilingConfig tileShapes = TilingOptimizer::computeBasicTileShapes(this);
-    std::vector<int> inputHalos{ 0, weightRows / 2, weightCols / 2, 0 };
-    TiledTensor tiledInputs = TilingOptimizer::generateTiledTensor(
-            input, tileShapes.inputs, inputHalos);
-    TiledTensor tiledWeights = TilingOptimizer::generateTiledTensor(
-            kernels, tileShapes.weights, { 0, 0, 0, 0 });
-    TiledTensor tiledOutputs = TilingOptimizer::generateTiledTensor(
-            output, tileShapes.outputs, { 0, 0, 0, 0 });
-
-    runNHWC(tiledInputs, tiledWeights, tiledOutputs);
+    std::array<TiledTensor, 3> tiledTensors = TilingOptimizer::doTiling(this);
+    runNHWC(tiledTensors[0], tiledTensors[1], tiledTensors[2]);
 }
 
 }  // namespace smaug

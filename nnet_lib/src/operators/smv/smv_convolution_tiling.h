@@ -31,10 +31,14 @@ struct TilingConfig {
     TensorShape inputs;
     TensorShape weights;
     TensorShape outputs;
+    TilingDims inputTilingDims;
+    TilingDims weightTilingDims;
+    TilingDims outputTilingDims;
 };
 
 class TilingOptimizer {
    public:
+    static std::array<TiledTensor, 3> doTiling(SmvConvolutionOp* op);
     static TilingConfig computeBasicTileShapes(SmvConvolutionOp* op);
     static TiledTensor generateTiledTensor(Tensor* tensor,
                                            const TensorShape& tileShape,
