@@ -126,10 +126,9 @@ void smv_conv3d_f32_nhwc_same_padding_vec_fxp(float* inputs,
                 for (int out_row = 0; out_row < end_row; out_row += row_stride) {
                     int out_j = 0;  // The result col.
 
-                    // We buffer all the partial sums into a vector register
-                    // and write back to the scratchpad only when we've
-                    // finished 8 partial sums.
-                    v8fp_t results_buffer[NUM_PE_INSTS];
+                    // We buffer 8 (i.e., the number of PEs) partial sums into
+                    // a vector register.
+                    v8fp_t results_buffer;
 
                     conv3d_col:
                     for (int out_col = 0; out_col < end_col;
@@ -138,19 +137,10 @@ void smv_conv3d_f32_nhwc_same_padding_vec_fxp(float* inputs,
                         // NUM_PE_INSTS, rather than kNumEffPeInsts).
                         v8fp_t product_reg[NUM_PE_INSTS][NUM_MACC_INSTS];
                         v8fp_t act_reg[NUM_MACC_INSTS];
-                        int res_buf_j = out_j % VECTOR_SIZE;
-                        if (res_buf_j == 0) {
-                            reload_results_buffer:
-                            for (int i = 0; i < kEffNumPeInsts; i++) {
-                                results_buffer[i] =
-                                        start_from_zero
-                                                ? zero
-                                                : _result[ofmap_start + i]
-                                                               [out_i]
-                                                               [out_j /
-                                                                VECTOR_SIZE];
-                            }
-                        }
+                        results_buffer =
+                                start_from_zero
+                                        ? zero
+                                        : _result[out_i][out_j][ofmap_start];
                         in_row = out_row - top_pad + kern_row;
                         in_col = out_col - left_pad + kern_col;
                         bool in_padding_row =
@@ -194,19 +184,11 @@ void smv_conv3d_f32_nhwc_same_padding_vec_fxp(float* inputs,
                             for (int vec_i = 0; vec_i < VECTOR_SIZE; vec_i++) {
                                 accum_reg += accum_vec_reg[vec_i];
                             }
-                            results_buffer[pe_id][res_buf_j] += accum_reg;
+                            results_buffer[pe_id] += accum_reg;
                         }
 
-                        if ((out_j + 1) % VECTOR_SIZE == 0 ||
-                            (out_j + 1) == result_cols) {
-                            pe_commit:
-                            for (int pe_id = 0; pe_id < kEffNumPeInsts;
-                                 pe_id++) {
-                                _result[ofmap_start + pe_id][out_i]
-                                             [out_j / VECTOR_SIZE] =
-                                                     results_buffer[pe_id];
-                            }
-                        }
+                        // Write the results back to scratchpad.
+                        _result[out_i][out_j][ofmap_start] = results_buffer;
                         out_j++;
                     }
                     out_i++;

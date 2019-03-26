@@ -86,6 +86,15 @@ void SmvConvolutionOp::run() {
     assert(outputShape.getLayout() == DataLayout::NHWC);
     dout(2) << *kernels << "\n";
 
+    // This function will tile (if necessary) the input/weight/output tensors
+    // of the convolution operator into smaller tensor tiles so that each tile
+    // can fit in the corresponding scratchpad of the accelerator.
+    // TODO: A lot of networks have back to back convolutional layers, it would
+    // be much more efficient not to retile in between them. That can be
+    // achieved by directly sending the output tiles to the next convolutional
+    // layer instead of merging them into a single output tensor first. It's
+    // sort of operator fusing that two back-to-back convolution operators are
+    // tiled only once.
     std::array<TiledTensor, 3> tiledTensors = TilingOptimizer::doTiling(this);
     runNHWC(tiledTensors[0], tiledTensors[1], tiledTensors[2]);
 }
