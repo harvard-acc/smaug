@@ -67,9 +67,29 @@ DEF_CREATE_OP(SeluOp, SmvBackend)
 DEF_CREATE_OP(TanhOp, SmvBackend)
 DEF_CREATE_OP(HardTanhOp, SmvBackend)
 
+namespace ref {
+const unsigned kConvolutionHw = 0x0001;
+const unsigned kInnerProductHw = 0x0002;
+const unsigned kEltwiseOpHw = 0x0003;
+const unsigned kBatchNormHw = 0x0004;
+const unsigned kPoolingHw = 0x0005;
+}  // namespace ref
+
 namespace smv {
-int kUmemSize;
 int kSpadSize;
+// Use the same accelerator id for all hardware blocks. This means we will
+// simulate only ONE datapath instead of multiple, which means that the two
+// blocks can share the scratchpads (without any infrastructure
+// changes). The key is that we still trace the functions at the _hw level,
+// so that Aladdin will exit after simulating each block, and we can return
+// control to the CPU at the right places.  In contrast, if we used two
+// different ids, we would have two different datapaths that could not share
+// data directly.
+const unsigned kConvolutionHw = 0x0003;
+const unsigned kInnerProductHw = 0x0003;
+const unsigned kEltwiseOpHw = 0x0003;
+const unsigned kBatchNormHw = 0x0003;
+const unsigned kPoolingHw = 0x0003;
 }  // namespace smv
 
 

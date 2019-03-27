@@ -37,6 +37,14 @@ template <typename Backend> class SeluOp;
 template <typename Backend> class TanhOp;
 template <typename Backend> class HardTanhOp;
 
+namespace ref {
+extern const unsigned kConvolutionHw;
+extern const unsigned kInnerProductHw;
+extern const unsigned kEltwiseOpHw;
+extern const unsigned kBatchNormHw;
+extern const unsigned kPoolingHw;
+}  // namespace ref
+
 class ReferenceBackend {
 
 #define DECL_CREATE_OP(OpType)                                                 \
@@ -74,6 +82,11 @@ class ReferenceBackend {
 
 namespace smv {
 extern int kSpadSize;
+extern const unsigned kConvolutionHw;
+extern const unsigned kInnerProductHw;
+extern const unsigned kEltwiseOpHw;
+extern const unsigned kBatchNormHw;
+extern const unsigned kPoolingHw;
 }  // namespace smv
 
 class SmvConvolutionOp;
