@@ -31,6 +31,15 @@ void ref_batch_norm_f32_post_fc(float* inputs,
                                 int input_nums,
                                 int input_size,
                                 int input_pad) {
+    int inputs_size = input_nums * (input_size + input_pad);
+    int kernel_size = inputs_size;
+    int result_size = inputs_size;
+    dmaLoad(inputs, inputs, inputs_size * sizeof(float));
+    dmaLoad(mean, mean, kernel_size * sizeof(float));
+    dmaLoad(variance, variance, kernel_size * sizeof(float));
+    dmaLoad(gamma, gamma, kernel_size * sizeof(float));
+    dmaLoad(beta, beta, kernel_size * sizeof(float));
+
     ARRAY_2D(float, _inputs, inputs, input_size + input_pad);
     ARRAY_2D(float, _result, result, input_size + input_pad);
 
@@ -42,6 +51,7 @@ void ref_batch_norm_f32_post_fc(float* inputs,
                     _inputs[i][j], mean[j], variance[j], gamma[j], beta[j]);
         }
     }
+    dmaStore(result, result, result_size * sizeof(float));
 }
 
 // For batch norm following a convolutional/pooling layer, we only have a
@@ -58,6 +68,15 @@ void ref_batch_norm_f32_nchw_post_conv(float* inputs,
                                        int img_cols,
                                        int img_pad,
                                        int wgt_pad) {
+    int input_size = img_nums * img_chans * img_rows * (img_cols + img_pad);
+    int kernel_size = img_chans;
+    int result_size = input_size;
+    dmaLoad(inputs, inputs, input_size * sizeof(float));
+    dmaLoad(mean, mean, kernel_size * sizeof(float));
+    dmaLoad(variance, variance, kernel_size * sizeof(float));
+    dmaLoad(gamma, gamma, kernel_size * sizeof(float));
+    dmaLoad(beta, beta, kernel_size * sizeof(float));
+
     ARRAY_4D(float, _inputs, inputs, img_chans, img_rows, img_cols + img_pad);
     ARRAY_4D(float, _result, result, img_chans, img_rows, img_cols + img_pad);
 
@@ -83,6 +102,7 @@ void ref_batch_norm_f32_nchw_post_conv(float* inputs,
             }
         }
     }
+    dmaStore(result, result, result_size * sizeof(float));
 }
 
 #ifdef __cplusplus
@@ -108,22 +128,38 @@ void BatchNormOp<ReferenceBackend>::run() {
     dout(2) << *gamma << "\n";
     dout(2) << *beta << "\n";
 
+    float* inputData = input->data<float>();
+    float* meanData = mean->data<float>();
+    float* varianceData = variance->data<float>();
+    float* gammaData = gamma->data<float>();
+    float* betaData = beta->data<float>();
+    float* outputData = output->data<float>();
+    MAP_ARRAY_TO_ACCEL(ref::kBatchNormHw, "inputs", inputData,
+                       inputShape.storageSize() * sizeof(float));
+    MAP_ARRAY_TO_ACCEL(ref::kBatchNormHw, "mean", meanData,
+                       kernelShape.storageSize() * sizeof(float));
+    MAP_ARRAY_TO_ACCEL(ref::kBatchNormHw, "variance", varianceData,
+                       kernelShape.storageSize() * sizeof(float));
+    MAP_ARRAY_TO_ACCEL(ref::kBatchNormHw, "gamma", gammaData,
+                       kernelShape.storageSize() * sizeof(float));
+    MAP_ARRAY_TO_ACCEL(ref::kBatchNormHw, "beta", betaData,
+                       kernelShape.storageSize() * sizeof(float));
+    MAP_ARRAY_TO_ACCEL(ref::kBatchNormHw, "result", outputData,
+                       outputShape.storageSize() * sizeof(float));
     if (isPostConv) {
         assert(inputShape.getLayout() == DataLayout::NCHW);
         assert(outputShape.getLayout() == DataLayout::NCHW);
-        ref_batch_norm_f32_nchw_post_conv(
-                input->data<float>(), mean->data<float>(),
-                variance->data<float>(), gamma->data<float>(),
-                beta->data<float>(), output->data<float>(), inputShape[0],
-                inputShape[1], inputShape[2], inputShape[3], 0, 0);
+        INVOKE_KERNEL(ref::kBatchNormHw, ref_batch_norm_f32_nchw_post_conv,
+                      inputData, meanData, varianceData, gammaData, betaData,
+                      outputData, inputShape[0], inputShape[1], inputShape[2],
+                      inputShape[3], inputShape.getPadding(3),
+                      kernelShape.getPadding(3));
     } else {
         assert(inputShape.getLayout() == DataLayout::NC);
         assert(outputShape.getLayout() == DataLayout::NC);
-        ref_batch_norm_f32_post_fc(input->data<float>(), mean->data<float>(),
-                                   variance->data<float>(),
-                                   gamma->data<float>(), beta->data<float>(),
-                                   output->data<float>(), inputShape[0],
-                                   inputShape[1], 0);
+        INVOKE_KERNEL(ref::kBatchNormHw, ref_batch_norm_f32_post_fc, inputData,
+                      meanData, varianceData, gammaData, betaData, outputData,
+                      inputShape[0], inputShape[1], inputShape.getPadding(1));
     }
 }
 

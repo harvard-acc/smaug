@@ -16,6 +16,11 @@ void ref_inner_product_f32_nc(float* a,
                               int a_pad,
                               int b_pad,
                               int c_pad) {
+    int input_size = a_height * (a_width + a_pad);
+    int weight_size = a_width * (b_width + b_pad);
+    int result_size = a_height * (b_width + c_pad);
+    dmaLoad(a, a, input_size * sizeof(float));
+    dmaLoad(b, b, weight_size * sizeof(float));
 
     ARRAY_2D(float, _a, a, a_width + a_pad);
     ARRAY_2D(float, _b, b, b_width + b_pad);
@@ -32,6 +37,7 @@ void ref_inner_product_f32_nc(float* a,
             _c[i][j] = result;
         }
     }
+    dmaLoad(c, c, result_size * sizeof(float));
 }
 
 #ifdef __cplusplus
@@ -53,9 +59,19 @@ void InnerProductOp<ReferenceBackend>::run() {
     assert(outputShape.getLayout() == DataLayout::NC);
     dout(2) << *weights << "\n";
 
-    ref_inner_product_f32_nc(input->data<float>(), weights->data<float>(),
-                             output->data<float>(), inputShape[0],
-                             inputShape[1], weightShape[1], 0, 0, 0);
+    float* inputData = input->data<float>();
+    float* weightData = weights->data<float>();
+    float* outputData = output->data<float>();
+    MAP_ARRAY_TO_ACCEL(ref::kInnerProductHw, "a", inputData,
+                       inputShape.storageSize() * sizeof(float));
+    MAP_ARRAY_TO_ACCEL(ref::kInnerProductHw, "b", weightData,
+                       weightShape.storageSize() * sizeof(float));
+    MAP_ARRAY_TO_ACCEL(ref::kInnerProductHw, "c", outputData,
+                       outputShape.storageSize() * sizeof(float));
+    INVOKE_KERNEL(ref::kInnerProductHw, ref_inner_product_f32_nc, inputData,
+                  weightData, outputData, inputShape[0], inputShape[1],
+                  weightShape[1], inputShape.getPadding(1),
+                  weightShape.getPadding(1), outputShape.getPadding(1));
 }
 
 }  // namespace smaug

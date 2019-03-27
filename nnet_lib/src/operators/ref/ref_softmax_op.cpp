@@ -29,6 +29,8 @@ void ref_softmax_f32_nc(float* inputs,
                         int input_num,
                         int input_size,
                         int input_pad) {
+    dmaLoad(inputs, inputs,
+            input_num * (input_size + input_pad) * sizeof(float));
     ARRAY_2D(float, _inputs, inputs, input_size + input_pad);
     ARRAY_2D(float, _results, results, input_size + input_pad);
 
@@ -85,6 +87,8 @@ void ref_softmax_f32_nc(float* inputs,
             _results[i][j] *= normaliz;
         }
     }
+    dmaLoad(results, results,
+            input_num * (input_size + input_pad) * sizeof(float));
 }
 
 #ifdef __cplusplus
@@ -99,8 +103,14 @@ void SoftmaxOp<ReferenceBackend>::run() {
     auto outputs = getOutput(Outputs);
     const TensorShape& inputShape = inputs->getShape();
     assert(inputShape == outputs->getShape());
-    ref_softmax_f32_nc(inputs->data<float>(), outputs->data<float>(),
-                       inputShape[0], inputShape[1], 0);
+    float* inputData = inputs->data<float>();
+    float* outputData = outputs->data<float>();
+    MAP_ARRAY_TO_ACCEL(ref::kEltwiseOpHw, "inputs", inputData,
+                       inputs->getShape().storageSize() * sizeof(float));
+    MAP_ARRAY_TO_ACCEL(ref::kEltwiseOpHw, "results", outputData,
+                       inputs->getShape().storageSize() * sizeof(float));
+    INVOKE_KERNEL(kEltwiseOpHw, ref_softmax_f32_nc, inputData, outputData,
+                  inputShape[0], inputShape[1], inputShape.getPadding(1));
 }
 
 }  // namespace smaug

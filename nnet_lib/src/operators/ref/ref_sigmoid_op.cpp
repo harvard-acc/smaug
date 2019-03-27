@@ -17,10 +17,12 @@ float sigmoid_fxp(float a) {
 
 // The logistic activation function
 void ref_sigmoid_f32(float* inputs, float* results, int input_size) {
+    dmaLoad(inputs, inputs, input_size * sizeof(float));
     sigmoid_loop:
     for (int i = 0; i < input_size; i++) {
         results[i] = sigmoid_fxp(inputs[i]);
     }
+    dmaStore(results, results, input_size * sizeof(float));
 }
 
 #ifdef __cplusplus
@@ -34,8 +36,14 @@ void SigmoidOp<ReferenceBackend>::run() {
     auto inputs = getInput(Inputs);
     auto outputs = getOutput(Outputs);
     assert(inputs->getShape() == outputs->getShape());
-    ref_sigmoid_f32(inputs->data<float>(), outputs->data<float>(),
-                    inputs->getShape().size());
+    float* inputData = inputs->data<float>();
+    float* outputData = outputs->data<float>();
+    MAP_ARRAY_TO_ACCEL(ref::kEltwiseOpHw, "inputs", inputData,
+                       inputs->getShape().storageSize() * sizeof(float));
+    MAP_ARRAY_TO_ACCEL(ref::kEltwiseOpHw, "results", outputData,
+                       inputs->getShape().storageSize() * sizeof(float));
+    INVOKE_KERNEL(kEltwiseOpHw, ref_sigmoid_f32, inputData, outputData,
+                  inputs->getShape().size());
 }
 
 }  // namespace smaug

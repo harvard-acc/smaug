@@ -7,6 +7,7 @@ extern "C" {
 #endif
 
 void ref_relu_f32(float* inputs, float* results, int input_size) {
+    dmaLoad(inputs, inputs, input_size * sizeof(float));
     relu_loop:
     for (int i = 0; i < input_size; i++) {
         float value = inputs[i];
@@ -16,9 +17,11 @@ void ref_relu_f32(float* inputs, float* results, int input_size) {
             results[i] = value;
         }
     }
+    dmaStore(results, results, input_size * sizeof(float));
 }
 
 void ref_leaky_relu_f32(float* inputs, float* results, int input_size, float slope) {
+    dmaLoad(inputs, inputs, input_size * sizeof(float));
     relu_loop:
     for (int i = 0; i < input_size; i++) {
         float value = inputs[i];
@@ -28,6 +31,7 @@ void ref_leaky_relu_f32(float* inputs, float* results, int input_size, float slo
             results[i] = value;
         }
     }
+    dmaStore(results, results, input_size * sizeof(float));
 }
 
 #ifdef __cplusplus
@@ -41,12 +45,18 @@ void ReluOp<ReferenceBackend>::run() {
     auto inputs = getInput(Inputs);
     auto outputs = getOutput(Outputs);
     assert(inputs->getShape() == outputs->getShape());
+    float* inputData = inputs->data<float>();
+    float* outputData = outputs->data<float>();
+    MAP_ARRAY_TO_ACCEL(ref::kEltwiseOpHw, "inputs", inputData,
+                       inputs->getShape().storageSize() * sizeof(float));
+    MAP_ARRAY_TO_ACCEL(ref::kEltwiseOpHw, "results", outputData,
+                       inputs->getShape().storageSize() * sizeof(float));
     if (slope == 1) {
-        ref_relu_f32(inputs->data<float>(), outputs->data<float>(),
-                     inputs->getShape().size());
+        INVOKE_KERNEL(kEltwiseOpHw, ref_relu_f32, inputData, outputData,
+                      inputs->getShape().size());
     } else {
-        ref_leaky_relu_f32(inputs->data<float>(), outputs->data<float>(),
-                           inputs->getShape().size(), slope);
+        INVOKE_KERNEL(kEltwiseOpHw, ref_leaky_relu_f32, inputData, outputData,
+                      inputs->getShape().size(), slope);
     }
 }
 

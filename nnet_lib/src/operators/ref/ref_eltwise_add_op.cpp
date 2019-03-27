@@ -10,9 +10,12 @@ void ref_eltwise_add_f32(float* input0,
                          float* input1,
                          float* results,
                          int input_size) {
+    dmaLoad(input0, input0, input_size * sizeof(float));
+    dmaLoad(input1, input1, input_size * sizeof(float));
     for (int i = 0; i < input_size; i++) {
         results[i] = input0[i] + input1[i];
     }
+    dmaStore(results, results, input_size * sizeof(float));
 }
 
 #ifdef __cplusplus
@@ -31,10 +34,17 @@ void EltwiseAddOp<ReferenceBackend>::run() {
     const TensorShape& outputShape = output->getShape();
     assert(input0Shape == input1Shape && input0Shape == outputShape);
 
-    ref_eltwise_add_f32(input0->data<float>(),
-                        input1->data<float>(),
-                        output->data<float>(),
-                        input0Shape.size());
+    float* input0Data = input0->data<float>();
+    float* input1Data = input1->data<float>();
+    float* outputData = output->data<float>();
+    MAP_ARRAY_TO_ACCEL(ref::kEltwiseOpHw, "input0", input0Data,
+                       input0Shape.storageSize() * sizeof(float));
+    MAP_ARRAY_TO_ACCEL(ref::kEltwiseOpHw, "input1", input1Data,
+                       input1Shape.storageSize() * sizeof(float));
+    MAP_ARRAY_TO_ACCEL(ref::kEltwiseOpHw, "results", outputData,
+                       outputShape.storageSize() * sizeof(float));
+    INVOKE_KERNEL(ref::kEltwiseOpHw, ref_eltwise_add_f32, input0Data,
+                  input1Data, outputData, input0Shape.size());
 }
 
 }  // namespace smaug

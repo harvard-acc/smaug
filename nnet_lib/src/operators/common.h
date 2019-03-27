@@ -3,6 +3,18 @@
 
 #include <stdint.h>
 
+#ifdef DMA_MODE
+#ifdef __cplusplus
+extern "C" {
+#endif
+#include "dma_interface.h"
+#ifdef __cplusplus
+}
+#endif
+#include "gem5/aladdin_sys_connection.h"
+#include "gem5/aladdin_sys_constants.h"
+#endif
+
 // Scalar types.
 typedef float fp_t;
 typedef int sfx_t;
@@ -85,15 +97,16 @@ typedef sfx_t v4sfx_t
 #define VEC_ARRAY_1D(TYPE, output_array_name, input_array_name)                \
     TYPE* output_array_name = (TYPE*)input_array_name
 
-#define VEC_ARRAY_2D(type, output_array_name, input_array_name)                \
+#define VEC_ARRAY_2D(TYPE, output_array_name, input_array_name)                \
     typedef TYPE(*output_array_name##_t)[(cols) / VECTOR_SIZE];                \
     TO_TYPE(output_array_name, input_array_name)
 
-#define VEC_ARRAY_3D(type, output_name, input_name, rows, cols)                \
+#define VEC_ARRAY_3D(TYPE, output_array_name, input_array_name, rows, cols)    \
     typedef TYPE(*output_array_name##_t)[(rows)][(cols) / VECTOR_SIZE];        \
     TO_TYPE(output_array_name, input_array_name)
 
-#define VEC_ARRAY_4D(type, output_name, input_name, height, rows, cols)        \
+#define VEC_ARRAY_4D(                                                          \
+        TYPE, output_array_name, input_array_name, height, rows, cols)         \
     typedef TYPE(                                                              \
             *output_array_name##_t)[(height)][(rows)][(cols) / VECTOR_SIZE];   \
     TO_TYPE(output_array_name, input_array_name)
@@ -141,6 +154,81 @@ typedef sfx_t v4sfx_t
                     input_array_name
 
 #endif
+
+#define STRING(arg) #arg
+
+// This is to avoid a ton of spurious unused variable warnings when
+// we're not building for gem5.
+#define UNUSED(x) (void)(x)
+
+// Convenience macros to switch between invoking an accelerator (if building a
+// binary for gem5) or just calling the kernel function in software.
+//
+// Usage:
+//
+//  These macros expand differently based on whether the GEM5_HARNESS macro is
+//  defined. If so, then this binary is meant to be run under gem5, invoking
+//  accelerators; if not, this binary should run the pure software version of
+//  the accelerated kernels.
+//
+//  If GEM5_HARNESS is defined:
+//
+//     MAP_ARRAY_TO_ACCEL(myReqCode, myArrayName, myArrayPtr, mySize)
+//        ===>   mapArrayToAccelerator(myReqCode, myArrayName, myArrayPtr, mySize)
+//
+//     INVOKE_KERNEL(myReqCode, kernelFuncName, args...)
+//        ===>   invokeAcceleratorAndBlock(myReqCode)
+//
+//  Otherwise:
+//     MAP_ARRAY_TO_ACCEL(myReqCode, myArrayName, myArrayPtr, mySize)
+//        expands to nothing
+//
+//     INVOKE_KERNEL(myReqCode, kernelFuncName, args...)
+//        ===>  kernelFuncName(args)
+//
+#ifdef GEM5_HARNESS
+
+#define MAP_ARRAY_TO_ACCEL(req_code, name, base_addr, size)                    \
+    mapArrayToAccelerator(req_code, name, base_addr, size)
+#define INVOKE_KERNEL(req_code, kernel_ptr, args...)                           \
+    do {                                                                       \
+        UNUSED(kernel_ptr);                                                    \
+        invokeAcceleratorAndBlock(req_code);                                   \
+    } while (0)
+#define INVOKE_KERNEL_NOBLOCK(req_code, finish_flag, kernel_ptr, args...)      \
+    do {                                                                       \
+        UNUSED(kernel_ptr);                                                    \
+        invokeAcceleratorAndReturn2(req_code, finish_flag);                    \
+    } while (0)
+
+#else
+
+#define MAP_ARRAY_TO_ACCEL(req_code, name, base_addr, size)                    \
+    do {                                                                       \
+        UNUSED(req_code);                                                      \
+        UNUSED(name);                                                          \
+        UNUSED(base_addr);                                                     \
+        UNUSED(size);                                                          \
+    } while (0)
+#define INVOKE_KERNEL(req_code, kernel_ptr, args...) kernel_ptr(args)
+#define INVOKE_KERNEL_NOBLOCK(req_code, finish_flag, kernel_ptr, args...)      \
+    kernel_ptr(args)
+
+#endif
+
+// Simplified version of MAP_ARRAY_TO_ACCEL.
+//
+// This assumes that the current name of the base pointer is also the name of
+// the array in the top level function of the dynamic trace. THIS IS VERY
+// IMPORTANT - if the argument passed to a top level function has been renamed in
+// the function, then this WILL NOT WORK!
+//
+// MAP_ARRAY(myReqCode, myArray, mySize)
+//    ===>   MAP_ARRAY_TO_ACCEL(myReqCode, "myArray", myArray, mySize)
+#define MAP_ARRAY(req_code, name_and_base_addr, size)                          \
+    MAP_ARRAY_TO_ACCEL(                                                        \
+            req_code, STRING(name_and_base_addr), name_and_base_addr, size)
+
 
 // Macros for computing the maximum of a group of elements.
 //

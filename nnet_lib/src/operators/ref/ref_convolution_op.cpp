@@ -24,6 +24,12 @@ void ref_conv3d_f32_nchw_valid_padding(float* input,
                                        int res_rows,
                                        int res_cols,
                                        int res_pad) {
+    int input_size = img_num * img_chans * img_rows * (img_cols + img_pad);
+    int kernel_size = k_num * img_chans * k_rows * (k_cols + k_pad);
+    int result_size = img_num * k_num * res_rows * (res_cols + res_pad);
+    dmaLoad(input, input, input_size * sizeof(float));
+    dmaLoad(kernels, kernels, kernel_size * sizeof(float));
+
     // Convolution borders.
     const int start_i = 0;
     const int start_j = 0;
@@ -66,6 +72,7 @@ void ref_conv3d_f32_nchw_valid_padding(float* input,
             }
         }
     }
+    dmaStore(result, result, result_size * sizeof(float));
 }
 
 void ref_conv3d_f32_nchw_same_padding(float* input,
@@ -85,6 +92,12 @@ void ref_conv3d_f32_nchw_same_padding(float* input,
                                       int res_rows,
                                       int res_cols,
                                       int res_pad) {
+    int input_size = img_num * img_chans * img_rows * (img_cols + img_pad);
+    int kernel_size = k_num * img_chans * k_rows * (k_cols + k_pad);
+    int result_size = img_num * k_num * res_rows * (res_cols + res_pad);
+    dmaLoad(input, input, input_size * sizeof(float));
+    dmaLoad(kernels, kernels, kernel_size * sizeof(float));
+
     const int total_row_pad = k_rows - 1;
     const int total_col_pad = k_cols - 1;
     const int left_pad = k_rows / 2;
@@ -143,6 +156,7 @@ void ref_conv3d_f32_nchw_same_padding(float* input,
             }
         }
     }
+    dmaStore(result, result, result_size * sizeof(float));
 }
 
 #ifdef __cplusplus
@@ -164,26 +178,24 @@ void ConvolutionOp<ReferenceBackend>::run() {
     assert(outputShape.getLayout() == DataLayout::NCHW);
     dout(2) << *kernels << "\n";
 
+    float* inputData = input->data<float>();
+    float* kernelData = kernels->data<float>();
+    float* outputData = output->data<float>();
+    MAP_ARRAY_TO_ACCEL(ref::kConvolutionHw, "input", inputData,
+                       inputShape.storageSize() * sizeof(float));
+    MAP_ARRAY_TO_ACCEL(ref::kConvolutionHw, "kernels", kernelData,
+                       kernelShape.storageSize() * sizeof(float));
+    MAP_ARRAY_TO_ACCEL(ref::kConvolutionHw, "result", outputData,
+                       outputShape.storageSize() * sizeof(float));
     auto func = paddingType == ValidPadding
                         ? ref_conv3d_f32_nchw_valid_padding
                         : ref_conv3d_f32_nchw_same_padding;
-    func(input->data<float>(),
-         kernels->data<float>(),
-         output->data<float>(),
-         inputShape[0],
-         inputShape[1],
-         inputShape[2],
-         inputShape[3],
-         0,
-         kernelShape[0],
-         kernelShape[2],
-         kernelShape[3],
-         0,
-         getRowStride(),
-         getColStride(),
-         outputShape[2],
-         outputShape[3],
-         0);
+    INVOKE_KERNEL(ref::kConvolutionHw, func, inputData, kernelData, outputData,
+                  inputShape[0], inputShape[1], inputShape[2], inputShape[3],
+                  inputShape.getPadding(3), kernelShape[0], kernelShape[2],
+                  kernelShape[3], kernelShape.getPadding(3), getRowStride(),
+                  getColStride(), outputShape[2], outputShape[3],
+                  outputShape.getPadding(3));
 }
 
 }  // namespace smaug
