@@ -49,6 +49,10 @@ PY_TESTS = src/python/tensor_test.py \
 
 
 GEM5_DMA_SRC = gem5/dma_interface.c gem5/dma_interface.h
+GEM5_SYS_SRCS = gem5/aladdin_sys_connection.cpp gem5/aladdin_sys_connection.h \
+                gem5/aladdin_sys_constants.cpp gem5/aladdin_sys_constants.h \
+                gem5/gem5_harness.h
+GEM5_SRCS = $(GEM5_DMA_SRC) $(GEM5_SYS_SRCS)
 
 LFLAGS = -L$(BOOST_ROOT)/lib -lm -lrt -lboost_graph -lboost_program_options -lprotobuf -lpthread
 CFLAGS = -O0 -g
@@ -58,6 +62,8 @@ INCLUDES = -I$(BUILD_DIR) \
            -I$(BOOST_ROOT)/include \
            -Isrc/third_party/Catch2/single_include \
            -Isrc/third_party/FP16/include
+
+BMARK_SPECIFIC_CFLAGS = -DDMA_INTERFACE_V3
 
 export WORKLOAD=ref_conv3d_f32_nchw_same_padding,ref_conv3d_f32_nchw_valid_padding,ref_batch_norm_f32_nchw_post_conv,ref_batch_norm_f32_post_fc,ref_inner_product_f32_nc,ref_max_pooling_f32_nchw_treemax,ref_max_pooling_f32_nchw_itermax,ref_avg_pooling_f32_nchw,ref_conv2d_f32_nchw_valid_padding,ref_conv2d_f32_nchw_same_padding,ref_eltwise_add_f32
 
@@ -75,6 +81,11 @@ PYTHON_DIR = $(CURRENT_DIR)/../src/python
 SRC_SYMLINKS := $(shell find src ! -name '*.swp' | sed 's: :\\ :g')
 SRC_SYMLINKS := $(patsubst src/%, $(BUILD_DIR)/%, $(SRC_SYMLINKS))
 
+PROTO_PY_SRCS = $(patsubst src/core/%.proto, $(PYTHON_DIR)/%_pb2.py, $(PROTO_SRCS))
+PROTO_CPP_SRCS = $(patsubst %.proto, %.pb.cpp, $(PROTO_SRCS))
+BUILD_PROTO_CPP_SRCS = $(patsubst src/%, $(BUILD_DIR)/%, $(PROTO_CPP_SRCS))
+BUILD_GEM5_SRCS = $(filter-out %.h, $(patsubst %, $(BUILD_DIR)/%, $(GEM5_SRCS)))
+
 # Create a build directory that just has symlinks to all the source files, so
 # we can build everything seemingly "alongside" the source.
 src-symlinks: $(SRC_SYMLINKS)
@@ -83,7 +94,7 @@ $(SRC_SYMLINKS):
 	@if [ -d $(BUILD_DIR) ]; then find -L $(BUILD_DIR) -type l -print -delete 2>&1 > /dev/null; fi
 	@mkdir -p $(BUILD_DIR)/gem5
 	@cp -asf $(CURRENT_DIR)/../src/* $(BUILD_DIR)/
-	@$(foreach f, $(GEM5_DMA_SRC), cp -asf $(ALADDIN_HOME)/$(f) $(BUILD_DIR)/$(f);)
+	@$(foreach f, $(GEM5_SRCS), cp -asf $(ALADDIN_HOME)/$(f) $(BUILD_DIR)/$(f);)
 
 %.pb.cpp: %.proto
 	$(PROTOC) -I=$(dir $^) --cpp_out=$(dir $^) $^

@@ -9,16 +9,15 @@ include common/Makefile.common
 # Disable some warnings.
 native: CFLAGS+=-Wno-attributes
 
+CFLAGS += -DDMA_MODE $(BMARK_SPECIFIC_CFLAGS)
+
 ######################################
 ####      PRIMARY BUILD SETUP     ####
 ######################################
 
 # Create object files for each cpp/c file.
-PROTO_PY_SRCS = $(patsubst src/core/%.proto, $(PYTHON_DIR)/%_pb2.py, $(PROTO_SRCS))
-BUILD_PROTO_SRCS = $(patsubst src/%, $(BUILD_DIR)/%, $(PROTO_SRCS))
-BUILD_PROTO_CPP_SRCS = $(patsubst %.proto, %.pb.cpp, $(BUILD_PROTO_SRCS))
 BUILD_SRCS = $(patsubst src/%, $(BUILD_DIR)/%, $(SRCS))
-BUILD_SRCS += $(BUILD_PROTO_CPP_SRCS)
+BUILD_SRCS += $(BUILD_PROTO_CPP_SRCS) $(BUILD_GEM5_SRCS)
 BUILD_SRCS_OBJS := $(patsubst %.cpp, %.o, $(BUILD_SRCS))
 BUILD_SRCS_OBJS := $(patsubst %.c, %.o, $(BUILD_SRCS_OBJS))
 
@@ -50,7 +49,7 @@ CATCH_SRC = $(CATCH_MAIN).cpp
 TEST_OBJ = $(patsubst %.cpp, %.o, $(BUILD_TESTS))
 TEST_BIN = $(patsubst %.cpp, %, $(BUILD_TESTS))
 
-tests: src-symlinks $(TEST_BIN) $(BUILD_PROTO_CPP_SRCS) $(PROTO_PY_SRCS)
+tests: src-symlinks $(TEST_BIN) $(BUILD_PROTO_CPP_SRCS) $(PROTO_PY_SRCS) $(BUILD_GEM5_SRCS)
 
 $(TEST_BIN) : % : %.o $(CATCH_OBJ) $(BUILD_SRCS_OBJS)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ -o $@ $(LFLAGS)

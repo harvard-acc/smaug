@@ -22,7 +22,7 @@ TRACER = $(TRACER_HOME)/lib/full_trace.so
 LOGGER = $(TRACER_HOME)/lib/trace_logger.llvm
 GET_LABELED_STMTS = $(TRACER_HOME)/bin/get-labeled-stmts
 
-CPPFLAGS += -DTRACE_MODE -DDMA_MODE
+CPPFLAGS += -DTRACE_MODE -DDMA_MODE -Wno-deprecated-declarations
 LFLAGS += -lz
 
 ################################
@@ -34,11 +34,13 @@ LLVM_VERSION = $(shell clang-6.0 --version | grep -o -m 1 "[0-9\.]\+" | head -n 
 # The file containinng the main function must be instrumented LAST so that it
 # can include all labels discovered by the clangtool. Therefore, we take it out
 # of this list and manually append it to the end.
-ALL_TRACER_SRCS = $(filter-out $(MAIN), $(SRCS) $(GEM5_DMA_SRC)) $(MAIN)
+ALL_TRACER_SRCS = $(filter-out $(MAIN), $(SRCS) $(BUILD_PROTO_CPP_SRCS) $(BUILD_GEM5_SRCS)) $(MAIN)
 
 LLVM_OBJS = $(filter-out %.h, \
-						$(patsubst %.c, $(BUILD_DIR)/%-opt.llvm, \
-						$(patsubst src/%.cpp, $(BUILD_DIR)/%-opt.llvm, $(ALL_TRACER_SRCS))))
+						$(patsubst build/%.c, $(BUILD_DIR)/%-opt.llvm, \
+						$(patsubst build/%.cpp, $(BUILD_DIR)/%-opt.llvm, \
+						$(patsubst src/%.c, $(BUILD_DIR)/%-opt.llvm, \
+						$(patsubst src/%.cpp, $(BUILD_DIR)/%-opt.llvm, $(ALL_TRACER_SRCS))))))
 
 ################################
 #         SANITY CHECKS        #
@@ -48,7 +50,7 @@ LLVM_OBJS = $(filter-out %.h, \
 #        INSTRUMENTATION AND TRACE FILE GENERATION      #
 #########################################################
 
-build-trace: src-symlinks
+build-trace: src-symlinks $(BUILD_PROTO_CPP_SRCS)
 	@$(MAKE) -f common/Makefile.tracer $(BUILD_DIR)/$(EXEC)-instrumented
 
 %-labelmap: %.cpp
@@ -65,10 +67,10 @@ build-trace: src-symlinks
 
 $(BUILD_DIR)/full.llvm: $(LLVM_OBJS)
 	@echo Linking instrumented LLVM objects...
-	@llvm-link-6.0 -o $@ $^ $(LOGGER)
+	@llvm-link -o $@ $^ $(LOGGER)
 
 $(BUILD_DIR)/full.s: $(BUILD_DIR)/full.llvm
-	@llc-6.0 -O0 -disable-fp-elim -filetype=asm -o $@ $<
+	@llc -O0 -disable-fp-elim -filetype=asm -o $@ $<
 
 $(BUILD_DIR)/$(EXEC)-instrumented: $(BUILD_DIR)/full.s
 	@echo Producing final binary...
@@ -76,7 +78,7 @@ $(BUILD_DIR)/$(EXEC)-instrumented: $(BUILD_DIR)/full.s
 
 %-opt.llvm: %.c %-labelmap
 	@echo Building $<
-	@clang-6.0 -g -O1 -S -fno-slp-vectorize -fno-vectorize -fno-unroll-loops \
+	@clang -g -O1 -S -fno-slp-vectorize -fno-vectorize -fno-unroll-loops \
         -fno-inline -fno-builtin \
 				-mavx \
 				-mf16c \
@@ -85,13 +87,13 @@ $(BUILD_DIR)/$(EXEC)-instrumented: $(BUILD_DIR)/full.s
 				$(CPPFLAGS) \
         $(BMARK_SPECIFIC_CFLAGS) \
         -o $*.llvm $<
-	@opt-6.0 -S -load=$(TRACER) -fulltrace \
+	@opt -S -load=$(TRACER) -fulltrace \
 				-labelmapwriter -trace-all-callees -i $(BUILD_DIR)/labelmap \
 				$*.llvm -o $*-opt.llvm
 
 %-opt.llvm: %.cpp %-labelmap
 	@echo Building $<
-	@clang++-6.0 -g -O1 -S -fno-slp-vectorize -fno-vectorize -fno-unroll-loops \
+	@clang++ -g -O1 -S -fno-slp-vectorize -fno-vectorize -fno-unroll-loops \
         -fno-inline -fno-builtin \
 				-mavx \
 				-mf16c \
@@ -102,7 +104,7 @@ $(BUILD_DIR)/$(EXEC)-instrumented: $(BUILD_DIR)/full.s
 				$(CPPFLAGS) \
         $(BMARK_SPECIFIC_CFLAGS) \
         -o $*.llvm $<
-	@opt-6.0 -S -load=$(TRACER) -fulltrace \
+	@opt -S -load=$(TRACER) -fulltrace \
 				-labelmapwriter -trace-all-callees -i $(BUILD_DIR)/labelmap \
 				$*.llvm -o $*-opt.llvm
 
