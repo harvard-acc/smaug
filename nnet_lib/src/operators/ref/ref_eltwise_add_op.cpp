@@ -37,14 +37,14 @@ void EltwiseAddOp<ReferenceBackend>::run() {
     float* input0Data = input0->data<float>();
     float* input1Data = input1->data<float>();
     float* outputData = output->data<float>();
-    MAP_ARRAY_TO_ACCEL(ref::kEltwiseOpHw, "input0", input0Data,
-                       input0Shape.storageSize() * sizeof(float));
-    MAP_ARRAY_TO_ACCEL(ref::kEltwiseOpHw, "input1", input1Data,
-                       input1Shape.storageSize() * sizeof(float));
-    MAP_ARRAY_TO_ACCEL(ref::kEltwiseOpHw, "results", outputData,
-                       outputShape.storageSize() * sizeof(float));
-    INVOKE_KERNEL(ref::kEltwiseOpHw, ref_eltwise_add_f32, input0Data,
-                  input1Data, outputData, input0Shape.size());
+    mapArrayToAccel(ref::kEltwiseOpHw, "input0", input0Data,
+                    input0Shape.storageSize() * sizeof(float));
+    mapArrayToAccel(ref::kEltwiseOpHw, "input1", input1Data,
+                    input1Shape.storageSize() * sizeof(float));
+    mapArrayToAccel(ref::kEltwiseOpHw, "results", outputData,
+                    outputShape.storageSize() * sizeof(float));
+    invokeKernel(ref::kEltwiseOpHw, ref_eltwise_add_f32, input0Data, input1Data,
+                 outputData, input0Shape.size());
 }
 
 }  // namespace smaug

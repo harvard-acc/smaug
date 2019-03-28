@@ -9,7 +9,8 @@ include common/Makefile.common
 # Disable some warnings.
 native: CFLAGS+=-Wno-attributes
 
-CFLAGS += -DDMA_MODE $(BMARK_SPECIFIC_CFLAGS)
+GEM5_SIMD_CFLAGS = -msse3 -msse2 -mno-ssse3 -mno-sse4.1 -mno-sse4.2
+CFLAGS += -DDMA_MODE $(BMARK_SPECIFIC_CFLAGS) $(GEM5_SIMD_CFLAGS)
 
 ######################################
 ####      PRIMARY BUILD SETUP     ####

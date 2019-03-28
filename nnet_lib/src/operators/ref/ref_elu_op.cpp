@@ -50,12 +50,12 @@ void EluOp<ReferenceBackend>::run() {
     assert(inputs->getShape() == outputs->getShape());
     float* inputData = inputs->data<float>();
     float* outputData = outputs->data<float>();
-    MAP_ARRAY_TO_ACCEL(ref::kEltwiseOpHw, "inputs", inputData,
-                       inputs->getShape().storageSize() * sizeof(float));
-    MAP_ARRAY_TO_ACCEL(ref::kEltwiseOpHw, "results", outputData,
-                       inputs->getShape().storageSize() * sizeof(float));
-    INVOKE_KERNEL(ref::kEltwiseOpHw, ref_elu_f32, inputData, outputData,
-                  inputs->getShape().size(), alpha);
+    mapArrayToAccel(ref::kEltwiseOpHw, "inputs", inputData,
+                    inputs->getShape().storageSize() * sizeof(float));
+    mapArrayToAccel(ref::kEltwiseOpHw, "results", outputData,
+                    inputs->getShape().storageSize() * sizeof(float));
+    invokeKernel(ref::kEltwiseOpHw, ref_elu_f32, inputData, outputData,
+                 inputs->getShape().size(), alpha);
 }
 
 template <>
@@ -65,12 +65,12 @@ void SeluOp<ReferenceBackend>::run() {
     assert(inputs->getShape() == outputs->getShape());
     float* inputData = inputs->data<float>();
     float* outputData = outputs->data<float>();
-    MAP_ARRAY_TO_ACCEL(ref::kEltwiseOpHw, "inputs", inputData,
-                       inputs->getShape().storageSize() * sizeof(float));
-    MAP_ARRAY_TO_ACCEL(ref::kEltwiseOpHw, "results", outputData,
-                       inputs->getShape().storageSize() * sizeof(float));
-    INVOKE_KERNEL(ref::kEltwiseOpHw, ref_selu_f32, inputData, outputData,
-                  inputs->getShape().size(), this->alpha, lambda);
+    mapArrayToAccel(ref::kEltwiseOpHw, "inputs", inputData,
+                    inputs->getShape().storageSize() * sizeof(float));
+    mapArrayToAccel(ref::kEltwiseOpHw, "results", outputData,
+                    inputs->getShape().storageSize() * sizeof(float));
+    invokeKernel(ref::kEltwiseOpHw, ref_selu_f32, inputData, outputData,
+                 inputs->getShape().size(), this->alpha, lambda);
 }
 
 }  // namespace smaug

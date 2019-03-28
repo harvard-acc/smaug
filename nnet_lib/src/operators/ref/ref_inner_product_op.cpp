@@ -62,16 +62,16 @@ void InnerProductOp<ReferenceBackend>::run() {
     float* inputData = input->data<float>();
     float* weightData = weights->data<float>();
     float* outputData = output->data<float>();
-    MAP_ARRAY_TO_ACCEL(ref::kInnerProductHw, "a", inputData,
-                       inputShape.storageSize() * sizeof(float));
-    MAP_ARRAY_TO_ACCEL(ref::kInnerProductHw, "b", weightData,
-                       weightShape.storageSize() * sizeof(float));
-    MAP_ARRAY_TO_ACCEL(ref::kInnerProductHw, "c", outputData,
-                       outputShape.storageSize() * sizeof(float));
-    INVOKE_KERNEL(ref::kInnerProductHw, ref_inner_product_f32_nc, inputData,
-                  weightData, outputData, inputShape[0], inputShape[1],
-                  weightShape[1], inputShape.getPadding(1),
-                  weightShape.getPadding(1), outputShape.getPadding(1));
+    mapArrayToAccel(ref::kInnerProductHw, "a", inputData,
+                    inputShape.storageSize() * sizeof(float));
+    mapArrayToAccel(ref::kInnerProductHw, "b", weightData,
+                    weightShape.storageSize() * sizeof(float));
+    mapArrayToAccel(ref::kInnerProductHw, "c", outputData,
+                    outputShape.storageSize() * sizeof(float));
+    invokeKernel(ref::kInnerProductHw, ref_inner_product_f32_nc, inputData,
+                 weightData, outputData, inputShape[0], inputShape[1],
+                 weightShape[1], inputShape.getPadding(1),
+                 weightShape.getPadding(1), outputShape.getPadding(1));
 }
 
 }  // namespace smaug

@@ -47,16 +47,16 @@ void ReluOp<ReferenceBackend>::run() {
     assert(inputs->getShape() == outputs->getShape());
     float* inputData = inputs->data<float>();
     float* outputData = outputs->data<float>();
-    MAP_ARRAY_TO_ACCEL(ref::kEltwiseOpHw, "inputs", inputData,
-                       inputs->getShape().storageSize() * sizeof(float));
-    MAP_ARRAY_TO_ACCEL(ref::kEltwiseOpHw, "results", outputData,
-                       inputs->getShape().storageSize() * sizeof(float));
+    mapArrayToAccel(ref::kEltwiseOpHw, "inputs", inputData,
+                    inputs->getShape().storageSize() * sizeof(float));
+    mapArrayToAccel(ref::kEltwiseOpHw, "results", outputData,
+                    inputs->getShape().storageSize() * sizeof(float));
     if (slope == 1) {
-        INVOKE_KERNEL(kEltwiseOpHw, ref_relu_f32, inputData, outputData,
-                      inputs->getShape().size());
+        invokeKernel(ref::kEltwiseOpHw, ref_relu_f32, inputData, outputData,
+                     inputs->getShape().size());
     } else {
-        INVOKE_KERNEL(kEltwiseOpHw, ref_leaky_relu_f32, inputData, outputData,
-                      inputs->getShape().size(), slope);
+        invokeKernel(ref::kEltwiseOpHw, ref_leaky_relu_f32, inputData,
+                     outputData, inputs->getShape().size(), slope);
     }
 }
 

@@ -48,12 +48,12 @@ void TanhOp<ReferenceBackend>::run() {
     assert(inputs->getShape() == outputs->getShape());
     float* inputData = inputs->data<float>();
     float* outputData = outputs->data<float>();
-    MAP_ARRAY_TO_ACCEL(ref::kEltwiseOpHw, "inputs", inputData,
-                       inputs->getShape().storageSize() * sizeof(float));
-    MAP_ARRAY_TO_ACCEL(ref::kEltwiseOpHw, "results", outputData,
-                       inputs->getShape().storageSize() * sizeof(float));
-    INVOKE_KERNEL(kEltwiseOpHw, ref_tanh_f32, inputData, outputData,
-                  inputs->getShape().size());
+    mapArrayToAccel(ref::kEltwiseOpHw, "inputs", inputData,
+                    inputs->getShape().storageSize() * sizeof(float));
+    mapArrayToAccel(ref::kEltwiseOpHw, "results", outputData,
+                    inputs->getShape().storageSize() * sizeof(float));
+    invokeKernel(ref::kEltwiseOpHw, ref_tanh_f32, inputData, outputData,
+                 inputs->getShape().size());
 }
 
 template <>
@@ -63,12 +63,12 @@ void HardTanhOp<ReferenceBackend>::run() {
     assert(inputs->getShape() == outputs->getShape());
     float* inputData = inputs->data<float>();
     float* outputData = outputs->data<float>();
-    MAP_ARRAY_TO_ACCEL(ref::kEltwiseOpHw, "inputs", inputData,
-                       inputs->getShape().storageSize() * sizeof(float));
-    MAP_ARRAY_TO_ACCEL(ref::kEltwiseOpHw, "results", outputData,
-                       inputs->getShape().storageSize() * sizeof(float));
-    INVOKE_KERNEL(kEltwiseOpHw, ref_hard_tanh_f32, inputData, outputData,
-                  inputs->getShape().size(), min, max);
+    mapArrayToAccel(ref::kEltwiseOpHw, "inputs", inputData,
+                    inputs->getShape().storageSize() * sizeof(float));
+    mapArrayToAccel(ref::kEltwiseOpHw, "results", outputData,
+                    inputs->getShape().storageSize() * sizeof(float));
+    invokeKernel(ref::kEltwiseOpHw, ref_hard_tanh_f32, inputData, outputData,
+                 inputs->getShape().size(), min, max);
 }
 
 }  // namespace smaug

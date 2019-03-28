@@ -168,20 +168,20 @@ void DepthwiseConvolutionOp<ReferenceBackend>::run() {
     float* inputData = input->data<float>();
     float* kernelData = kernels->data<float>();
     float* outputData = output->data<float>();
-    MAP_ARRAY_TO_ACCEL(ref::kConvolutionHw, "input", inputData,
-                       inputShape.storageSize() * sizeof(float));
-    MAP_ARRAY_TO_ACCEL(ref::kConvolutionHw, "kernels", kernelData,
-                       kernelShape.storageSize() * sizeof(float));
-    MAP_ARRAY_TO_ACCEL(ref::kConvolutionHw, "result", outputData,
-                       outputShape.storageSize() * sizeof(float));
+    mapArrayToAccel(ref::kConvolutionHw, "input", inputData,
+                    inputShape.storageSize() * sizeof(float));
+    mapArrayToAccel(ref::kConvolutionHw, "kernels", kernelData,
+                    kernelShape.storageSize() * sizeof(float));
+    mapArrayToAccel(ref::kConvolutionHw, "result", outputData,
+                    outputShape.storageSize() * sizeof(float));
     auto func = paddingType == ValidPadding
                         ? ref_conv2d_f32_nchw_valid_padding
                         : ref_conv2d_f32_nchw_same_padding;
-    INVOKE_KERNEL(ref::kConvolutionHw, func, inputData, kernelData, outputData,
-                  inputShape[0], inputShape[1], inputShape[2], inputShape[3],
-                  inputShape.getPadding(3), kernelShape[2], kernelShape[3],
-                  kernelShape.getPadding(3), getRowStride(), getColStride(),
-                  outputShape[2], outputShape[3], outputShape.getPadding(3));
+    invokeKernel(ref::kConvolutionHw, func, inputData, kernelData, outputData,
+                 inputShape[0], inputShape[1], inputShape[2], inputShape[3],
+                 inputShape.getPadding(3), kernelShape[2], kernelShape[3],
+                 kernelShape.getPadding(3), getRowStride(), getColStride(),
+                 outputShape[2], outputShape[3], outputShape.getPadding(3));
 }
 
 }  // namespace smaug

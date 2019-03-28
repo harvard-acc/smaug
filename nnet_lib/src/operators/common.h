@@ -15,6 +15,48 @@ extern "C" {
 #include "gem5/aladdin_sys_constants.h"
 #endif
 
+#ifdef __cplusplus
+// Functions for invoking kernels and mapping arrays.
+//
+// If gem5 simulation is not used, the pure software version of the accelerate
+// kernels will be invoked.
+//
+// These functions should be called from C++ files and not be included in C
+// files.
+
+#include <utility>
+#include "core/globals.h"
+
+namespace smaug {
+
+template <typename Kernel, typename... Args>
+void invokeKernel(unsigned reqCode, const Kernel& kernel, Args&&... args) {
+    if (runningInSimulation) {
+        invokeAcceleratorAndBlock(reqCode);
+    } else {
+        kernel(std::forward<Args>(args)...);
+    }
+}
+
+template <typename Kernel, typename... Args>
+void invokeKernelNoBlock(unsigned reqCode,
+                         volatile int* finishFlag,
+                         const Kernel& kernel,
+                         Args&&... args) {
+    if (runningInSimulation) {
+        invokeAcceleratorAndReturn2(reqCode, finishFlag);
+    } else {
+        kernel(std::forward<Args>(args)...);
+    }
+}
+
+void mapArrayToAccel(unsigned reqCode,
+                     const char* arrayName,
+                     void* baseAddr,
+                     size_t size);
+}  // namespace smaug
+#endif
+
 // Scalar types.
 typedef float fp_t;
 typedef int sfx_t;
@@ -154,81 +196,6 @@ typedef sfx_t v4sfx_t
                     input_array_name
 
 #endif
-
-#define STRING(arg) #arg
-
-// This is to avoid a ton of spurious unused variable warnings when
-// we're not building for gem5.
-#define UNUSED(x) (void)(x)
-
-// Convenience macros to switch between invoking an accelerator (if building a
-// binary for gem5) or just calling the kernel function in software.
-//
-// Usage:
-//
-//  These macros expand differently based on whether the GEM5_HARNESS macro is
-//  defined. If so, then this binary is meant to be run under gem5, invoking
-//  accelerators; if not, this binary should run the pure software version of
-//  the accelerated kernels.
-//
-//  If GEM5_HARNESS is defined:
-//
-//     MAP_ARRAY_TO_ACCEL(myReqCode, myArrayName, myArrayPtr, mySize)
-//        ===>   mapArrayToAccelerator(myReqCode, myArrayName, myArrayPtr, mySize)
-//
-//     INVOKE_KERNEL(myReqCode, kernelFuncName, args...)
-//        ===>   invokeAcceleratorAndBlock(myReqCode)
-//
-//  Otherwise:
-//     MAP_ARRAY_TO_ACCEL(myReqCode, myArrayName, myArrayPtr, mySize)
-//        expands to nothing
-//
-//     INVOKE_KERNEL(myReqCode, kernelFuncName, args...)
-//        ===>  kernelFuncName(args)
-//
-#ifdef GEM5_HARNESS
-
-#define MAP_ARRAY_TO_ACCEL(req_code, name, base_addr, size)                    \
-    mapArrayToAccelerator(req_code, name, base_addr, size)
-#define INVOKE_KERNEL(req_code, kernel_ptr, args...)                           \
-    do {                                                                       \
-        UNUSED(kernel_ptr);                                                    \
-        invokeAcceleratorAndBlock(req_code);                                   \
-    } while (0)
-#define INVOKE_KERNEL_NOBLOCK(req_code, finish_flag, kernel_ptr, args...)      \
-    do {                                                                       \
-        UNUSED(kernel_ptr);                                                    \
-        invokeAcceleratorAndReturn2(req_code, finish_flag);                    \
-    } while (0)
-
-#else
-
-#define MAP_ARRAY_TO_ACCEL(req_code, name, base_addr, size)                    \
-    do {                                                                       \
-        UNUSED(req_code);                                                      \
-        UNUSED(name);                                                          \
-        UNUSED(base_addr);                                                     \
-        UNUSED(size);                                                          \
-    } while (0)
-#define INVOKE_KERNEL(req_code, kernel_ptr, args...) kernel_ptr(args)
-#define INVOKE_KERNEL_NOBLOCK(req_code, finish_flag, kernel_ptr, args...)      \
-    kernel_ptr(args)
-
-#endif
-
-// Simplified version of MAP_ARRAY_TO_ACCEL.
-//
-// This assumes that the current name of the base pointer is also the name of
-// the array in the top level function of the dynamic trace. THIS IS VERY
-// IMPORTANT - if the argument passed to a top level function has been renamed in
-// the function, then this WILL NOT WORK!
-//
-// MAP_ARRAY(myReqCode, myArray, mySize)
-//    ===>   MAP_ARRAY_TO_ACCEL(myReqCode, "myArray", myArray, mySize)
-#define MAP_ARRAY(req_code, name_and_base_addr, size)                          \
-    MAP_ARRAY_TO_ACCEL(                                                        \
-            req_code, STRING(name_and_base_addr), name_and_base_addr, size)
-
 
 // Macros for computing the maximum of a group of elements.
 //

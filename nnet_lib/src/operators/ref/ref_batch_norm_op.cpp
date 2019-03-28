@@ -134,32 +134,32 @@ void BatchNormOp<ReferenceBackend>::run() {
     float* gammaData = gamma->data<float>();
     float* betaData = beta->data<float>();
     float* outputData = output->data<float>();
-    MAP_ARRAY_TO_ACCEL(ref::kBatchNormHw, "inputs", inputData,
-                       inputShape.storageSize() * sizeof(float));
-    MAP_ARRAY_TO_ACCEL(ref::kBatchNormHw, "mean", meanData,
-                       kernelShape.storageSize() * sizeof(float));
-    MAP_ARRAY_TO_ACCEL(ref::kBatchNormHw, "variance", varianceData,
-                       kernelShape.storageSize() * sizeof(float));
-    MAP_ARRAY_TO_ACCEL(ref::kBatchNormHw, "gamma", gammaData,
-                       kernelShape.storageSize() * sizeof(float));
-    MAP_ARRAY_TO_ACCEL(ref::kBatchNormHw, "beta", betaData,
-                       kernelShape.storageSize() * sizeof(float));
-    MAP_ARRAY_TO_ACCEL(ref::kBatchNormHw, "result", outputData,
-                       outputShape.storageSize() * sizeof(float));
+    mapArrayToAccel(ref::kBatchNormHw, "inputs", inputData,
+                    inputShape.storageSize() * sizeof(float));
+    mapArrayToAccel(ref::kBatchNormHw, "mean", meanData,
+                    kernelShape.storageSize() * sizeof(float));
+    mapArrayToAccel(ref::kBatchNormHw, "variance", varianceData,
+                    kernelShape.storageSize() * sizeof(float));
+    mapArrayToAccel(ref::kBatchNormHw, "gamma", gammaData,
+                    kernelShape.storageSize() * sizeof(float));
+    mapArrayToAccel(ref::kBatchNormHw, "beta", betaData,
+                    kernelShape.storageSize() * sizeof(float));
+    mapArrayToAccel(ref::kBatchNormHw, "result", outputData,
+                    outputShape.storageSize() * sizeof(float));
     if (isPostConv) {
         assert(inputShape.getLayout() == DataLayout::NCHW);
         assert(outputShape.getLayout() == DataLayout::NCHW);
-        INVOKE_KERNEL(ref::kBatchNormHw, ref_batch_norm_f32_nchw_post_conv,
-                      inputData, meanData, varianceData, gammaData, betaData,
-                      outputData, inputShape[0], inputShape[1], inputShape[2],
-                      inputShape[3], inputShape.getPadding(3),
-                      kernelShape.getPadding(3));
+        invokeKernel(ref::kBatchNormHw, ref_batch_norm_f32_nchw_post_conv,
+                     inputData, meanData, varianceData, gammaData, betaData,
+                     outputData, inputShape[0], inputShape[1], inputShape[2],
+                     inputShape[3], inputShape.getPadding(3),
+                     kernelShape.getPadding(3));
     } else {
         assert(inputShape.getLayout() == DataLayout::NC);
         assert(outputShape.getLayout() == DataLayout::NC);
-        INVOKE_KERNEL(ref::kBatchNormHw, ref_batch_norm_f32_post_fc, inputData,
-                      meanData, varianceData, gammaData, betaData, outputData,
-                      inputShape[0], inputShape[1], inputShape.getPadding(1));
+        invokeKernel(ref::kBatchNormHw, ref_batch_norm_f32_post_fc, inputData,
+                     meanData, varianceData, gammaData, betaData, outputData,
+                     inputShape[0], inputShape[1], inputShape.getPadding(1));
     }
 }
 

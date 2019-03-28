@@ -187,15 +187,15 @@ void MaxPoolingOp<ReferenceBackend>::run() {
 
     float* inputData = input->data<float>();
     float* outputData = output->data<float>();
-    MAP_ARRAY_TO_ACCEL(ref::kPoolingHw, "input", inputData,
-                       inputShape.storageSize() * sizeof(float));
-    MAP_ARRAY_TO_ACCEL(ref::kPoolingHw, "result", outputData,
-                       outputShape.storageSize() * sizeof(float));
-    INVOKE_KERNEL(kPoolingHw, func, inputData, outputData, inputShape[0],
-                  inputShape[1], inputShape[2], inputShape[3],
-                  inputShape.getPadding(3), outputShape[2], outputShape[3],
-                  outputShape.getPadding(3), poolRowSize, poolColSize,
-                  poolRowStride, poolColStride);
+    mapArrayToAccel(ref::kPoolingHw, "input", inputData,
+                    inputShape.storageSize() * sizeof(float));
+    mapArrayToAccel(ref::kPoolingHw, "result", outputData,
+                    outputShape.storageSize() * sizeof(float));
+    invokeKernel(ref::kPoolingHw, func, inputData, outputData, inputShape[0],
+                 inputShape[1], inputShape[2], inputShape[3],
+                 inputShape.getPadding(3), outputShape[2], outputShape[3],
+                 outputShape.getPadding(3), poolRowSize, poolColSize,
+                 poolRowStride, poolColStride);
 }
 
 template <>
@@ -213,15 +213,15 @@ void AvgPoolingOp<ReferenceBackend>::run() {
 
     float* inputData = input->data<float>();
     float* outputData = output->data<float>();
-    MAP_ARRAY_TO_ACCEL(ref::kPoolingHw, "input", inputData,
-                       inputShape.storageSize() * sizeof(float));
-    MAP_ARRAY_TO_ACCEL(ref::kPoolingHw, "result", outputData,
-                       outputShape.storageSize() * sizeof(float));
-    INVOKE_KERNEL(kPoolingHw, ref_avg_pooling_f32_nchw, inputData, outputData,
-                  inputShape[0], inputShape[1], inputShape[2], inputShape[3],
-                  inputShape.getPadding(3), outputShape[2], outputShape[3],
-                  outputShape.getPadding(3), poolRowSize, poolColSize,
-                  poolRowStride, poolColStride);
+    mapArrayToAccel(ref::kPoolingHw, "input", inputData,
+                    inputShape.storageSize() * sizeof(float));
+    mapArrayToAccel(ref::kPoolingHw, "result", outputData,
+                    outputShape.storageSize() * sizeof(float));
+    invokeKernel(ref::kPoolingHw, ref_avg_pooling_f32_nchw, inputData,
+                 outputData, inputShape[0], inputShape[1], inputShape[2],
+                 inputShape[3], inputShape.getPadding(3), outputShape[2],
+                 outputShape[3], outputShape.getPadding(3), poolRowSize,
+                 poolColSize, poolRowStride, poolColStride);
 }
 
 }  // namespace smaug

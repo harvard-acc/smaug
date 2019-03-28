@@ -7,7 +7,8 @@ endif
 
 EXEC = smaug
 MAIN = src/smaug.cpp
-SRCS = src/operators/reorder_op_impl.cpp \
+SRCS = src/operators/common.cpp \
+       src/operators/reorder_op_impl.cpp \
        src/operators/ref/ref_batch_norm_op.cpp \
        src/operators/ref/ref_eltwise_add_op.cpp \
        src/operators/ref/ref_convolution_op.cpp \
@@ -23,6 +24,7 @@ SRCS = src/operators/reorder_op_impl.cpp \
        src/operators/smv/smv_convolution_tiling.cpp \
        src/operators/smv/kernels/convolution_simd.c \
        src/core/backend.cpp \
+       src/core/globals.cpp \
        src/core/tensor.cpp \
        src/core/network.cpp \
        src/core/network_builder.cpp \

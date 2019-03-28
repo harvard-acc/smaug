@@ -105,12 +105,12 @@ void SoftmaxOp<ReferenceBackend>::run() {
     assert(inputShape == outputs->getShape());
     float* inputData = inputs->data<float>();
     float* outputData = outputs->data<float>();
-    MAP_ARRAY_TO_ACCEL(ref::kEltwiseOpHw, "inputs", inputData,
-                       inputs->getShape().storageSize() * sizeof(float));
-    MAP_ARRAY_TO_ACCEL(ref::kEltwiseOpHw, "results", outputData,
-                       inputs->getShape().storageSize() * sizeof(float));
-    INVOKE_KERNEL(kEltwiseOpHw, ref_softmax_f32_nc, inputData, outputData,
-                  inputShape[0], inputShape[1], inputShape.getPadding(1));
+    mapArrayToAccel(ref::kEltwiseOpHw, "inputs", inputData,
+                    inputs->getShape().storageSize() * sizeof(float));
+    mapArrayToAccel(ref::kEltwiseOpHw, "results", outputData,
+                    inputs->getShape().storageSize() * sizeof(float));
+    invokeKernel(ref::kEltwiseOpHw, ref_softmax_f32_nc, inputData, outputData,
+                 inputShape[0], inputShape[1], inputShape.getPadding(1));
 }
 
 }  // namespace smaug

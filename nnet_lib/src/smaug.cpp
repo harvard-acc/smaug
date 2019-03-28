@@ -3,6 +3,7 @@
 #include <boost/program_options.hpp>
 
 #include "core/backend.h"
+#include "core/globals.h"
 #include "core/scheduler.h"
 #include "core/network_builder.h"
 #include "utility/debug_stream.h"
@@ -16,16 +17,18 @@ int main(int argc, char* argv[]) {
     int debugLevel = -1;
     std::string lastOutputFile;
     bool dumpGraph = false;
+    runningInSimulation = false;
     po::options_description options("SMAUG Usage:  ./smaug model.pb [options]");
-    options.add_options()
-        ("help,h", "Display this help message")
-        ("debug-level", po::value(&debugLevel)->implicit_value(0),
+    options.add_options()("help,h", "Display this help message")(
+            "debug-level", po::value(&debugLevel)->implicit_value(0),
             "Set the debugging output level. If omitted, all debugging output "
-            "is ignored. If specified without a value, the debug level is set to "
-            "zero.")
-        ("dump-graph", po::value(&dumpGraph)->implicit_value(true),
-            "Dump the network in GraphViz format.")
-        ("print-last-output,p",
+            "is ignored. If specified without a value, the debug level is set "
+            "to "
+            "zero.")("dump-graph", po::value(&dumpGraph)->implicit_value(true),
+                     "Dump the network in GraphViz format.")(
+            "gem5", po::value(&runningInSimulation)->implicit_value(true),
+            "Run the network in gem5 simulation.")(
+            "print-last-output,p",
             po::value(&lastOutputFile)->implicit_value("stdout"),
             "Dump the output of the last layer to this file. If specified with "
             "no argument, it is printed to stdout.");
