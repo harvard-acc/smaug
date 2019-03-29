@@ -51,7 +51,7 @@ void ReluOp<ReferenceBackend>::run() {
                     inputs->getShape().storageSize() * sizeof(float));
     mapArrayToAccel(ref::kEltwiseOpHw, "results", outputData,
                     inputs->getShape().storageSize() * sizeof(float));
-    if (slope == 1) {
+    if (slope == 0) {
         invokeKernel(ref::kEltwiseOpHw, ref_relu_f32, inputData, outputData,
                      inputs->getShape().size());
     } else {
