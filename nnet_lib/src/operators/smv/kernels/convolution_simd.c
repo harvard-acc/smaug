@@ -23,20 +23,21 @@ extern "C" {
 //
 // Returns:
 //   The reduced 3D convolution values in result in NCHW format.
-void smv_conv3d_f32_nhwc_same_padding_vec_fxp(float* inputs,
-                                              float* weights,
-                                              float* results,
-                                              int inputs_dims[4],
-                                              int weights_dims[4],
-                                              int results_dims[4],
-                                              int inputs_pad,
-                                              int weights_pad,
-                                              int results_pad,
-                                              int row_stride,
-                                              int col_stride,
-                                              int ofmap_start,
-                                              int ifmap_start,
-                                              bool accumulate) {
+void smv_conv3d_f32_nhwc_vec_fxp(float* inputs,
+                                 float* weights,
+                                 float* results,
+                                 int inputs_dims[4],
+                                 int weights_dims[4],
+                                 int results_dims[4],
+                                 int inputs_align_pad,
+                                 int weights_pad,
+                                 int results_pad,
+                                 int inputs_halo_pad[4],
+                                 int row_stride,
+                                 int col_stride,
+                                 int ofmap_start,
+                                 int ifmap_start,
+                                 bool accumulate) {
     int result_rows = results_dims[1];
     int result_cols = results_dims[2];
     int result_height = results_dims[3];
@@ -49,15 +50,12 @@ void smv_conv3d_f32_nhwc_same_padding_vec_fxp(float* inputs,
     int a_rows = inputs_dims[1];
     int a_cols = inputs_dims[2];
     int a_height = inputs_dims[3];
-    int a_pad = inputs_pad;
+    int a_pad = inputs_align_pad;
 
-    int total_row_pad = k_rows - 1;
-    int total_col_pad = k_cols - 1;
-    int left_pad = k_rows / 2;
-    int right_pad = total_col_pad - left_pad;
-    int top_pad = k_cols / 2;
-    int bottom_pad = total_row_pad - top_pad;
-
+    int top_pad = inputs_halo_pad[0];
+    int bottom_pad = inputs_halo_pad[1];
+    int left_pad = inputs_halo_pad[2];
+    int right_pad = inputs_halo_pad[3];
     int end_row = a_rows + top_pad + bottom_pad - k_rows + 1;
     int end_col = a_cols + left_pad + right_pad - k_cols + 1;
 

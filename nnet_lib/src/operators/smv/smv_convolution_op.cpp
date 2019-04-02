@@ -21,8 +21,33 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
     auto inputIdx = inputs.startIndex();
     auto weightIdx = weights.startIndex();
     auto outputIdx = outputs.startIndex();
+    // Padding sizes on the four boundaries of the input 2D feature map. Here we
+    // compute default padding sizes if no rowwise tiling is needed on the
+    // input. We handle rowwise tiling in the following loop nests.
+    int totalRowPad = (getPadding() == SamePadding) ? getWeightRows() - 1 : 0;
+    int totalColPad = (getPadding() == SamePadding) ? getWeightCols() - 1 : 0;
+    int topPad = FRAC_CEIL(totalRowPad, 2);
+    int bottomPad = totalRowPad - topPad;
+    int leftPad = FRAC_CEIL(totalColPad, 2);
+    int rightPad = totalColPad - leftPad;
     for (int N = 0; N < inputs.getShape()[0]; N++) {
         for (int H = 0; H < inputs.getShape()[1]; H++) {
+            int currentTileTopPad = topPad;
+            int currentTileBottomPad = bottomPad;
+            if (inputs.getShape()[1] > 1) {
+                if (H == 0) {
+                    currentTileBottomPad = 0;
+                } else if (H == inputs.getShape()[1] - 1) {
+                    currentTileTopPad = 0;
+                } else {
+                    currentTileTopPad = 0;
+                    currentTileBottomPad = 0;
+                }
+            }
+            // This is used to specify the padding sizes on the boundaries of
+            // the 2D feature maps in an input tile.
+            int inputHaloPad[4] = { currentTileTopPad, currentTileBottomPad,
+                                    leftPad, rightPad };
             for (int W = 0; W < weights.getShape()[0]; W++) {
                 int inputChanTiles = inputs.getShape()[3];
                 int weightChanTiles = weights.getShape()[3];
@@ -43,7 +68,7 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                                            weightsShape[2], weightsShape[3] };
                     int outputDims[4] = { outputShape[0], outputShape[1],
                                           outputShape[2], outputShape[3] };
-                    smv_conv3d_f32_nhwc_same_padding_vec_fxp(
+                    smv_conv3d_f32_nhwc_vec_fxp(
                             inputTile->data<float>(),
                             weightsTile->data<float>(),
                             outputTile->data<float>(),
@@ -53,6 +78,7 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                             inputShape.getPadding(3),
                             weightsShape.getPadding(3),
                             outputShape.getPadding(3),
+                            inputHaloPad,
                             getRowStride(),
                             getColStride(),
                             W,
