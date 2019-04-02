@@ -32,6 +32,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
         TensorShape inputShape(
                 { 1, 8, 8, 96 }, DataLayout::NHWC, SmvBackend::Alignment);
         Tensor* inputs = new Tensor("inputs", inputShape);
+        workspace()->addTensor(inputs);
         convOp->setInput(inputs, 0);
         convOp->setWeightDims(3, 3, 128);
         convOp->createAllTensors();
@@ -47,6 +48,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
         TensorShape inputShape(
                 { 1, 32, 32, 16 }, DataLayout::NHWC, SmvBackend::Alignment);
         Tensor* inputs = new Tensor("inputs", inputShape);
+        workspace()->addTensor(inputs);
         convOp->setInput(inputs, 0);
         convOp->setWeightDims(3, 3, 8);
         convOp->createAllTensors();
@@ -59,8 +61,8 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
     SECTION("DimNC tiled convolution") {
         TensorShape inputShape(
                 { 1, 16, 8, 128 }, DataLayout::NHWC, SmvBackend::Alignment);
-        Tensor* inputs =
-                new Tensor("inputs", inputShape);
+        Tensor* inputs = new Tensor("inputs", inputShape);
+        workspace()->addTensor(inputs);
         convOp->setInput(inputs, 0);
         convOp->setWeightDims(3, 3, 8);
         convOp->createAllTensors();

@@ -21,6 +21,13 @@ class Workspace {
         return tensor;
     }
 
+    void addTiledTensor(TiledTensor& tiledTensor) {
+        for (auto i = tiledTensor.startIndex(); !i.end(); ++i) {
+            Tensor* tensor = tiledTensor[i];
+            tensors[tensor->getName()] = static_cast<TensorBase*>(tensor);
+        }
+    }
+
     Tensor* getTensor(const std::string& name) const {
         if (tensors.find(name) == tensors.end())
             return nullptr;

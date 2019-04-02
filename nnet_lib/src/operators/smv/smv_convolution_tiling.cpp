@@ -326,7 +326,8 @@ TilingConfig TilingOptimizer::computeBasicTileShapes(SmvConvolutionOp* op) {
 
 TiledTensor TilingOptimizer::generateTiledTensor(Tensor* tensor,
                                                  const TensorShape& tileShape,
-                                                 std::vector<int> halos) {
+                                                 std::vector<int> halos,
+                                                 Workspace* workspace) {
     assert(halos.size() == tileShape.ndims());
     const TensorShape& inputShape = tensor->getShape();
     const int ndims = inputShape.ndims();
@@ -372,6 +373,7 @@ TiledTensor TilingOptimizer::generateTiledTensor(Tensor* tensor,
         }
         tiledTensor[tileIndex] = tile;
     }
+    workspace->addTiledTensor(tiledTensor);
     return tiledTensor;
 }
 
@@ -455,6 +457,7 @@ TiledTensor TilingOptimizer::generateDimNHOutputTiledTensor(
             }
         }
     }
+    op->getWorkspace()->addTiledTensor(outputTiledTensor);
     return outputTiledTensor;
 }
 
@@ -466,9 +469,9 @@ std::array<TiledTensor, 3> TilingOptimizer::doTiling(SmvConvolutionOp* op) {
     std::vector<int> inputHalos{ 0, op->getWeightRows() - op->getRowStride(),
                                  op->getWeightCols() - op->getColStride(), 0 };
     TiledTensor tiledInputs = TilingOptimizer::generateTiledTensor(
-            input, tileConfig.inputs, inputHalos);
+            input, tileConfig.inputs, inputHalos, op->getWorkspace());
     TiledTensor tiledWeights = TilingOptimizer::generateTiledTensor(
-            kernels, tileConfig.weights, { 0, 0, 0, 0 });
+            kernels, tileConfig.weights, { 0, 0, 0, 0 }, op->getWorkspace());
     TiledTensor tiledOutputs;
     if (tileConfig.outputTilingDims == DimNH) {
         tiledOutputs = TilingOptimizer::generateDimNHOutputTiledTensor(
@@ -480,7 +483,7 @@ std::array<TiledTensor, 3> TilingOptimizer::doTiling(SmvConvolutionOp* op) {
                 true);
     } else {
         tiledOutputs = TilingOptimizer::generateTiledTensor(
-                output, tileConfig.outputs, { 0, 0, 0, 0 });
+                output, tileConfig.outputs, { 0, 0, 0, 0 }, op->getWorkspace());
     }
     return { tiledInputs, tiledWeights, tiledOutputs };
 }

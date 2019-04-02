@@ -42,7 +42,8 @@ class TilingOptimizer {
     static TilingConfig computeBasicTileShapes(SmvConvolutionOp* op);
     static TiledTensor generateTiledTensor(Tensor* tensor,
                                            const TensorShape& tileShape,
-                                           std::vector<int> halos);
+                                           std::vector<int> halos,
+                                           Workspace* workspace);
     static TiledTensor generateDimNHOutputTiledTensor(
             SmvConvolutionOp* op,
             const TiledTensor& inputTiledTensor,

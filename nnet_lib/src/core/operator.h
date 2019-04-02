@@ -48,6 +48,7 @@ class Operator {
     Vertex getVertex() const { return vertex; }
     void setVertex(Vertex v) { vertex = v; }
     OpType getOpType() const { return opType; }
+    Workspace* getWorkspace() { return workspace; }
 
     Tensor* getInput(int index) const {
         return dynamic_cast<Tensor*>(inputs.at(index));
