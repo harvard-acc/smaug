@@ -123,6 +123,7 @@ void SmvConvolutionOp::run() {
     // tiled only once.
     std::array<TiledTensor, 3> tiledTensors = TilingOptimizer::doTiling(this);
     runNHWC(tiledTensors[0], tiledTensors[1], tiledTensors[2]);
+    untileTiledTensor(tiledTensors[2], output);
 }
 
 }  // namespace smaug

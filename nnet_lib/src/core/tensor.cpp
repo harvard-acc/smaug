@@ -88,4 +88,28 @@ void copyTensorRegion(Tensor* dest,
     }
 }
 
+void untileTiledTensor(TiledTensor& tiledTensor, Tensor* destTensor) {
+    const TensorShape& tensorShape = destTensor->getShape();
+    int ndims = tensorShape.ndims();
+    std::vector<int> currentOrigin(ndims, 0);
+    std::vector<int> srcOrigin(ndims, 0);
+    for (auto tileIndex = tiledTensor.startIndex(); !tileIndex.end();
+         ++tileIndex) {
+        Tensor* tile = tiledTensor[tileIndex];
+        const TensorShape& tileShape = tile->getShape();
+        copyTensorRegion(destTensor,
+                         tile,
+                         currentOrigin,
+                         srcOrigin,
+                         tileShape.dims());
+        for (int i = ndims - 1; i >= 0; i--) {
+            currentOrigin[i] += tileShape[i];
+            if (currentOrigin[i] >= tensorShape[i]) {
+                currentOrigin[i] = 0;
+            } else
+                break;
+        }
+    }
+}
+
 }  // namespace smaug

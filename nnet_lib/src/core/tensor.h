@@ -425,6 +425,10 @@ class TiledTensor : public TensorBase {
     std::vector<Tensor*> tensors;
 };
 
+// This will copy data from a tiled tensor into a single tensor. We name it as
+// "untile" because what it does reverses the tiling process.
+void untileTiledTensor(TiledTensor& tiledTensor, Tensor* destTensor);
+
 template <typename DType>
 void writeTensorToOstream(std::ostream& os, const Tensor& tensor) {
     const TensorShape& shape = tensor.getShape();
