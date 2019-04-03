@@ -334,7 +334,7 @@ class Tensor : public TensorBase {
             int size = shape.storageSize();
             assert(size > 0 && "Attempted to allocate zero storage!");
             tensorData = std::shared_ptr<void>(
-                    new T[size], std::default_delete<T[]>());
+                    new T[size](), std::default_delete<T[]>());
         }
         return reinterpret_cast<T*>(tensorData.get());
     }
