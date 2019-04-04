@@ -43,6 +43,17 @@ class SmaugTest {
         REQUIRE(i == expected.size());
     }
 
+    template <typename DType>
+    void verifyOutputs(Tensor* output, Tensor* expected) {
+        auto outputPtr = output->template data<DType>();
+        auto expectedPtr = expected->template data<DType>();
+        auto outputIdx = output->startIndex();
+        auto expectedIdx = expected->startIndex();
+        for (; !outputIdx.end(); ++outputIdx, ++expectedIdx) {
+            REQUIRE(Approx(outputPtr[outputIdx]) == expectedPtr[expectedIdx]);
+        }
+    }
+
     Network* buildNetwork(const std::string& modelpb) {
         if (network_ != nullptr)
             delete network_;
