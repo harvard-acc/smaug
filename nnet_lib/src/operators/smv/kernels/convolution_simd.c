@@ -88,7 +88,9 @@ void smv_conv3d_f32_nhwc_vec_fxp(float* inputs,
                  ifmap_iters++) {
                 bool start_from_zero = (!accumulate && kern_row == 0 &&
                                         kern_col == 0 && ifmap_iters == 0);
-                int ifmap_offset = (ifmap_iters * pe_depth) / VECTOR_SIZE;
+                int ifmap_offset =
+                        (ifmap_start + ifmap_iters * pe_depth) / VECTOR_SIZE;
+                int kern_chan_offset = (ifmap_iters * pe_depth) / VECTOR_SIZE;
                 int out_i = 0;  // The result row.
 
                 int max_ch_grp = NUM_MACC_INSTS;
@@ -116,7 +118,7 @@ void smv_conv3d_f32_nhwc_vec_fxp(float* inputs,
                                         ? zero
                                         : _kernels[ofmap_start + pe_id][kern_row]
                                                   [kern_col]
-                                                  [ifmap_offset + macc_idx];
+                                                  [kern_chan_offset + macc_idx];
                     }
                 }
 
@@ -155,10 +157,9 @@ void smv_conv3d_f32_nhwc_vec_fxp(float* inputs,
                                               in_padding_col ||
                                               macc_idx >= max_ch_grp;
                             act_reg[macc_idx] =
-                                    (is_padding)
-                                            ? zero
-                                            : _a[in_row][in_col]
-                                                [ifmap_offset + macc_idx];
+                                    (is_padding) ? zero
+                                                 : _a[in_row][in_col]
+                                                     [ifmap_offset + macc_idx];
                         }
 
                         pe_groups:

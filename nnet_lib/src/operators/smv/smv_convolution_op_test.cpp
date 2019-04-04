@@ -167,19 +167,39 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
     }
 
     SECTION("DimNC tiled convolution") {
-        TensorShape inputShape(
-                { 1, 16, 8, 128 }, DataLayout::NHWC, SmvBackend::Alignment);
-        Tensor* inputs = new Tensor("inputs", inputShape);
-        workspace()->addTensor(inputs);
-        convOp->setInput(inputs, 0);
-        convOp->setWeightDims(3, 3, 8);
-        convOp->createAllTensors();
-        allocateAllTensors<float>(convOp);
-        fillTensorWithData(inputs);
-        fillTensorWithData(convOp->getInput(1));
-        convOp->run();
-        auto outputs = convOp->getOutput(0);
-        auto refOutputs = getReferenceOutput(convOp, workspace());
-        verifyOutputs<float>(outputs, refOutputs);
+        SECTION("Input tile and weight tile have the same channel dimension."
+                "Both are 1") {
+            TensorShape inputShape(
+                    { 1, 16, 8, 128 }, DataLayout::NHWC, SmvBackend::Alignment);
+            Tensor* inputs = new Tensor("inputs", inputShape);
+            workspace()->addTensor(inputs);
+            convOp->setInput(inputs, 0);
+            convOp->setWeightDims(3, 3, 8);
+            convOp->createAllTensors();
+            allocateAllTensors<float>(convOp);
+            fillTensorWithData(inputs);
+            fillTensorWithData(convOp->getInput(1));
+            convOp->run();
+            auto outputs = convOp->getOutput(0);
+            auto refOutputs = getReferenceOutput(convOp, workspace());
+            verifyOutputs<float>(outputs, refOutputs);
+        }
+        SECTION("Inputs are not tiled channelwise, weights have 2 channelwise "
+                "tiles") {
+            TensorShape inputShape(
+                    { 1, 8, 8, 128 }, DataLayout::NHWC, SmvBackend::Alignment);
+            Tensor* inputs = new Tensor("inputs", inputShape);
+            workspace()->addTensor(inputs);
+            convOp->setInput(inputs, 0);
+            convOp->setWeightDims(3, 3, 8);
+            convOp->createAllTensors();
+            allocateAllTensors<float>(convOp);
+            fillTensorWithData(inputs);
+            fillTensorWithData(convOp->getInput(1));
+            convOp->run();
+            auto outputs = convOp->getOutput(0);
+            auto refOutputs = getReferenceOutput(convOp, workspace());
+            verifyOutputs<float>(outputs, refOutputs);
+        }
     }
 }

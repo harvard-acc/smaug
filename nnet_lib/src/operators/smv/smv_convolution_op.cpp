@@ -18,6 +18,11 @@ const int kNumMaccsPerPE = 32;
 void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                                TiledTensor& weights,
                                TiledTensor& outputs) {
+    int inputIfmapTiles = inputs.getShape()[0];
+    int inputRowTiles = inputs.getShape()[1];
+    int inputChanTiles = inputs.getShape()[3];
+    int weightOfmapTiles = weights.getShape()[0];
+    int weightChanTiles = weights.getShape()[3];
     auto inputIdx = inputs.startIndex();
     auto weightIdx = weights.startIndex();
     auto outputIdx = outputs.startIndex();
@@ -30,14 +35,14 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
     int bottomPad = totalRowPad - topPad;
     int leftPad = FRAC_CEIL(totalColPad, 2);
     int rightPad = totalColPad - leftPad;
-    for (int N = 0; N < inputs.getShape()[0]; N++) {
-        for (int H = 0; H < inputs.getShape()[1]; H++) {
+    for (int N = 0; N < inputIfmapTiles; N++) {
+        for (int H = 0; H < inputRowTiles; H++) {
             int currentTileTopPad = topPad;
             int currentTileBottomPad = bottomPad;
-            if (inputs.getShape()[1] > 1) {
+            if (inputRowTiles > 1) {
                 if (H == 0) {
                     currentTileBottomPad = 0;
-                } else if (H == inputs.getShape()[1] - 1) {
+                } else if (H == inputRowTiles - 1) {
                     currentTileTopPad = 0;
                 } else {
                     currentTileTopPad = 0;
@@ -48,10 +53,18 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
             // the 2D feature maps in an input tile.
             int inputHaloPad[4] = { currentTileTopPad, currentTileBottomPad,
                                     leftPad, rightPad };
-            for (int W = 0; W < weights.getShape()[0]; W++) {
-                int inputChanTiles = inputs.getShape()[3];
-                int weightChanTiles = weights.getShape()[3];
+            for (int W = 0; W < weightOfmapTiles; W++) {
                 int iC = 0, wC = 0;
+                // This keeps track of the channel offset of the input.
+                int ifmapOffset = 0;
+                // The tiling optimizer will make sure that the weight tiles
+                // have the same channel dimension as the input tiles
+                // (so that inputChanTiles = weightChanTiles), except one case
+                // where the input is not tiled channelwise (inputChanTiles = 1)
+                // and the weights are independently tiled channelwise. In that
+                // case, we will need multiple kernel invocations to finish the
+                // weight channelwise tiles, with the same input channel tile,
+                // producing results for the same output channels.
                 while (iC < inputChanTiles && wC < weightChanTiles) {
                     std::cout << "Input: " << inputIdx(N, H, 0, iC)
                               << ", weights: " << weightIdx(W, 0, 0, wC)
@@ -68,6 +81,16 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                                            weightsShape[2], weightsShape[3] };
                     int outputDims[4] = { outputShape[0], outputShape[1],
                                           outputShape[2], outputShape[3] };
+                    // The 'ifmap_start' argument of the kernel is for handling
+                    // when inputChanTiles < weightChanTiles. It provides the
+                    // starting channel of the input tile that will be effective
+                    // for computation in the invocation.
+                    int ifmapStart = (iC == wC) ? 0 : ifmapOffset;
+                    // Since multiple weight channelwise tiles produce the same
+                    // output channels, 'accumulate' is set to true to avoid
+                    // resetting the result for non-first (wC > 0) weight
+                    // channelwise tiles.
+                    bool accumulate = wC > 0;
                     smv_conv3d_f32_nhwc_vec_fxp(
                             inputTile->data<float>(),
                             weightsTile->data<float>(),
@@ -81,17 +104,19 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                             inputHaloPad,
                             getRowStride(),
                             getColStride(),
-                            W,
-                            iC,
-                            iC == wC);
+                            // TODO: We will get incorrect results if the weight
+                            // tile contains more than 8 kernels. We will
+                            // support weight iteration inside the kernel.
+                            0,
+                            ifmapStart,
+                            accumulate);
 
+                    ifmapOffset += weightsTile->getShape()[3];
                     if (inputChanTiles == weightChanTiles) {
                         iC++;
                         wC++;
                     } else if (inputChanTiles == 1) {
                         wC++;
-                    } else {
-                        iC++;
                     }
                 }
             }
