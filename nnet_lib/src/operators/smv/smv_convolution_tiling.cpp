@@ -397,13 +397,13 @@ TiledTensor TilingOptimizer::generateDimNHOutputTiledTensor(
     auto weightIndex = weightsTiledTensor.startIndex();
     auto outputIndex = outputTiledTensor.startIndex();
     int weightRows = op->getWeightRows();
+    int weightCols = op->getWeightCols();
+    bool samePadding = op->getPadding() == SamePadding;
     // For even-sized filtered, FRAC_CEIL is needed to correctly handle padding.
-    int topRowPad = (op->getPadding() == SamePadding)
-                            ? FRAC_CEIL(weightRows - 1, 2)
-                            : 0;
-    int bottomRowPad = (op->getPadding() == SamePadding)
-                               ? (weightRows - 1 - topRowPad)
-                               : 0;
+    int topRowPad = samePadding ? FRAC_CEIL(weightRows - 1, 2) : 0;
+    int bottomRowPad = samePadding ? (weightRows - 1 - topRowPad) : 0;
+    int leftColPad = samePadding ? FRAC_CEIL(weightCols - 1, 2) : 0;
+    int rightColPad = samePadding ? (weightCols - 1 - leftColPad) : 0;
     for (int n = 0; n < numBlocksInDim[0]; n++) {
         for (int h = 0; h < numBlocksInDim[1]; h++) {
             for (int w = 0; w < numBlocksInDim[2]; w++) {
@@ -420,12 +420,18 @@ TiledTensor TilingOptimizer::generateDimNHOutputTiledTensor(
                         effInputRows += topRowPad;
                     else if (h == numBlocksInDim[1] - 1)
                         effInputRows += bottomRowPad;
+                    int effInputCols =
+                            inputTileShape[2] + leftColPad + rightColPad;
                     int outputRows = op->computeOutputDim(effInputRows,
                                                           weightRows,
                                                           op->getRowStride(),
                                                           ValidPadding);
+                    int outputCols = op->computeOutputDim(effInputCols,
+                                                          weightCols,
+                                                          op->getColStride(),
+                                                          ValidPadding);
                     TensorShape outputTileShape(
-                            { inputTileShape[0], outputRows, inputTileShape[2],
+                            { inputTileShape[0], outputRows, outputCols,
                               weightsTile->getShape()[0] },
                             outputTensor->getShape().getLayout(),
                             SmvBackend::Alignment);
