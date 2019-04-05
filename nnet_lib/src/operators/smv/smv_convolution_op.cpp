@@ -91,25 +91,20 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                     // resetting the result for non-first (wC > 0) weight
                     // channelwise tiles.
                     bool accumulate = wC > 0;
-                    smv_conv3d_f32_nhwc_vec_fxp(
-                            inputTile->data<float>(),
-                            weightsTile->data<float>(),
-                            outputTile->data<float>(),
-                            inputDims,
-                            weightsDims,
-                            outputDims,
-                            inputShape.getPadding(3),
-                            weightsShape.getPadding(3),
-                            outputShape.getPadding(3),
-                            inputHaloPad,
-                            getRowStride(),
-                            getColStride(),
-                            // TODO: We will get incorrect results if the weight
-                            // tile contains more than 8 kernels. We will
-                            // support weight iteration inside the kernel.
-                            0,
-                            ifmapStart,
-                            accumulate);
+                    smv_conv3d_f32_nhwc_vec_fxp(inputTile->data<float>(),
+                                                weightsTile->data<float>(),
+                                                outputTile->data<float>(),
+                                                inputDims,
+                                                weightsDims,
+                                                outputDims,
+                                                inputShape.getPadding(3),
+                                                weightsShape.getPadding(3),
+                                                outputShape.getPadding(3),
+                                                inputHaloPad,
+                                                getRowStride(),
+                                                getColStride(),
+                                                ifmapStart,
+                                                accumulate);
 
                     ifmapOffset += weightsTile->getShape()[3];
                     if (inputChanTiles == weightChanTiles) {

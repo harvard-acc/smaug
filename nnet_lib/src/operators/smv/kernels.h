@@ -17,7 +17,6 @@ void smv_conv3d_f32_nhwc_vec_fxp(float* inputs,
                                  int inputs_halo_pad[4],
                                  int row_stride,
                                  int col_stride,
-                                 int ofmap_start,
                                  int ifmap_start,
                                  bool accumulate);
 
