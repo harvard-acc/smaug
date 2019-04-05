@@ -291,14 +291,20 @@ TilingConfig TilingOptimizer::computeBasicTileShapes(SmvConvolutionOp* op) {
                 config.outputs[3] = config.weights[0];
             } else {
                 config.outputs[1] = outputsShape[1];
-                config.outputs[3] = weightsNeedTiling ? config.weights[0] : c;
+                if (weightsNeedTiling)
+                    config.outputs[3] = config.weights[0];
+                // If the weights don't need tiling and the outputs need tiling,
+                // the channel size of the output tile size can be determined
+                // independently.
+                else if (outputTilingDims != None)
+                    config.outputs[3] = c;
             }
             if (config.outputs.storageSize() <= maxTileSize) {
                 fullConfigs.push_back(config);
             }
             // This means the output shape is uniquely determined, so we don't
             // need to explore any other output channel values.
-            if (weightsNeedTiling)
+            if (weightsNeedTiling || outputTilingDims == None)
                 break;
         }
     }

@@ -86,10 +86,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
         convOp->setInput(inputs, 0);
         convOp->setWeightDims(3, 3, 8);
         SECTION("Same padding") {
-            convOp->createAllTensors();
-            allocateAllTensors<float>(convOp);
-            fillTensorWithData(inputs);
-            fillTensorWithData(convOp->getInput(1));
+            createAndFillTensorsWithData<float>(convOp, fillTensorWithData);
             convOp->run();
             auto outputs = convOp->getOutput(0);
             auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -97,10 +94,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
         }
         SECTION("Valid padding") {
             convOp->setPadding(ValidPadding);
-            convOp->createAllTensors();
-            allocateAllTensors<float>(convOp);
-            fillTensorWithData(inputs);
-            fillTensorWithData(convOp->getInput(1));
+            createAndFillTensorsWithData<float>(convOp, fillTensorWithData);
             convOp->run();
             auto outputs = convOp->getOutput(0);
             auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -116,10 +110,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
             workspace()->addTensor(inputs);
             convOp->setInput(inputs, 0);
             convOp->setWeightDims(3, 3, 128);
-            convOp->createAllTensors();
-            allocateAllTensors<float>(convOp);
-            fillTensorWithData(inputs);
-            fillTensorWithData(convOp->getInput(1));
+            createAndFillTensorsWithData<float>(convOp, fillTensorWithData);
             convOp->run();
             auto outputs = convOp->getOutput(0);
             auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -131,12 +122,85 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
             Tensor* inputs = new Tensor("inputs", inputShape);
             workspace()->addTensor(inputs);
             convOp->setInput(inputs, 0);
-            // The weight tiles will contain 56, 56 and 16 kernels respectively.
+            SECTION("Every weight tile contains multiples of 8 kernels") {
+                // The weight tiles will contain 56, 56 and 16 kernels
+                // respectively.
+                convOp->setWeightDims(3, 3, 128);
+                createAndFillTensorsWithData<float>(convOp, fillTensorWithData);
+                convOp->run();
+                auto outputs = convOp->getOutput(0);
+                auto refOutputs = getReferenceOutput(convOp, workspace());
+                verifyOutputs<float>(outputs, refOutputs);
+            }
+            SECTION("Weight tile contains non-multiples of 8 kernels") {
+                // The weight tiles will contain 50 kernels.
+                convOp->setWeightDims(3, 3, 50);
+                createAndFillTensorsWithData<float>(convOp, fillTensorWithData);
+                convOp->run();
+                auto outputs = convOp->getOutput(0);
+                auto refOutputs = getReferenceOutput(convOp, workspace());
+                verifyOutputs<float>(outputs, refOutputs);
+            }
+        }
+    }
+
+    SECTION("DimNH tiled convolution") {
+        SECTION("Inputs DimNH tiled, No need to tile the weights") {
+            TensorShape inputShape(
+                    { 1, 32, 32, 16 }, DataLayout::NHWC, SmvBackend::Alignment);
+            Tensor* inputs = new Tensor("inputs", inputShape);
+            workspace()->addTensor(inputs);
+            convOp->setInput(inputs, 0);
+            convOp->setWeightDims(3, 3, 8);
+            SECTION("Same padding") {
+                createAndFillTensorsWithData<float>(convOp, fillTensorWithData);
+                convOp->run();
+                auto outputs = convOp->getOutput(0);
+                auto refOutputs = getReferenceOutput(convOp, workspace());
+                verifyOutputs<float>(outputs, refOutputs);
+            }
+            SECTION("Valid padding") {
+                convOp->setPadding(ValidPadding);
+                createAndFillTensorsWithData<float>(convOp, fillTensorWithData);
+                convOp->run();
+                auto outputs = convOp->getOutput(0);
+                auto refOutputs = getReferenceOutput(convOp, workspace());
+                verifyOutputs<float>(outputs, refOutputs);
+            }
+        }
+        SECTION("Inputs DimNH tiled, weights DimN tiled") {
+            TensorShape inputShape(
+                    { 1, 32, 32, 16 }, DataLayout::NHWC, SmvBackend::Alignment);
+            Tensor* inputs = new Tensor("inputs", inputShape);
+            workspace()->addTensor(inputs);
+            convOp->setInput(inputs, 0);
+            SECTION("5x5 kernel size") {
+                convOp->setWeightDims(5, 5, 128);
+                createAndFillTensorsWithData<float>(convOp, fillTensorWithData);
+                convOp->run();
+                auto outputs = convOp->getOutput(0);
+                auto refOutputs = getReferenceOutput(convOp, workspace());
+                verifyOutputs<float>(outputs, refOutputs);
+            }
+            SECTION("2x2 kernel size") {
+                convOp->setWeightDims(2, 2, 256);
+                createAndFillTensorsWithData<float>(convOp, fillTensorWithData);
+                convOp->run();
+                auto outputs = convOp->getOutput(0);
+                auto refOutputs = getReferenceOutput(convOp, workspace());
+                verifyOutputs<float>(outputs, refOutputs);
+            }
+        }
+        // The difference between this and the previous one is the tiling in the
+        // weights due to the input channels.
+        SECTION("Inputs DimNH tiled, weights DimNC tiled") {
+            TensorShape inputShape({ 1, 32, 16, 128 }, DataLayout::NHWC,
+                                   SmvBackend::Alignment);
+            Tensor* inputs = new Tensor("inputs", inputShape);
+            workspace()->addTensor(inputs);
+            convOp->setInput(inputs, 0);
             convOp->setWeightDims(3, 3, 128);
-            convOp->createAllTensors();
-            allocateAllTensors<float>(convOp);
-            fillTensorWithData(inputs);
-            fillTensorWithData(convOp->getInput(1));
+            createAndFillTensorsWithData<float>(convOp, fillTensorWithData);
             convOp->run();
             auto outputs = convOp->getOutput(0);
             auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -144,36 +208,16 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
         }
     }
 
-    SECTION("DimNH tiled convolution") {
-        TensorShape inputShape(
-                { 1, 32, 32, 16 }, DataLayout::NHWC, SmvBackend::Alignment);
-        Tensor* inputs = new Tensor("inputs", inputShape);
-        workspace()->addTensor(inputs);
-        convOp->setInput(inputs, 0);
-        convOp->setWeightDims(3, 3, 8);
-        convOp->createAllTensors();
-        allocateAllTensors<float>(convOp);
-        fillTensorWithData(inputs);
-        fillTensorWithData(convOp->getInput(1));
-        convOp->run();
-        auto outputs = convOp->getOutput(0);
-        auto refOutputs = getReferenceOutput(convOp, workspace());
-        verifyOutputs<float>(outputs, refOutputs);
-    }
-
     SECTION("DimNC tiled convolution") {
-        SECTION("Input tile and weight tile have the same channel dimension."
-                "Both are 1") {
+        SECTION("Input tile and weight tile have the same channel dimension. "
+                "Both are 128") {
             TensorShape inputShape(
                     { 1, 16, 8, 128 }, DataLayout::NHWC, SmvBackend::Alignment);
             Tensor* inputs = new Tensor("inputs", inputShape);
             workspace()->addTensor(inputs);
             convOp->setInput(inputs, 0);
-            convOp->setWeightDims(3, 3, 8);
-            convOp->createAllTensors();
-            allocateAllTensors<float>(convOp);
-            fillTensorWithData(inputs);
-            fillTensorWithData(convOp->getInput(1));
+            convOp->setWeightDims(5, 5, 8);
+            createAndFillTensorsWithData<float>(convOp, fillTensorWithData);
             convOp->run();
             auto outputs = convOp->getOutput(0);
             auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -187,10 +231,21 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
             workspace()->addTensor(inputs);
             convOp->setInput(inputs, 0);
             convOp->setWeightDims(3, 3, 8);
-            convOp->createAllTensors();
-            allocateAllTensors<float>(convOp);
-            fillTensorWithData(inputs);
-            fillTensorWithData(convOp->getInput(1));
+            createAndFillTensorsWithData<float>(convOp, fillTensorWithData);
+            convOp->run();
+            auto outputs = convOp->getOutput(0);
+            auto refOutputs = getReferenceOutput(convOp, workspace());
+            verifyOutputs<float>(outputs, refOutputs);
+        }
+        SECTION("Inputs are not tiled channelwise, weights have 3 channelwise "
+                "tiles") {
+            TensorShape inputShape(
+                    { 1, 4, 4, 256 }, DataLayout::NHWC, SmvBackend::Alignment);
+            Tensor* inputs = new Tensor("inputs", inputShape);
+            workspace()->addTensor(inputs);
+            convOp->setInput(inputs, 0);
+            convOp->setWeightDims(3, 3, 8);
+            createAndFillTensorsWithData<float>(convOp, fillTensorWithData);
             convOp->run();
             auto outputs = convOp->getOutput(0);
             auto refOutputs = getReferenceOutput(convOp, workspace());

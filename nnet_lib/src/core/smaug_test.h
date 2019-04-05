@@ -4,6 +4,10 @@
 #include "core/tensor.h"
 #include "core/workspace.h"
 
+using namespace smaug;
+
+typedef void (*FillTensorDataFunc)(Tensor* tensor);
+
 namespace smaug {
 
 class Operator;
@@ -29,6 +33,17 @@ class SmaugTest {
         for (auto t : op->getOutputs()) {
             auto tensor = dynamic_cast<Tensor*>(t);
             tensor->template allocateStorage<T>();
+        }
+    }
+
+    template <typename T>
+    void createAndFillTensorsWithData(Operator* op,
+                                      FillTensorDataFunc fillTensorDataFunc) {
+        op->createAllTensors();
+        allocateAllTensors<T>(op);
+        for (auto input : op->getInputs()) {
+            Tensor* tensor = dynamic_cast<Tensor*>(input);
+            fillTensorDataFunc(tensor);
         }
     }
 
