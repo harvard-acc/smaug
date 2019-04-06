@@ -67,6 +67,8 @@ typedef uint16_t fp16_t;
 #define VECTOR_SIZE 8
 #endif
 
+#define CACHELINE_SIZE 32
+
 // 16 packed 32-bit floating point values.
 typedef fp16_t v16fp_t
         __attribute__((__vector_size__(VECTOR_SIZE * 2 * sizeof(fp_t))));

@@ -43,6 +43,10 @@ std::array<T, sizeof...(Args) + 1> variadicToArray(T i, Args... elems) {
     return {{ i, elems... }};
 }
 
+size_t next_multiple(size_t request, size_t align);
+
+void* malloc_aligned(size_t size);
+
 // Return the difference between @value and the next multiple of @alignment.
 int calc_padding(int value, unsigned alignment);
 
