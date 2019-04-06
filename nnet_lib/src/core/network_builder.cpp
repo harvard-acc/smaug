@@ -182,8 +182,6 @@ Network* smaug::buildNetwork(const std::string& modelFile,
         assert(false && "Unknown backend!");
     }
 
-    smv::kSpadSize = 32*1024;
-
     cout << "======================================================\n";
     cout << "      Summary of the network.\n";
     cout << "======================================================\n";

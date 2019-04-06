@@ -90,6 +90,9 @@ const unsigned kInnerProductHw = 0x0003;
 const unsigned kEltwiseOpHw = 0x0003;
 const unsigned kBatchNormHw = 0x0003;
 const unsigned kPoolingHw = 0x0003;
+float* spad0;
+float* spad1;
+float* spad2;
 }  // namespace smv
 
 

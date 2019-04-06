@@ -4,6 +4,7 @@
 #include <string>
 
 #include "core/datatypes.h"
+#include "utility/utils.h"
 
 // These are compile-time switches that selectively build a copy of SMAUG with
 // a particular backend.
@@ -87,6 +88,11 @@ extern const unsigned kInnerProductHw;
 extern const unsigned kEltwiseOpHw;
 extern const unsigned kBatchNormHw;
 extern const unsigned kPoolingHw;
+// Note that these naked pointers are never to be used except when invoking the
+// kernels themselves.
+extern float* spad0;
+extern float* spad1;
+extern float* spad2;
 }  // namespace smv
 
 class SmvConvolutionOp;
@@ -107,6 +113,22 @@ class SmvBackend {
     static const DataLayout DefaultInputDataLayout = DataLayout::NHWC;
 
     static int SpadSize() { return smv::kSpadSize; }
+    static void initGlobals() {
+        // kSpadSize is in terms of float16 data.
+        smv::kSpadSize = 32 * 1024;
+        // In SMV, all tensors store float16 data, but due to the modelling
+        // restriction of Aladdin, we actually store float32 data in the
+        // scratchpads. This why the allocated memory size here is double
+        // kSpadSize.
+        smv::spad0 = (float*)malloc_aligned(smv::kSpadSize * 2);
+        smv::spad1 = (float*)malloc_aligned(smv::kSpadSize * 2);
+        smv::spad2 = (float*)malloc_aligned(smv::kSpadSize * 2);
+    }
+    static void freeGlobals() {
+        free(smv::spad0);
+        free(smv::spad1);
+        free(smv::spad2);
+    }
 
     DECL_CREATE_SMV_OP(ConvolutionOp);
     DECL_CREATE_OP(DataOp);

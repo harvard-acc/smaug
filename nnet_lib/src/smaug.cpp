@@ -69,6 +69,8 @@ int main(int argc, char* argv[]) {
 
     Workspace* workspace = new Workspace();
     Network* network = buildNetwork(modelpb, workspace);
+    SmvBackend::initGlobals();
+
     network->dumpDataflowGraph();
     if (dumpGraph)
         network->dumpDataflowGraph();
@@ -88,6 +90,7 @@ int main(int argc, char* argv[]) {
 
     delete network;
     delete workspace;
+    SmvBackend::freeGlobals();
 
     return 0;
 }
