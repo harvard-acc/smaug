@@ -72,12 +72,14 @@ typedef float fp_t;
 typedef int sfx_t;
 typedef unsigned ufx_t;
 typedef uint16_t fp16_t;
+typedef uint16_t float16;
 
 #ifndef VECTOR_SIZE
 #define VECTOR_SIZE 8
 #endif
 
 #define CACHELINE_SIZE 32
+#define LOG_PAGE_SIZE 12
 
 // 16 packed 32-bit floating point values.
 typedef fp16_t v16fp_t

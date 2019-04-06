@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include "operators/common.h"
+#include "operators/smv/load_store_fp16_data.h"
 
 #define NUM_PE_INSTS 8
 #define NUM_MACC_INSTS 4
@@ -14,9 +15,12 @@ extern "C" {
 // format. This is the vectorized implementation.
 //
 // Args:
-//   inputs: Inputs in NHWC.
-//   weights: Weights in HNWC.
-//   results: Results in NHWC.
+//   host_inputs: Host inputs buffer in NHWC.
+//   host_weights: Host weights buffer in HNWC.
+//   host_results: Host results buffer in NHWC.
+//   inputs: Local inputs buffer in NHWC.
+//   weights: Local weights buffer in HNWC.
+//   results: Local results bufferin NHWC.
 //   inputs_dims: Dimensions of the inputs.
 //   weights_dims: Dimensions of the weights.
 //   results_dims: Dimensions of the results.
@@ -35,7 +39,11 @@ extern "C" {
 //   accumulate: If the original weight tensor is tiled channelwise, this should
 //       be set to true in order to avoid resetting the result buffer for
 //       non-first weight tiles.
-void smv_conv3d_f32_nhwc_vec_fxp(float* inputs,
+//   send_results: Send the results to the host memory if this is true.
+void smv_conv3d_f32_nhwc_vec_fxp(float16* host_inputs,
+                                 float16* host_weights,
+                                 float16* host_results,
+                                 float* inputs,
                                  float* weights,
                                  float* results,
                                  int inputs_dims[4],
@@ -49,20 +57,25 @@ void smv_conv3d_f32_nhwc_vec_fxp(float* inputs,
                                  int col_stride,
                                  int ifmap_start,
                                  int kern_start,
-                                 bool accumulate) {
+                                 bool accumulate,
+                                 bool send_results) {
     int result_rows = results_dims[1];
     int result_cols = results_dims[2];
     int result_height = results_dims[3];
+    int results_size = results_dims[0] * result_rows * result_cols *
+                       (result_height + results_pad);
 
     int k_rows = weights_dims[1];
     int k_cols = weights_dims[2];
     int k_height = weights_dims[3];
     int k_pad = weights_pad;
+    int weights_size = weights_dims[0] * k_rows * k_cols * (k_height + k_pad);
 
     int a_rows = inputs_dims[1];
     int a_cols = inputs_dims[2];
     int a_height = inputs_dims[3];
     int a_pad = inputs_align_pad;
+    int inputs_size = inputs_dims[0] * a_rows * a_cols * (a_height + a_pad);
 
     int top_pad = inputs_halo_pad[0];
     int bottom_pad = inputs_halo_pad[1];
@@ -92,6 +105,12 @@ void smv_conv3d_f32_nhwc_vec_fxp(float* inputs,
     // in the results.
     int num_eff_kernels = min2(weights_dims[0], result_height);
     int num_kernel_blocks = (num_eff_kernels - 1) / NUM_PE_INSTS;
+
+    // Load inputs and weights if needed.
+    if (ifmap_start == 0)
+        dma_load_fp16(inputs, host_inputs, inputs_size, 0, 0);
+    if (kern_start == 0)
+        dma_load_fp16(weights, host_weights, weights_size, 0, 0);
 
     ofmap_block_iteration:
     for (int ofmap_iters = 0; ofmap_iters < num_kernel_blocks + 1;
@@ -231,6 +250,10 @@ void smv_conv3d_f32_nhwc_vec_fxp(float* inputs,
             }
         }
     }
+
+    // Store results to the host memory if needed.
+    if (send_results)
+        dma_store_fp16(results, host_results, results_size, 0, 0);
 }
 
 #ifdef __cplusplus

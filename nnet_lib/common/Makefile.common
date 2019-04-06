@@ -45,6 +45,7 @@ TESTS = src/core/tensor_test.cpp \
         src/operators/ref/ref_pooling_op_test.cpp \
         src/operators/ref/ref_softmax_op_test.cpp \
         src/operators/reorder_op_test.cpp \
+        src/operators/smv/load_store_fp16_data_test.cpp \
         src/operators/smv/smv_convolution_tiling_test.cpp \
         src/operators/smv/smv_convolution_op_test.cpp
 PY_TESTS = src/python/tensor_test.py \

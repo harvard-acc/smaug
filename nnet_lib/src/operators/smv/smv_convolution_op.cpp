@@ -91,10 +91,10 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                     // channel tile, producing results for the same output
                     // channels.
                     while (iC < inputChanTiles && wC < weightChanTiles) {
-                        std::cout << "Input: " << inputIdx(N, H, 0, iC)
-                                  << ", weights: " << weightIdx(W, 0, 0, wC)
-                                  << ", output: " << outputIdx(N, H, 0, W + oC)
-                                  << "\n";
+                        dout(2) << "Input: " << inputIdx(N, H, 0, iC)
+                                << ", weights: " << weightIdx(W, 0, 0, wC)
+                                << ", output: " << outputIdx(N, H, 0, W + oC)
+                                << "\n";
                         Tensor* inputTile = inputs[inputIdx(N, H, 0, iC)];
                         Tensor* weightsTile = weights[weightIdx(W, 0, 0, wC)];
                         const TensorShape& inputShape = inputTile->getShape();
@@ -117,22 +117,31 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                         // avoid resetting the result for non-first (wC > 0)
                         // weight channelwise tiles.
                         bool accumulate = wC > 0;
+                        // If we reach the last invocation for the weight
+                        // channelwise tiles, the results are finished and need
+                        // to be sent back to the host.
+                        bool sendResults = wC == weightChanTiles - 1;
 
-                        smv_conv3d_f32_nhwc_vec_fxp(inputTile->data<float>(),
-                                                    weightsTile->data<float>(),
-                                                    outputTile->data<float>(),
-                                                    inputDims,
-                                                    weightsDims,
-                                                    outputDims,
-                                                    inputShape.getPadding(3),
-                                                    weightsShape.getPadding(3),
-                                                    outputShape.getPadding(3),
-                                                    inputHaloPad,
-                                                    getRowStride(),
-                                                    getColStride(),
-                                                    ifmapStart,
-                                                    kernStart,
-                                                    accumulate);
+                        smv_conv3d_f32_nhwc_vec_fxp(
+                                inputTile->data<float16>(),
+                                weightsTile->data<float16>(),
+                                outputTile->data<float16>(),
+                                smv::spad0,
+                                smv::spad1,
+                                smv::spad2,
+                                inputDims,
+                                weightsDims,
+                                outputDims,
+                                inputShape.getPadding(3),
+                                weightsShape.getPadding(3),
+                                outputShape.getPadding(3),
+                                inputHaloPad,
+                                getRowStride(),
+                                getColStride(),
+                                ifmapStart,
+                                kernStart,
+                                accumulate,
+                                sendResults);
 
                         ifmapOffset += weightsTile->getShape()[3];
                         if (inputChanTiles == weightChanTiles) {

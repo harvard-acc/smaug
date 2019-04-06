@@ -5,7 +5,10 @@
 extern "C" {
 #endif
 
-void smv_conv3d_f32_nhwc_vec_fxp(float* inputs,
+void smv_conv3d_f32_nhwc_vec_fxp(float16* host_inputs,
+                                 float16* host_weights,
+                                 float16* host_results,
+                                 float* inputs,
                                  float* weights,
                                  float* results,
                                  int inputs_dims[4],
@@ -19,7 +22,8 @@ void smv_conv3d_f32_nhwc_vec_fxp(float* inputs,
                                  int col_stride,
                                  int ifmap_start,
                                  int kern_start,
-                                 bool accumulate);
+                                 bool accumulate,
+                                 bool send_results);
 
 #ifdef __cplusplus
 }
