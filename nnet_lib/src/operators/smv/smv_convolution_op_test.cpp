@@ -199,7 +199,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
             Tensor* inputs = new Tensor("inputs", inputShape);
             workspace()->addTensor(inputs);
             convOp->setInput(inputs, 0);
-            convOp->setWeightDims(3, 3, 128);
+            convOp->setWeightDims(4, 4, 128);
             createAndFillTensorsWithData<float>(convOp, fillTensorWithData);
             convOp->run();
             auto outputs = convOp->getOutput(0);

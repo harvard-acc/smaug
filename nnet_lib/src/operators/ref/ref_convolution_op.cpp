@@ -108,8 +108,8 @@ void ref_conv3d_f32_nchw_same_padding(float* input,
     // Convolution borders.
     const int start_i = -top_pad;
     const int start_j = -left_pad;
-    const int end_i = img_rows - bottom_pad;
-    const int end_j = img_cols - right_pad;
+    const int end_i = img_rows + bottom_pad - k_rows + 1;
+    const int end_j = img_cols + right_pad - k_cols + 1;
 
     ARRAY_4D(float, _input, input, img_chans, img_rows, img_cols + img_pad);
     ARRAY_4D(float, _kernels, kernels, img_chans, k_rows, k_cols + k_pad);
