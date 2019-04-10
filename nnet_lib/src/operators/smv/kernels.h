@@ -18,6 +18,7 @@ void smv_conv3d_f32_nhwc_vec_fxp(float* inputs,
                                  int row_stride,
                                  int col_stride,
                                  int ifmap_start,
+                                 int kern_start,
                                  bool accumulate);
 
 #ifdef __cplusplus

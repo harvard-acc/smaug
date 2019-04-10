@@ -23,6 +23,7 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
     int inputChanTiles = inputs.getShape()[3];
     int weightOfmapTiles = weights.getShape()[0];
     int weightChanTiles = weights.getShape()[3];
+    int outputChanTiles = outputs.getShape()[3];
     auto inputIdx = inputs.startIndex();
     auto weightIdx = weights.startIndex();
     auto outputIdx = outputs.startIndex();
@@ -53,66 +54,101 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
             // the 2D feature maps in an input tile.
             int inputHaloPad[4] = { currentTileTopPad, currentTileBottomPad,
                                     leftPad, rightPad };
+            // On one condition, the tiling optimizer allows the weight tile to
+            // contain more kernels than the output tile: the weights do not
+            // need N-wise tiling (weightOfmapTiles = 1), whereas the output
+            // needs channelwise tiling (weightOfmapTiles < outputChanTiles).
+            // We will then need multiple kernel invocations to finish the
+            // weight tile, where each invocation only consumes part of it. The
+            // argument 'kern_start' is used for this: it provides the starting
+            // kernel from which the weight tile will be effective.
+            bool needOutputIteration = weightOfmapTiles < outputChanTiles;
+            int kernStart = 0;
+            // This is the number of invocations we need to finish the weight
+            // tile. In common scenarios, only one invocation is needed. If we
+            // need to iterate the output channels, outputChanTiles invocatons
+            // are needed to finish the weight tile.
+            int numOutputInvocations =
+                    needOutputIteration ? outputChanTiles : 1;
+            assert(numOutputInvocations > 1
+                           ? weightOfmapTiles == 1
+                           : weightOfmapTiles == outputChanTiles);
             for (int W = 0; W < weightOfmapTiles; W++) {
-                int iC = 0, wC = 0;
-                // This keeps track of the channel offset of the input.
-                int ifmapOffset = 0;
-                // The tiling optimizer will make sure that the weight tiles
-                // have the same channel dimension as the input tiles
-                // (so that inputChanTiles = weightChanTiles), except one case
-                // where the input is not tiled channelwise (inputChanTiles = 1)
-                // and the weights are independently tiled channelwise. In that
-                // case, we will need multiple kernel invocations to finish the
-                // weight channelwise tiles, with the same input channel tile,
-                // producing results for the same output channels.
-                while (iC < inputChanTiles && wC < weightChanTiles) {
-                    std::cout << "Input: " << inputIdx(N, H, 0, iC)
-                              << ", weights: " << weightIdx(W, 0, 0, wC)
-                              << ", output: " << outputIdx(N, H, 0, W) << "\n";
-                    Tensor* inputTile = inputs[inputIdx(N, H, 0, iC)];
-                    Tensor* weightsTile = weights[weightIdx(W, 0, 0, wC)];
-                    Tensor* outputTile = outputs[outputIdx(N, H, 0, W)];
-                    const TensorShape& inputShape = inputTile->getShape();
-                    const TensorShape& weightsShape = weightsTile->getShape();
+                for (int oC = 0; oC < numOutputInvocations; oC++) {
+                    int iC = 0, wC = 0;
+                    // This keeps track of the channel offset of the input.
+                    int ifmapOffset = 0;
+                    Tensor* outputTile = outputs[outputIdx(N, H, 0, W + oC)];
                     const TensorShape& outputShape = outputTile->getShape();
-                    int inputDims[4] = { inputShape[0], inputShape[1],
-                                         inputShape[2], inputShape[3] };
-                    int weightsDims[4] = { weightsShape[0], weightsShape[1],
-                                           weightsShape[2], weightsShape[3] };
-                    int outputDims[4] = { outputShape[0], outputShape[1],
-                                          outputShape[2], outputShape[3] };
-                    // The 'ifmap_start' argument of the kernel is for handling
-                    // when inputChanTiles < weightChanTiles. It provides the
-                    // starting channel of the input tile that will be effective
-                    // for computation in the invocation.
-                    int ifmapStart = (iC == wC) ? 0 : ifmapOffset;
-                    // Since multiple weight channelwise tiles produce the same
-                    // output channels, 'accumulate' is set to true to avoid
-                    // resetting the result for non-first (wC > 0) weight
-                    // channelwise tiles.
-                    bool accumulate = wC > 0;
-                    smv_conv3d_f32_nhwc_vec_fxp(inputTile->data<float>(),
-                                                weightsTile->data<float>(),
-                                                outputTile->data<float>(),
-                                                inputDims,
-                                                weightsDims,
-                                                outputDims,
-                                                inputShape.getPadding(3),
-                                                weightsShape.getPadding(3),
-                                                outputShape.getPadding(3),
-                                                inputHaloPad,
-                                                getRowStride(),
-                                                getColStride(),
-                                                ifmapStart,
-                                                accumulate);
 
-                    ifmapOffset += weightsTile->getShape()[3];
-                    if (inputChanTiles == weightChanTiles) {
-                        iC++;
-                        wC++;
-                    } else if (inputChanTiles == 1) {
-                        wC++;
+                    // The tiling optimizer will make sure that the weight tiles
+                    // have the same channel dimension as the input tiles (so
+                    // that inputChanTiles = weightChanTiles), except one case
+                    // where the input is not tiled channelwise (inputChanTiles
+                    // = 1) and the weights are independently tiled channelwise.
+                    // In that case, we will need multiple kernel invocations to
+                    // finish the weight channelwise tiles, with the same input
+                    // channel tile, producing results for the same output
+                    // channels.
+                    while (iC < inputChanTiles && wC < weightChanTiles) {
+                        std::cout << "Input: " << inputIdx(N, H, 0, iC)
+                                  << ", weights: " << weightIdx(W, 0, 0, wC)
+                                  << ", output: " << outputIdx(N, H, 0, W + oC)
+                                  << "\n";
+                        Tensor* inputTile = inputs[inputIdx(N, H, 0, iC)];
+                        Tensor* weightsTile = weights[weightIdx(W, 0, 0, wC)];
+                        const TensorShape& inputShape = inputTile->getShape();
+                        const TensorShape& weightsShape =
+                                weightsTile->getShape();
+                        int inputDims[4] = { inputShape[0], inputShape[1],
+                                             inputShape[2], inputShape[3] };
+                        int weightsDims[4] = { weightsShape[0], weightsShape[1],
+                                               weightsShape[2],
+                                               weightsShape[3] };
+                        int outputDims[4] = { outputShape[0], outputShape[1],
+                                              outputShape[2], outputShape[3] };
+                        // The 'ifmap_start' argument of the kernel is for
+                        // handling when inputChanTiles < weightChanTiles. It
+                        // provides the starting channel of the input tile that
+                        // will be effective for computation in the invocation.
+                        int ifmapStart = (iC == wC) ? 0 : ifmapOffset;
+                        // Since multiple weight channelwise tiles produce the
+                        // same output channels, 'accumulate' is set to true to
+                        // avoid resetting the result for non-first (wC > 0)
+                        // weight channelwise tiles.
+                        bool accumulate = wC > 0;
+
+                        smv_conv3d_f32_nhwc_vec_fxp(inputTile->data<float>(),
+                                                    weightsTile->data<float>(),
+                                                    outputTile->data<float>(),
+                                                    inputDims,
+                                                    weightsDims,
+                                                    outputDims,
+                                                    inputShape.getPadding(3),
+                                                    weightsShape.getPadding(3),
+                                                    outputShape.getPadding(3),
+                                                    inputHaloPad,
+                                                    getRowStride(),
+                                                    getColStride(),
+                                                    ifmapStart,
+                                                    kernStart,
+                                                    accumulate);
+
+                        ifmapOffset += weightsTile->getShape()[3];
+                        if (inputChanTiles == weightChanTiles) {
+                            iC++;
+                            wC++;
+                        } else if (inputChanTiles == 1) {
+                            wC++;
+                        } else {
+                            assert(false &&
+                                   "The input/weight tiles can have different "
+                                   "number of channels only when the inputs "
+                                   "don't need channelwise tiling.");
+                        }
                     }
+                    if (needOutputIteration)
+                        kernStart += outputShape[3];
                 }
             }
         }

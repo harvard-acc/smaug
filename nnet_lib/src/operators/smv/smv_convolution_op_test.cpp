@@ -251,5 +251,37 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
             auto refOutputs = getReferenceOutput(convOp, workspace());
             verifyOutputs<float>(outputs, refOutputs);
         }
+        SECTION("Inputs and weights don't need tiling, outputs need DimNC "
+                "tiling") {
+            TensorShape inputShape(
+                    { 1, 32, 32, 8 }, DataLayout::NHWC, SmvBackend::Alignment);
+            Tensor* inputs = new Tensor("inputs", inputShape);
+            workspace()->addTensor(inputs);
+            convOp->setInput(inputs, 0);
+            SECTION("16 output tiles") {
+                convOp->setWeightDims(1, 1, 128);
+                createAndFillTensorsWithData<float>(convOp, fillTensorWithData);
+                convOp->run();
+                auto outputs = convOp->getOutput(0);
+                auto refOutputs = getReferenceOutput(convOp, workspace());
+                verifyOutputs<float>(outputs, refOutputs);
+            }
+            SECTION("8 output tiles") {
+                convOp->setWeightDims(2, 2, 64);
+                createAndFillTensorsWithData<float>(convOp, fillTensorWithData);
+                convOp->run();
+                auto outputs = convOp->getOutput(0);
+                auto refOutputs = getReferenceOutput(convOp, workspace());
+                verifyOutputs<float>(outputs, refOutputs);
+            }
+            SECTION("4 output tiles") {
+                convOp->setWeightDims(3, 3, 32);
+                createAndFillTensorsWithData<float>(convOp, fillTensorWithData);
+                convOp->run();
+                auto outputs = convOp->getOutput(0);
+                auto refOutputs = getReferenceOutput(convOp, workspace());
+                verifyOutputs<float>(outputs, refOutputs);
+            }
+        }
     }
 }

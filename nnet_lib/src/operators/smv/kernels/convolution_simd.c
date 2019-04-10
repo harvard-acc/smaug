@@ -29,7 +29,9 @@ extern "C" {
 //   row_stride: Stride size on the row dimension.
 //   col_stride: Stride size on the col dimension.
 //   ifmap_start: If the input contains more channels than the weights, start
-//       from this one.
+//       from this one. Otherwise this should always be zero.
+//   kern_start: If the weights contain more kernels than the results buffer can
+//       fit, start from this one. Otherwise this should always be zero.
 //   accumulate: If the original weight tensor is tiled channelwise, this should
 //       be set to true in order to avoid resetting the result buffer for
 //       non-first weight tiles.
@@ -46,6 +48,7 @@ void smv_conv3d_f32_nhwc_vec_fxp(float* inputs,
                                  int row_stride,
                                  int col_stride,
                                  int ifmap_start,
+                                 int kern_start,
                                  bool accumulate) {
     int result_rows = results_dims[1];
     int result_cols = results_dims[2];
@@ -83,7 +86,12 @@ void smv_conv3d_f32_nhwc_vec_fxp(float* inputs,
     VEC_ARRAY_3D(
             v8fp_t, _result, results, result_cols, result_height + results_pad);
     int num_chan_blocks = (k_height - 1) / pe_depth;
-    int num_kernel_blocks = (weights_dims[0] - 1) / NUM_PE_INSTS;
+    // Number of effective kernels for this invocation. The weights can contain
+    // more kernels than the results buffer can fit the output feature maps,
+    // where the number of effective kernels will be the number of feature maps
+    // in the results.
+    int num_eff_kernels = min2(weights_dims[0], result_height);
+    int num_kernel_blocks = (num_eff_kernels - 1) / NUM_PE_INSTS;
 
     ofmap_block_iteration:
     for (int ofmap_iters = 0; ofmap_iters < num_kernel_blocks + 1;
@@ -133,7 +141,8 @@ void smv_conv3d_f32_nhwc_vec_fxp(float* inputs,
                             kernel_reg[pe_id][macc_idx] =
                                     (macc_idx >= max_ch_grp)
                                             ? zero
-                                            : _kernels[ofmap_offset + pe_id]
+                                            : _kernels[kern_start +
+                                                       ofmap_offset + pe_id]
                                                       [kern_row][kern_col]
                                                       [kern_chan_offset +
                                                        macc_idx];
