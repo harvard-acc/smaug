@@ -80,6 +80,10 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                     int ifmapOffset = 0;
                     Tensor* outputTile = outputs[outputIdx(N, H, 0, W + oC)];
                     const TensorShape& outputShape = outputTile->getShape();
+                    mapArrayToAccel(
+                            smv::kConvolutionHw, "host_results",
+                            outputTile->data<float16>(),
+                            outputShape.storageSize() * sizeof(float16));
 
                     // The tiling optimizer will make sure that the weight tiles
                     // have the same channel dimension as the input tiles (so
@@ -100,6 +104,14 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                         const TensorShape& inputShape = inputTile->getShape();
                         const TensorShape& weightsShape =
                                 weightsTile->getShape();
+                        mapArrayToAccel(
+                                smv::kConvolutionHw, "host_inputs",
+                                inputTile->data<float16>(),
+                                inputShape.storageSize() * sizeof(float16));
+                        mapArrayToAccel(
+                                smv::kConvolutionHw, "host_weights",
+                                weightsTile->data<float16>(),
+                                weightsShape.storageSize() * sizeof(float16));
                         int inputDims[4] = { inputShape[0], inputShape[1],
                                              inputShape[2], inputShape[3] };
                         int weightsDims[4] = { weightsShape[0], weightsShape[1],
