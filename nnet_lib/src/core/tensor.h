@@ -24,6 +24,13 @@ class TensorShape {
               alignment(_alignment) {
         computePadding();
     }
+    TensorShape(std::initializer_list<int> _dims,
+                DataLayout _layout,
+                int _alignment = 0)
+            : dims_(_dims), padding_(dims_.size()), layout(_layout),
+              alignment(_alignment) {
+        computePadding();
+    }
     TensorShape(const TensorShape& shape)
             : dims_(shape.dims_), padding_(shape.padding_),
               layout(shape.layout), alignment(shape.alignment) {}

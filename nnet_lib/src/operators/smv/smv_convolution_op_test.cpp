@@ -310,4 +310,46 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
             }
         }
     }
+
+    SECTION("DimNCH tiled convolution") {
+        SECTION("Inputs DimNCH tiling: 3 tiles rowwise, 6 tiles channelwise") {
+            TensorShape inputShape({ 1, 32, 32, 192 }, DataLayout::NHWC,
+                                   SmvBackend::Alignment);
+            Tensor* inputs = new Tensor("inputs", inputShape);
+            workspace()->addTensor(inputs);
+            convOp->setInput(inputs, 0);
+            convOp->setWeightDims(4, 4, 32);
+            createAndFillTensorsWithData<float16>(convOp, fillTensorWithData);
+            convOp->run();
+            auto outputs = convOp->getOutput(0);
+            auto refOutputs = getReferenceOutput(convOp, workspace());
+            verifyOutputs<float16>(outputs, refOutputs);
+        }
+        SECTION("Inputs DimNCH tiling: 9 tiles rowwise, 6 tiles channelwise") {
+            TensorShape inputShape({ 1, 64, 64, 192 }, DataLayout::NHWC,
+                                   SmvBackend::Alignment);
+            Tensor* inputs = new Tensor("inputs", inputShape);
+            workspace()->addTensor(inputs);
+            convOp->setInput(inputs, 0);
+            convOp->setWeightDims(2, 2, 32);
+            createAndFillTensorsWithData<float16>(convOp, fillTensorWithData);
+            convOp->run();
+            auto outputs = convOp->getOutput(0);
+            auto refOutputs = getReferenceOutput(convOp, workspace());
+            verifyOutputs<float16>(outputs, refOutputs);
+        }
+        SECTION("Inputs DimNCH tiling: 43 tiles rowwise, 6 tiles channelwise") {
+            TensorShape inputShape({ 1, 128, 128, 192 }, DataLayout::NHWC,
+                                   SmvBackend::Alignment);
+            Tensor* inputs = new Tensor("inputs", inputShape);
+            workspace()->addTensor(inputs);
+            convOp->setInput(inputs, 0);
+            convOp->setWeightDims(2, 2, 32);
+            createAndFillTensorsWithData<float16>(convOp, fillTensorWithData);
+            convOp->run();
+            auto outputs = convOp->getOutput(0);
+            auto refOutputs = getReferenceOutput(convOp, workspace());
+            verifyOutputs<float16>(outputs, refOutputs);
+        }
+    }
 }

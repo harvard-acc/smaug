@@ -16,6 +16,7 @@ enum TilingDims {
     DimN,
     DimNC,
     DimNH,
+    DimNCH,
     Invalid
 };
 
@@ -44,7 +45,7 @@ class TilingOptimizer {
                                            const TensorShape& tileShape,
                                            std::vector<int> halos,
                                            Workspace* workspace);
-    static TiledTensor generateDimNHOutputTiledTensor(
+    static TiledTensor generateRowwiseOutputTiledTensor(
             SmvConvolutionOp* op,
             const TiledTensor& inputTiledTensor,
             const TiledTensor& weightsTiledTensor,
