@@ -64,10 +64,15 @@ static void createAndAddOperator(const NodeProto& node,
             op = Backend::createDepthwiseConvolutionOp(name, workspace);
         assert(node.input_tensors_size() == 2);
         const TensorProto& filterTensorProto = node.input_tensors(1);
-        assert(filterTensorProto.shape().dims_size() == 4);
-        op->setWeightDims(filterTensorProto.shape().dims(2),
-                          filterTensorProto.shape().dims(3),
-                          filterTensorProto.shape().dims(0));
+        const TensorShapeProto& shapeProto = filterTensorProto.shape();
+        assert(shapeProto.dims_size() == 4);
+        if (shapeProto.layout() == NCHW) {
+            op->setWeightDims(
+                    shapeProto.dims(2), shapeProto.dims(3), shapeProto.dims(0));
+        } else {
+            op->setWeightDims(
+                    shapeProto.dims(1), shapeProto.dims(2), shapeProto.dims(0));
+        }
         const ConvParams& convParams = node.params().conv_params();
         assert(convParams.stride_size() == 2);
         op->setStride(convParams.stride(0), convParams.stride(1));
