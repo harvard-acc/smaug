@@ -1,8 +1,14 @@
 #include <iostream>
 
+#include "fp16.h"
 #include "core/tensor.h"
 
 namespace smaug {
+
+template <>
+void printTensorElement<float16>(std::ostream& os, float16* data, int index) {
+    os << fp16_ieee_to_fp32_value(data[index]);
+}
 
 std::ostream& operator<<(std::ostream& os, const TensorShape& shape) {
     os << "(";

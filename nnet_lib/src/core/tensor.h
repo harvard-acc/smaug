@@ -430,6 +430,14 @@ class TiledTensor : public TensorBase {
 void untileTiledTensor(TiledTensor& tiledTensor, Tensor* destTensor);
 
 template <typename DType>
+void printTensorElement(std::ostream& os, DType* data, int index) {
+    os << data[index];
+}
+
+template <>
+void printTensorElement<float16>(std::ostream& os, float16* data, int index);
+
+template <typename DType>
 void writeTensorToOstream(std::ostream& os, const Tensor& tensor) {
     const TensorShape& shape = tensor.getShape();
     if (shape.ndims() == 0) {
@@ -449,7 +457,8 @@ void writeTensorToOstream(std::ostream& os, const Tensor& tensor) {
         // dimensions.
         if (counter == 0)
             os << idx << "\n[ ";
-        os << data[idx] << " ";
+        printTensorElement<DType>(os, data, idx);
+        os << " ";
         ++counter;
         if (counter % newGroupAfterElems == 0) {
             counter = 0;
