@@ -58,8 +58,8 @@ void ref_conv3d_f32_nchw_valid_padding(float* input,
                         for (int k = 0; k < k_rows; k++) {
                             conv3d_kernel_cols:
                             for (int l = 0; l < k_cols; l++) {
-                                int img_val = _input[img][d][i + k][j + l];
-                                int kern_val = _kernels[kern][d][k][l];
+                                float img_val = _input[img][d][i + k][j + l];
+                                float kern_val = _kernels[kern][d][k][l];
                                 partial_sum += img_val * kern_val;
                             }
                         }
