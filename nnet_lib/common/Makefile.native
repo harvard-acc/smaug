@@ -22,6 +22,7 @@ BUILD_SRCS += $(BUILD_PROTO_CPP_SRCS) $(BUILD_GEM5_SRCS)
 BUILD_SRCS_OBJS := $(patsubst %.cpp, %.o, $(BUILD_SRCS))
 BUILD_SRCS_OBJS := $(patsubst %.c, %.o, $(BUILD_SRCS_OBJS))
 
+BUILD_TESTS_COMMON = $(patsubst src/%, $(BUILD_DIR)/%, $(TESTS_COMMON))
 BUILD_TESTS = $(patsubst src/%, $(BUILD_DIR)/%, $(TESTS))
 BUILD_PY_TESTS = $(patsubst src/%, $(BUILD_DIR)/%, $(PY_TESTS))
 
@@ -52,7 +53,7 @@ TEST_BIN = $(patsubst %.cpp, %, $(BUILD_TESTS))
 
 tests: src-symlinks $(TEST_BIN) $(BUILD_PROTO_CPP_SRCS) $(PROTO_PY_SRCS) $(BUILD_GEM5_SRCS)
 
-$(TEST_BIN) : % : %.o $(CATCH_OBJ) $(BUILD_SRCS_OBJS)
+$(TEST_BIN) : % : %.o $(CATCH_OBJ) $(BUILD_SRCS_OBJS) $(BUILD_TESTS_COMMON)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ -o $@ $(LFLAGS)
 
 run-tests: $(TEST_BIN) $(BUILD_PY_TESTS)

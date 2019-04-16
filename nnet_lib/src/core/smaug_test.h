@@ -1,6 +1,7 @@
 #include "catch.hpp"
 #include "core/network.h"
 #include "core/network_builder.h"
+#include "core/backend.h"
 #include "core/tensor.h"
 #include "core/workspace.h"
 
@@ -17,11 +18,13 @@ class SmaugTest {
     SmaugTest() {
         network_ = new Network("test");
         workspace_ = new Workspace();
+        SmvBackend::initGlobals();
     }
 
     ~SmaugTest() {
         delete network_;
         delete workspace_;
+        SmvBackend::freeGlobals();
     }
 
     template <typename T>
@@ -53,7 +56,7 @@ class SmaugTest {
         auto ptr = output->template data<DType>();
         int i = 0;
         for (auto idx = output->startIndex(); !idx.end(); ++idx, ++i) {
-            REQUIRE(Approx(ptr[idx]) == expected[i]);
+            REQUIRE(Approx(ptr[idx]).epsilon(0.01) == expected[i]);
         }
         REQUIRE(i == expected.size());
     }
@@ -65,7 +68,8 @@ class SmaugTest {
         auto outputIdx = output->startIndex();
         auto expectedIdx = expected->startIndex();
         for (; !outputIdx.end(); ++outputIdx, ++expectedIdx) {
-            REQUIRE(Approx(outputPtr[outputIdx]) == expectedPtr[expectedIdx]);
+            REQUIRE(Approx(outputPtr[outputIdx]).epsilon(0.01) ==
+                    expectedPtr[expectedIdx]);
         }
     }
 
@@ -92,3 +96,17 @@ class SmaugTest {
 };
 
 }  // namespace smaug
+
+// This converts a float32 into a float16.
+float16 fp16(float fp32_data);
+
+// This converts a float16 into a float32.
+float fp32(float16 fp16_data);
+
+// This creates a tensor with float32 data type and fills it with data converted
+// from a source tensor with float16 data.
+Tensor* convertFp16ToFp32Tensor(Tensor* fp16Tensor, Workspace* workspace);
+
+// This creates a tensor with float16 data type and fills it with data converted
+// from a source tensor with float32 data.
+Tensor* convertFp32ToFp16Tensor(Tensor* fp32Tensor, Workspace* workspace);

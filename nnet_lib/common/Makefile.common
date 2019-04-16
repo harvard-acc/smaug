@@ -35,6 +35,7 @@ PROTO_SRCS = src/core/graph.proto \
              src/core/tensor.proto \
              src/core/types.proto
 
+TESTS_COMMON = src/core/smaug_test.cpp
 TESTS = src/core/tensor_test.cpp \
         src/operators/ref/ref_convolution_op_test.cpp \
         src/operators/ref/ref_batch_norm_op_test.cpp \

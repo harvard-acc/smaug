@@ -1,15 +1,10 @@
 #include "catch.hpp"
-#include "fp16.h"
 #include "core/backend.h"
 #include "core/tensor.h"
 #include "core/smaug_test.h"
 #include "operators/data_op.h"
 
 using namespace smaug;
-
-static float16 fp16(float fp32_data) {
-  return fp16_ieee_from_fp32_value(fp32_data);
-}
 
 TEST_CASE_METHOD(SmaugTest, "Unpacking of float16 tensor data", "[fp16]") {
     SECTION("Unpacking tensor of [8] shape") {
