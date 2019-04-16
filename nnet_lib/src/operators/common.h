@@ -57,6 +57,16 @@ void mapArrayToAccel(unsigned reqCode,
 }  // namespace smaug
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+size_t next_multiple(size_t request, size_t align);
+
+#ifdef __cplusplus
+}
+#endif
+
 // Scalar types.
 typedef float fp_t;
 typedef int sfx_t;
