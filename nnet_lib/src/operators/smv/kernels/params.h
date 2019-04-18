@@ -1,5 +1,5 @@
-#ifndef _SMV_PARAMS_H_
-#define _SMV_PARAMS_H_
+#ifndef _OPERATORS_SMV_KERNELS_PARAMS_H_
+#define _OPERATORS_SMV_KERNELS_PARAMS_H_
 
 #ifndef VECTOR_SIZE
 #define VECTOR_SIZE 8

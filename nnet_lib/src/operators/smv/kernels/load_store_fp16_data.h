@@ -1,5 +1,5 @@
-#ifndef _OPERATORS_SMV_LOAD_STORE_FP16_DATA_H_
-#define _OPERATORS_SMV_LOAD_STORE_FP16_DATA_H_
+#ifndef _OPERATORS_SMV_KERNELS_LOAD_STORE_FP16_DATA_H_
+#define _OPERATORS_SMV_KERNELS_LOAD_STORE_FP16_DATA_H_
 
 #include "utility/fp16_utils.h"
 #include "operators/common.h"

@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 #include "operators/common.h"
-#include "operators/smv/load_store_fp16_data.h"
+#include "load_store_fp16_data.h"
 
 #define NUM_PE_INSTS 8
 #define NUM_MACC_INSTS 4
