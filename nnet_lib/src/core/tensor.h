@@ -16,6 +16,8 @@
 
 namespace smaug {
 
+class Workspace;
+
 class TensorShape {
    public:
     TensorShape() : layout(DataLayout::UnknownLayout) {}
@@ -431,6 +433,12 @@ class TiledTensor : public TensorBase {
    protected:
     std::vector<Tensor*> tensors;
 };
+
+// This generates a TiledTensor from a Tensor using the specified tile shape.
+TiledTensor generateTiledTensor(Tensor* tensor,
+                                const TensorShape& tileShape,
+                                std::vector<int> halos,
+                                Workspace* workspace);
 
 // This will copy data from a tiled tensor into a single tensor. We name it as
 // "untile" because what it does reverses the tiling process.

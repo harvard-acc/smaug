@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "fp16.h"
+#include "core/workspace.h"
 #include "core/tensor.h"
 
 namespace smaug {
@@ -92,6 +93,61 @@ void copyTensorRegion(Tensor* dest,
         default:
             assert(false && "Unknown data type!");
     }
+}
+
+TiledTensor generateTiledTensor(Tensor* tensor,
+                                const TensorShape& tileShape,
+                                std::vector<int> halos,
+                                Workspace* workspace) {
+    assert(halos.size() == tileShape.ndims());
+    const TensorShape& inputShape = tensor->getShape();
+    const int ndims = inputShape.ndims();
+    std::vector<int> numBlocksInDim(ndims, 0);
+    for (int i = 0; i < ndims; i++) {
+        int remaining = inputShape[i];
+        while (remaining > 0) {
+            numBlocksInDim[i]++;
+            remaining -= tileShape[i];
+            if (remaining > 0)
+                remaining += halos[i];
+        }
+    }
+    TiledTensor tiledTensor(
+            TensorShape(numBlocksInDim, inputShape.getLayout()));
+    std::vector<int> currentOrigin(ndims, 0);
+    std::vector<int> dstOrigin(ndims, 0);
+    for (auto tileIndex = tiledTensor.startIndex(); !tileIndex.end();
+         ++tileIndex) {
+        std::vector<int> currentTileShape(ndims);
+        for (int i = 0; i < ndims; i++) {
+            currentTileShape[i] =
+                    std::min(inputShape[i] - currentOrigin[i], tileShape[i]);
+        }
+        TensorShape currentShape(currentTileShape,
+                                 tileShape.getLayout(),
+                                 tileShape.getAlignment());
+        std::string tileName =
+                tensor->getName() + "/tile:" + std::to_string((int)tileIndex);
+        Tensor* tile = new Tensor(tileName, currentShape);
+        tile->allocateStorage(tensor->getDataType());
+        copyTensorRegion(tile,
+                         tensor,
+                         dstOrigin,
+                         currentOrigin,
+                         currentShape.dims());
+        for (int i = ndims - 1; i >= 0; i--) {
+            currentOrigin[i] += currentShape[i];
+            if (currentOrigin[i] >= inputShape[i]) {
+                currentOrigin[i] = 0;
+            } else {
+                currentOrigin[i] -= halos[i];
+                break;
+            }
+        }
+        tiledTensor[tileIndex] = tile;
+    }
+    workspace->addTiledTensor(tiledTensor);
+    return tiledTensor;
 }
 
 void untileTiledTensor(TiledTensor& tiledTensor, Tensor* destTensor) {

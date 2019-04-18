@@ -5,6 +5,7 @@
 #include <string>
 
 #include "core/tensor.h"
+#include "core/operator.h"
 
 namespace smaug {
 

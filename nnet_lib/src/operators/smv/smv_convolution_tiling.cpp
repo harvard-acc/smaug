@@ -380,59 +380,6 @@ TilingConfig TilingOptimizer::computeBasicTileShapes(SmvConvolutionOp* op) {
     return *maxIt;
 }
 
-TiledTensor TilingOptimizer::generateTiledTensor(Tensor* tensor,
-                                                 const TensorShape& tileShape,
-                                                 std::vector<int> halos,
-                                                 Workspace* workspace) {
-    assert(halos.size() == tileShape.ndims());
-    const TensorShape& inputShape = tensor->getShape();
-    const int ndims = inputShape.ndims();
-    std::vector<int> numBlocksInDim(ndims, 0);
-    for (int i = 0; i < ndims; i++) {
-        int remaining = inputShape[i];
-        while (remaining > 0) {
-            numBlocksInDim[i]++;
-            remaining -= tileShape[i];
-            if (remaining > 0)
-                remaining += halos[i];
-        }
-    }
-    TiledTensor tiledTensor(
-            TensorShape(numBlocksInDim, inputShape.getLayout()));
-    std::vector<int> currentOrigin(ndims, 0);
-    for (auto tileIndex = tiledTensor.startIndex(); !tileIndex.end();
-         ++tileIndex) {
-        std::vector<int> currentTileShape(ndims);
-        for (int i = 0; i < ndims; i++) {
-            currentTileShape[i] =
-                    std::min(inputShape[i] - currentOrigin[i], tileShape[i]);
-        }
-        TensorShape currentShape(
-                currentTileShape, tileShape.getLayout(), SmvBackend::Alignment);
-        std::string tileName =
-                tensor->getName() + "/tile:" + std::to_string((int)tileIndex);
-        Tensor* tile = new Tensor(tileName, currentShape);
-        tile->allocateStorage(tensor->getDataType());
-        copyTensorRegion(tile,
-                         tensor,
-                         { 0, 0, 0, 0 },
-                         currentOrigin,
-                         currentShape.dims());
-        for (int i = ndims - 1; i >= 0; i--) {
-            currentOrigin[i] += currentShape[i];
-            if (currentOrigin[i] >= inputShape[i]) {
-                currentOrigin[i] = 0;
-            } else {
-                currentOrigin[i] -= halos[i];
-                break;
-            }
-        }
-        tiledTensor[tileIndex] = tile;
-    }
-    workspace->addTiledTensor(tiledTensor);
-    return tiledTensor;
-}
-
 TiledTensor TilingOptimizer::generateRowwiseOutputTiledTensor(
         SmvConvolutionOp* op,
         const TiledTensor& inputTiledTensor,
@@ -530,9 +477,9 @@ std::array<TiledTensor, 3> TilingOptimizer::doTiling(SmvConvolutionOp* op) {
     TilingConfig tileConfig = TilingOptimizer::computeBasicTileShapes(op);
     std::vector<int> inputHalos{ 0, op->getWeightRows() - op->getRowStride(),
                                  op->getWeightCols() - op->getColStride(), 0 };
-    TiledTensor tiledInputs = TilingOptimizer::generateTiledTensor(
+    TiledTensor tiledInputs = generateTiledTensor(
             input, tileConfig.inputs, inputHalos, op->getWorkspace());
-    TiledTensor tiledWeights = TilingOptimizer::generateTiledTensor(
+    TiledTensor tiledWeights = generateTiledTensor(
             kernels, tileConfig.weights, { 0, 0, 0, 0 }, op->getWorkspace());
     TiledTensor tiledOutputs;
     if (needsRowwiseTiling(tileConfig.outputTilingDims)) {
@@ -544,7 +491,7 @@ std::array<TiledTensor, 3> TilingOptimizer::doTiling(SmvConvolutionOp* op) {
                 output,
                 true);
     } else {
-        tiledOutputs = TilingOptimizer::generateTiledTensor(
+        tiledOutputs = generateTiledTensor(
                 output, tileConfig.outputs, { 0, 0, 0, 0 }, op->getWorkspace());
     }
     return { tiledInputs, tiledWeights, tiledOutputs };
