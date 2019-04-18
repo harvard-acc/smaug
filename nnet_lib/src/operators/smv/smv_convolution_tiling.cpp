@@ -10,45 +10,6 @@ namespace smaug {
 namespace smv {
 namespace conv {
 
-std::ostream& operator<<(std::ostream& os, const TilingDims& dims) {
-  switch (dims) {
-      case None:
-          os << "None";
-          break;
-      case DimN:
-          os << "DimN";
-          break;
-      case DimNC:
-          os << "DimNC";
-          break;
-      case DimNH:
-          os << "DimNH";
-          break;
-      case DimNCH:
-          os << "DimNCH";
-          break;
-      case Invalid:
-          os << "Invalid";
-          break;
-  }
-  return os;
-}
-
-// This is named as Nwise because this means batchwise for inputs/outputs,
-// whereas this means ofmap-wise for weights.
-bool needsNwiseTiling(TilingDims dim) {
-    assert(dim != Invalid);
-    return (dim != None);
-}
-
-bool needsChannelwiseTiling(TilingDims dim) {
-    return (dim == DimNC) || (dim == DimNCH);
-}
-
-bool needsRowwiseTiling(TilingDims dim) {
-    return (dim == DimNH) || (dim == DimNCH);
-}
-
 // Find the best set of dimensions to tile a given tensor shape.
 //
 // The goal is to divide up a tensor into tiles that each are <= maxTileSize
@@ -100,7 +61,6 @@ TilingDims TilingOptimizer::findBestTilingDims(const TensorShape& shape,
 //   A 3-element array of TilingDims enums (inputs, weights, outputs).
 std::array<TilingDims, 3> TilingOptimizer::determineBestTilingDims(
         Tensor* inputs, Tensor* weights, Tensor* outputs, int maxTileSize) {
-    std::vector<TilingConfig> allTilingConfigs;
     // Determine the best tiling strategy for each of inputs, weights, and
     // outputs. Don't try to figure out the actual tile sizes yet.
     TilingDims bestInputTilingDims = findBestTilingDims(inputs->getShape(),
@@ -131,8 +91,8 @@ std::array<TilingDims, 3> TilingOptimizer::determineBestTilingDims(
     // If inputs require rowwise tiling, then outputs also require rowwise
     // tiling. Strictly speaking this is not necessarily required but it will
     // greatly simplify memory management (see above).
-    if (needsRowwiseTiling(bestInputTilingDims)) {
-        if (needsChannelwiseTiling(bestOutputTilingDims))
+    if (needsHwiseTiling(bestInputTilingDims)) {
+        if (needsCwiseTiling(bestOutputTilingDims))
             bestOutputTilingDims = DimNCH;
         else
             bestOutputTilingDims = DimNH;
@@ -281,7 +241,7 @@ TilingConfig TilingOptimizer::computeBasicTileShapes(SmvConvolutionOp* op) {
                 TilingConfig config;
                 config.weights = weightsShape;
                 config.weights[0] = n;
-                if (needsChannelwiseTiling(inputTilingDims)) {
+                if (needsCwiseTiling(inputTilingDims)) {
                     // If the inputs are also tiled channelwise, then the
                     // weights have to take the same channel dimension.
                     config.weights[3] = inputsShape[3];
@@ -312,7 +272,7 @@ TilingConfig TilingOptimizer::computeBasicTileShapes(SmvConvolutionOp* op) {
             TilingConfig config;
             config.inputs = inputsShape;
             config.weights = weightsShape;
-            if (needsChannelwiseTiling(inputTilingDims)) {
+            if (needsCwiseTiling(inputTilingDims)) {
                 // This can happen with small weights. If the inputs are tiled
                 // channelwise, then the weight tile need to have the same
                 // number of channels.
@@ -333,7 +293,7 @@ TilingConfig TilingOptimizer::computeBasicTileShapes(SmvConvolutionOp* op) {
             TilingConfig config = *it;
             config.outputs = outputsShape;
             config.outputs[0] = config.inputs[0];
-            if (needsRowwiseTiling(outputTilingDims)) {
+            if (needsHwiseTiling(outputTilingDims)) {
                 config.outputs[1] = op->computeOutputDim(config.inputs[1],
                                                          config.weights[1],
                                                          op->getRowStride(),
@@ -482,7 +442,7 @@ std::array<TiledTensor, 3> TilingOptimizer::doTiling(SmvConvolutionOp* op) {
     TiledTensor tiledWeights = generateTiledTensor(
             kernels, tileConfig.weights, { 0, 0, 0, 0 }, op->getWorkspace());
     TiledTensor tiledOutputs;
-    if (needsRowwiseTiling(tileConfig.outputTilingDims)) {
+    if (needsHwiseTiling(tileConfig.outputTilingDims)) {
         tiledOutputs = TilingOptimizer::generateRowwiseOutputTiledTensor(
                 op,
                 tiledInputs,

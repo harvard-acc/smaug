@@ -6,7 +6,6 @@
 #include "operators/smv/smv_convolution_tiling.h"
 
 using namespace smaug;
-using namespace smaug::smv::conv;
 
 void fillTensorWithData(Tensor* tensor) {
     const TensorShape& shape = tensor->getShape();
@@ -36,6 +35,8 @@ void verifyTensorData(Tensor* tensor, int valueOffset) {
 }
 
 TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
+    using namespace smaug::smv;
+    using namespace smaug::smv::conv;
     auto convOp = new SmvConvolutionOp("conv", workspace());
     // Outputs should be the same size as inputs.
     convOp->setStride(1, 1);
@@ -449,6 +450,8 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
 }
 
 TEST_CASE_METHOD(SmaugTest, "Kernel shape tests", "[smvtiling]") {
+    using namespace smaug::smv;
+    using namespace smaug::smv::conv;
     auto convOp = new SmvConvolutionOp("conv", workspace());
     // Outputs should be the same size as inputs.
     convOp->setStride(1, 1);

@@ -3,6 +3,7 @@
 
 #include "core/backend.h"
 #include "core/tensor.h"
+#include "operators/smv/tiling_common.h"
 
 namespace smaug {
 
@@ -10,32 +11,6 @@ class SmvConvolutionOp;
 
 namespace smv {
 namespace conv {
-
-enum TilingDims {
-    None,
-    DimN,
-    DimNC,
-    DimNH,
-    DimNCH,
-    Invalid
-};
-
-struct TilingConfig {
-  public:
-    TilingConfig() {}
-
-    int getTotalSize() const {
-        return inputs.storageSize() + weights.storageSize() +
-               outputs.storageSize();
-    }
-
-    TensorShape inputs;
-    TensorShape weights;
-    TensorShape outputs;
-    TilingDims inputTilingDims;
-    TilingDims weightTilingDims;
-    TilingDims outputTilingDims;
-};
 
 class TilingOptimizer {
    public:

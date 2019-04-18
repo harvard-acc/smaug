@@ -7,7 +7,6 @@
 #include "operators/smv/smv_convolution_tiling.h"
 
 using namespace smaug;
-using namespace smaug::smv::conv;
 
 void fillTensorWithData(Tensor* tensor) {
     const TensorShape& shape = tensor->getShape();
