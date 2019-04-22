@@ -2,10 +2,8 @@
 #include <stdio.h>
 
 #include "operators/common.h"
+#include "params.h"
 #include "load_store_fp16_data.h"
-
-#define NUM_PE_INSTS 8
-#define NUM_MACC_INSTS 4
 
 #ifdef __cplusplus
 extern "C" {
@@ -16,10 +14,10 @@ extern "C" {
 //
 // Args:
 //   host_inputs: Host inputs buffer in NHWC.
-//   host_weights: Host weights buffer in HNWC.
+//   host_weights: Host weights buffer in NHWC.
 //   host_results: Host results buffer in NHWC.
 //   inputs: Local inputs buffer in NHWC.
-//   weights: Local weights buffer in HNWC.
+//   weights: Local weights buffer in NHWC.
 //   results: Local results bufferin NHWC.
 //   inputs_dims: Dimensions of the inputs.
 //   weights_dims: Dimensions of the weights.

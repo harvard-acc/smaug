@@ -1,0 +1,209 @@
+#include "catch.hpp"
+#include "core/backend.h"
+#include "core/tensor.h"
+#include "core/smaug_test.h"
+#include "operators/smv/smv_inner_product_op.h"
+#include "operators/smv/smv_inner_product_tiling.h"
+
+using namespace smaug;
+
+void fillTensorWithData(Tensor* tensor) {
+    const TensorShape& shape = tensor->getShape();
+    // Each dimension C is initialized to a different constant value.
+    float16* dataPtr = tensor->data<float16>();
+    int resetCounter = shape.getStorageDim(1);
+    int value = 0;
+    for (int i = 0; i < shape.storageSize(); i++) {
+        dataPtr[i] = fp16((value++) * 0.1);
+        if ((i + 1) % resetCounter == 0)
+            value = 0;
+    }
+}
+
+void verifyTensorData(Tensor* tensor, int valueOffset) {
+    float16* dataPtr = tensor->data<float16>();
+    int expectedValue = valueOffset;
+    int resetCounter = tensor->getShape().getStorageDim(1);
+    int totalSize = tensor->getShape().storageSize();
+    for (int i = 0; i < totalSize; i++) {
+        REQUIRE(Approx(fp32(dataPtr[i])).epsilon(kEpsilon) ==
+                expectedValue * 0.1);
+        ++expectedValue;
+        if ((i + 1) % resetCounter == 0)
+            expectedValue = valueOffset;
+    }
+}
+
+TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
+    using namespace smaug::smv;
+    using namespace smaug::smv::fc;
+    auto fcOp = new SmvInnerProductOp("fc", workspace());
+    std::vector<int> halos(2, 0);
+
+    SECTION("No tiling needed") {
+        TensorShape inputShape(
+                { 1, 256 }, DataLayout::NC, SmvBackend::Alignment);
+        Tensor* inputs = new Tensor("inputs", inputShape);
+        workspace()->addTensor(inputs);
+        fcOp->setInput(inputs, 0);
+        fcOp->setNumOutputs(32);
+        fcOp->createAllTensors();
+        allocateAllTensors<float16>(fcOp);
+        // Transpose the weights.
+        auto weights = fcOp->getInput(1);
+        auto transposedWeights = transpose2DTensor<float16>(weights);
+        workspace()->addTensor(transposedWeights);
+        fcOp->setInput(transposedWeights, 1);
+        TilingConfig config = TilingOptimizer::computeBasicTileShapes(fcOp);
+        REQUIRE(config.inputs == inputShape);
+        REQUIRE(config.weights.dims() == std::vector<int>{ 32, 256 });
+        REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 32 });
+    }
+
+    SECTION("DimN tiling for weights, None for inputs") {
+        // Inputs can all fit.
+        TensorShape inputShape(
+                { 1, 256 }, DataLayout::NC, SmvBackend::Alignment);
+        Tensor* inputs = new Tensor("inputs", inputShape);
+        workspace()->addTensor(inputs);
+        fcOp->setInput(inputs, 0);
+        // ...but weights can't. Weights will be tiled into 2 neuron-wise tiles.
+        fcOp->setNumOutputs(128);
+        fcOp->createAllTensors();
+        allocateAllTensors<float16>(fcOp);
+        // Transpose the weights.
+        auto weights = fcOp->getInput(1);
+        auto transposedWeights = transpose2DTensor<float16>(weights);
+        workspace()->addTensor(transposedWeights);
+        fcOp->setInput(transposedWeights, 1);
+        TilingConfig config = TilingOptimizer::computeBasicTileShapes(fcOp);
+        REQUIRE(config.inputs == inputShape);
+        REQUIRE(config.weights.dims() == std::vector<int>{ 64, 256 });
+        REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 128 });
+
+        SECTION("Generated tiles have correct shape and data") {
+            fillTensorWithData(inputs);
+            TiledTensor inputTiles = generateTiledTensor(
+                    inputs, config.inputs, halos, workspace());
+            REQUIRE(inputTiles.size() == 1);
+            verifyTensorData(inputTiles[0], 0);
+
+            fillTensorWithData(transposedWeights);
+            TiledTensor weightTiles = generateTiledTensor(
+                    transposedWeights, config.weights, halos, workspace());
+            REQUIRE(weightTiles.size() == 2);
+            for (auto i = weightTiles.startIndex(); !i.end(); ++i) {
+                REQUIRE(weightTiles[i]->getShape().dims() ==
+                        std::vector<int>{ 64, 256 });
+                verifyTensorData(weightTiles[i], 0);
+            }
+
+            auto outputs = fcOp->getOutput(0);
+            fillTensorWithData(outputs);
+            TiledTensor outputTiles = generateTiledTensor(
+                    outputs, config.outputs, halos, workspace());
+            REQUIRE(outputTiles.size() == 1);
+            verifyTensorData(outputTiles[0], 0);
+        }
+    }
+
+    SECTION("DimNC tiling for weights, None for inputs") {
+        // Inputs can all fit.
+        TensorShape inputShape(
+                { 1, 4096 }, DataLayout::NC, SmvBackend::Alignment);
+        Tensor* inputs = new Tensor("inputs", inputShape);
+        workspace()->addTensor(inputs);
+        fcOp->setInput(inputs, 0);
+        // ...but weights can't. Weights will be tiled into 16 neuron-wise tiles
+        // and 2 activation-wise tiles.
+        fcOp->setNumOutputs(128);
+        fcOp->createAllTensors();
+        allocateAllTensors<float16>(fcOp);
+        // Transpose the weights.
+        auto weights = fcOp->getInput(1);
+        auto transposedWeights = transpose2DTensor<float16>(weights);
+        workspace()->addTensor(transposedWeights);
+        fcOp->setInput(transposedWeights, 1);
+        TilingConfig config = TilingOptimizer::computeBasicTileShapes(fcOp);
+        REQUIRE(config.inputs == inputShape);
+        REQUIRE(config.weights.dims() == std::vector<int>{ 8, 2048});
+        REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 128 });
+
+        SECTION("Generated tiles have correct shape and data") {
+            fillTensorWithData(inputs);
+            TiledTensor inputTiles = generateTiledTensor(
+                    inputs, config.inputs, halos, workspace());
+            REQUIRE(inputTiles.size() == 1);
+            verifyTensorData(inputTiles[0], 0);
+
+            fillTensorWithData(transposedWeights);
+            TiledTensor weightTiles = generateTiledTensor(
+                    transposedWeights, config.weights, halos, workspace());
+            REQUIRE(weightTiles.size() == 16 * 2);
+            for (auto i = weightTiles.startIndex(); !i.end(); ++i) {
+                REQUIRE(weightTiles[i]->getShape().dims() ==
+                        std::vector<int>{ 8, 2048 });
+                verifyTensorData(weightTiles[i], (i % 2) * 2048);
+            }
+
+            auto outputs = fcOp->getOutput(0);
+            fillTensorWithData(outputs);
+            TiledTensor outputTiles = generateTiledTensor(
+                    outputs, config.outputs, halos, workspace());
+            REQUIRE(outputTiles.size() == 1);
+            verifyTensorData(outputTiles[0], 0);
+        }
+    }
+
+    SECTION("DimNC tiling for inputs and weights") {
+        TensorShape inputShape(
+                { 1, 32768 }, DataLayout::NC, SmvBackend::Alignment);
+        Tensor* inputs = new Tensor("inputs", inputShape);
+        workspace()->addTensor(inputs);
+        fcOp->setInput(inputs, 0);
+        fcOp->setNumOutputs(256);
+        fcOp->createAllTensors();
+        allocateAllTensors<float16>(fcOp);
+        // Transpose the weights.
+        auto weights = fcOp->getInput(1);
+        auto transposedWeights = transpose2DTensor<float16>(weights);
+        workspace()->addTensor(transposedWeights);
+        fcOp->setInput(transposedWeights, 1);
+        TilingConfig config = TilingOptimizer::computeBasicTileShapes(fcOp);
+        // Inputs/weights tiled into 16 activation-wise tiles, weights further
+        // tiled into 32 neuron-wise tiles per activation-wise tile.
+        REQUIRE(config.inputs.dims() == std::vector<int>{ 1, 2048 });
+        REQUIRE(config.weights.dims() == std::vector<int>{ 8, 2048 });
+        REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 256 });
+
+        SECTION("Generated tiles have correct shape and data") {
+            fillTensorWithData(inputs);
+            TiledTensor inputTiles = generateTiledTensor(
+                    inputs, config.inputs, halos, workspace());
+            REQUIRE(inputTiles.size() == 16);
+            for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
+                REQUIRE(inputTiles[i]->getShape().dims() ==
+                        std::vector<int>{ 1, 2048 });
+                verifyTensorData(inputTiles[i], 2048 * i);
+            }
+
+            fillTensorWithData(transposedWeights);
+            TiledTensor weightTiles = generateTiledTensor(
+                    transposedWeights, config.weights, halos, workspace());
+            REQUIRE(weightTiles.size() == 16 * 32);
+            for (auto i = weightTiles.startIndex(); !i.end(); ++i) {
+                REQUIRE(weightTiles[i]->getShape().dims() ==
+                        std::vector<int>{ 8, 2048 });
+                verifyTensorData(weightTiles[i], (i % 16) * 2048);
+            }
+
+            auto outputs = fcOp->getOutput(0);
+            fillTensorWithData(outputs);
+            TiledTensor outputTiles = generateTiledTensor(
+                    outputs, config.outputs, halos, workspace());
+            REQUIRE(outputTiles.size() == 1);
+            verifyTensorData(outputTiles[0], 0);
+        }
+    }
+}
+

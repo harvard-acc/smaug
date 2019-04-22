@@ -13,6 +13,7 @@
 #include "operators/softmax_op.h"
 #include "operators/tanh_op.h"
 #include "operators/smv/smv_convolution_op.h"
+#include "operators/smv/smv_inner_product_op.h"
 
 namespace smaug {
 
@@ -50,11 +51,11 @@ DEF_CREATE_OP(TanhOp, ReferenceBackend)
 DEF_CREATE_OP(HardTanhOp, ReferenceBackend)
 
 DEF_CREATE_SMV_OP(ConvolutionOp)
+DEF_CREATE_SMV_OP(InnerProductOp)
 DEF_CREATE_OP(DataOp, SmvBackend)
 DEF_CREATE_OP(DepthwiseConvolutionOp, SmvBackend)
 DEF_CREATE_OP(MaxPoolingOp, SmvBackend)
 DEF_CREATE_OP(AvgPoolingOp, SmvBackend)
-DEF_CREATE_OP(InnerProductOp, SmvBackend)
 DEF_CREATE_OP(SoftmaxOp, SmvBackend)
 DEF_CREATE_OP(ReorderOp, SmvBackend)
 DEF_CREATE_OP(FlattenOp, SmvBackend)

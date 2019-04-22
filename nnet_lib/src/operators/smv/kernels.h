@@ -25,6 +25,23 @@ void smv_conv3d_f32_nhwc_vec_fxp(float16* host_inputs,
                                  bool accumulate,
                                  bool send_results);
 
+void smv_matrix_multiply_transpose_f32_nc_vec_fxp(float16* host_a,
+                                                  float16* host_b,
+                                                  float16* host_results,
+                                                  float* a,
+                                                  float* b,
+                                                  float* results,
+                                                  int a_dims[2],
+                                                  int b_dims[2],
+                                                  int results_dims[2],
+                                                  int a_pad,
+                                                  int b_pad,
+                                                  int results_pad,
+                                                  int a_start,
+                                                  int result_start,
+                                                  bool accumulate,
+                                                  bool send_results);
+
 #ifdef __cplusplus
 }
 #endif
