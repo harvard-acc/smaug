@@ -2,6 +2,8 @@
 #include "core/smaug_test.h"
 #include "load_store_fp16_data.h"
 
+using namespace smaug;
+
 void fillFp16Data(std::vector<float16>& data) {
     for (int i = 0; i < data.size(); i++)
         data[i] = fp16(i * 0.1);
@@ -14,12 +16,12 @@ void fillFp32Data(std::vector<float>& data) {
 
 void verifyFp16Data(const std::vector<float16>& data) {
     for (int i = 0; i < data.size(); i++)
-        REQUIRE(Approx(fp32(data[i])).epsilon(0.01) == i * 0.1);
+        REQUIRE(Approx(fp32(data[i])).epsilon(kEpsilon) == i * 0.1);
 }
 
 void verifyFp32Data(const std::vector<float>& data) {
     for (int i = 0; i < data.size(); i++)
-        REQUIRE(Approx(data[i]).epsilon(0.01) == i * 0.1);
+        REQUIRE(Approx(data[i]).epsilon(kEpsilon) == i * 0.1);
 }
 
 void doFp16LoadTest(int numElems) {

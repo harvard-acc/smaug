@@ -12,12 +12,10 @@ void SmaugTest::verifyOutputs<float16>(Tensor* output, Tensor* expected) {
     auto outputIdx = output->startIndex();
     auto expectedIdx = expected->startIndex();
     for (; !outputIdx.end(); ++outputIdx, ++expectedIdx) {
-        REQUIRE(Approx(fp32(outputPtr[outputIdx])).epsilon(0.01) ==
+        REQUIRE(Approx(fp32(outputPtr[outputIdx])).epsilon(kEpsilon) ==
                 fp32(expectedPtr[expectedIdx]));
     }
 }
-
-}  // namespace smaug
 
 float16 fp16(float fp32_data) {
     return fp16_ieee_from_fp32_value(fp32_data);
@@ -57,3 +55,4 @@ Tensor* convertFp32ToFp16Tensor(Tensor* fp32Tensor, Workspace* workspace) {
     return fp16Tensor;
 }
 
+}  // namespace smaug

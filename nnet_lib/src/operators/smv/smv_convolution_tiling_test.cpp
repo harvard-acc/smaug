@@ -27,7 +27,8 @@ void verifyTensorData(Tensor* tensor, int valueOffset) {
     int resetCounter = tensor->getShape().getStorageDim(3);
     int totalSize = tensor->getShape().storageSize();
     for (int i = 0; i < totalSize; i++) {
-        REQUIRE(Approx(fp32(dataPtr[i])).epsilon(0.01) == expectedValue * 0.1);
+        REQUIRE(Approx(fp32(dataPtr[i])).epsilon(kEpsilon) ==
+                expectedValue * 0.1);
         ++expectedValue;
         if ((i + 1) % resetCounter == 0)
             expectedValue = valueOffset;
