@@ -46,22 +46,22 @@ extern "C" {
 //       be set to true in order to avoid resetting the result buffer for
 //       non-first b tiles.
 //   send_results: Send the results to the host memory if this is true.
-void smv_matrix_multiply_transpose_f32_nc_vec_fxp(float16* host_a,
-                                                  float16* host_b,
-                                                  float16* host_results,
-                                                  float* a,
-                                                  float* b,
-                                                  float* results,
-                                                  int a_dims[2],
-                                                  int b_dims[2],
-                                                  int results_dims[2],
-                                                  int a_pad,
-                                                  int b_pad,
-                                                  int results_pad,
-                                                  int a_start,
-                                                  int result_start,
-                                                  bool accumulate,
-                                                  bool send_results) {
+void smv_matrix_multiply_transpose_nc_vec_fxp(float16* host_a,
+                                              float16* host_b,
+                                              float16* host_results,
+                                              float* a,
+                                              float* b,
+                                              float* results,
+                                              int a_dims[2],
+                                              int b_dims[2],
+                                              int results_dims[2],
+                                              int a_pad,
+                                              int b_pad,
+                                              int results_pad,
+                                              int a_start,
+                                              int result_start,
+                                              bool accumulate,
+                                              bool send_results) {
     int a_width = a_dims[1];
     int a_height = a_dims[0];
     int b_width = b_dims[1];

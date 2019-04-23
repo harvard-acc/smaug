@@ -7,23 +7,23 @@
 extern "C" {
 #endif
 
-void ref_conv3d_f32_nchw_valid_padding(float* input,
-                                       float* kernels,
-                                       float* result,
-                                       int img_num,
-                                       int img_chans,
-                                       int img_rows,
-                                       int img_cols,
-                                       int img_pad,
-                                       int k_num,
-                                       int k_rows,
-                                       int k_cols,
-                                       int k_pad,
-                                       int k_row_stride,
-                                       int k_col_stride,
-                                       int res_rows,
-                                       int res_cols,
-                                       int res_pad) {
+void ref_conv3d_nchw_valid_padding(float* input,
+                                   float* kernels,
+                                   float* result,
+                                   int img_num,
+                                   int img_chans,
+                                   int img_rows,
+                                   int img_cols,
+                                   int img_pad,
+                                   int k_num,
+                                   int k_rows,
+                                   int k_cols,
+                                   int k_pad,
+                                   int k_row_stride,
+                                   int k_col_stride,
+                                   int res_rows,
+                                   int res_cols,
+                                   int res_pad) {
     int input_size = img_num * img_chans * img_rows * (img_cols + img_pad);
     int kernel_size = k_num * img_chans * k_rows * (k_cols + k_pad);
     int result_size = img_num * k_num * res_rows * (res_cols + res_pad);
@@ -75,23 +75,23 @@ void ref_conv3d_f32_nchw_valid_padding(float* input,
     dmaStore(result, result, result_size * sizeof(float));
 }
 
-void ref_conv3d_f32_nchw_same_padding(float* input,
-                                      float* kernels,
-                                      float* result,
-                                      int img_num,
-                                      int img_chans,
-                                      int img_rows,
-                                      int img_cols,
-                                      int img_pad,
-                                      int k_num,
-                                      int k_rows,
-                                      int k_cols,
-                                      int k_pad,
-                                      int k_row_stride,
-                                      int k_col_stride,
-                                      int res_rows,
-                                      int res_cols,
-                                      int res_pad) {
+void ref_conv3d_nchw_same_padding(float* input,
+                                  float* kernels,
+                                  float* result,
+                                  int img_num,
+                                  int img_chans,
+                                  int img_rows,
+                                  int img_cols,
+                                  int img_pad,
+                                  int k_num,
+                                  int k_rows,
+                                  int k_cols,
+                                  int k_pad,
+                                  int k_row_stride,
+                                  int k_col_stride,
+                                  int res_rows,
+                                  int res_cols,
+                                  int res_pad) {
     int input_size = img_num * img_chans * img_rows * (img_cols + img_pad);
     int kernel_size = k_num * img_chans * k_rows * (k_cols + k_pad);
     int result_size = img_num * k_num * res_rows * (res_cols + res_pad);
@@ -187,9 +187,8 @@ void ConvolutionOp<ReferenceBackend>::run() {
                     kernelShape.storageSize() * sizeof(float));
     mapArrayToAccel(ref::kConvolutionHw, "result", outputData,
                     outputShape.storageSize() * sizeof(float));
-    auto func = paddingType == ValidPadding
-                        ? ref_conv3d_f32_nchw_valid_padding
-                        : ref_conv3d_f32_nchw_same_padding;
+    auto func = paddingType == ValidPadding ? ref_conv3d_nchw_valid_padding
+                                            : ref_conv3d_nchw_same_padding;
     invokeKernel(ref::kConvolutionHw, func, inputData, kernelData, outputData,
                  inputShape[0], inputShape[1], inputShape[2], inputShape[3],
                  inputShape.getPadding(3), kernelShape[0], kernelShape[2],

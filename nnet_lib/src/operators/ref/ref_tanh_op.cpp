@@ -7,7 +7,7 @@
 extern "C" {
 #endif
 
-void ref_tanh_f32(float* inputs, float* results, int input_size) {
+void ref_tanh(float* inputs, float* results, int input_size) {
     int i;
     dmaLoad(inputs, inputs, input_size * sizeof(float));
     tanh_act_loop1:
@@ -15,7 +15,7 @@ void ref_tanh_f32(float* inputs, float* results, int input_size) {
         results[i] = 2 * inputs[i];
     }
 
-    ref_sigmoid_f32(results, results, input_size);
+    ref_sigmoid(results, results, input_size);
 
     tanh_act_loop2:
     for (i = 0; i < input_size; i++) {
@@ -24,7 +24,7 @@ void ref_tanh_f32(float* inputs, float* results, int input_size) {
     dmaStore(results, results, input_size * sizeof(float));
 }
 
-void ref_hard_tanh_f32(
+void ref_hard_tanh(
         float* inputs, float* results, int input_size, float min, float max) {
     dmaLoad(inputs, inputs, input_size * sizeof(float));
     hard_tanh_loop:
@@ -52,7 +52,7 @@ void TanhOp<ReferenceBackend>::run() {
                     inputs->getShape().storageSize() * sizeof(float));
     mapArrayToAccel(ref::kEltwiseOpHw, "results", outputData,
                     inputs->getShape().storageSize() * sizeof(float));
-    invokeKernel(ref::kEltwiseOpHw, ref_tanh_f32, inputData, outputData,
+    invokeKernel(ref::kEltwiseOpHw, ref_tanh, inputData, outputData,
                  inputs->getShape().size());
 }
 
@@ -67,7 +67,7 @@ void HardTanhOp<ReferenceBackend>::run() {
                     inputs->getShape().storageSize() * sizeof(float));
     mapArrayToAccel(ref::kEltwiseOpHw, "results", outputData,
                     inputs->getShape().storageSize() * sizeof(float));
-    invokeKernel(ref::kEltwiseOpHw, ref_hard_tanh_f32, inputData, outputData,
+    invokeKernel(ref::kEltwiseOpHw, ref_hard_tanh, inputData, outputData,
                  inputs->getShape().size(), min, max);
 }
 

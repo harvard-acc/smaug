@@ -75,7 +75,7 @@ INCLUDES = -I$(BUILD_DIR) \
 
 BMARK_SPECIFIC_CFLAGS = -DDMA_INTERFACE_V3
 
-export WORKLOAD=ref_conv3d_f32_nchw_same_padding,ref_conv3d_f32_nchw_valid_padding,ref_batch_norm_f32_nchw_post_conv,ref_batch_norm_f32_post_fc,ref_inner_product_f32_nc,ref_max_pooling_f32_nchw_treemax,ref_max_pooling_f32_nchw_itermax,ref_avg_pooling_f32_nchw,ref_conv2d_f32_nchw_valid_padding,ref_conv2d_f32_nchw_same_padding,ref_eltwise_add_f32,ref_relu_f32,ref_leaky_relu_f32,ref_elu_f32,ref_selu_f32,ref_tanh_f32,ref_hard_tanh_f32,ref_sigmoid_f32,ref_softmax_f32_nc,smv_conv3d_f32_nhwc_vec_fxp,smv_matrix_multiply_transpose_f32_nc_vec_fxp
+export WORKLOAD=ref_conv3d_nchw_same_padding,ref_conv3d_nchw_valid_padding,ref_batch_norm_nchw_post_conv,ref_batch_norm_post_fc,ref_inner_product_nc,ref_max_pooling_nchw_treemax,ref_max_pooling_nchw_itermax,ref_avg_pooling_nchw,ref_conv2d_nchw_valid_padding,ref_conv2d_nchw_same_padding,ref_eltwise_add_f32,ref_relu_f32,ref_leaky_relu_f32,ref_elu_f32,ref_selu_f32,ref_tanh_f32,ref_hard_tanh_f32,ref_sigmoid_f32,ref_softmax_nc,smv_conv3d_nhwc_vec_fxp,smv_matrix_multiply_transpose_nc_vec_fxp
 
 #####################################
 ####      COMMON BUILD SETUP     ####

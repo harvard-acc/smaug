@@ -8,20 +8,20 @@
 extern "C" {
 #endif
 
-void ref_max_pooling_f32_nchw_treemax(float* input,
-                                      float* result,
-                                      int img_num,
-                                      int img_chans,
-                                      int img_rows,
-                                      int img_cols,
-                                      int img_pad,
-                                      int res_rows,
-                                      int res_cols,
-                                      int res_pad,
-                                      int pool_row_size,
-                                      int pool_col_size,
-                                      int pool_row_stride,
-                                      int pool_col_stride) {
+void ref_max_pooling_nchw_treemax(float* input,
+                                  float* result,
+                                  int img_num,
+                                  int img_chans,
+                                  int img_rows,
+                                  int img_cols,
+                                  int img_pad,
+                                  int res_rows,
+                                  int res_cols,
+                                  int res_pad,
+                                  int pool_row_size,
+                                  int pool_col_size,
+                                  int pool_row_stride,
+                                  int pool_col_stride) {
     int total_pool_size = pool_row_size * pool_col_size;
     float elems[total_pool_size];
     int elem_idx;
@@ -70,20 +70,20 @@ void ref_max_pooling_f32_nchw_treemax(float* input,
     }
 }
 
-void ref_max_pooling_f32_nchw_itermax(float* input,
-                                      float* result,
-                                      int img_num,
-                                      int img_chans,
-                                      int img_rows,
-                                      int img_cols,
-                                      int img_pad,
-                                      int res_rows,
-                                      int res_cols,
-                                      int res_pad,
-                                      int pool_row_size,
-                                      int pool_col_size,
-                                      int pool_row_stride,
-                                      int pool_col_stride) {
+void ref_max_pooling_nchw_itermax(float* input,
+                                  float* result,
+                                  int img_num,
+                                  int img_chans,
+                                  int img_rows,
+                                  int img_cols,
+                                  int img_pad,
+                                  int res_rows,
+                                  int res_cols,
+                                  int res_pad,
+                                  int pool_row_size,
+                                  int pool_col_size,
+                                  int pool_row_stride,
+                                  int pool_col_stride) {
     ARRAY_4D(float, _input, input, img_chans, img_rows, img_cols + img_pad);
     ARRAY_4D(float, _result, result, img_chans, res_rows, res_cols + res_pad);
 
@@ -117,20 +117,20 @@ void ref_max_pooling_f32_nchw_itermax(float* input,
     }
 }
 
-void ref_avg_pooling_f32_nchw(float* input,
-                              float* result,
-                              int img_num,
-                              int img_chans,
-                              int img_rows,
-                              int img_cols,
-                              int img_pad,
-                              int res_rows,
-                              int res_cols,
-                              int res_pad,
-                              int pool_row_size,
-                              int pool_col_size,
-                              int pool_row_stride,
-                              int pool_col_stride) {
+void ref_avg_pooling_nchw(float* input,
+                          float* result,
+                          int img_num,
+                          int img_chans,
+                          int img_rows,
+                          int img_cols,
+                          int img_pad,
+                          int res_rows,
+                          int res_cols,
+                          int res_pad,
+                          int pool_row_size,
+                          int pool_col_size,
+                          int pool_row_stride,
+                          int pool_col_stride) {
     ARRAY_4D(float, _input, input, img_chans, img_rows, img_cols + img_pad);
     ARRAY_4D(float, _result, result, img_chans, res_rows, res_cols + res_pad);
     float recip_total_size = 1.0 / (pool_row_size * pool_col_size);
@@ -179,8 +179,8 @@ void MaxPoolingOp<ReferenceBackend>::run() {
     assert(outputShape.getLayout() == DataLayout::NCHW);
 
     bool useTreeMax = (poolingRowSize <= 3 && poolingRowSize == poolingColSize);
-    auto func = useTreeMax ? ref_max_pooling_f32_nchw_treemax
-                           : ref_max_pooling_f32_nchw_itermax;
+    auto func = useTreeMax ? ref_max_pooling_nchw_treemax
+                           : ref_max_pooling_nchw_itermax;
     int poolRowSize, poolColSize, poolRowStride, poolColStride;
     std::tie(poolRowSize, poolColSize) = getPoolingSize();
     std::tie(poolRowStride, poolColStride) = getPoolingStride();
@@ -217,11 +217,11 @@ void AvgPoolingOp<ReferenceBackend>::run() {
                     inputShape.storageSize() * sizeof(float));
     mapArrayToAccel(ref::kPoolingHw, "result", outputData,
                     outputShape.storageSize() * sizeof(float));
-    invokeKernel(ref::kPoolingHw, ref_avg_pooling_f32_nchw, inputData,
-                 outputData, inputShape[0], inputShape[1], inputShape[2],
-                 inputShape[3], inputShape.getPadding(3), outputShape[2],
-                 outputShape[3], outputShape.getPadding(3), poolRowSize,
-                 poolColSize, poolRowStride, poolColStride);
+    invokeKernel(ref::kPoolingHw, ref_avg_pooling_nchw, inputData, outputData,
+                 inputShape[0], inputShape[1], inputShape[2], inputShape[3],
+                 inputShape.getPadding(3), outputShape[2], outputShape[3],
+                 outputShape.getPadding(3), poolRowSize, poolColSize,
+                 poolRowStride, poolColStride);
 }
 
 }  // namespace smaug

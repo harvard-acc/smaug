@@ -38,25 +38,25 @@ extern "C" {
 //       be set to true in order to avoid resetting the result buffer for
 //       non-first weight tiles.
 //   send_results: Send the results to the host memory if this is true.
-void smv_conv3d_f32_nhwc_vec_fxp(float16* host_inputs,
-                                 float16* host_weights,
-                                 float16* host_results,
-                                 float* inputs,
-                                 float* weights,
-                                 float* results,
-                                 int inputs_dims[4],
-                                 int weights_dims[4],
-                                 int results_dims[4],
-                                 int inputs_align_pad,
-                                 int weights_pad,
-                                 int results_pad,
-                                 int inputs_halo_pad[4],
-                                 int row_stride,
-                                 int col_stride,
-                                 int ifmap_start,
-                                 int kern_start,
-                                 bool accumulate,
-                                 bool send_results) {
+void smv_conv3d_nhwc_vec_fxp(float16* host_inputs,
+                             float16* host_weights,
+                             float16* host_results,
+                             float* inputs,
+                             float* weights,
+                             float* results,
+                             int inputs_dims[4],
+                             int weights_dims[4],
+                             int results_dims[4],
+                             int inputs_align_pad,
+                             int weights_pad,
+                             int results_pad,
+                             int inputs_halo_pad[4],
+                             int row_stride,
+                             int col_stride,
+                             int ifmap_start,
+                             int kern_start,
+                             bool accumulate,
+                             bool send_results) {
     int result_rows = results_dims[1];
     int result_cols = results_dims[2];
     int result_height = results_dims[3];

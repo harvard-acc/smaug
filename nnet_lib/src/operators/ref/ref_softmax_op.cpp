@@ -24,11 +24,11 @@ extern "C" {
 //
 // To improve numerical stability, we use the max trick: all elements are first
 // subtracted by the maximum value in each input before being exponentiated.
-void ref_softmax_f32_nc(float* inputs,
-                        float* results,
-                        int input_num,
-                        int input_size,
-                        int input_pad) {
+void ref_softmax_nc(float* inputs,
+                    float* results,
+                    int input_num,
+                    int input_size,
+                    int input_pad) {
     dmaLoad(inputs, inputs,
             input_num * (input_size + input_pad) * sizeof(float));
     ARRAY_2D(float, _inputs, inputs, input_size + input_pad);
@@ -79,7 +79,8 @@ void ref_softmax_f32_nc(float* inputs,
         for (int j = 0; j < input_size; j++) {
             normaliz += _results[i][j];
         }
-        // Precompute the division so that later we can just do a multiplication.
+        // Precompute the division so that later we can just do a
+        // multiplication.
         normaliz = 1.0 / (normaliz + 1e-6);  // epsilon for numerical stability.
 
         softmax_inner1:
@@ -109,7 +110,7 @@ void SoftmaxOp<ReferenceBackend>::run() {
                     inputs->getShape().storageSize() * sizeof(float));
     mapArrayToAccel(ref::kEltwiseOpHw, "results", outputData,
                     inputs->getShape().storageSize() * sizeof(float));
-    invokeKernel(ref::kEltwiseOpHw, ref_softmax_f32_nc, inputData, outputData,
+    invokeKernel(ref::kEltwiseOpHw, ref_softmax_nc, inputData, outputData,
                  inputShape[0], inputShape[1], inputShape.getPadding(1));
 }
 

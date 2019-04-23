@@ -16,7 +16,7 @@ float sigmoid_fxp(float a) {
 }
 
 // The logistic activation function
-void ref_sigmoid_f32(float* inputs, float* results, int input_size) {
+void ref_sigmoid(float* inputs, float* results, int input_size) {
     dmaLoad(inputs, inputs, input_size * sizeof(float));
     sigmoid_loop:
     for (int i = 0; i < input_size; i++) {
@@ -42,7 +42,7 @@ void SigmoidOp<ReferenceBackend>::run() {
                     inputs->getShape().storageSize() * sizeof(float));
     mapArrayToAccel(ref::kEltwiseOpHw, "results", outputData,
                     inputs->getShape().storageSize() * sizeof(float));
-    invokeKernel(ref::kEltwiseOpHw, ref_sigmoid_f32, inputData, outputData,
+    invokeKernel(ref::kEltwiseOpHw, ref_sigmoid, inputData, outputData,
                  inputs->getShape().size());
 }
 

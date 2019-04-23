@@ -7,15 +7,15 @@
 extern "C" {
 #endif
 
-void ref_inner_product_f32_nc(float* a,
-                              float* b,
-                              float* c,
-                              int a_height,
-                              int a_width,
-                              int b_width,
-                              int a_pad,
-                              int b_pad,
-                              int c_pad) {
+void ref_inner_product_nc(float* a,
+                          float* b,
+                          float* c,
+                          int a_height,
+                          int a_width,
+                          int b_width,
+                          int a_pad,
+                          int b_pad,
+                          int c_pad) {
     int input_size = a_height * (a_width + a_pad);
     int weight_size = a_width * (b_width + b_pad);
     int result_size = a_height * (b_width + c_pad);
@@ -68,7 +68,7 @@ void InnerProductOp<ReferenceBackend>::run() {
                     weightShape.storageSize() * sizeof(float));
     mapArrayToAccel(ref::kInnerProductHw, "c", outputData,
                     outputShape.storageSize() * sizeof(float));
-    invokeKernel(ref::kInnerProductHw, ref_inner_product_f32_nc, inputData,
+    invokeKernel(ref::kInnerProductHw, ref_inner_product_nc, inputData,
                  weightData, outputData, inputShape[0], inputShape[1],
                  weightShape[1], inputShape.getPadding(1),
                  weightShape.getPadding(1), outputShape.getPadding(1));

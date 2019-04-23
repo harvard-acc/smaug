@@ -9,7 +9,7 @@
 extern "C" {
 #endif
 
-void ref_elu_f32(float* inputs, float* results, int input_size, float alpha) {
+void ref_elu(float* inputs, float* results, int input_size, float alpha) {
     dmaLoad(inputs, inputs, input_size * sizeof(float));
     elu_loop:
     for (int i = 0; i < input_size; i++) {
@@ -23,13 +23,13 @@ void ref_elu_f32(float* inputs, float* results, int input_size, float alpha) {
     dmaStore(results, results, input_size * sizeof(float));
 }
 
-void ref_selu_f32(float* inputs,
-                  float* results,
-                  int input_size,
-                  float alpha,
-                  float lambda) {
+void ref_selu(float* inputs,
+              float* results,
+              int input_size,
+              float alpha,
+              float lambda) {
     dmaLoad(inputs, inputs, input_size * sizeof(float));
-    ref_elu_f32(inputs, results, input_size, alpha);
+    ref_elu(inputs, results, input_size, alpha);
     selu_loop:
     for (int i = 0; i < input_size; i++) {
         results[i] = lambda * results[i];
@@ -54,7 +54,7 @@ void EluOp<ReferenceBackend>::run() {
                     inputs->getShape().storageSize() * sizeof(float));
     mapArrayToAccel(ref::kEltwiseOpHw, "results", outputData,
                     inputs->getShape().storageSize() * sizeof(float));
-    invokeKernel(ref::kEltwiseOpHw, ref_elu_f32, inputData, outputData,
+    invokeKernel(ref::kEltwiseOpHw, ref_elu, inputData, outputData,
                  inputs->getShape().size(), alpha);
 }
 
@@ -69,7 +69,7 @@ void SeluOp<ReferenceBackend>::run() {
                     inputs->getShape().storageSize() * sizeof(float));
     mapArrayToAccel(ref::kEltwiseOpHw, "results", outputData,
                     inputs->getShape().storageSize() * sizeof(float));
-    invokeKernel(ref::kEltwiseOpHw, ref_selu_f32, inputData, outputData,
+    invokeKernel(ref::kEltwiseOpHw, ref_selu, inputData, outputData,
                  inputs->getShape().size(), this->alpha, lambda);
 }
 

@@ -77,7 +77,7 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
                 bool accumulate = wC > 0;
 
                 invokeKernel(smv::kInnerProductHw,
-                             smv_matrix_multiply_transpose_f32_nc_vec_fxp,
+                             smv_matrix_multiply_transpose_nc_vec_fxp,
                              inputTile->data<float16>(),
                              weightsTile->data<float16>(),
                              outputTile->data<float16>(), smv::spad0,

@@ -6,7 +6,7 @@
 extern "C" {
 #endif
 
-void ref_relu_f32(float* inputs, float* results, int input_size) {
+void ref_relu(float* inputs, float* results, int input_size) {
     dmaLoad(inputs, inputs, input_size * sizeof(float));
     relu_loop:
     for (int i = 0; i < input_size; i++) {
@@ -20,7 +20,10 @@ void ref_relu_f32(float* inputs, float* results, int input_size) {
     dmaStore(results, results, input_size * sizeof(float));
 }
 
-void ref_leaky_relu_f32(float* inputs, float* results, int input_size, float slope) {
+void ref_leaky_relu(float* inputs,
+                    float* results,
+                    int input_size,
+                    float slope) {
     dmaLoad(inputs, inputs, input_size * sizeof(float));
     relu_loop:
     for (int i = 0; i < input_size; i++) {
@@ -52,11 +55,11 @@ void ReluOp<ReferenceBackend>::run() {
     mapArrayToAccel(ref::kEltwiseOpHw, "results", outputData,
                     inputs->getShape().storageSize() * sizeof(float));
     if (slope == 0) {
-        invokeKernel(ref::kEltwiseOpHw, ref_relu_f32, inputData, outputData,
+        invokeKernel(ref::kEltwiseOpHw, ref_relu, inputData, outputData,
                      inputs->getShape().size());
     } else {
-        invokeKernel(ref::kEltwiseOpHw, ref_leaky_relu_f32, inputData,
-                     outputData, inputs->getShape().size(), slope);
+        invokeKernel(ref::kEltwiseOpHw, ref_leaky_relu, inputData, outputData,
+                     inputs->getShape().size(), slope);
     }
 }
 

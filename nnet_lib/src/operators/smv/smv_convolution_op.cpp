@@ -134,26 +134,17 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                         // to be sent back to the host.
                         bool sendResults = wC == weightChanTiles - 1;
 
-                        smv_conv3d_f32_nhwc_vec_fxp(
+                        invokeKernel(
+                                smv::kConvolutionHw, smv_conv3d_nhwc_vec_fxp,
                                 inputTile->data<float16>(),
                                 weightsTile->data<float16>(),
-                                outputTile->data<float16>(),
-                                smv::spad0,
-                                smv::spad1,
-                                smv::spad2,
-                                inputDims,
-                                weightsDims,
-                                outputDims,
-                                inputShape.getPadding(3),
+                                outputTile->data<float16>(), smv::spad0,
+                                smv::spad1, smv::spad2, inputDims, weightsDims,
+                                outputDims, inputShape.getPadding(3),
                                 weightsShape.getPadding(3),
-                                outputShape.getPadding(3),
-                                inputHaloPad,
-                                getRowStride(),
-                                getColStride(),
-                                ifmapStart,
-                                kernStart,
-                                accumulate,
-                                sendResults);
+                                outputShape.getPadding(3), inputHaloPad,
+                                getRowStride(), getColStride(), ifmapStart,
+                                kernStart, accumulate, sendResults);
 
                         ifmapOffset += weightsTile->getShape()[3];
                         if (inputChanTiles == weightChanTiles) {

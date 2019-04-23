@@ -22,15 +22,15 @@ float batch_norm_op(float input,
 
 // For batch norm following a FC layer, we have one pair of gamma/beta weights
 // per activation.
-void ref_batch_norm_f32_post_fc(float* inputs,
-                                float* mean,
-                                float* variance,
-                                float* gamma,
-                                float* beta,
-                                float* result,
-                                int input_nums,
-                                int input_size,
-                                int input_pad) {
+void ref_batch_norm_post_fc(float* inputs,
+                            float* mean,
+                            float* variance,
+                            float* gamma,
+                            float* beta,
+                            float* result,
+                            int input_nums,
+                            int input_size,
+                            int input_pad) {
     int inputs_size = input_nums * (input_size + input_pad);
     int kernel_size = inputs_size;
     int result_size = inputs_size;
@@ -56,18 +56,18 @@ void ref_batch_norm_f32_post_fc(float* inputs,
 
 // For batch norm following a convolutional/pooling layer, we only have a
 // gamma/beta per output feature map, not per activation.
-void ref_batch_norm_f32_nchw_post_conv(float* inputs,
-                                       float* mean,
-                                       float* variance,
-                                       float* gamma,
-                                       float* beta,
-                                       float* result,
-                                       int img_nums,
-                                       int img_chans,
-                                       int img_rows,
-                                       int img_cols,
-                                       int img_pad,
-                                       int wgt_pad) {
+void ref_batch_norm_nchw_post_conv(float* inputs,
+                                   float* mean,
+                                   float* variance,
+                                   float* gamma,
+                                   float* beta,
+                                   float* result,
+                                   int img_nums,
+                                   int img_chans,
+                                   int img_rows,
+                                   int img_cols,
+                                   int img_pad,
+                                   int wgt_pad) {
     int input_size = img_nums * img_chans * img_rows * (img_cols + img_pad);
     int kernel_size = img_chans;
     int result_size = input_size;
@@ -149,7 +149,7 @@ void BatchNormOp<ReferenceBackend>::run() {
     if (isPostConv) {
         assert(inputShape.getLayout() == DataLayout::NCHW);
         assert(outputShape.getLayout() == DataLayout::NCHW);
-        invokeKernel(ref::kBatchNormHw, ref_batch_norm_f32_nchw_post_conv,
+        invokeKernel(ref::kBatchNormHw, ref_batch_norm_nchw_post_conv,
                      inputData, meanData, varianceData, gammaData, betaData,
                      outputData, inputShape[0], inputShape[1], inputShape[2],
                      inputShape[3], inputShape.getPadding(3),
@@ -157,7 +157,7 @@ void BatchNormOp<ReferenceBackend>::run() {
     } else {
         assert(inputShape.getLayout() == DataLayout::NC);
         assert(outputShape.getLayout() == DataLayout::NC);
-        invokeKernel(ref::kBatchNormHw, ref_batch_norm_f32_post_fc, inputData,
+        invokeKernel(ref::kBatchNormHw, ref_batch_norm_post_fc, inputData,
                      meanData, varianceData, gammaData, betaData, outputData,
                      inputShape[0], inputShape[1], inputShape.getPadding(1));
     }

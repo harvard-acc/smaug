@@ -6,10 +6,10 @@
 extern "C" {
 #endif
 
-void ref_eltwise_add_f32(float* input0,
-                         float* input1,
-                         float* results,
-                         int input_size) {
+void ref_eltwise_add(float* input0,
+                     float* input1,
+                     float* results,
+                     int input_size) {
     dmaLoad(input0, input0, input_size * sizeof(float));
     dmaLoad(input1, input1, input_size * sizeof(float));
     for (int i = 0; i < input_size; i++) {
@@ -43,7 +43,7 @@ void EltwiseAddOp<ReferenceBackend>::run() {
                     input1Shape.storageSize() * sizeof(float));
     mapArrayToAccel(ref::kEltwiseOpHw, "results", outputData,
                     outputShape.storageSize() * sizeof(float));
-    invokeKernel(ref::kEltwiseOpHw, ref_eltwise_add_f32, input0Data, input1Data,
+    invokeKernel(ref::kEltwiseOpHw, ref_eltwise_add, input0Data, input1Data,
                  outputData, input0Shape.size());
 }
 
