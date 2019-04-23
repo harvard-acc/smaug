@@ -2,37 +2,11 @@
 #include "core/backend.h"
 #include "core/tensor.h"
 #include "core/smaug_test.h"
+#include "operators/smv/smv_test_common.h"
 #include "operators/smv/smv_convolution_op.h"
 #include "operators/smv/smv_convolution_tiling.h"
 
 using namespace smaug;
-
-void fillTensorWithData(Tensor* tensor) {
-    const TensorShape& shape = tensor->getShape();
-    // Each dimension C is initialized to a different constant value.
-    float16* dataPtr = tensor->data<float16>();
-    int resetCounter = shape.getStorageDim(3);
-    int value = 0;
-    for (int i = 0; i < shape.storageSize(); i++) {
-        dataPtr[i] = fp16((value++) * 0.1);
-        if ((i + 1) % resetCounter == 0)
-            value = 0;
-    }
-}
-
-void verifyTensorData(Tensor* tensor, int valueOffset) {
-    float16* dataPtr = tensor->data<float16>();
-    float expectedValue = valueOffset;
-    int resetCounter = tensor->getShape().getStorageDim(3);
-    int totalSize = tensor->getShape().storageSize();
-    for (int i = 0; i < totalSize; i++) {
-        REQUIRE(Approx(fp32(dataPtr[i])).epsilon(kEpsilon) ==
-                expectedValue * 0.1);
-        ++expectedValue;
-        if ((i + 1) % resetCounter == 0)
-            expectedValue = valueOffset;
-    }
-}
 
 TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
     using namespace smaug::smv;

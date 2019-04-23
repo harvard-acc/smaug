@@ -3,23 +3,11 @@
 #include "core/tensor.h"
 #include "core/smaug_test.h"
 #include "operators/reorder_op.h"
+#include "operators/smv/smv_test_common.h"
 #include "operators/smv/smv_inner_product_op.h"
 #include "operators/smv/smv_inner_product_tiling.h"
 
 using namespace smaug;
-
-void fillTensorWithData(Tensor* tensor) {
-    const TensorShape& shape = tensor->getShape();
-    // Each dimension C is initialized to a different constant value.
-    float16* dataPtr = tensor->data<float16>();
-    int resetCounter = shape.getStorageDim(1);
-    int value = 0;
-    for (int i = 0; i < shape.storageSize(); i++) {
-        dataPtr[i] = fp16((value++) * 0.1);
-        if ((i + 1) % resetCounter == 0)
-            value = 0;
-    }
-}
 
 Tensor* getReferenceOutput(SmvInnerProductOp* fcOp, Workspace* workspace) {
     auto input = fcOp->getInput(0);
