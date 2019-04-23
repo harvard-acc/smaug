@@ -2,7 +2,7 @@
 #include "operators/common.h"
 #include "operators/smv/smv_convolution_op.h"
 #include "operators/smv/smv_convolution_tiling.h"
-#include "operators/smv/kernels.h"
+#include "operators/smv/smv_kernels.h"
 #include "utility/debug_stream.h"
 
 namespace smaug {

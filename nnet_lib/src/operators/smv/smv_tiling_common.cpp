@@ -1,4 +1,4 @@
-#include "operators/smv/tiling_common.h"
+#include "operators/smv/smv_tiling_common.h"
 
 namespace smaug {
 namespace smv {
