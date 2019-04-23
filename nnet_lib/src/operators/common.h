@@ -153,7 +153,7 @@ typedef sfx_t v4sfx_t
 #define VEC_ARRAY_1D(TYPE, output_array_name, input_array_name)                \
     TYPE* output_array_name = (TYPE*)input_array_name
 
-#define VEC_ARRAY_2D(TYPE, output_array_name, input_array_name)                \
+#define VEC_ARRAY_2D(TYPE, output_array_name, input_array_name, cols)          \
     typedef TYPE(*output_array_name##_t)[(cols) / VECTOR_SIZE];                \
     TO_TYPE(output_array_name, input_array_name)
 
