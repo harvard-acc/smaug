@@ -21,8 +21,8 @@ def check_and_add_layout_transform(name, op, input_tensors):
     layout transformation is required.
   """
   backend = get_graph().graph.backend
-  expected_layoutset = backend_layouts[backend][op].input_layoutset
   for i in range(len(input_tensors)):
+    expected_layoutset = backend_layouts[backend][op].input_layoutsets[i]
     input_layout = input_tensors[i].shape.layout
     if not expected_layoutset.contains(input_layout):
       input_tensors[i] = reorder("%s->%s" % (input_tensors[i].name, name),
@@ -225,8 +225,10 @@ def reorder(name, input_tensor, target_layout):
       output_tensor_dims = [src_dims[0], np.prod(src_dims[1:])]
     else:
       output_tensor_dims = [src_dims[0], src_dims[3], src_dims[1], src_dims[2]]
-  elif src_layout == NC:
-    assert False, "Data layout reordering from NC is not supported!"
+  elif (src_layout == NC and target_layout == CN) or (src_layout == CN
+                                                      and target_layout == NC):
+    # 2D tensor transposition.
+    output_tensor_dims = [src_dims[1], src_dims[0]]
 
   return add_node(
       name=name,
@@ -245,10 +247,15 @@ def mat_mul(name, input_tensor, weight_tensor):
   input_tensor, weight_tensor = check_and_add_layout_transform(
       name=name, op=InnerProduct, input_tensors=[input_tensor, weight_tensor])
 
+  weight_layout = weight_tensor.shape.layout
+  actIdx = 1 if weight_layout == NC else 0
+  neuronIdx = 0 if weight_layout == NC else 1
   assert (len(input_tensor.shape.dims) == 2
           and len(weight_tensor.shape.dims) == 2
-          and input_tensor.shape.dims[1] == weight_tensor.shape.dims[0])
-  output_tensor_dims = [input_tensor.shape.dims[0], weight_tensor.shape.dims[1]]
+          and input_tensor.shape.dims[1] == weight_tensor.shape.dims[actIdx])
+  output_tensor_dims = [
+      input_tensor.shape.dims[0], weight_tensor.shape.dims[neuronIdx]
+  ]
   return add_node(
       name=name,
       op=InnerProduct,

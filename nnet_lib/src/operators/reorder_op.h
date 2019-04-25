@@ -32,17 +32,27 @@ class ReorderOp : public Operator {
         if (srcLayout == DataLayout::NCHW) {
             if (targetLayout == DataLayout::NHWC) {
                 convertNchwToNhwc(input, output);
-            } else if (targetLayout == DataLayout::NC) {
+            } else if (output->getShape().ndims() == 2) {
                 flatten(input, output);
             }
         } else if (srcLayout == DataLayout::NHWC) {
             if (targetLayout == DataLayout::NCHW) {
                 convertNhwcToNchw(input, output);
-            } else if (targetLayout == DataLayout::NC) {
+            } else if (output->getShape().ndims() == 2) {
                 flatten(input, output);
             }
-        } else if (srcLayout == DataLayout::NC) {
-            assert(false && "Data layout reordering from NC is not supported!");
+        } else if (input->getShape().ndims() == 2) {
+            if (srcLayout == targetLayout) {
+                return;
+            } else if (output->getShape().ndims() == 2) {
+                transpose2D(input, output);
+            } else {
+                std::cerr << "Data layout reordering from "
+                          << DataLayout_Name(srcLayout) << " to "
+                          << DataLayout_Name(targetLayout)
+                          << " is not supported!\n";
+                exit(1);
+            }
         }
     }
 
@@ -70,13 +80,20 @@ class ReorderOp : public Operator {
 
     TensorShape inferOutputShape() const {
         TensorShape inputShape = getInput(Inputs)->getShape();
-        if (targetLayout == DataLayout::NC) {
+        if (inputShape.ndims() == 4 && (targetLayout == DataLayout::NC ||
+                                        targetLayout == DataLayout::CN)) {
+            // Flatten a 4D tensor to 2D.
             std::vector<int> dims(2, 1);
             dims[0] = inputShape[0];
             for (int i = 1; i < inputShape.ndims(); ++i) {
                 dims[1] *= inputShape[i];
             }
             return TensorShape(dims, targetLayout, Backend::Alignment);
+        } else if (targetLayout == DataLayout::NC ||
+                   targetLayout == DataLayout::CN) {
+            // Transpose a 2D tensor.
+            return TensorShape({ inputShape[1], inputShape[0] }, targetLayout,
+                               Backend::Alignment);
         } else if (targetLayout == DataLayout::NCHW) {
             return TensorShape({ inputShape[0], inputShape[3], inputShape[1],
                                  inputShape[2] },

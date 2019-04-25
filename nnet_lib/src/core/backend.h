@@ -55,7 +55,7 @@ class ReferenceBackend {
    public:
     static const int Alignment = 0;
     static const bool PrecomputeBNVariance = true;
-    static const bool ColumnMajorFCWeights = true;
+    static const bool TransposeFCWeights = false;
     static const std::string Name;
     static const DataLayout DefaultInputDataLayout = DataLayout::NCHW;
 
@@ -109,7 +109,7 @@ class SmvBackend {
    public:
     static const int Alignment = 8;
     static const bool PrecomputeBNVariance = true;
-    static const bool ColumnMajorFCWeights = true;
+    static const bool TransposeFCWeights = true;
     static const std::string Name;
     static const DataLayout DefaultInputDataLayout = DataLayout::NHWC;
 

@@ -95,12 +95,17 @@ static void createAndAddOperator(const NodeProto& node,
         auto op = Backend::createInnerProductOp(name, workspace);
         assert(node.input_tensors_size() == 2);
         const TensorProto& weightTensorProto = node.input_tensors(1);
-        op->setNumOutputs(weightTensorProto.shape().dims(1));
+        if (weightTensorProto.shape().layout() == NC)
+            op->setNumOutputs(weightTensorProto.shape().dims(0));
+        else
+            op->setNumOutputs(weightTensorProto.shape().dims(1));
         network->addOperator(op, inputs);
     } else if (type == OpType::Reorder) {
+        DataLayout srcLayout = node.input_tensors(0).shape().layout();
         DataLayout targetLayout = node.output_tensors(0).shape().layout();
         ReorderOp<Backend>* op;
-        if (targetLayout == NC) {
+        if (node.input_tensors(0).shape().dims_size() == 4 &&
+            (targetLayout == NC || targetLayout == CN)) {
             op = Backend::createFlattenOp(name, workspace);
         } else {
             op = Backend::createReorderOp(name, workspace);

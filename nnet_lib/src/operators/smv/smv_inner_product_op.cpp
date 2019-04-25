@@ -115,15 +115,7 @@ void SmvInnerProductOp::run() {
     assert(inputsShape.getLayout() == DataLayout::NC);
     assert(weightsShape.getLayout() == DataLayout::NC);
     assert(outputsShape.getLayout() == DataLayout::NC);
-
-    // We need to transpose the weights, because the SMV matrix multiplication
-    // kernel (as well as the tiling optimizer) takes transposed weights.
-    // TODO: Eventually, this should be done ahead of time, and we can detect
-    // this just by checking whether the shapes are compatible.
-    auto transposedWeights = transpose2DTensor<float16>(weights);
-    workspace->addTensor(transposedWeights);
-    setInput(transposedWeights, Weights);
-    dout(2) << *transposedWeights << "\n";
+    dout(2) << *weights << "\n";
 
     // This function will tile (if necessary) the input/weight/output tensors
     // of the inner product operator into smaller tensor tiles so that each tile

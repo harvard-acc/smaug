@@ -434,30 +434,6 @@ class TiledTensor : public TensorBase {
     std::vector<Tensor*> tensors;
 };
 
-// This transposes a 2D tensor.
-template <typename DType>
-Tensor* transpose2DTensor(Tensor* origTensor) {
-    const TensorShape& origShape = origTensor->getShape();
-    assert(origShape.ndims() == 2);
-    TensorShape transposedShape(
-            { origShape[1], origShape[0] }, NC, origShape.getAlignment());
-    Tensor* transposedTensor =
-            new Tensor(origTensor->getName() + "/transposed", transposedShape);
-    transposedTensor->allocateStorage<DType>();
-
-    auto origDataPtr = origTensor->template data<DType>();
-    auto transposedDataPtr = transposedTensor->template data<DType>();
-    auto origIdx = origTensor->startIndex();
-    auto transposedIdx = transposedTensor->startIndex();
-
-    for (int n = 0; n < origShape[0]; n++) {
-        for (int c = 0; c < origShape[1]; c++) {
-            transposedDataPtr[transposedIdx(c, n)] = origDataPtr[origIdx(n, c)];
-        }
-    }
-    return transposedTensor;
-}
-
 // This generates a TiledTensor from a Tensor using the specified tile shape.
 TiledTensor generateTiledTensor(Tensor* tensor,
                                 const TensorShape& tileShape,

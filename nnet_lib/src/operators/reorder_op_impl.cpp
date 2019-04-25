@@ -75,4 +75,28 @@ void flatten(Tensor* input, Tensor* output) {
     }
 }
 
+void transpose2D(Tensor* input, Tensor* output) {
+    DataType datatype = input->getDataType();
+    assert(input->ndims() == 2 && output->ndims() == 2);
+    switch (datatype) {
+        case Float16:
+            transpose2DImpl<float16>(input, output);
+            return;
+        case Float32:
+            transpose2DImpl<float>(input, output);
+            return;
+        case Float64:
+            transpose2DImpl<double>(input, output);
+            return;
+        case Int32:
+            transpose2DImpl<int>(input, output);
+            return;
+        case Int64:
+            transpose2DImpl<int64_t>(input, output);
+            return;
+        default:
+            assert(false && "Unknown data format!");
+    }
+}
+
 }  // namespace smaug

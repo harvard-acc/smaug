@@ -17,8 +17,9 @@ enum DataLayout {
   NCHW = 1;
   NHWC = 2;
   NC = 4;
-  X = 7; // Elementwise
-  EndDataLayout = 4;
+  CN = 8;
+  X = 15; // Elementwise
+  EndDataLayout = 8;
 }
 
 enum DataStorageFormat {

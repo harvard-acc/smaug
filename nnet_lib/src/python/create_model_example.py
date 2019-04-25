@@ -64,9 +64,9 @@ def create_sequential_model():
         tensor_data=np.random.rand(64, 64, 3, 3).astype(np.float32))
     weight_tensor0 = Tensor(
         data_layout=NC,
-        tensor_data=np.random.rand(16384, 256).astype(np.float32))
+        tensor_data=np.random.rand(256, 16384).astype(np.float32))
     weight_tensor1 = Tensor(
-        data_layout=NC, tensor_data=np.random.rand(256, 10).astype(np.float32))
+        data_layout=NC, tensor_data=np.random.rand(10, 256).astype(np.float32))
     bn_mean_tensor = Tensor(
         data_layout=X, tensor_data=np.random.rand(64).astype(np.float32))
     bn_var_tensor = Tensor(

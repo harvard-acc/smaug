@@ -33,8 +33,16 @@ class InnerProductOp : public Operator {
     TensorShape inferWeightsShape() const {
         const TensorShape& shape = getInput(Inputs)->getShape();
         assert(shape.getLayout() == DataLayout::NC);
-        return TensorShape(
-                { shape[1], numOutputs }, DataLayout::NC, Backend::Alignment);
+        std::vector<int> outputDims;
+        DataLayout outLayout;
+        if (Backend::TransposeFCWeights) {
+            outputDims = { numOutputs, shape[1] };
+            outLayout = DataLayout::NC;
+        } else {
+            outputDims = { shape[1], numOutputs };
+            outLayout = DataLayout::CN;
+        }
+        return TensorShape(outputDims, outLayout, Backend::Alignment);
     }
 
     virtual DataLayoutSet getInputDataLayouts() const {

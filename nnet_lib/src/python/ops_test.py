@@ -12,7 +12,7 @@ from types_pb2 import *
 test_backend_dtypes = {"Reference": np.float32, "SMV": np.float16}
 
 class OperatorTest:
-  def assertEqualDims(self, dims, nchw_dims, layout):
+  def assertEqualDims(self, dims, layout, expected_dims, expected_layout):
     """Test equality between two dims.
 
     Test if the two dims share the same dimensions or are merely one single
@@ -20,13 +20,21 @@ class OperatorTest:
 
     Args:
       dims: A list of dimensions.
-      nchw_dims: A list of dimensions in NCHW layout.
       layout: The layout of dims.
+      expected_dims: A list of dimensions in the expected layout.
+      expected_layout: The expected layout.
     """
-    if layout == NCHW:
-      self.assertEqual(dims, nchw_dims)
+    if layout == expected_layout:
+      self.assertEqual(dims, expected_dims)
     elif layout == NHWC:
-      self.assertEqual([dims[0], dims[3], dims[1], dims[2]], nchw_dims)
+      assert expected_layout == NCHW
+      self.assertEqual([dims[0], dims[3], dims[1], dims[2]], expected_dims)
+    elif layout == NCHW:
+      assert expected_layout == NHWC
+      self.assertEqual([dims[0], dims[2], dims[3], dims[1]], expected_dims)
+    elif layout == NC or layout == CN:
+      assert len(expected_dims) == 2
+      self.assertEqual([dims[1], dims[0]], expected_dims)
     else:
       assert False, "Other layouts not expected here!"
 
@@ -46,9 +54,9 @@ class OperatorTest:
           tensor_data=np.random.rand(64, 64, 3, 3).astype(np_dtype))
       weight_tensor0 = Tensor(
           data_layout=NC,
-          tensor_data=np.random.rand(12544, 254).astype(np_dtype))
+          tensor_data=np.random.rand(254, 12544).astype(np_dtype))
       weight_tensor1 = Tensor(
-          data_layout=NC, tensor_data=np.random.rand(254, 10).astype(np_dtype))
+          data_layout=NC, tensor_data=np.random.rand(10, 254).astype(np_dtype))
       bn_mean_tensor = Tensor(
           data_layout=X, tensor_data=np.random.rand(64).astype(np_dtype))
       bn_var_tensor = Tensor(
@@ -75,7 +83,7 @@ class OperatorTest:
 
     self.test_graph = graph
     self.backend = backend
-    self.alignment = backend_alignment[self.test_graph.graph.backend]
+    self.alignment = backend_alignment[backend]
 
   def build_test_residual_graph(self, backend):
     """Create a residual model.
@@ -139,8 +147,8 @@ class SequentialGraphTest(OperatorTest):
     self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
 
   def test_convolution_op(self):
-    expected_input_layout = backend_layouts[
-        self.backend][Convolution3d].input_layoutset.layouts
+    expected_weight_layout = backend_layouts[
+        self.backend][Convolution3d].input_layoutsets[1].layouts
     expected_output_layout = backend_layouts[
         self.backend][Convolution3d].output_layoutset.layouts
     # The first convolution operator "conv0"
@@ -151,17 +159,19 @@ class SequentialGraphTest(OperatorTest):
     # Parameters
     self.assertEqual(node.params.conv_params.padding, SamePadding)
     self.assertEqual(node.params.conv_params.stride, [1, 1])
-    # Filter tensor
+    # Weight tensor
     self.assertEqual(node.input_tensors[1].data_type, self.expected_dtype)
-    self.assertEqualDims(node.input_tensors[1].shape.dims, [64, 3, 3, 3],
-                         expected_input_layout)
-    self.assertEqual(node.input_tensors[1].shape.layout, expected_input_layout)
+    self.assertEqualDims(node.input_tensors[1].shape.dims,
+                         node.input_tensors[1].shape.layout, [64, 3, 3, 3],
+                         NCHW)
+    self.assertEqual(node.input_tensors[1].shape.layout, expected_weight_layout)
     self.assertEqual(node.input_tensors[1].shape.alignment, self.alignment)
     # Output tensor
     self.assertEqual(node.output_tensors[0].name, "conv0")
     self.assertEqual(node.output_tensors[0].data_type, self.expected_dtype)
-    self.assertEqualDims(node.output_tensors[0].shape.dims, [1, 64, 28, 28],
-                         expected_output_layout)
+    self.assertEqualDims(node.output_tensors[0].shape.dims,
+                         node.output_tensors[0].shape.layout, [1, 64, 28, 28],
+                         NCHW)
     self.assertEqual(node.output_tensors[0].shape.layout,
                      expected_output_layout)
     self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
@@ -174,17 +184,19 @@ class SequentialGraphTest(OperatorTest):
     # Parameters
     self.assertEqual(node.params.conv_params.padding, SamePadding)
     self.assertEqual(node.params.conv_params.stride, [1, 1])
-    # Filter tensor
+    # Weight tensor
     self.assertEqual(node.input_tensors[1].data_type, self.expected_dtype)
-    self.assertEqualDims(node.input_tensors[1].shape.dims, [64, 64, 3, 3],
-                         expected_input_layout)
-    self.assertEqual(node.input_tensors[1].shape.layout, expected_input_layout)
+    self.assertEqualDims(node.input_tensors[1].shape.dims,
+                         node.input_tensors[1].shape.layout, [64, 64, 3, 3],
+                         NCHW)
+    self.assertEqual(node.input_tensors[1].shape.layout, expected_weight_layout)
     self.assertEqual(node.input_tensors[1].shape.alignment, self.alignment)
     # Output tensor
     self.assertEqual(node.output_tensors[0].name, "conv1")
     self.assertEqual(node.output_tensors[0].data_type, self.expected_dtype)
-    self.assertEqualDims(node.output_tensors[0].shape.dims, [1, 64, 28, 28],
-                         expected_output_layout)
+    self.assertEqualDims(node.output_tensors[0].shape.dims,
+                         node.output_tensors[0].shape.layout, [1, 64, 28, 28],
+                         NCHW)
     self.assertEqual(node.output_tensors[0].shape.layout,
                      expected_output_layout)
     self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
@@ -198,8 +210,9 @@ class SequentialGraphTest(OperatorTest):
     # Output tensor
     self.assertEqual(node.output_tensors[0].name, "conv0_relu")
     self.assertEqual(node.output_tensors[0].data_type, self.expected_dtype)
-    self.assertEqualDims(node.output_tensors[0].shape.dims, [1, 64, 28, 28],
-                         node.input_tensors[0].shape.layout)
+    self.assertEqualDims(node.output_tensors[0].shape.dims,
+                         node.output_tensors[0].shape.layout, [1, 64, 28, 28],
+                         NCHW)
     self.assertEqual(node.output_tensors[0].shape.layout,
                      node.input_tensors[0].shape.layout)
     self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
@@ -212,8 +225,9 @@ class SequentialGraphTest(OperatorTest):
     # Output tensor
     self.assertEqual(node.output_tensors[0].name, "conv1_relu")
     self.assertEqual(node.output_tensors[0].data_type, self.expected_dtype)
-    self.assertEqualDims(node.output_tensors[0].shape.dims, [1, 64, 28, 28],
-                         node.input_tensors[0].shape.layout)
+    self.assertEqualDims(node.output_tensors[0].shape.dims,
+                         node.output_tensors[0].shape.layout, [1, 64, 28, 28],
+                         NCHW)
     self.assertEqual(node.output_tensors[0].shape.layout,
                      node.input_tensors[0].shape.layout)
     self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
@@ -278,8 +292,9 @@ class SequentialGraphTest(OperatorTest):
     # Output tensor
     self.assertEqual(node.output_tensors[0].name, "pool")
     self.assertEqual(node.output_tensors[0].data_type, self.expected_dtype)
-    self.assertEqualDims(node.output_tensors[0].shape.dims, [1, 64, 14, 14],
-                         expected_output_layout)
+    self.assertEqualDims(node.output_tensors[0].shape.dims,
+                         node.output_tensors[0].shape.layout, [1, 64, 14, 14],
+                         NCHW)
     self.assertEqual(node.output_tensors[0].shape.layout,
                      expected_output_layout)
     self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
@@ -297,22 +312,28 @@ class SequentialGraphTest(OperatorTest):
     self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
 
   def test_mat_mul_op(self):
+    expected_weight_layout = backend_layouts[
+        self.backend][InnerProduct].input_layoutsets[1].layouts
+    expected_output_layout = backend_layouts[
+        self.backend][InnerProduct].output_layoutset.layouts
     # The first mat_mul operator "fc0"
     node = self.get_node(self.test_graph.graph, "fc0")
     self.assertEqual(node.op, InnerProduct)
     self.assertEqual(len(node.input_tensors), 2)
     self.assertEqual(len(node.output_tensors), 1)
     # Weight tensor
-    self.assertEqual(node.input_tensors[1].name, "fc0/weights")
     self.assertEqual(node.input_tensors[1].data_type, self.expected_dtype)
-    self.assertEqual(node.input_tensors[1].shape.dims, [12544, 254])
-    self.assertEqual(node.input_tensors[1].shape.layout, NC)
+    self.assertEqualDims(node.input_tensors[1].shape.dims,
+                         node.input_tensors[1].shape.layout, [254, 12544], NC)
+    self.assertEqual(node.input_tensors[1].shape.layout, expected_weight_layout)
     self.assertEqual(node.input_tensors[1].shape.alignment, self.alignment)
     # Output tensor
     self.assertEqual(node.output_tensors[0].name, "fc0")
     self.assertEqual(node.output_tensors[0].data_type, self.expected_dtype)
-    self.assertEqual(node.output_tensors[0].shape.dims, [1, 254])
-    self.assertEqual(node.output_tensors[0].shape.layout, NC)
+    self.assertEqualDims(node.output_tensors[0].shape.dims,
+                         node.output_tensors[0].shape.layout, [1, 254], NC)
+    self.assertEqual(node.output_tensors[0].shape.layout,
+                     expected_output_layout)
     self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
 
     # The second mat_mul operator "fc1"
@@ -321,16 +342,18 @@ class SequentialGraphTest(OperatorTest):
     self.assertEqual(len(node.input_tensors), 2)
     self.assertEqual(len(node.output_tensors), 1)
     # Weight tensor
-    self.assertEqual(node.input_tensors[1].name, "fc1/weights")
     self.assertEqual(node.input_tensors[1].data_type, self.expected_dtype)
-    self.assertEqual(node.input_tensors[1].shape.dims, [254, 10])
-    self.assertEqual(node.input_tensors[1].shape.layout, NC)
+    self.assertEqualDims(node.input_tensors[1].shape.dims,
+                         node.input_tensors[1].shape.layout, [10, 254], NC)
+    self.assertEqual(node.input_tensors[1].shape.layout, expected_weight_layout)
     self.assertEqual(node.input_tensors[1].shape.alignment, self.alignment)
     # Output tensor
     self.assertEqual(node.output_tensors[0].name, "fc1")
     self.assertEqual(node.output_tensors[0].data_type, self.expected_dtype)
-    self.assertEqual(node.output_tensors[0].shape.dims, [1, 10])
-    self.assertEqual(node.output_tensors[0].shape.layout, NC)
+    self.assertEqualDims(node.output_tensors[0].shape.dims,
+                         node.output_tensors[0].shape.layout, [1, 10], NC)
+    self.assertEqual(node.output_tensors[0].shape.layout,
+                     expected_output_layout)
     self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
 
 class ResidualGraphTest(OperatorTest):
@@ -349,8 +372,8 @@ class ResidualGraphTest(OperatorTest):
     self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
 
   def test_convolution_op(self):
-    expected_input_layout = backend_layouts[
-        self.backend][Convolution3d].input_layoutset.layouts
+    expected_weight_layout = backend_layouts[
+        self.backend][Convolution3d].input_layoutsets[1].layouts
     expected_output_layout = backend_layouts[
         self.backend][Convolution3d].output_layoutset.layouts
     # The first convolution operator "conv0"
@@ -361,17 +384,19 @@ class ResidualGraphTest(OperatorTest):
     # Parameters
     self.assertEqual(node.params.conv_params.padding, SamePadding)
     self.assertEqual(node.params.conv_params.stride, [1, 1])
-    # Filter tensor
+    # Weight tensor
     self.assertEqual(node.input_tensors[1].data_type, self.expected_dtype)
-    self.assertEqualDims(node.input_tensors[1].shape.dims, [64, 1, 3, 3],
-                         expected_input_layout)
-    self.assertEqual(node.input_tensors[1].shape.layout, expected_input_layout)
+    self.assertEqualDims(node.input_tensors[1].shape.dims,
+                         node.input_tensors[1].shape.layout, [64, 1, 3, 3],
+                         NCHW)
+    self.assertEqual(node.input_tensors[1].shape.layout, expected_weight_layout)
     self.assertEqual(node.input_tensors[1].shape.alignment, self.alignment)
     # Output tensor
     self.assertEqual(node.output_tensors[0].name, "conv0")
     self.assertEqual(node.output_tensors[0].data_type, self.expected_dtype)
-    self.assertEqualDims(node.output_tensors[0].shape.dims, [1, 64, 28, 28],
-                         expected_output_layout)
+    self.assertEqualDims(node.output_tensors[0].shape.dims,
+                         node.output_tensors[0].shape.layout, [1, 64, 28, 28],
+                         NCHW)
     self.assertEqual(node.output_tensors[0].shape.layout,
                      expected_output_layout)
     self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
@@ -384,17 +409,19 @@ class ResidualGraphTest(OperatorTest):
     # Parameters
     self.assertEqual(node.params.conv_params.padding, SamePadding)
     self.assertEqual(node.params.conv_params.stride, [1, 1])
-    # Filter tensor
+    # Weight tensor
     self.assertEqual(node.input_tensors[1].data_type, self.expected_dtype)
-    self.assertEqualDims(node.input_tensors[1].shape.dims, [64, 1, 3, 3],
-                         expected_input_layout)
-    self.assertEqual(node.input_tensors[1].shape.layout, expected_input_layout)
+    self.assertEqualDims(node.input_tensors[1].shape.dims,
+                         node.input_tensors[1].shape.layout, [64, 1, 3, 3],
+                         NCHW)
+    self.assertEqual(node.input_tensors[1].shape.layout, expected_weight_layout)
     self.assertEqual(node.input_tensors[1].shape.alignment, self.alignment)
     # Output tensor
     self.assertEqual(node.output_tensors[0].name, "conv1")
     self.assertEqual(node.output_tensors[0].data_type, self.expected_dtype)
-    self.assertEqualDims(node.output_tensors[0].shape.dims, [1, 64, 28, 28],
-                         expected_output_layout)
+    self.assertEqualDims(node.output_tensors[0].shape.dims,
+                         node.output_tensors[0].shape.layout, [1, 64, 28, 28],
+                         NCHW)
     self.assertEqual(node.output_tensors[0].shape.layout,
                      expected_output_layout)
     self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
@@ -407,17 +434,19 @@ class ResidualGraphTest(OperatorTest):
     # Parameters
     self.assertEqual(node.params.conv_params.padding, SamePadding)
     self.assertEqual(node.params.conv_params.stride, [1, 1])
-    # Filter tensor
+    # Weight tensor
     self.assertEqual(node.input_tensors[1].data_type, self.expected_dtype)
-    self.assertEqualDims(node.input_tensors[1].shape.dims, [64, 64, 3, 3],
-                         expected_input_layout)
-    self.assertEqual(node.input_tensors[1].shape.layout, expected_input_layout)
+    self.assertEqualDims(node.input_tensors[1].shape.dims,
+                         node.input_tensors[1].shape.layout, [64, 64, 3, 3],
+                         NCHW)
+    self.assertEqual(node.input_tensors[1].shape.layout, expected_weight_layout)
     self.assertEqual(node.input_tensors[1].shape.alignment, self.alignment)
     # Output tensor
     self.assertEqual(node.output_tensors[0].name, "conv2")
     self.assertEqual(node.output_tensors[0].data_type, self.expected_dtype)
-    self.assertEqualDims(node.output_tensors[0].shape.dims, [1, 64, 28, 28],
-                         expected_output_layout)
+    self.assertEqualDims(node.output_tensors[0].shape.dims,
+                         node.output_tensors[0].shape.layout, [1, 64, 28, 28],
+                         NCHW)
     self.assertEqual(node.output_tensors[0].shape.layout,
                      expected_output_layout)
     self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
@@ -430,8 +459,9 @@ class ResidualGraphTest(OperatorTest):
     # Output tensor
     self.assertEqual(node.output_tensors[0].name, "relu")
     self.assertEqual(node.output_tensors[0].data_type, self.expected_dtype)
-    self.assertEqualDims(node.output_tensors[0].shape.dims, [1, 64, 28, 28],
-                         node.input_tensors[0].shape.layout)
+    self.assertEqualDims(node.output_tensors[0].shape.dims,
+                         node.output_tensors[0].shape.layout, [1, 64, 28, 28],
+                         NCHW)
     self.assertEqual(node.output_tensors[0].shape.layout,
                      node.input_tensors[0].shape.layout)
     self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
@@ -478,8 +508,9 @@ class ResidualGraphTest(OperatorTest):
     # Output tensor
     self.assertEqual(node.output_tensors[0].name, "add")
     self.assertEqual(node.output_tensors[0].data_type, self.expected_dtype)
-    self.assertEqualDims(node.output_tensors[0].shape.dims, [1, 64, 28, 28],
-                         node.input_tensors[0].shape.layout)
+    self.assertEqualDims(node.output_tensors[0].shape.dims,
+                         node.output_tensors[0].shape.layout, [1, 64, 28, 28],
+                         NCHW)
     self.assertEqual(node.output_tensors[0].shape.layout,
                      node.input_tensors[0].shape.layout)
     self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
@@ -600,17 +631,27 @@ class RefSequentialGraphTest(smaug_test.SmaugTest, SequentialGraphTest):
     node = self.get_node(self.test_graph.graph, "flatten")
     self.assertEqual(node.parents[0], "pool")
     self.assertEqual(node.children[0], "fc0")
+    # Transpose fc0/weights
+    node = self.get_node(self.test_graph.graph, "fc0/weights->fc0")
+    self.assertEqual(node.parents[0], "fc0/weights")
+    self.assertEqual(node.children[0], "fc0")
     # fc0 (FC)
     node = self.get_node(self.test_graph.graph, "fc0")
     self.assertEqual(node.parents[0], "flatten")
+    self.assertEqual(node.parents[1], "fc0/weights->fc0")
     self.assertEqual(node.children[0], "fc0_relu")
     # fc0_relu (ReLU)
     node = self.get_node(self.test_graph.graph, "fc0_relu")
     self.assertEqual(node.parents[0], "fc0")
     self.assertEqual(node.children[0], "fc1")
+    # Transpose fc1/weights
+    node = self.get_node(self.test_graph.graph, "fc1/weights->fc1")
+    self.assertEqual(node.parents[0], "fc1/weights")
+    self.assertEqual(node.children[0], "fc1")
     # fc1 (FC)
     node = self.get_node(self.test_graph.graph, "fc1")
     self.assertEqual(node.parents[0], "fc0_relu")
+    self.assertEqual(node.parents[1], "fc1/weights->fc1")
     self.assertEqual(len(node.children), 0)
 
 class SMVResidualGraphTest(smaug_test.SmaugTest, ResidualGraphTest):

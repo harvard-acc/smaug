@@ -32,6 +32,6 @@ class LayoutSet:
     return (self.layouts & other.layouts) != 0
 
 class OperatorLayouts:
-  def __init__(self, input_bitmask, output_bitmask):
-    self.input_layoutset = LayoutSet(input_bitmask)
+  def __init__(self, input_bitmasks, output_bitmask):
+    self.input_layoutsets = [LayoutSet(bitmask) for bitmask in input_bitmasks]
     self.output_layoutset = LayoutSet(output_bitmask)

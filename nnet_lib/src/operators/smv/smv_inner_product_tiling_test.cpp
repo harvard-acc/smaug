@@ -23,11 +23,6 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
         fcOp->setNumOutputs(32);
         fcOp->createAllTensors();
         allocateAllTensors<float16>(fcOp);
-        // Transpose the weights.
-        auto weights = fcOp->getInput(1);
-        auto transposedWeights = transpose2DTensor<float16>(weights);
-        workspace()->addTensor(transposedWeights);
-        fcOp->setInput(transposedWeights, 1);
         TilingConfig config = TilingOptimizer::computeBasicTileShapes(fcOp);
         REQUIRE(config.inputs == inputShape);
         REQUIRE(config.weights.dims() == std::vector<int>{ 32, 256 });
@@ -45,11 +40,6 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
         fcOp->setNumOutputs(128);
         fcOp->createAllTensors();
         allocateAllTensors<float16>(fcOp);
-        // Transpose the weights.
-        auto weights = fcOp->getInput(1);
-        auto transposedWeights = transpose2DTensor<float16>(weights);
-        workspace()->addTensor(transposedWeights);
-        fcOp->setInput(transposedWeights, 1);
         TilingConfig config = TilingOptimizer::computeBasicTileShapes(fcOp);
         REQUIRE(config.inputs == inputShape);
         REQUIRE(config.weights.dims() == std::vector<int>{ 64, 256 });
@@ -62,9 +52,10 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
             REQUIRE(inputTiles.size() == 1);
             verifyTensorData(inputTiles[0], 0);
 
-            fillTensorWithData(transposedWeights);
+            auto weights = fcOp->getInput(1);
+            fillTensorWithData(weights);
             TiledTensor weightTiles = generateTiledTensor(
-                    transposedWeights, config.weights, halos, workspace());
+                    weights, config.weights, halos, workspace());
             REQUIRE(weightTiles.size() == 2);
             for (auto i = weightTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(weightTiles[i]->getShape().dims() ==
@@ -93,11 +84,6 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
         fcOp->setNumOutputs(128);
         fcOp->createAllTensors();
         allocateAllTensors<float16>(fcOp);
-        // Transpose the weights.
-        auto weights = fcOp->getInput(1);
-        auto transposedWeights = transpose2DTensor<float16>(weights);
-        workspace()->addTensor(transposedWeights);
-        fcOp->setInput(transposedWeights, 1);
         TilingConfig config = TilingOptimizer::computeBasicTileShapes(fcOp);
         REQUIRE(config.inputs == inputShape);
         REQUIRE(config.weights.dims() == std::vector<int>{ 8, 2048});
@@ -110,9 +96,10 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
             REQUIRE(inputTiles.size() == 1);
             verifyTensorData(inputTiles[0], 0);
 
-            fillTensorWithData(transposedWeights);
+            auto weights = fcOp->getInput(1);
+            fillTensorWithData(weights);
             TiledTensor weightTiles = generateTiledTensor(
-                    transposedWeights, config.weights, halos, workspace());
+                    weights, config.weights, halos, workspace());
             REQUIRE(weightTiles.size() == 16 * 2);
             for (auto i = weightTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(weightTiles[i]->getShape().dims() ==
@@ -138,11 +125,6 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
         fcOp->setNumOutputs(256);
         fcOp->createAllTensors();
         allocateAllTensors<float16>(fcOp);
-        // Transpose the weights.
-        auto weights = fcOp->getInput(1);
-        auto transposedWeights = transpose2DTensor<float16>(weights);
-        workspace()->addTensor(transposedWeights);
-        fcOp->setInput(transposedWeights, 1);
         TilingConfig config = TilingOptimizer::computeBasicTileShapes(fcOp);
         // Inputs/weights tiled into 16 activation-wise tiles, weights further
         // tiled into 32 neuron-wise tiles per activation-wise tile.
@@ -161,9 +143,10 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
                 verifyTensorData(inputTiles[i], 2048 * i);
             }
 
-            fillTensorWithData(transposedWeights);
+            auto weights = fcOp->getInput(1);
+            fillTensorWithData(weights);
             TiledTensor weightTiles = generateTiledTensor(
-                    transposedWeights, config.weights, halos, workspace());
+                    weights, config.weights, halos, workspace());
             REQUIRE(weightTiles.size() == 16 * 32);
             for (auto i = weightTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(weightTiles[i]->getShape().dims() ==
