@@ -2,7 +2,6 @@
 #include "core/backend.h"
 #include "core/tensor.h"
 #include "core/smaug_test.h"
-#include "operators/reorder_op.h"
 #include "operators/smv/smv_test_common.h"
 #include "operators/smv/smv_convolution_op.h"
 #include "operators/smv/smv_convolution_tiling.h"
@@ -15,48 +14,18 @@ Tensor* getReferenceOutput(SmvConvolutionOp* convOp, Workspace* workspace) {
     auto input32 = convertFp16ToFp32Tensor(input, workspace);
     auto kernels32 = convertFp16ToFp32Tensor(kernels, workspace);
 
-    // Two reorder operators for transforming input and kernels from NHWC to
-    // NCHW.
-    auto inputReorderOp =
-            new ReorderOp<ReferenceBackend>("input/reorder", workspace);
-    auto kernelReorderOp =
-            new ReorderOp<ReferenceBackend>("kernel/reorder", workspace);
-    inputReorderOp->setTargetLayout(NCHW);
-    kernelReorderOp->setTargetLayout(NCHW);
-    inputReorderOp->setInput(input32, 0);
-    kernelReorderOp->setInput(kernels32, 0);
-    inputReorderOp->createAllTensors();
-    kernelReorderOp->createAllTensors();
-    inputReorderOp->getOutput(0)->allocateStorage<float>();
-    kernelReorderOp->getOutput(0)->allocateStorage<float>();
-    inputReorderOp->run();
-    kernelReorderOp->run();
-    auto refInput = inputReorderOp->getOutput(0);
-    auto refKernels = kernelReorderOp->getOutput(0);
-
     // A reference convolution operator is used to get the 'correct' output.
     auto refConvOp = new ConvolutionOp<ReferenceBackend>("ref_conv", workspace);
     refConvOp->setPadding(convOp->getPadding());
-    refConvOp->setWeightDims(kernels->getShape()[1], kernels->getShape()[2],
-                             kernels->getShape()[0]);
+    refConvOp->setWeightDims(convOp->getWeightRows(), convOp->getWeightCols(),
+                             convOp->getNumOfmaps());
     refConvOp->setStride(convOp->getRowStride(), convOp->getColStride());
-    refConvOp->setInput(refInput, 0);
-    refConvOp->setInput(refKernels, 1);
+    refConvOp->setInput(input32, 0);
+    refConvOp->setInput(kernels32, 1);
     refConvOp->createAllTensors();
     refConvOp->getOutput(0)->allocateStorage<float>();
     refConvOp->run();
-
-    // The output of the reference convolution operator needs to be tranformed
-    // back to NHWC for verification later.
-    auto refOutput = refConvOp->getOutput(0);
-    auto outputReorderOp =
-            new ReorderOp<ReferenceBackend>("output/reorder", workspace);
-    outputReorderOp->setTargetLayout(NHWC);
-    outputReorderOp->setInput(refOutput, 0);
-    outputReorderOp->createAllTensors();
-    outputReorderOp->getOutput(0)->allocateStorage<float>();
-    outputReorderOp->run();
-    return convertFp32ToFp16Tensor(outputReorderOp->getOutput(0), workspace);
+    return convertFp32ToFp16Tensor(refConvOp->getOutput(0), workspace);
 }
 
 TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
