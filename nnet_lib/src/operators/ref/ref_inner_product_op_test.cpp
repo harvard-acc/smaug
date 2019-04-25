@@ -2,9 +2,21 @@
 #include "core/backend.h"
 #include "core/tensor.h"
 #include "core/smaug_test.h"
+#include "operators/reorder_op.h"
 #include "operators/inner_product_op.h"
 
 using namespace smaug;
+
+Tensor* transposeWeights(Tensor* weights, Workspace* workspace) {
+    auto weightsTransOp =
+            new ReorderOp<ReferenceBackend>("weights/trans", workspace);
+    weightsTransOp->setTargetLayout(NC);
+    weightsTransOp->setInput(weights, 0);
+    weightsTransOp->createAllTensors();
+    weightsTransOp->getOutput(0)->allocateStorage<float>();
+    weightsTransOp->run();
+    return weightsTransOp->getOutput(0);
+}
 
 TEST_CASE_METHOD(SmaugTest, "Reference inner product operator", "[refop]") {
     auto matMulOp = new InnerProductOp<ReferenceBackend>("matmul", workspace());
@@ -33,8 +45,6 @@ TEST_CASE_METHOD(SmaugTest, "Reference inner product operator", "[refop]") {
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
         });
 
-        matMulOp->run();
-
         // Expected output (with zero padding):
         //
         // (1...10) * 1 = 55
@@ -49,8 +59,20 @@ TEST_CASE_METHOD(SmaugTest, "Reference inner product operator", "[refop]") {
         // (1...10) * 10 = 550
         std::vector<float> expectedValues{ 55,  110, 165, 220, 275,
                                            330, 385, 440, 495, 550 };
-        auto outputsTensor = matMulOp->getOutput(0);
-        verifyOutputs(outputsTensor, expectedValues);
+        SECTION("Non-transposed weights") {
+            matMulOp->run();
+            auto outputsTensor = matMulOp->getOutput(0);
+            verifyOutputs(outputsTensor, expectedValues);
+        }
+
+        SECTION("Transposed weights") {
+            auto transposedWeightsTensor =
+                    transposeWeights(weightsTensor, workspace());
+            matMulOp->setInput(transposedWeightsTensor, 1);
+            matMulOp->run();
+            auto outputsTensor = matMulOp->getOutput(0);
+            verifyOutputs(outputsTensor, expectedValues);
+        }
     }
 
     SECTION("10x10, distinct weights per neuron") {
@@ -71,8 +93,6 @@ TEST_CASE_METHOD(SmaugTest, "Reference inner product operator", "[refop]") {
             10, 11, 12, 13, 14, 15, 16, 17, 18, 19
         });
 
-        matMulOp->run();
-
         // Expected output:
         //
         // 1*1 + 2*2 + 3*3 + ... 10*10 = 385
@@ -88,7 +108,19 @@ TEST_CASE_METHOD(SmaugTest, "Reference inner product operator", "[refop]") {
         // 385 440 495 550 605 660 715 770 825 880
         std::vector<float> expectedValues{ 385, 440, 495, 550, 605,
                                            660, 715, 770, 825, 880 };
-        auto outputsTensor = matMulOp->getOutput(0);
-        verifyOutputs(outputsTensor, expectedValues);
+        SECTION("Non-transposed weights") {
+            matMulOp->run();
+            auto outputsTensor = matMulOp->getOutput(0);
+            verifyOutputs(outputsTensor, expectedValues);
+        }
+
+        SECTION("Transposed weights") {
+            auto transposedWeightsTensor =
+                    transposeWeights(weightsTensor, workspace());
+            matMulOp->setInput(transposedWeightsTensor, 1);
+            matMulOp->run();
+            auto outputsTensor = matMulOp->getOutput(0);
+            verifyOutputs(outputsTensor, expectedValues);
+        }
     }
 }

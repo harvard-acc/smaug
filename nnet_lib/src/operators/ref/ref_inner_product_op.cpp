@@ -7,15 +7,15 @@
 extern "C" {
 #endif
 
-void ref_inner_product_nc(float* a,
-                          float* b,
-                          float* c,
-                          int a_height,
-                          int a_width,
-                          int b_width,
-                          int a_pad,
-                          int b_pad,
-                          int c_pad) {
+void ref_inner_product_ab_times_bc(float* a,
+                                   float* b,
+                                   float* c,
+                                   int a_height,
+                                   int a_width,
+                                   int b_width,
+                                   int a_pad,
+                                   int b_pad,
+                                   int c_pad) {
     int input_size = a_height * (a_width + a_pad);
     int weight_size = a_width * (b_width + b_pad);
     int result_size = a_height * (b_width + c_pad);
@@ -26,12 +26,52 @@ void ref_inner_product_nc(float* a,
     ARRAY_2D(float, _b, b, b_width + b_pad);
     ARRAY_2D(float, _c, c, b_width + c_pad);
 
+    matmul0:
     for (int i = 0; i < a_height; i++) {
+        matmul1:
         for (int j = 0; j < b_width; j++) {
             float result = 0;
+            matmul2:
             for (int k = 0; k < a_width; k++) {
                 float a_val = _a[i][k];
                 float b_val = _b[k][j];
+                result += a_val * b_val;
+            }
+            _c[i][j] = result;
+        }
+    }
+    dmaLoad(c, c, result_size * sizeof(float));
+}
+
+void ref_inner_product_ab_times_cb(float* a,
+                                   float* b,
+                                   float* c,
+                                   int a_height,
+                                   int b_width,
+                                   int b_height,
+                                   int a_pad,
+                                   int b_pad,
+                                   int c_pad) {
+    int a_width = b_width;
+    int input_size = a_height * (a_width + a_pad);
+    int weight_size = b_height * (b_width + b_pad);
+    int result_size = a_height * (b_height + c_pad);
+    dmaLoad(a, a, input_size * sizeof(float));
+    dmaLoad(b, b, weight_size * sizeof(float));
+
+    ARRAY_2D(float, _a, a, a_width);
+    ARRAY_2D(float, _b, b, b_width);
+    ARRAY_2D(float, _c, c, b_height);
+
+    matmul0:
+    for (int i = 0; i < a_height; i++) {
+        matmul1:
+        for (int j = 0; j < b_height; j++) {
+            float result = 0;
+            matmul2:
+            for (int k = 0; k < a_width; k++) {
+                float a_val = _a[i][k];
+                float b_val = _b[j][k];
                 result += a_val * b_val;
             }
             _c[i][j] = result;
@@ -55,7 +95,8 @@ void InnerProductOp<ReferenceBackend>::run() {
     const TensorShape& weightShape = weights->getShape();
     const TensorShape& outputShape = output->getShape();
     assert(inputShape.getLayout() == DataLayout::NC);
-    assert(weightShape.getLayout() == DataLayout::NC);
+    assert(weightShape.getLayout() == DataLayout::NC ||
+           weightShape.getLayout() == DataLayout::CN);
     assert(outputShape.getLayout() == DataLayout::NC);
     dout(2) << *weights << "\n";
 
@@ -68,10 +109,15 @@ void InnerProductOp<ReferenceBackend>::run() {
                     weightShape.storageSize() * sizeof(float));
     mapArrayToAccel(ref::kInnerProductHw, "c", outputData,
                     outputShape.storageSize() * sizeof(float));
-    invokeKernel(ref::kInnerProductHw, ref_inner_product_nc, inputData,
-                 weightData, outputData, inputShape[0], inputShape[1],
-                 weightShape[1], inputShape.getPadding(1),
-                 weightShape.getPadding(1), outputShape.getPadding(1));
+    bool weightsTransposed = weightShape.getLayout() == DataLayout::NC;
+    auto func = weightsTransposed ? ref_inner_product_ab_times_cb
+                                  : ref_inner_product_ab_times_bc;
+    int actIdx = weightsTransposed ? 1 : 0;
+    int neuronIdx = weightsTransposed ? 0 : 1;
+    invokeKernel(ref::kInnerProductHw, func, inputData, weightData, outputData,
+                 inputShape[0], weightShape[actIdx], weightShape[neuronIdx],
+                 inputShape.getPadding(1), weightShape.getPadding(1),
+                 outputShape.getPadding(1));
 }
 
 }  // namespace smaug

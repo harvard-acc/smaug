@@ -2,7 +2,6 @@
 #include "core/backend.h"
 #include "core/tensor.h"
 #include "core/smaug_test.h"
-#include "operators/reorder_op.h"
 #include "operators/smv/smv_test_common.h"
 #include "operators/smv/smv_inner_product_op.h"
 #include "operators/smv/smv_inner_product_tiling.h"
@@ -15,15 +14,10 @@ Tensor* getReferenceOutput(SmvInnerProductOp* fcOp, Workspace* workspace) {
     auto input32 = convertFp16ToFp32Tensor(input, workspace);
     auto weights32 = convertFp16ToFp32Tensor(weights, workspace);
 
-    // Because we have transposed the weights, now we need to tranpose it back
-    // for the reference implementation.
-    auto transposedWeights32 = transpose2DTensor<float>(weights32);
-    workspace->addTensor(transposedWeights32);
-
     // A reference inner product operator is used to get the 'correct' output.
     auto refFcOp = new InnerProductOp<ReferenceBackend>("ref_fc", workspace);
     refFcOp->setInput(input32, 0);
-    refFcOp->setInput(transposedWeights32, 1);
+    refFcOp->setInput(weights32, 1);
     refFcOp->setNumOutputs(fcOp->getNumOutputs());
     refFcOp->createAllTensors();
     refFcOp->getOutput(0)->allocateStorage<float>();
