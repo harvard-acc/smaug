@@ -62,7 +62,7 @@ class PoolingOp : public Operator {
         bool isNCHW = inputShape.getLayout() == DataLayout::NCHW;
         int inputRows = isNCHW ? inputShape[2] : inputShape[1];
         int inputCols = isNCHW ? inputShape[3] : inputShape[2];
-        int inputChans = isNCHW ? inputShape[1] : inputShape[0];
+        int inputChans = isNCHW ? inputShape[1] : inputShape[3];
         int outputRows = calcOutputRows(inputRows);
         int outputCols = calcOutputCols(inputCols);
         assert(outputRows > 0 && outputCols > 0 &&
