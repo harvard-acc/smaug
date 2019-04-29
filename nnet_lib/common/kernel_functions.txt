@@ -25,3 +25,5 @@ ref_sigmoid
 ref_softmax_nc
 smv_conv3d_nhwc_vec_fxp
 smv_matrix_multiply_transpose_nc_vec_fxp
+smv_maxpooling_nhwc_vec_fxp
+smv_avgpooling_nhwc_vec_fxp

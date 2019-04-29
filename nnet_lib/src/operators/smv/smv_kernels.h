@@ -42,6 +42,34 @@ void smv_matrix_multiply_transpose_nc_vec_fxp(float16* host_a,
                                               bool accumulate,
                                               bool send_results);
 
+void smv_maxpooling_nhwc_vec_fxp(float16* host_inputs,
+                                 float16* host_results,
+                                 float* inputs,
+                                 float* results,
+                                 int inputs_dims[4],
+                                 int results_dims[4],
+                                 int inputs_pad,
+                                 int results_pad,
+                                 int pool_rows,
+                                 int pool_cols,
+                                 int row_stride,
+                                 int col_stride,
+                                 int ofmap_start);
+
+void smv_avgpooling_nhwc_vec_fxp(float16* host_inputs,
+                                 float16* host_results,
+                                 float* inputs,
+                                 float* results,
+                                 int inputs_dims[4],
+                                 int results_dims[4],
+                                 int inputs_pad,
+                                 int results_pad,
+                                 int pool_rows,
+                                 int pool_cols,
+                                 int row_stride,
+                                 int col_stride,
+                                 int ofmap_start);
+
 #ifdef __cplusplus
 }
 #endif
