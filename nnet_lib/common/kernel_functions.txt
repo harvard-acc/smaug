@@ -7,8 +7,11 @@ ref_batch_norm_post_fc
 ref_inner_product_ab_times_bc
 ref_inner_product_ab_times_cb
 ref_max_pooling_nchw_treemax
+ref_max_pooling_nhwc_treemax
 ref_max_pooling_nchw_itermax
+ref_max_pooling_nhwc_itermax
 ref_avg_pooling_nchw
+ref_avg_pooling_nhwc
 ref_conv2d_nchw_valid_padding
 ref_conv2d_nchw_same_padding
 ref_eltwise_add
