@@ -9,6 +9,11 @@ namespace smaug {
 
 typedef void (*FillTensorDataFunc)(Tensor* tensor);
 
+// The difference between margin and epsilon is that the former serves to set
+// the the absolute value by which a result can differ from Approx's value,
+// while the later serves to set the percentage by which a result can differ
+// from Approx's value.
+constexpr float kMargin = 0.001;
 constexpr float kEpsilon = 0.01;
 
 class Operator;
@@ -56,7 +61,8 @@ class SmaugTest {
         auto ptr = output->template data<DType>();
         int i = 0;
         for (auto idx = output->startIndex(); !idx.end(); ++idx, ++i) {
-            REQUIRE(Approx(ptr[idx]).epsilon(kEpsilon) == expected[i]);
+            REQUIRE(Approx(ptr[idx]).margin(kMargin).epsilon(kEpsilon) ==
+                    expected[i]);
         }
         REQUIRE(i == expected.size());
     }
@@ -68,8 +74,9 @@ class SmaugTest {
         auto outputIdx = output->startIndex();
         auto expectedIdx = expected->startIndex();
         for (; !outputIdx.end(); ++outputIdx, ++expectedIdx) {
-            REQUIRE(Approx(outputPtr[outputIdx]).epsilon(kEpsilon) ==
-                    expectedPtr[expectedIdx]);
+            REQUIRE(Approx(outputPtr[outputIdx])
+                            .margin(kMargin)
+                            .epsilon(kEpsilon) == expectedPtr[expectedIdx]);
         }
     }
 

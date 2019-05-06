@@ -1,12 +1,25 @@
+#include <random>
+
 #include "catch.hpp"
 #include "core/smaug_test.h"
 #include "operators/smv/smv_test_common.h"
 
 namespace smaug {
 
+constexpr float kMean = 0.0;
+constexpr float kVar = 0.1;
+std::default_random_engine generator;
+std::normal_distribution<float> normalDist(kMean, kVar);
 constexpr float kFraction = 0.1;
 
-void fillTensorWithData(Tensor* tensor) {
+// This fills the tensor with a normal distribution of random values.
+void fillTensorWithRandomData(Tensor* tensor) {
+    float16* dataPtr = tensor->data<float16>();
+    for (int i = 0; i < tensor->getShape().storageSize(); i++)
+        dataPtr[i] = fp16(normalDist(generator));
+}
+
+void fillTensorWithFixedData(Tensor* tensor) {
     const TensorShape& shape = tensor->getShape();
     // Each dimension C is initialized to a different constant value.
     float16* dataPtr = tensor->data<float16>();
@@ -19,7 +32,7 @@ void fillTensorWithData(Tensor* tensor) {
     }
 }
 
-void verifyTensorData(Tensor* tensor, int valueOffset) {
+void verifyTensorWithFixedData(Tensor* tensor, int valueOffset) {
     const TensorShape& shape = tensor->getShape();
     float16* dataPtr = tensor->data<float16>();
     int expectedValue = valueOffset;

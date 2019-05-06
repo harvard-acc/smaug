@@ -46,29 +46,29 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
         REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 128 });
 
         SECTION("Generated tiles have correct shape and data") {
-            fillTensorWithData(inputs);
+            fillTensorWithFixedData(inputs);
             TiledTensor inputTiles = generateTiledTensor(
                     inputs, config.inputs, halos, workspace());
             REQUIRE(inputTiles.size() == 1);
-            verifyTensorData(inputTiles[0], 0);
+            verifyTensorWithFixedData(inputTiles[0], 0);
 
             auto weights = fcOp->getInput(1);
-            fillTensorWithData(weights);
+            fillTensorWithFixedData(weights);
             TiledTensor weightTiles = generateTiledTensor(
                     weights, config.weights, halos, workspace());
             REQUIRE(weightTiles.size() == 2);
             for (auto i = weightTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(weightTiles[i]->getShape().dims() ==
                         std::vector<int>{ 64, 256 });
-                verifyTensorData(weightTiles[i], 0);
+                verifyTensorWithFixedData(weightTiles[i], 0);
             }
 
             auto outputs = fcOp->getOutput(0);
-            fillTensorWithData(outputs);
+            fillTensorWithFixedData(outputs);
             TiledTensor outputTiles = generateTiledTensor(
                     outputs, config.outputs, halos, workspace());
             REQUIRE(outputTiles.size() == 1);
-            verifyTensorData(outputTiles[0], 0);
+            verifyTensorWithFixedData(outputTiles[0], 0);
         }
     }
 
@@ -90,29 +90,29 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
         REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 128 });
 
         SECTION("Generated tiles have correct shape and data") {
-            fillTensorWithData(inputs);
+            fillTensorWithFixedData(inputs);
             TiledTensor inputTiles = generateTiledTensor(
                     inputs, config.inputs, halos, workspace());
             REQUIRE(inputTiles.size() == 1);
-            verifyTensorData(inputTiles[0], 0);
+            verifyTensorWithFixedData(inputTiles[0], 0);
 
             auto weights = fcOp->getInput(1);
-            fillTensorWithData(weights);
+            fillTensorWithFixedData(weights);
             TiledTensor weightTiles = generateTiledTensor(
                     weights, config.weights, halos, workspace());
             REQUIRE(weightTiles.size() == 16 * 2);
             for (auto i = weightTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(weightTiles[i]->getShape().dims() ==
                         std::vector<int>{ 8, 2048 });
-                verifyTensorData(weightTiles[i], (i % 2) * 2048);
+                verifyTensorWithFixedData(weightTiles[i], (i % 2) * 2048);
             }
 
             auto outputs = fcOp->getOutput(0);
-            fillTensorWithData(outputs);
+            fillTensorWithFixedData(outputs);
             TiledTensor outputTiles = generateTiledTensor(
                     outputs, config.outputs, halos, workspace());
             REQUIRE(outputTiles.size() == 1);
-            verifyTensorData(outputTiles[0], 0);
+            verifyTensorWithFixedData(outputTiles[0], 0);
         }
     }
 
@@ -133,33 +133,33 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
         REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 256 });
 
         SECTION("Generated tiles have correct shape and data") {
-            fillTensorWithData(inputs);
+            fillTensorWithFixedData(inputs);
             TiledTensor inputTiles = generateTiledTensor(
                     inputs, config.inputs, halos, workspace());
             REQUIRE(inputTiles.size() == 16);
             for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(inputTiles[i]->getShape().dims() ==
                         std::vector<int>{ 1, 2048 });
-                verifyTensorData(inputTiles[i], 2048 * i);
+                verifyTensorWithFixedData(inputTiles[i], 2048 * i);
             }
 
             auto weights = fcOp->getInput(1);
-            fillTensorWithData(weights);
+            fillTensorWithFixedData(weights);
             TiledTensor weightTiles = generateTiledTensor(
                     weights, config.weights, halos, workspace());
             REQUIRE(weightTiles.size() == 16 * 32);
             for (auto i = weightTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(weightTiles[i]->getShape().dims() ==
                         std::vector<int>{ 8, 2048 });
-                verifyTensorData(weightTiles[i], (i % 16) * 2048);
+                verifyTensorWithFixedData(weightTiles[i], (i % 16) * 2048);
             }
 
             auto outputs = fcOp->getOutput(0);
-            fillTensorWithData(outputs);
+            fillTensorWithFixedData(outputs);
             TiledTensor outputTiles = generateTiledTensor(
                     outputs, config.outputs, halos, workspace());
             REQUIRE(outputTiles.size() == 1);
-            verifyTensorData(outputTiles[0], 0);
+            verifyTensorWithFixedData(outputTiles[0], 0);
         }
     }
 }

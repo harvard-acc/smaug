@@ -38,7 +38,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV tiled inner product", "[smvfc]") {
         fcOp->setInput(inputs, 0);
         fcOp->setNumOutputs(32);
         inputs->allocateStorage<float16>();
-        createAndFillTensorsWithData<float16>(fcOp, fillTensorWithData);
+        createAndFillTensorsWithData<float16>(fcOp, fillTensorWithRandomData);
         fcOp->run();
         auto outputs = fcOp->getOutput(0);
         auto refOutputs = getReferenceOutput(fcOp, workspace());
@@ -53,7 +53,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV tiled inner product", "[smvfc]") {
         fcOp->setInput(inputs, 0);
         // Weights are tiled into 2 tiles.
         fcOp->setNumOutputs(128);
-        createAndFillTensorsWithData<float16>(fcOp, fillTensorWithData);
+        createAndFillTensorsWithData<float16>(fcOp, fillTensorWithRandomData);
         fcOp->run();
         auto outputs = fcOp->getOutput(0);
         auto refOutputs = getReferenceOutput(fcOp, workspace());
@@ -69,7 +69,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV tiled inner product", "[smvfc]") {
         // Weights are tiled into 16 neuron-wise tiles and 2 activation-wise
         // tiles.
         fcOp->setNumOutputs(128);
-        createAndFillTensorsWithData<float16>(fcOp, fillTensorWithData);
+        createAndFillTensorsWithData<float16>(fcOp, fillTensorWithRandomData);
         fcOp->run();
         auto outputs = fcOp->getOutput(0);
         auto refOutputs = getReferenceOutput(fcOp, workspace());
@@ -85,7 +85,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV tiled inner product", "[smvfc]") {
         // Inputs/weights are tiled into 16 activation-wise tiles, weights are
         // also tiled into 32 neuron-wise tiles.
         fcOp->setNumOutputs(256);
-        createAndFillTensorsWithData<float16>(fcOp, fillTensorWithData);
+        createAndFillTensorsWithData<float16>(fcOp, fillTensorWithRandomData);
         fcOp->run();
         auto outputs = fcOp->getOutput(0);
         auto refOutputs = getReferenceOutput(fcOp, workspace());

@@ -2,8 +2,14 @@
 
 namespace smaug {
 
-void fillTensorWithData(Tensor* tensor);
+// For the operator tests, tensors should be initialized with random data so
+// that more corner cases can be tested. For tiling tests, fixed data is used
+// for easy verification.
 
-void verifyTensorData(Tensor* tensor, int valueOffset);
+void fillTensorWithRandomData(Tensor* tensor);
+
+void fillTensorWithFixedData(Tensor* tensor);
+
+void verifyTensorWithFixedData(Tensor* tensor, int valueOffset);
 
 }  // namespace smaug

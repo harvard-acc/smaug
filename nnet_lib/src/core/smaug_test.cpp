@@ -12,8 +12,9 @@ void SmaugTest::verifyOutputs<float16>(Tensor* output, Tensor* expected) {
     auto outputIdx = output->startIndex();
     auto expectedIdx = expected->startIndex();
     for (; !outputIdx.end(); ++outputIdx, ++expectedIdx) {
-        REQUIRE(Approx(fp32(outputPtr[outputIdx])).epsilon(kEpsilon) ==
-                fp32(expectedPtr[expectedIdx]));
+        REQUIRE(Approx(fp32(outputPtr[outputIdx]))
+                        .margin(kMargin)
+                        .epsilon(kEpsilon) == fp32(expectedPtr[expectedIdx]));
     }
 }
 

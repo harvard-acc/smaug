@@ -44,7 +44,8 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Pooling", "[smvpool]") {
             inputs->allocateStorage<float16>();
             workspace()->addTensor(inputs);
             poolOp->setInput(inputs, 0);
-            createAndFillTensorsWithData<float16>(poolOp, fillTensorWithData);
+            createAndFillTensorsWithData<float16>(
+                    poolOp, fillTensorWithRandomData);
             poolOp->run();
             auto outputs = poolOp->getOutput(0);
             auto refOutputs = getReferenceOutput(poolOp, workspace());
@@ -59,7 +60,8 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Pooling", "[smvpool]") {
             inputs->allocateStorage<float16>();
             workspace()->addTensor(inputs);
             poolOp->setInput(inputs, 0);
-            createAndFillTensorsWithData<float16>(poolOp, fillTensorWithData);
+            createAndFillTensorsWithData<float16>(
+                    poolOp, fillTensorWithRandomData);
             poolOp->run();
             auto outputs = poolOp->getOutput(0);
             auto refOutputs = getReferenceOutput(poolOp, workspace());
@@ -75,7 +77,8 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Pooling", "[smvpool]") {
             inputs->allocateStorage<float16>();
             workspace()->addTensor(inputs);
             poolOp->setInput(inputs, 0);
-            createAndFillTensorsWithData<float16>(poolOp, fillTensorWithData);
+            createAndFillTensorsWithData<float16>(
+                    poolOp, fillTensorWithRandomData);
             poolOp->run();
             auto outputs = poolOp->getOutput(0);
             auto refOutputs = getReferenceOutput(poolOp, workspace());
@@ -93,7 +96,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Pooling", "[smvpool]") {
                 workspace()->addTensor(inputs);
                 poolOp->setInput(inputs, 0);
                 createAndFillTensorsWithData<float16>(
-                        poolOp, fillTensorWithData);
+                        poolOp, fillTensorWithRandomData);
                 poolOp->run();
                 auto outputs = poolOp->getOutput(0);
                 auto refOutputs = getReferenceOutput(poolOp, workspace());
@@ -109,7 +112,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Pooling", "[smvpool]") {
                 workspace()->addTensor(inputs);
                 poolOp->setInput(inputs, 0);
                 createAndFillTensorsWithData<float16>(
-                        poolOp, fillTensorWithData);
+                        poolOp, fillTensorWithRandomData);
                 poolOp->run();
                 auto outputs = poolOp->getOutput(0);
                 auto refOutputs = getReferenceOutput(poolOp, workspace());
@@ -128,7 +131,8 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Pooling", "[smvpool]") {
             inputs->allocateStorage<float16>();
             workspace()->addTensor(inputs);
             poolOp->setInput(inputs, 0);
-            createAndFillTensorsWithData<float16>(poolOp, fillTensorWithData);
+            createAndFillTensorsWithData<float16>(
+                    poolOp, fillTensorWithRandomData);
             poolOp->run();
             auto outputs = poolOp->getOutput(0);
             auto refOutputs = getReferenceOutput(poolOp, workspace());
@@ -148,7 +152,8 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Pooling", "[smvpool]") {
             inputs->allocateStorage<float16>();
             workspace()->addTensor(inputs);
             poolOp->setInput(inputs, 0);
-            createAndFillTensorsWithData<float16>(poolOp, fillTensorWithData);
+            createAndFillTensorsWithData<float16>(
+                    poolOp, fillTensorWithRandomData);
             poolOp->run();
             auto outputs = poolOp->getOutput(0);
             auto refOutputs = getReferenceOutput(poolOp, workspace());
@@ -163,7 +168,8 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Pooling", "[smvpool]") {
             inputs->allocateStorage<float16>();
             workspace()->addTensor(inputs);
             poolOp->setInput(inputs, 0);
-            createAndFillTensorsWithData<float16>(poolOp, fillTensorWithData);
+            createAndFillTensorsWithData<float16>(
+                    poolOp, fillTensorWithRandomData);
             poolOp->run();
             auto outputs = poolOp->getOutput(0);
             auto refOutputs = getReferenceOutput(poolOp, workspace());
@@ -179,7 +185,8 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Pooling", "[smvpool]") {
             inputs->allocateStorage<float16>();
             workspace()->addTensor(inputs);
             poolOp->setInput(inputs, 0);
-            createAndFillTensorsWithData<float16>(poolOp, fillTensorWithData);
+            createAndFillTensorsWithData<float16>(
+                    poolOp, fillTensorWithRandomData);
             poolOp->run();
             auto outputs = poolOp->getOutput(0);
             auto refOutputs = getReferenceOutput(poolOp, workspace());
@@ -197,7 +204,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Pooling", "[smvpool]") {
                 workspace()->addTensor(inputs);
                 poolOp->setInput(inputs, 0);
                 createAndFillTensorsWithData<float16>(
-                        poolOp, fillTensorWithData);
+                        poolOp, fillTensorWithRandomData);
                 poolOp->run();
                 auto outputs = poolOp->getOutput(0);
                 auto refOutputs = getReferenceOutput(poolOp, workspace());
@@ -213,7 +220,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Pooling", "[smvpool]") {
                 workspace()->addTensor(inputs);
                 poolOp->setInput(inputs, 0);
                 createAndFillTensorsWithData<float16>(
-                        poolOp, fillTensorWithData);
+                        poolOp, fillTensorWithRandomData);
                 poolOp->run();
                 auto outputs = poolOp->getOutput(0);
                 auto refOutputs = getReferenceOutput(poolOp, workspace());
@@ -232,7 +239,8 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Pooling", "[smvpool]") {
             inputs->allocateStorage<float16>();
             workspace()->addTensor(inputs);
             poolOp->setInput(inputs, 0);
-            createAndFillTensorsWithData<float16>(poolOp, fillTensorWithData);
+            createAndFillTensorsWithData<float16>(
+                    poolOp, fillTensorWithRandomData);
             poolOp->run();
             auto outputs = poolOp->getOutput(0);
             auto refOutputs = getReferenceOutput(poolOp, workspace());

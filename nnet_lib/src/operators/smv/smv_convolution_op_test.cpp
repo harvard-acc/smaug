@@ -43,7 +43,8 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
         convOp->setInput(inputs, 0);
         convOp->setWeightDims(3, 3, 8);
         SECTION("Same padding") {
-            createAndFillTensorsWithData<float16>(convOp, fillTensorWithData);
+            createAndFillTensorsWithData<float16>(
+                    convOp, fillTensorWithRandomData);
             convOp->run();
             auto outputs = convOp->getOutput(0);
             auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -51,7 +52,8 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
         }
         SECTION("Valid padding") {
             convOp->setPadding(ValidPadding);
-            createAndFillTensorsWithData<float16>(convOp, fillTensorWithData);
+            createAndFillTensorsWithData<float16>(
+                    convOp, fillTensorWithRandomData);
             convOp->run();
             auto outputs = convOp->getOutput(0);
             auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -67,7 +69,8 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
             workspace()->addTensor(inputs);
             convOp->setInput(inputs, 0);
             convOp->setWeightDims(3, 3, 128);
-            createAndFillTensorsWithData<float16>(convOp, fillTensorWithData);
+            createAndFillTensorsWithData<float16>(
+                    convOp, fillTensorWithRandomData);
             convOp->run();
             auto outputs = convOp->getOutput(0);
             auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -84,7 +87,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
                 // respectively.
                 convOp->setWeightDims(3, 3, 128);
                 createAndFillTensorsWithData<float16>(
-                        convOp, fillTensorWithData);
+                        convOp, fillTensorWithRandomData);
                 convOp->run();
                 auto outputs = convOp->getOutput(0);
                 auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -94,7 +97,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
                 // The weight tiles will contain 50 kernels.
                 convOp->setWeightDims(3, 3, 50);
                 createAndFillTensorsWithData<float16>(
-                        convOp, fillTensorWithData);
+                        convOp, fillTensorWithRandomData);
                 convOp->run();
                 auto outputs = convOp->getOutput(0);
                 auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -113,7 +116,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
             convOp->setWeightDims(3, 3, 8);
             SECTION("Same padding") {
                 createAndFillTensorsWithData<float16>(
-                        convOp, fillTensorWithData);
+                        convOp, fillTensorWithRandomData);
                 convOp->run();
                 auto outputs = convOp->getOutput(0);
                 auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -122,7 +125,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
             SECTION("Valid padding") {
                 convOp->setPadding(ValidPadding);
                 createAndFillTensorsWithData<float16>(
-                        convOp, fillTensorWithData);
+                        convOp, fillTensorWithRandomData);
                 convOp->run();
                 auto outputs = convOp->getOutput(0);
                 auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -138,7 +141,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
             SECTION("5x5 kernel size") {
                 convOp->setWeightDims(5, 5, 128);
                 createAndFillTensorsWithData<float16>(
-                        convOp, fillTensorWithData);
+                        convOp, fillTensorWithRandomData);
                 convOp->run();
                 auto outputs = convOp->getOutput(0);
                 auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -147,7 +150,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
             SECTION("2x2 kernel size") {
                 convOp->setWeightDims(2, 2, 256);
                 createAndFillTensorsWithData<float16>(
-                        convOp, fillTensorWithData);
+                        convOp, fillTensorWithRandomData);
                 convOp->run();
                 auto outputs = convOp->getOutput(0);
                 auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -163,7 +166,8 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
             workspace()->addTensor(inputs);
             convOp->setInput(inputs, 0);
             convOp->setWeightDims(4, 4, 128);
-            createAndFillTensorsWithData<float16>(convOp, fillTensorWithData);
+            createAndFillTensorsWithData<float16>(
+                    convOp, fillTensorWithRandomData);
             convOp->run();
             auto outputs = convOp->getOutput(0);
             auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -181,7 +185,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
                 convOp->setInput(inputs, 0);
                 convOp->setWeightDims(5, 5, 8);
                 createAndFillTensorsWithData<float16>(
-                        convOp, fillTensorWithData);
+                        convOp, fillTensorWithRandomData);
                 convOp->run();
                 auto outputs = convOp->getOutput(0);
                 auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -195,7 +199,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
                 convOp->setInput(inputs, 0);
                 convOp->setWeightDims(5, 5, 8);
                 createAndFillTensorsWithData<float16>(
-                        convOp, fillTensorWithData);
+                        convOp, fillTensorWithRandomData);
                 convOp->run();
                 auto outputs = convOp->getOutput(0);
                 auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -210,7 +214,8 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
             workspace()->addTensor(inputs);
             convOp->setInput(inputs, 0);
             convOp->setWeightDims(3, 3, 8);
-            createAndFillTensorsWithData<float16>(convOp, fillTensorWithData);
+            createAndFillTensorsWithData<float16>(
+                    convOp, fillTensorWithRandomData);
             convOp->run();
             auto outputs = convOp->getOutput(0);
             auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -224,7 +229,8 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
             workspace()->addTensor(inputs);
             convOp->setInput(inputs, 0);
             convOp->setWeightDims(3, 3, 8);
-            createAndFillTensorsWithData<float16>(convOp, fillTensorWithData);
+            createAndFillTensorsWithData<float16>(
+                    convOp, fillTensorWithRandomData);
             convOp->run();
             auto outputs = convOp->getOutput(0);
             auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -240,7 +246,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
             SECTION("16 output tiles") {
                 convOp->setWeightDims(1, 1, 256);
                 createAndFillTensorsWithData<float16>(
-                        convOp, fillTensorWithData);
+                        convOp, fillTensorWithRandomData);
                 convOp->run();
                 auto outputs = convOp->getOutput(0);
                 auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -249,7 +255,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
             SECTION("8 output tiles") {
                 convOp->setWeightDims(2, 2, 128);
                 createAndFillTensorsWithData<float16>(
-                        convOp, fillTensorWithData);
+                        convOp, fillTensorWithRandomData);
                 convOp->run();
                 auto outputs = convOp->getOutput(0);
                 auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -258,7 +264,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
             SECTION("4 output tiles") {
                 convOp->setWeightDims(3, 3, 64);
                 createAndFillTensorsWithData<float16>(
-                        convOp, fillTensorWithData);
+                        convOp, fillTensorWithRandomData);
                 convOp->run();
                 auto outputs = convOp->getOutput(0);
                 auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -275,7 +281,8 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
             workspace()->addTensor(inputs);
             convOp->setInput(inputs, 0);
             convOp->setWeightDims(4, 4, 32);
-            createAndFillTensorsWithData<float16>(convOp, fillTensorWithData);
+            createAndFillTensorsWithData<float16>(
+                    convOp, fillTensorWithRandomData);
             convOp->run();
             auto outputs = convOp->getOutput(0);
             auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -288,7 +295,8 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
             workspace()->addTensor(inputs);
             convOp->setInput(inputs, 0);
             convOp->setWeightDims(2, 2, 32);
-            createAndFillTensorsWithData<float16>(convOp, fillTensorWithData);
+            createAndFillTensorsWithData<float16>(
+                    convOp, fillTensorWithRandomData);
             convOp->run();
             auto outputs = convOp->getOutput(0);
             auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -301,7 +309,8 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
             workspace()->addTensor(inputs);
             convOp->setInput(inputs, 0);
             convOp->setWeightDims(2, 2, 32);
-            createAndFillTensorsWithData<float16>(convOp, fillTensorWithData);
+            createAndFillTensorsWithData<float16>(
+                    convOp, fillTensorWithRandomData);
             convOp->run();
             auto outputs = convOp->getOutput(0);
             auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -323,7 +332,7 @@ TEST_CASE_METHOD(SmaugTest, "Stride size tests", "[smvconv]") {
         workspace()->addTensor(inputs);
         convOp->setInput(inputs, 0);
         convOp->setWeightDims(3, 3, 16);
-        createAndFillTensorsWithData<float16>(convOp, fillTensorWithData);
+        createAndFillTensorsWithData<float16>(convOp, fillTensorWithRandomData);
         convOp->run();
         auto outputs = convOp->getOutput(0);
         auto refOutputs = getReferenceOutput(convOp, workspace());
@@ -339,7 +348,7 @@ TEST_CASE_METHOD(SmaugTest, "Stride size tests", "[smvconv]") {
         workspace()->addTensor(inputs);
         convOp->setInput(inputs, 0);
         convOp->setWeightDims(5, 5, 16);
-        createAndFillTensorsWithData<float16>(convOp, fillTensorWithData);
+        createAndFillTensorsWithData<float16>(convOp, fillTensorWithRandomData);
         convOp->run();
         auto outputs = convOp->getOutput(0);
         auto refOutputs = getReferenceOutput(convOp, workspace());
