@@ -309,3 +309,40 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
         }
     }
 }
+
+TEST_CASE_METHOD(SmaugTest, "Stride size tests", "[smvconv]") {
+    auto convOp = new SmvConvolutionOp("conv", workspace());
+    convOp->setPadding(ValidPadding);
+
+    SECTION("2x2 strides") {
+        convOp->setStride(2, 2);
+        TensorShape inputShape(
+                { 1, 64, 64, 32 }, DataLayout::NHWC, SmvBackend::Alignment);
+        Tensor* inputs = new Tensor("input", inputShape);
+        inputs->allocateStorage<float16>();
+        workspace()->addTensor(inputs);
+        convOp->setInput(inputs, 0);
+        convOp->setWeightDims(3, 3, 16);
+        createAndFillTensorsWithData<float16>(convOp, fillTensorWithData);
+        convOp->run();
+        auto outputs = convOp->getOutput(0);
+        auto refOutputs = getReferenceOutput(convOp, workspace());
+        verifyOutputs<float16>(outputs, refOutputs);
+    }
+
+    SECTION("3x3 strides") {
+        convOp->setStride(3, 3);
+        TensorShape inputShape(
+                { 1, 64, 64, 32 }, DataLayout::NHWC, SmvBackend::Alignment);
+        Tensor* inputs = new Tensor("input", inputShape);
+        inputs->allocateStorage<float16>();
+        workspace()->addTensor(inputs);
+        convOp->setInput(inputs, 0);
+        convOp->setWeightDims(5, 5, 16);
+        createAndFillTensorsWithData<float16>(convOp, fillTensorWithData);
+        convOp->run();
+        auto outputs = convOp->getOutput(0);
+        auto refOutputs = getReferenceOutput(convOp, workspace());
+        verifyOutputs<float16>(outputs, refOutputs);
+    }
+}

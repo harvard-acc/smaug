@@ -590,3 +590,124 @@ TEST_CASE_METHOD(SmaugTest, "Kernel shape tests", "[smvtiling]") {
         }
     }
 }
+
+TEST_CASE_METHOD(SmaugTest, "Stride size tests", "[smvtiling]") {
+    using namespace smaug::smv;
+    using namespace smaug::smv::conv;
+    auto convOp = new SmvConvolutionOp("conv", workspace());
+    convOp->setPadding(ValidPadding);
+
+    SECTION("2x2 strides") {
+        // Inputs and outputs use DimNH, None for weights.
+        convOp->setStride(2, 2);
+        TensorShape inputShape(
+                { 1, 64, 64, 32 }, DataLayout::NHWC, SmvBackend::Alignment);
+        Tensor* inputs = new Tensor("inputs", inputShape);
+        workspace()->addTensor(inputs);
+        convOp->setInput(inputs, 0);
+        convOp->setWeightDims(3, 3, 16);
+        convOp->createAllTensors();
+        allocateAllTensors<float16>(convOp);
+        TilingConfig config = TilingOptimizer::computeBasicTileShapes(convOp);
+        REQUIRE(config.inputs.dims() == std::vector<int>{ 1, 7, 64, 32 });
+        REQUIRE(config.weights.dims() == std::vector<int>{ 16, 3, 3, 32 });
+        REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 3, 31, 16 });
+
+        SECTION("Generated tiles have correct shape and data") {
+            fillTensorWithData(inputs);
+            TiledTensor inputTiles = generateTiledTensor(
+                    inputs, config.inputs, { 0, 1, 0, 0 }, workspace());
+            REQUIRE(inputTiles.size() == 11);
+            for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
+                auto& testDims = inputTiles[i]->getShape().dims();
+                if (i < 10) {
+                    REQUIRE(testDims == config.inputs.dims());
+                } else {
+                    REQUIRE(testDims == std::vector<int>{ 1, 4, 64, 32 });
+                }
+                verifyTensorData(inputTiles[i], 0);
+            }
+
+            auto weights = convOp->getInput(1);
+            fillTensorWithData(weights);
+            TiledTensor weightTiles = generateTiledTensor(
+                    weights, config.weights, { 0, 0, 0, 0 }, workspace());
+            REQUIRE(weightTiles.size() == 1);
+            verifyTensorData(weightTiles[0], 0);
+
+            auto outputs = convOp->getOutput(0);
+            fillTensorWithData(outputs);
+            TiledTensor outputTiles =
+                    TilingOptimizer::generateRowwiseOutputTiledTensor(
+                            convOp, inputTiles, weightTiles, config.outputs,
+                            outputs, true);
+            REQUIRE(outputTiles.size() == 11);
+            for (auto i = outputTiles.startIndex(); !i.end(); ++i) {
+                auto& testDims = outputTiles[i]->getShape().dims();
+                if (i < 10) {
+                    REQUIRE(testDims == config.outputs.dims());
+                } else {
+                    REQUIRE(testDims == std::vector<int>{ 1, 1, 31, 16 });
+                }
+                verifyTensorData(outputTiles[i], 0);
+            }
+        }
+    }
+
+    SECTION("3x3 strides") {
+        // Inputs and outputs use DimNH, None for weights.
+        convOp->setStride(3, 3);
+        TensorShape inputShape(
+                { 1, 64, 64, 32 }, DataLayout::NHWC, SmvBackend::Alignment);
+        Tensor* inputs = new Tensor("inputs", inputShape);
+        workspace()->addTensor(inputs);
+        convOp->setInput(inputs, 0);
+        convOp->setWeightDims(5, 5, 16);
+        convOp->createAllTensors();
+        allocateAllTensors<float16>(convOp);
+        TilingConfig config = TilingOptimizer::computeBasicTileShapes(convOp);
+        REQUIRE(config.inputs.dims() == std::vector<int>{ 1, 8, 64, 32 });
+        REQUIRE(config.weights.dims() == std::vector<int>{ 16, 5, 5, 32 });
+        REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 2, 20, 16 });
+
+        SECTION("Generated tiles have correct shape and data") {
+            fillTensorWithData(inputs);
+            TiledTensor inputTiles = generateTiledTensor(
+                    inputs, config.inputs, { 0, 2, 0, 0 }, workspace());
+            REQUIRE(inputTiles.size() == 11);
+            for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
+                auto& testDims = inputTiles[i]->getShape().dims();
+                if (i < 10) {
+                    REQUIRE(testDims == config.inputs.dims());
+                } else {
+                    REQUIRE(testDims == std::vector<int>{ 1, 4, 64, 32 });
+                }
+                verifyTensorData(inputTiles[i], 0);
+            }
+
+            auto weights = convOp->getInput(1);
+            fillTensorWithData(weights);
+            TiledTensor weightTiles = generateTiledTensor(
+                    weights, config.weights, { 0, 0, 0, 0 }, workspace());
+            REQUIRE(weightTiles.size() == 1);
+            verifyTensorData(weightTiles[0], 0);
+
+            auto outputs = convOp->getOutput(0);
+            fillTensorWithData(outputs);
+            TiledTensor outputTiles =
+                    TilingOptimizer::generateRowwiseOutputTiledTensor(
+                            convOp, inputTiles, weightTiles, config.outputs,
+                            outputs, true);
+            REQUIRE(outputTiles.size() == 11);
+            for (auto i = outputTiles.startIndex(); !i.end(); ++i) {
+                auto& testDims = outputTiles[i]->getShape().dims();
+                if (i < 10) {
+                    REQUIRE(testDims == config.outputs.dims());
+                } else {
+                    REQUIRE(testDims == std::vector<int>{ 1, 1, 20, 16 });
+                }
+                verifyTensorData(outputTiles[i], 0);
+            }
+        }
+    }
+}

@@ -185,7 +185,8 @@ TilingConfig TilingOptimizer::computeBasicTileShapes(SmvConvolutionOp* op) {
     } else if (inputTilingDims == DimNH) {
         for (int n = 1; n <= inputsShape[0]; n++) {
             int minRows = std::min(inputsShape[1], weightsShape[1]);
-            for (int r = minRows; r <= inputsShape[1]; r += 1) {
+            for (int r = minRows; r <= inputsShape[1];
+                 r += op->getRowStride()) {
                 TensorShape config = inputsShape;
                 config[0] = n;
                 config[1] = r;
@@ -199,8 +200,10 @@ TilingConfig TilingOptimizer::computeBasicTileShapes(SmvConvolutionOp* op) {
         int minChannels = std::min(kNumMaccsPerPE, inputsShape[3]);
         int minRows = std::min(inputsShape[1], weightsShape[1]);
         for (int n = 1; n <= inputsShape[0]; n++) {
-            for (int c = minChannels; c <= inputsShape[3]; c+=kNumMaccsPerPE) {
-                for (int r = minRows; r <= inputsShape[1]; r += 1) {
+            for (int c = minChannels; c <= inputsShape[3];
+                 c += kNumMaccsPerPE) {
+                for (int r = minRows; r <= inputsShape[1];
+                     r += op->getRowStride()) {
                     TensorShape config({ n, r, inputsShape[2], c },
                                        inputsShape.getLayout(),
                                        SmvBackend::Alignment);
