@@ -70,6 +70,7 @@ void smv_matrix_multiply_transpose_nc_vec_fxp(float16* host_a,
     int results_height = results_dims[0];
     ASSERT(b_width % VECTOR_SIZE == 0 &&
            "Width of b must be a multiple of VECTOR_SIZE!");
+    int a_width_vec = a_width / VECTOR_SIZE;
     int b_width_vec = b_width / VECTOR_SIZE;
     int a_size = a_height * (a_width + a_pad);
     int b_size = b_height * (b_width + b_pad);
@@ -115,9 +116,8 @@ void smv_matrix_multiply_transpose_nc_vec_fxp(float16* host_a,
                 a_reg_load:
                 for (int a_vec = 0; a_vec < NUM_MACC_INSTS; a_vec++) {
                     int a_col = a_start / VECTOR_SIZE + b_col + a_vec;
-                    a_reg[a_vec] = a_col >= b_width_vec
-                                               ? zero
-                                               : _a[a_act][a_col];
+                    a_reg[a_vec] =
+                            a_col >= a_width_vec ? zero : _a[a_act][a_col];
                 }
 
                 pe_insts:
