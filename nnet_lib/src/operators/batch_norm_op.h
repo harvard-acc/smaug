@@ -4,6 +4,7 @@
 #include "core/backend.h"
 #include "core/operator.h"
 #include "core/tensor.h"
+#include "core/tensor_utils.h"
 #include "core/workspace.h"
 // TODO: This might be dangerous...
 #include "operators/reorder_op.h"

@@ -3,6 +3,7 @@
 #include "fp16.h"
 #include "core/workspace.h"
 #include "core/tensor.h"
+#include "core/tensor_utils.h"
 
 namespace smaug {
 

@@ -6,6 +6,7 @@
 #include "core/backend.h"
 #include "core/operator.h"
 #include "core/workspace.h"
+#include "core/tensor_utils.h"
 #include "core/types.pb.h"
 
 namespace smaug {
