@@ -175,4 +175,36 @@ void untileTiledTensor(TiledTensor& tiledTensor, Tensor* destTensor) {
     }
 }
 
+Tensor* concatTensors(std::vector<Tensor*> inputTensors,
+                      int concatDim,
+                      Workspace* workspace) {
+    std::string outputName;
+    TensorShape inputShape = inputTensors[0]->getShape();
+    std::vector<int> outputDims = inputShape.dims();
+    // Calculate the shape for the output tensor.
+    for (int i = 0; i < inputTensors.size(); i++) {
+        outputName += inputTensors[i]->getName();
+        outputDims[concatDim] += inputTensors[i]->getShape()[concatDim];
+    }
+    TensorShape outputShape(
+            outputDims, inputShape.getLayout(), inputShape.getAlignment());
+    Tensor* outputTensor = new Tensor(outputName, outputShape);
+    workspace->addTensor(outputTensor);
+    outputTensor->allocateStorage(inputTensors[0]->getDataType());
+    // Copy data into the output tensor.
+    int ndims = inputShape.ndims();
+    std::vector<int> currentOrigin(ndims, 0);
+    std::vector<int> srcOrigin(ndims, 0);
+    for (int i = 0; i < inputTensors.size(); i++) {
+        TensorShape srcShape = inputTensors[i]->getShape();
+        copyTensorRegion(outputTensor,
+                         inputTensors[i],
+                         currentOrigin,
+                         srcOrigin,
+                         srcShape.dims());
+        currentOrigin[concatDim] += srcShape[concatDim];
+    }
+    return outputTensor;
+}
+
 }  // namespace smaug

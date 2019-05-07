@@ -91,6 +91,10 @@ TiledTensor generateTiledTensor(Tensor* tensor,
 // "untile" because what it does reverses the tiling process.
 void untileTiledTensor(TiledTensor& tiledTensor, Tensor* destTensor);
 
+// This concatenates tensors on the specified dimension into one single tensor.
+Tensor* concatTensors(std::vector<Tensor*> inputTensors,
+                      int concatDim,
+                      Workspace* workspace);
 
 }  // namespace smaug
 
