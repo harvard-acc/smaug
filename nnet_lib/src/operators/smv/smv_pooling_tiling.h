@@ -4,6 +4,7 @@
 #include "core/backend.h"
 #include "core/tensor.h"
 #include "operators/smv/smv_tiling_common.h"
+#include "operators/smv/smv_tiling_base.h"
 
 namespace smaug {
 
@@ -12,17 +13,12 @@ class SmvPoolingOp;
 namespace smv {
 namespace pool {
 
-class TilingOptimizer {
+class TilingOptimizer : public TilingOptimizerBase {
    public:
     static std::array<TiledTensor, 2> doTiling(SmvPoolingOp* op);
     static TilingConfig computeBasicTileShapes(SmvPoolingOp* op);
 
    protected:
-    static TilingDims findBestTilingDims(const TensorShape& shape,
-                                         int maxTileSize,
-                                         int minN,
-                                         int minH,
-                                         int minC);
     static std::array<TilingDims, 2> determineBestTilingDims(
             Tensor* inputs,
             Tensor* outputs,

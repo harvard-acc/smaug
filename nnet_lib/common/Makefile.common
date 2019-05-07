@@ -21,6 +21,7 @@ SRCS = src/operators/common.cpp \
        src/operators/ref/ref_softmax_op.cpp \
        src/operators/ref/ref_tanh_op.cpp \
        src/operators/smv/smv_tiling_common.cpp \
+       src/operators/smv/smv_tiling_base.cpp \
        src/operators/smv/smv_convolution_op.cpp \
        src/operators/smv/smv_convolution_tiling.cpp \
        src/operators/smv/kernels/convolution_simd.c \

@@ -10,47 +10,6 @@ namespace smaug {
 namespace smv {
 namespace conv {
 
-// Find the best set of dimensions to tile a given tensor shape.
-//
-// The goal is to divide up a tensor into tiles that each are <= maxTileSize
-// elements.  Assuming that the input tensor data layout is NHWC, the
-// preferences for tiling dimensions are as follows:
-//   1) No tiling.
-//   2) Dim-N tiling. For inputs/outputs, this would be over batches of inputs.
-//      For weights, this would be over filters/output channels.
-//   3) Dim-NC tiling. After tiling by N, tile channelwise. Do not tile in HW.
-//   4) Dim-NH tiling. After tiling by N, tile rowwise. Do not tile in WC.
-//   5) Dim-NCH tiling. After tiling by N and channel dimensions, tile rowwise.
-//      Do not tile in W.
-//
-// For options 2-5, a minimum size for each dimension can be specified via
-// minN, minH, and minC.
-TilingDims TilingOptimizer::findBestTilingDims(const TensorShape& shape,
-                                               int maxTileSize,
-                                               int minN,
-                                               int minH,
-                                               int minC) {
-    minN = std::min(shape[0], minN);
-    minH = std::min(shape[1], minH);
-    // C is the last dimension, so we need to apply padding.
-    minC = std::min(shape[3] + shape.getPadding(3), minC);
-    if (shape.storageSize() <= maxTileSize)
-        return TilingDims::None;
-    int sizePerN = shape.storageSize() / shape[0];
-    if (sizePerN * minN <= maxTileSize)
-        return TilingDims::DimN;
-    if (sizePerN / shape[3] * minC <= maxTileSize)
-        return TilingDims::DimNC;
-    if (sizePerN / shape[1] * minH <= maxTileSize)
-        return TilingDims::DimNH;
-    if (sizePerN * (minC / shape[3]) * (minH / shape[1]) <= maxTileSize)
-        return TilingDims::DimNCH;
-    std::cerr << "[ERROR]: Unable to find a supported set of tiling dimensions "
-                 "for tensor with shape " << shape << "!\n";
-    assert(false && "Unable to find valid tiling dimensions.");
-    return TilingDims::Invalid;
-}
-
 // Determine the best tiling dimensions for running convolution on SMV.
 //
 // This function imposes some additional constraints on the tiling dimensions,

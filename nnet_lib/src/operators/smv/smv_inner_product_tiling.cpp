@@ -10,38 +10,6 @@ namespace smaug {
 namespace smv {
 namespace fc {
 
-// Find the best set of dimensions to tile a given tensor shape.
-//
-// The goal is to divide up a tensor into tiles that each are <= maxTileSize
-// elements.  Assuming that the input tensor data layout is NC, the preferences
-// for tiling dimensions are as follows:
-//   1) No tiling.
-//   2) Dim-N tiling. For inputs/outputs, this would be over batches of inputs.
-//      For weights, this would be over neurons.
-//   3) Dim-NC tiling. After tiling by N, tile activations.
-//
-// For options 2 and 3, a minimum size for each dimension can be specified via
-// minN and minC.
-TilingDims TilingOptimizer::findBestTilingDims(const TensorShape& shape,
-                                               int maxTileSize,
-                                               int minN,
-                                               int minC) {
-    minN = std::min(shape[0], minN);
-    // C is the last dimension, so we need to apply padding.
-    minC = std::min(shape[1] + shape.getPadding(1), minC);
-    if (shape.storageSize() <= maxTileSize)
-        return TilingDims::None;
-    int sizePerN = shape.storageSize() / shape[0];
-    if (sizePerN * minN <= maxTileSize)
-        return TilingDims::DimN;
-    if (sizePerN / shape[1] * minC <= maxTileSize)
-        return TilingDims::DimNC;
-    std::cerr << "[ERROR]: Unable to find a supported set of tiling dimensions "
-                 "for tensor with shape " << shape << "!\n";
-    assert(false && "Unable to find valid tiling dimensions.");
-    return TilingDims::Invalid;
-}
-
 // Determine the best tiling dimensions for running inner product on SMV.
 //
 // This function imposes some additional constraints on the tiling dimensions,
@@ -54,16 +22,12 @@ std::array<TilingDims, 3> TilingOptimizer::determineBestTilingDims(
         Tensor* inputs, Tensor* weights, Tensor* outputs, int maxTileSize) {
     // Determine the best tiling strategy for each of inputs, weights, and
     // outputs. Don't try to figure out the actual tile sizes yet.
-    TilingDims bestInputTilingDims = findBestTilingDims(inputs->getShape(),
-                                                        maxTileSize,
-                                                        1,
-                                                        kNumMaccsPerPE);
-    TilingDims bestWeightTilingDims = findBestTilingDims(weights->getShape(),
-                                                         maxTileSize,
-                                                         kNumPEs,
-                                                         kNumMaccsPerPE);
+    TilingDims bestInputTilingDims = findBestTilingDims(
+            inputs->getShape(), maxTileSize, 1, 0, kNumMaccsPerPE);
+    TilingDims bestWeightTilingDims = findBestTilingDims(
+            weights->getShape(), maxTileSize, kNumPEs, 0, kNumMaccsPerPE);
     TilingDims bestOutputTilingDims =
-            findBestTilingDims(outputs->getShape(), maxTileSize, 1, kNumPEs);
+            findBestTilingDims(outputs->getShape(), maxTileSize, 1, 0, kNumPEs);
 
     // Apply some constraints to simplify tiling logic.
     //
