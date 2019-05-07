@@ -29,13 +29,14 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
     // iteration when that happens.
     assert(outputs.size() == 1 &&
            "Inner product outputs tiling not implemented yet!");
+    int inputNumTiles = inputs.getShape()[0];
     int inputActTiles = inputs.getShape()[1];
     int weightActTiles = weights.getShape()[1];
     int weightNeuronTiles = weights.getShape()[0];
     auto inputIdx = inputs.startIndex();
     auto weightIdx = weights.startIndex();
     auto outputIdx = outputs.startIndex();
-    for (int N = 0; N < inputs.getShape()[0]; N++) {
+    for (int N = 0; N < inputNumTiles; N++) {
         // Usually we are constrained by weights whereas outputs can fit in the
         // scratchpad. This keeps track of finished neurons and will be used by
         // the kernel for correct offset in the outputs scratchpad.
@@ -43,9 +44,6 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
         for (int W = 0; W < weightNeuronTiles; W++) {
             Tensor* outputTile = outputs[outputIdx(N, 0)];
             const TensorShape& outputShape = outputTile->getShape();
-            // When we finish the last neuron-wise tile, the partial sums become
-            // complete and the outputs are sent back to the host memory.
-            bool sendOutputs = W == weightNeuronTiles - 1;
             int iC = 0, wC = 0;
             // This keeps track of the activation offset of the inputs.
             int actOffset = 0;
@@ -75,6 +73,11 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
                 // to true for non-first weight tiles to avoid resetting the
                 // result buffer.
                 bool accumulate = wC > 0;
+                // We only need to send the results back to host memory in the
+                // very last invocation.
+                bool sendOutputs = (N == inputNumTiles - 1) &&
+                                   (W == weightNeuronTiles - 1) &&
+                                   (wC == weightActTiles - 1);
 
                 invokeKernel(smv::kInnerProductHw,
                              smv_matrix_multiply_transpose_nc_vec_fxp,
