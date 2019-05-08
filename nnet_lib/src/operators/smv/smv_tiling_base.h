@@ -12,9 +12,17 @@ class TilingOptimizerBase {
    protected:
     static TilingDims findBestTilingDims(const TensorShape& shape,
                                          int maxTileSize,
-                                         int minN,
-                                         int minH,
-                                         int minC);
+                                         const std::vector<int>& minShape);
+    static void enum2DTensorTilingConfigs(TensorShape shape,
+                                          int maxTileSize,
+                                          const std::vector<int>& minShape,
+                                          const std::vector<int>& strides,
+                                          std::vector<TensorShape>& configs);
+    static void enum4DTensorTilingConfigs(TensorShape shape,
+                                          int maxTileSize,
+                                          const std::vector<int>& minShape,
+                                          const std::vector<int>& strides,
+                                          std::vector<TensorShape>& configs);
 };
 
 }  // namespace smv

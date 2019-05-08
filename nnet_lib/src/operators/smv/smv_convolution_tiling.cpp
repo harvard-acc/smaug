@@ -22,20 +22,22 @@ std::array<TilingDims, 3> TilingOptimizer::determineBestTilingDims(
         Tensor* inputs, Tensor* weights, Tensor* outputs, int maxTileSize) {
     // Determine the best tiling strategy for each of inputs, weights, and
     // outputs. Don't try to figure out the actual tile sizes yet.
-    TilingDims bestInputTilingDims = findBestTilingDims(inputs->getShape(),
-                                                        maxTileSize,
-                                                        1,
-                                                        weights->getShape()[1],
-                                                        kNumMaccsPerPE);
-    TilingDims bestWeightTilingDims = findBestTilingDims(weights->getShape(),
-                                                         maxTileSize,
-                                                         kNumPEs,
-                                                         weights->getShape()[1],
-                                                         kNumMaccsPerPE);
+    TilingDims bestInputTilingDims =
+            findBestTilingDims(inputs->getShape(),
+                               maxTileSize,
+                               { 1, weights->getShape()[1],
+                                 inputs->getShape()[2], kNumMaccsPerPE });
+    TilingDims bestWeightTilingDims =
+            findBestTilingDims(weights->getShape(),
+                               maxTileSize,
+                               { kNumPEs, weights->getShape()[1],
+                                 weights->getShape()[2], kNumMaccsPerPE });
     assert(bestWeightTilingDims != TilingDims::DimNH &&
            "Weights cannot be tiled by dimensions NH!");
     TilingDims bestOutputTilingDims =
-            findBestTilingDims(outputs->getShape(), maxTileSize, 1, 1, kNumPEs);
+            findBestTilingDims(outputs->getShape(),
+                               maxTileSize,
+                               { 1, 1, outputs->getShape()[2], kNumPEs });
 
     // Apply some constraints to simplify tiling logic.
     //
@@ -118,61 +120,37 @@ TilingConfig TilingOptimizer::computeBasicTileShapes(SmvConvolutionOp* op) {
     // one is the chosen one.
     std::vector<TensorShape> inputConfigs;
     if (inputTilingDims == DimN) {
-        for (int n = 1; n <= inputsShape[0]; n++) {
-            TensorShape config;
-            config = inputsShape;
-            config[0] = n;
-            if (config.storageSize() <= maxTileSize)
-                inputConfigs.push_back(config);
-            else
-                break;
-        }
+        std::vector<int> minShape = inputsShape.dims();
+        minShape[0] = 1;
+        enum4DTensorTilingConfigs(inputsShape,
+                                  maxTileSize,
+                                  minShape,
+                                  { 1, 1, 1, 1 },
+                                  inputConfigs);
     } else if (inputTilingDims == DimNC) {
-        for (int n = 1; n <= inputsShape[0]; n++) {
-            int minChannels = std::min(kNumMaccsPerPE, inputsShape[3]);
-            for (int c = minChannels; c <= inputsShape[3]; c+=kNumMaccsPerPE) {
-                TensorShape config;
-                config = inputsShape;
-                config[0] = n;
-                config[3] = c;
-                if (config.storageSize() <= maxTileSize)
-                    inputConfigs.push_back(config);
-                else
-                    break;
-            }
-        }
+        std::vector<int> minShape = inputsShape.dims();
+        minShape[0] = 1;
+        minShape[3] = kNumMaccsPerPE;
+        enum4DTensorTilingConfigs(inputsShape,
+                                  maxTileSize,
+                                  minShape,
+                                  { 1, 1, 1, kNumMaccsPerPE },
+                                  inputConfigs);
     } else if (inputTilingDims == DimNH) {
-        for (int n = 1; n <= inputsShape[0]; n++) {
-            int minRows = std::min(inputsShape[1], weightsShape[1]);
-            for (int r = minRows; r <= inputsShape[1];
-                 r += op->getRowStride()) {
-                TensorShape config = inputsShape;
-                config[0] = n;
-                config[1] = r;
-                if (config.storageSize() <= maxTileSize)
-                    inputConfigs.push_back(config);
-                else
-                    break;
-            }
-        }
+        std::vector<int> minShape = inputsShape.dims();
+        minShape[0] = 1;
+        minShape[1] = weightsShape[1];
+        enum4DTensorTilingConfigs(inputsShape,
+                                  maxTileSize,
+                                  minShape,
+                                  { 1, op->getRowStride(), 1, 1 },
+                                  inputConfigs);
     } else if (inputTilingDims == DimNCH) {
-        int minChannels = std::min(kNumMaccsPerPE, inputsShape[3]);
-        int minRows = std::min(inputsShape[1], weightsShape[1]);
-        for (int n = 1; n <= inputsShape[0]; n++) {
-            for (int c = minChannels; c <= inputsShape[3];
-                 c += kNumMaccsPerPE) {
-                for (int r = minRows; r <= inputsShape[1];
-                     r += op->getRowStride()) {
-                    TensorShape config({ n, r, inputsShape[2], c },
-                                       inputsShape.getLayout(),
-                                       SmvBackend::Alignment);
-                    if (config.storageSize() <= maxTileSize)
-                        inputConfigs.push_back(config);
-                    else
-                        break;
-                }
-            }
-        }
+        std::vector<int> minShape = { 1, weightsShape[1], inputsShape[2],
+                                      kNumMaccsPerPE };
+        std::vector<int> strides = { 1, op->getRowStride(), 1, kNumMaccsPerPE };
+        enum4DTensorTilingConfigs(
+                inputsShape, maxTileSize, minShape, strides, inputConfigs);
     } else {
         inputConfigs.push_back(inputsShape);
     }

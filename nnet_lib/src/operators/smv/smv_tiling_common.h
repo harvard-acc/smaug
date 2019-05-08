@@ -17,7 +17,10 @@ enum TilingDims {
 
 struct TilingConfig {
   public:
-    TilingConfig() {}
+    TilingConfig(TensorShape _inputs = TensorShape(),
+                 TensorShape _weights = TensorShape(),
+                 TensorShape _outputs = TensorShape())
+            : inputs(_inputs), weights(_weights), outputs(_outputs) {}
 
     int getTotalSize() const {
         return inputs.storageSize() + weights.storageSize() +

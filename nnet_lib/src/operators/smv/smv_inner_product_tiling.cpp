@@ -23,11 +23,11 @@ std::array<TilingDims, 3> TilingOptimizer::determineBestTilingDims(
     // Determine the best tiling strategy for each of inputs, weights, and
     // outputs. Don't try to figure out the actual tile sizes yet.
     TilingDims bestInputTilingDims = findBestTilingDims(
-            inputs->getShape(), maxTileSize, 1, 0, kNumMaccsPerPE);
+            inputs->getShape(), maxTileSize, { 1, kNumMaccsPerPE });
     TilingDims bestWeightTilingDims = findBestTilingDims(
-            weights->getShape(), maxTileSize, kNumPEs, 0, kNumMaccsPerPE);
-    TilingDims bestOutputTilingDims =
-            findBestTilingDims(outputs->getShape(), maxTileSize, 1, 0, kNumPEs);
+            weights->getShape(), maxTileSize, { kNumPEs, kNumMaccsPerPE });
+    TilingDims bestOutputTilingDims = findBestTilingDims(
+            outputs->getShape(), maxTileSize, { 1, kNumPEs });
 
     // Apply some constraints to simplify tiling logic.
     //
@@ -98,28 +98,19 @@ TilingConfig TilingOptimizer::computeBasicTileShapes(SmvInnerProductOp* op) {
     // one is the chosen one.
     std::vector<TensorShape> inputConfigs;
     if (inputTilingDims == DimN) {
-        for (int n = 1; n <= inputsShape[0]; n++) {
-            TensorShape config;
-            config = inputsShape;
-            config[0] = n;
-            if (config.storageSize() <= maxTileSize)
-                inputConfigs.push_back(config);
-            else
-                break;
-        }
+        enum2DTensorTilingConfigs(inputsShape,
+                                  maxTileSize,
+                                  { 1, inputsShape[1] },
+                                  { 1, 1 },
+                                  inputConfigs);
     } else if (inputTilingDims == DimNC) {
-        for (int n = 1; n <= inputsShape[0]; n++) {
-            int minChannels = std::min(kNumMaccsPerPE, inputsShape[1]);
-            for (int c = minChannels; c <= inputsShape[1]; c+=kNumMaccsPerPE) {
-                TensorShape config({ n, c },
-                                   inputsShape.getLayout(),
-                                   SmvBackend::Alignment);
-                if (config.storageSize() <= maxTileSize)
-                    inputConfigs.push_back(config);
-                else
-                    break;
-            }
-        }
+        std::vector<int> minShape = inputsShape.dims();
+        enum2DTensorTilingConfigs(inputsShape,
+                                  maxTileSize,
+                                  { 1, kNumMaccsPerPE },
+                                  { 1, kNumMaccsPerPE },
+                                  inputConfigs);
+
     } else {
         inputConfigs.push_back(inputsShape);
     }

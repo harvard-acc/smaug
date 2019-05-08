@@ -25,13 +25,14 @@ std::array<TilingDims, 2> TilingOptimizer::determineBestTilingDims(
         std::pair<int, int> poolSize) {
     // Determine the best tiling strategy for each of inputs and outputs. Don't
     // try to figure out the actual tile sizes yet.
-    TilingDims bestInputTilingDims = findBestTilingDims(inputs->getShape(),
-                                                        maxTileSize,
-                                                        1,
-                                                        poolSize.first,
-                                                        kVectorSize);
-    TilingDims bestOutputTilingDims = findBestTilingDims(
-            outputs->getShape(), maxTileSize, 1, 1, kVectorSize);
+    TilingDims bestInputTilingDims = findBestTilingDims(
+            inputs->getShape(),
+            maxTileSize,
+            { 1, poolSize.first, inputs->getShape()[2], kVectorSize });
+    TilingDims bestOutputTilingDims =
+            findBestTilingDims(outputs->getShape(),
+                               maxTileSize,
+                               { 1, 1, outputs->getShape()[2], kVectorSize });
 
     // Apply some constraints to simplify tiling logic.
     //
@@ -97,69 +98,41 @@ TilingConfig TilingOptimizer::computeBasicTileShapes(SmvPoolingOp* op) {
     //    the input shape and fit.
     // For all tiling strategy, compute the total SRAM utilization. The highest
     // one is the chosen one.
-    // TODO: the tiling logic here shares a lot in common with the convolution
-    // operator. We should be able to refactor the code.
-    std::list<TilingConfig> inputConfigs;
+    std::vector<TensorShape> inputConfigs;
     if (inputTilingDims == DimN) {
-        for (int n = 1; n <= inputsShape[0]; n++) {
-            TilingConfig config;
-            config.inputs = inputsShape;
-            config.inputs[0] = n;
-            if (config.inputs.storageSize() <= maxTileSize)
-                inputConfigs.push_back(config);
-            else
-                break;
-        }
+        std::vector<int> minShape = inputsShape.dims();
+        minShape[0] = 1;
+        enum4DTensorTilingConfigs(inputsShape,
+                                  maxTileSize,
+                                  minShape,
+                                  { 1, 1, 1, 1 },
+                                  inputConfigs);
     } else if (inputTilingDims == DimNC) {
-        for (int n = 1; n <= inputsShape[0]; n++) {
-            int minChannels = std::min(kVectorSize, inputsShape[3]);
-            for (int c = minChannels; c <= inputsShape[3]; c += kVectorSize) {
-                TilingConfig config;
-                config.inputs = inputsShape;
-                config.inputs[0] = n;
-                config.inputs[3] = c;
-                if (config.inputs.storageSize() <= maxTileSize)
-                    inputConfigs.push_back(config);
-                else
-                    break;
-            }
-        }
+        std::vector<int> minShape = inputsShape.dims();
+        minShape[0] = 1;
+        minShape[3] = kVectorSize;
+        enum4DTensorTilingConfigs(inputsShape,
+                                  maxTileSize,
+                                  minShape,
+                                  { 1, 1, 1, kVectorSize },
+                                  inputConfigs);
     } else if (inputTilingDims == DimNH) {
-        for (int n = 1; n <= inputsShape[0]; n++) {
-            int minRows = std::min(inputsShape[1], poolSize.first);
-            for (int r = minRows; r <= inputsShape[1]; r += poolStride.first) {
-                TilingConfig config;
-                config.inputs = inputsShape;
-                config.inputs[0] = n;
-                config.inputs[1] = r;
-                if (config.inputs.storageSize() <= maxTileSize)
-                    inputConfigs.push_back(config);
-                else
-                    break;
-            }
-        }
+        std::vector<int> minShape = inputsShape.dims();
+        minShape[0] = 1;
+        minShape[1] = poolSize.first;
+        enum4DTensorTilingConfigs(inputsShape,
+                                  maxTileSize,
+                                  minShape,
+                                  { 1, poolStride.first, 1, 1 },
+                                  inputConfigs);
     } else if (inputTilingDims == DimNCH) {
-        int minChannels = std::min(kVectorSize, inputsShape[3]);
-        int minRows = std::min(inputsShape[1], poolSize.first);
-        for (int n = 1; n <= inputsShape[0]; n++) {
-            for (int c = minChannels; c <= inputsShape[3]; c += kVectorSize) {
-                for (int r = minRows; r <= inputsShape[1];
-                     r += poolStride.first) {
-                    TilingConfig config;
-                    config.inputs = TensorShape({ n, r, inputsShape[2], c },
-                                                inputsShape.getLayout(),
-                                                SmvBackend::Alignment);
-                    if (config.inputs.storageSize() <= maxTileSize)
-                        inputConfigs.push_back(config);
-                    else
-                        break;
-                }
-            }
-        }
+        std::vector<int> minShape = { 1, poolSize.first, inputsShape[2],
+                                      kVectorSize };
+        std::vector<int> strides = { 1, poolStride.first, 1, kVectorSize };
+        enum4DTensorTilingConfigs(
+                inputsShape, maxTileSize, minShape, strides, inputConfigs);
     } else {
-        TilingConfig config;
-        config.inputs = inputsShape;
-        inputConfigs.push_back(config);
+        inputConfigs.push_back(inputsShape);
     }
     assert(!inputConfigs.empty() && "No tiling configurations found!");
 
@@ -167,7 +140,7 @@ TilingConfig TilingOptimizer::computeBasicTileShapes(SmvPoolingOp* op) {
     std::vector<TilingConfig> fullConfigs;
     for (auto it = inputConfigs.begin(); it != inputConfigs.end();
          ++it) {
-        TilingConfig config = *it;
+        TilingConfig config(*it);
         config.outputs = outputsShape;
         config.outputs[0] = config.inputs[0];
         if (needsHwiseTiling(outputTilingDims)) {
