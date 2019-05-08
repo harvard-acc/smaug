@@ -23,6 +23,7 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
     int inputChanTiles = inputs.getShape()[3];
     int weightOfmapTiles = weights.getShape()[0];
     int weightChanTiles = weights.getShape()[3];
+    int outputRowTiles = outputs.getShape()[1];
     int outputChanTiles = outputs.getShape()[3];
     auto inputIdx = inputs.startIndex();
     auto weightIdx = weights.startIndex();
@@ -37,7 +38,7 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
     int leftPad = FRAC_CEIL(totalColPad, 2);
     int rightPad = totalColPad - leftPad;
     for (int N = 0; N < inputIfmapTiles; N++) {
-        for (int H = 0; H < inputRowTiles; H++) {
+        for (int H = 0; H < outputRowTiles; H++) {
             int currentTileTopPad = topPad;
             int currentTileBottomPad = bottomPad;
             if (inputRowTiles > 1) {

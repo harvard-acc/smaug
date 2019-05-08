@@ -290,15 +290,6 @@ TiledTensor TilingOptimizer::generateRowwiseOutputTiledTensor(
     const TensorShape& inputShape = inputTiledTensor.getShape();
     const TensorShape& weightsShape = weightsTiledTensor.getShape();
     const TensorShape& outputShape = outputTensor->getShape();
-    std::vector<int> numBlocksInDim{ inputShape[0], inputShape[1],
-                                     inputShape[2], weightsShape[0] };
-    TiledTensor outputTiledTensor(
-            TensorShape(numBlocksInDim, inputShape.getLayout()));
-    const int ndims = outputShape.ndims();
-    std::vector<int> currentOrigin(ndims, 0);
-    auto inputIndex = inputTiledTensor.startIndex();
-    auto weightIndex = weightsTiledTensor.startIndex();
-    auto outputIndex = outputTiledTensor.startIndex();
     int weightRows = op->getWeightRows();
     int weightCols = op->getWeightCols();
     bool samePadding = op->getPadding() == SamePadding;
@@ -307,6 +298,22 @@ TiledTensor TilingOptimizer::generateRowwiseOutputTiledTensor(
     int bottomRowPad = samePadding ? (weightRows - 1 - topRowPad) : 0;
     int leftColPad = samePadding ? FRAC_CEIL(weightCols - 1, 2) : 0;
     int rightColPad = samePadding ? (weightCols - 1 - leftColPad) : 0;
+    std::vector<int> numBlocksInDim{ inputShape[0], inputShape[1],
+                                     inputShape[2], weightsShape[0] };
+    // Due to stride > 1, there is a case where the last rowwise tile doesn't
+    // have enough rows for convolution. If so, we need to decrease the row
+    // dimension by 1 in the output tiled tensor.
+    int lastTileRows =
+            inputTiledTensor[inputTiledTensor.size() - 1]->getShape()[1];
+    if (lastTileRows + bottomRowPad < weightRows)
+        numBlocksInDim[1]--;
+    TiledTensor outputTiledTensor(
+            TensorShape(numBlocksInDim, inputShape.getLayout()));
+    const int ndims = outputShape.ndims();
+    std::vector<int> currentOrigin(ndims, 0);
+    auto inputIndex = inputTiledTensor.startIndex();
+    auto weightIndex = weightsTiledTensor.startIndex();
+    auto outputIndex = outputTiledTensor.startIndex();
     for (int n = 0; n < numBlocksInDim[0]; n++) {
         for (int h = 0; h < numBlocksInDim[1]; h++) {
             for (int w = 0; w < numBlocksInDim[2]; w++) {

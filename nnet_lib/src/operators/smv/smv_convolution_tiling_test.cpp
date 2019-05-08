@@ -698,14 +698,10 @@ TEST_CASE_METHOD(SmaugTest, "Stride size tests", "[smvtiling]") {
                     TilingOptimizer::generateRowwiseOutputTiledTensor(
                             convOp, inputTiles, weightTiles, config.outputs,
                             outputs, true);
-            REQUIRE(outputTiles.size() == 11);
+            REQUIRE(outputTiles.size() == 10);
             for (auto i = outputTiles.startIndex(); !i.end(); ++i) {
                 auto& testDims = outputTiles[i]->getShape().dims();
-                if (i < 10) {
-                    REQUIRE(testDims == config.outputs.dims());
-                } else {
-                    REQUIRE(testDims == std::vector<int>{ 1, 1, 20, 16 });
-                }
+                REQUIRE(testDims == config.outputs.dims());
                 verifyTensorWithFixedData(outputTiles[i], 0);
             }
         }
