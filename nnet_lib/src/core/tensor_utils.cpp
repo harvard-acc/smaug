@@ -178,12 +178,12 @@ void untileTiledTensor(TiledTensor& tiledTensor, Tensor* destTensor) {
 Tensor* concatTensors(std::vector<Tensor*> inputTensors,
                       int concatDim,
                       Workspace* workspace) {
-    std::string outputName;
+    std::string outputName = inputTensors[0]->getName();
     TensorShape inputShape = inputTensors[0]->getShape();
     std::vector<int> outputDims = inputShape.dims();
     // Calculate the shape for the output tensor.
-    for (int i = 0; i < inputTensors.size(); i++) {
-        outputName += inputTensors[i]->getName();
+    for (int i = 1; i < inputTensors.size(); i++) {
+        outputName += ("-" + inputTensors[i]->getName());
         outputDims[concatDim] += inputTensors[i]->getShape()[concatDim];
     }
     TensorShape outputShape(
