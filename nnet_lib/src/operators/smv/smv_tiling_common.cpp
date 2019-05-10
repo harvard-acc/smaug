@@ -17,8 +17,14 @@ std::ostream& operator<<(std::ostream& os, const TilingDims& dims) {
       case DimNH:
           os << "DimNH";
           break;
+      case DimNW:
+          os << "DimNW";
+          break;
       case DimNCH:
           os << "DimNCH";
+          break;
+      case DimNCW:
+          os << "DimNCW";
           break;
       case Invalid:
           os << "Invalid";
@@ -36,7 +42,7 @@ bool needsNwiseTiling(TilingDims dim) {
 
 // C means channel for convolution and activations for inner product.
 bool needsCwiseTiling(TilingDims dim) {
-    return (dim == DimNC) || (dim == DimNCH);
+    return (dim == DimNC) || (dim == DimNCH) || (dim == DimNCW);
 }
 
 // H means row for convolution.

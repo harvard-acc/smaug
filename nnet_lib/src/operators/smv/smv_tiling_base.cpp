@@ -17,13 +17,14 @@ namespace smv {
 //   2) Dim-N tiling. N is the input batch.
 //   3) Dim-NC tiling. After tiling by N, tile channelwise. Do not tile in HW.
 //   4) Dim-NH tiling. After tiling by N, tile rowwise. Do not tile in WC.
-//   5) Dim-NCH tiling. After tiling by N and channel dimensions, tile rowwise.
+//   5) Dim-NW tiling. After tiling by N, tile columnwise. Do not tile in HC.
+//   6) Dim-NCH tiling. After tiling by N and channel dimensions, tile rowwise.
 //      Do not tile in W.
+//   7) Dim-NCW tiling. After tiling by N and channel dimensions, tile
+//      columnwise. Do not tile in H.
 //
-// For options 2-5, a minimum size for each dimension can be deduced from
-// minShape. Note that for a 2D tensor shape, only options 1-3 are viable.
-//
-// TODO: W-wise (or column-wise) tiling is not supported yet.
+// Except Option 1, a minimum size for each dimension can be deduced from
+// minShape. Note that for a 2D tensor shape, only options 1-5 are viable.
 TilingDims TilingOptimizerBase::findBestTilingDims(
         const TensorShape& shape,
         int maxTileSize,
@@ -48,12 +49,19 @@ TilingDims TilingOptimizerBase::findBestTilingDims(
         exit(1);
     }
     int hIdx = isNHWC ? 1 : 2;
+    int wIdx = isNHWC ? 2 : 3;
     int minH = std::min(shape[hIdx], minShape[hIdx]);
+    int minW = std::min(shape[wIdx], minShape[wIdx]);
     if (sizePerN * (minH * 1.0 / shape[hIdx]) <= maxTileSize)
         return TilingDims::DimNH;
+    if (sizePerN * (minW * 1.0 / shape[wIdx]) <= maxTileSize)
+        return TilingDims::DimNW;
     if (sizePerN * (minC * 1.0 / shape[cIdx]) * (minH * 1.0 / shape[hIdx]) <=
         maxTileSize)
         return TilingDims::DimNCH;
+    if (sizePerN * (minC * 1.0 / shape[cIdx]) * (minW * 1.0 / shape[wIdx]) <=
+        maxTileSize)
+        return TilingDims::DimNCW;
     std::cerr << "[ERROR]: Unable to find a supported set of tiling dimensions "
                  "for 4D tensor with shape "
               << shape << "!\n";

@@ -11,7 +11,9 @@ enum TilingDims {
     DimN,
     DimNC,
     DimNH,
+    DimNW,
     DimNCH,
+    DimNCW,
     Invalid
 };
 
