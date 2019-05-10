@@ -70,6 +70,30 @@ void smv_avgpooling_nhwc_vec_fxp(float16* host_inputs,
                                  int col_stride,
                                  int ofmap_start);
 
+void smv_batch_norm_post_fc_nc_vec_fxp(float16* host_inputs,
+                                       float16* host_weights,
+                                       float16* host_results,
+                                       float* inputs,
+                                       float* weights,
+                                       float* results,
+                                       int inputs_dims[2],
+                                       int weights_acts,
+                                       int inputs_pad,
+                                       int inputs_start,
+                                       int send_results);
+
+void smv_batch_norm_post_conv_nchw_vec_fxp(float16* host_inpits,
+                                           float16* host_weights,
+                                           float16* host_results,
+                                           float* inputs,
+                                           float* weights,
+                                           float* results,
+                                           int inputs_dims[4],
+                                           int weights_chans,
+                                           int inputs_pad,
+                                           int weights_pad,
+                                           int weights_start);
+
 #ifdef __cplusplus
 }
 #endif

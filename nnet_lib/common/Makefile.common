@@ -31,6 +31,9 @@ SRCS = src/operators/common.cpp \
        src/operators/smv/smv_pooling_op.cpp \
        src/operators/smv/smv_pooling_tiling.cpp \
        src/operators/smv/kernels/pooling.c \
+       src/operators/smv/smv_batch_norm_op.cpp \
+       src/operators/smv/smv_batch_norm_tiling.cpp \
+       src/operators/smv/kernels/batch_norm.c \
        src/core/backend.cpp \
        src/core/globals.cpp \
        src/core/tensor_utils.cpp \
@@ -60,6 +63,8 @@ TESTS = src/core/tensor_test.cpp \
         src/operators/smv/smv_inner_product_op_test.cpp \
         src/operators/smv/smv_pooling_tiling_test.cpp \
         src/operators/smv/smv_pooling_op_test.cpp \
+        src/operators/smv/smv_batch_norm_tiling_test.cpp \
+        src/operators/smv/smv_batch_norm_op_test.cpp \
         src/operators/smv/kernels/load_store_fp16_data_test.cpp
 PY_TESTS = src/python/tensor_test.py \
            src/python/ops_test.py

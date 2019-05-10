@@ -27,3 +27,5 @@ smv_conv3d_nhwc_vec_fxp
 smv_matrix_multiply_transpose_nc_vec_fxp
 smv_maxpooling_nhwc_vec_fxp
 smv_avgpooling_nhwc_vec_fxp
+smv_batch_norm_post_fc_nc_vec_fxp
+smv_batch_norm_post_conv_nchw_vec_fxp

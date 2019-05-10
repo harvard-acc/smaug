@@ -15,6 +15,7 @@
 #include "operators/smv/smv_convolution_op.h"
 #include "operators/smv/smv_inner_product_op.h"
 #include "operators/smv/smv_pooling_op.h"
+#include "operators/smv/smv_batch_norm_op.h"
 
 namespace smaug {
 
@@ -55,12 +56,12 @@ DEF_CREATE_SMV_OP(ConvolutionOp)
 DEF_CREATE_SMV_OP(InnerProductOp)
 DEF_CREATE_SMV_OP(MaxPoolingOp)
 DEF_CREATE_SMV_OP(AvgPoolingOp)
+DEF_CREATE_SMV_OP(BatchNormOp)
 DEF_CREATE_OP(DataOp, SmvBackend)
 DEF_CREATE_OP(DepthwiseConvolutionOp, SmvBackend)
 DEF_CREATE_OP(SoftmaxOp, SmvBackend)
 DEF_CREATE_OP(ReorderOp, SmvBackend)
 DEF_CREATE_OP(FlattenOp, SmvBackend)
-DEF_CREATE_OP(BatchNormOp, SmvBackend)
 DEF_CREATE_OP(EltwiseAddOp, SmvBackend)
 DEF_CREATE_OP(ReluOp, SmvBackend)
 DEF_CREATE_OP(SigmoidOp, SmvBackend)
