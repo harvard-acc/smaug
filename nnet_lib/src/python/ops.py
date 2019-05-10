@@ -145,9 +145,9 @@ def relu(name, input_tensor):
 
 def batch_norm(name, input_tensor, mean_tensor, var_tensor, gamma_tensor,
                beta_tensor):
-  assert (len(mean_tensor.shape.dims) == 1 and len(var_tensor.shape.dims) == 1
-          and len(gamma_tensor.shape.dims) == 1
-          and len(beta_tensor.shape.dims) == 1)
+  assert (len(mean_tensor.shape.dims) == 2 and len(var_tensor.shape.dims) == 2
+          and len(gamma_tensor.shape.dims) == 2
+          and len(beta_tensor.shape.dims) == 2)
   # If the batch norm is after a FC layer, then the input/output tensors should
   # be in NC. Otherwise, the batch norm is after a convolution layer, and we
   # check backend_layouts for expected input/output layouts and do layout

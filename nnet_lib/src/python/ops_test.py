@@ -58,13 +58,13 @@ class OperatorTest:
       weight_tensor1 = Tensor(
           data_layout=NC, tensor_data=np.random.rand(10, 254).astype(np_dtype))
       bn_mean_tensor = Tensor(
-          data_layout=X, tensor_data=np.random.rand(64).astype(np_dtype))
+          data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np_dtype))
       bn_var_tensor = Tensor(
-          data_layout=X, tensor_data=np.random.rand(64).astype(np_dtype))
+          data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np_dtype))
       bn_gamma_tensor = Tensor(
-          data_layout=X, tensor_data=np.random.rand(64).astype(np_dtype))
+          data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np_dtype))
       bn_beta_tensor = Tensor(
-          data_layout=X, tensor_data=np.random.rand(64).astype(np_dtype))
+          data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np_dtype))
 
       out = input_data("input", input_tensor)
       out = convolution(
@@ -107,13 +107,13 @@ class OperatorTest:
           data_layout=NCHW,
           tensor_data=np.random.rand(64, 64, 3, 3).astype(np_dtype))
       bn_mean_tensor = Tensor(
-          data_layout=X, tensor_data=np.random.rand(64).astype(np_dtype))
+          data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np_dtype))
       bn_var_tensor = Tensor(
-          data_layout=X, tensor_data=np.random.rand(64).astype(np_dtype))
+          data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np_dtype))
       bn_gamma_tensor = Tensor(
-          data_layout=X, tensor_data=np.random.rand(64).astype(np_dtype))
+          data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np_dtype))
       bn_beta_tensor = Tensor(
-          data_layout=X, tensor_data=np.random.rand(64).astype(np_dtype))
+          data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np_dtype))
 
       act = input_data("input", input_tensor)
       x = convolution(
@@ -253,23 +253,23 @@ class SequentialGraphTest(OperatorTest):
     # Weight tensors
     self.assertEqual(node.input_tensors[1].name, "bn/mean")
     self.assertEqual(node.input_tensors[1].data_type, self.expected_dtype)
-    self.assertEqual(node.input_tensors[1].shape.dims, [64])
-    self.assertEqual(node.input_tensors[1].shape.layout, X)
+    self.assertEqual(node.input_tensors[1].shape.dims, [1, 64])
+    self.assertEqual(node.input_tensors[1].shape.layout, NC)
     self.assertEqual(node.input_tensors[1].shape.alignment, self.alignment)
     self.assertEqual(node.input_tensors[2].name, "bn/var")
     self.assertEqual(node.input_tensors[2].data_type, self.expected_dtype)
-    self.assertEqual(node.input_tensors[2].shape.dims, [64])
-    self.assertEqual(node.input_tensors[2].shape.layout, X)
+    self.assertEqual(node.input_tensors[2].shape.dims, [1, 64])
+    self.assertEqual(node.input_tensors[2].shape.layout, NC)
     self.assertEqual(node.input_tensors[2].shape.alignment, self.alignment)
     self.assertEqual(node.input_tensors[3].name, "bn/gamma")
     self.assertEqual(node.input_tensors[3].data_type, self.expected_dtype)
-    self.assertEqual(node.input_tensors[3].shape.dims, [64])
-    self.assertEqual(node.input_tensors[3].shape.layout, X)
+    self.assertEqual(node.input_tensors[3].shape.dims, [1, 64])
+    self.assertEqual(node.input_tensors[3].shape.layout, NC)
     self.assertEqual(node.input_tensors[3].shape.alignment, self.alignment)
     self.assertEqual(node.input_tensors[4].name, "bn/beta")
     self.assertEqual(node.input_tensors[4].data_type, self.expected_dtype)
-    self.assertEqual(node.input_tensors[4].shape.dims, [64])
-    self.assertEqual(node.input_tensors[4].shape.layout, X)
+    self.assertEqual(node.input_tensors[4].shape.dims, [1, 64])
+    self.assertEqual(node.input_tensors[4].shape.layout, NC)
     self.assertEqual(node.input_tensors[4].shape.alignment, self.alignment)
     # Output tensor
     self.assertEqual(node.output_tensors[0].name, "bn")
@@ -474,23 +474,23 @@ class ResidualGraphTest(OperatorTest):
     # Weight tensors
     self.assertEqual(node.input_tensors[1].name, "bn/mean")
     self.assertEqual(node.input_tensors[1].data_type, self.expected_dtype)
-    self.assertEqual(node.input_tensors[1].shape.dims, [64])
-    self.assertEqual(node.input_tensors[1].shape.layout, X)
+    self.assertEqual(node.input_tensors[1].shape.dims, [1, 64])
+    self.assertEqual(node.input_tensors[1].shape.layout, NC)
     self.assertEqual(node.input_tensors[1].shape.alignment, self.alignment)
     self.assertEqual(node.input_tensors[2].name, "bn/var")
     self.assertEqual(node.input_tensors[2].data_type, self.expected_dtype)
-    self.assertEqual(node.input_tensors[2].shape.dims, [64])
-    self.assertEqual(node.input_tensors[2].shape.layout, X)
+    self.assertEqual(node.input_tensors[2].shape.dims, [1, 64])
+    self.assertEqual(node.input_tensors[2].shape.layout, NC)
     self.assertEqual(node.input_tensors[2].shape.alignment, self.alignment)
     self.assertEqual(node.input_tensors[3].name, "bn/gamma")
     self.assertEqual(node.input_tensors[3].data_type, self.expected_dtype)
-    self.assertEqual(node.input_tensors[3].shape.dims, [64])
-    self.assertEqual(node.input_tensors[3].shape.layout, X)
+    self.assertEqual(node.input_tensors[3].shape.dims, [1, 64])
+    self.assertEqual(node.input_tensors[3].shape.layout, NC)
     self.assertEqual(node.input_tensors[3].shape.alignment, self.alignment)
     self.assertEqual(node.input_tensors[4].name, "bn/beta")
     self.assertEqual(node.input_tensors[4].data_type, self.expected_dtype)
-    self.assertEqual(node.input_tensors[4].shape.dims, [64])
-    self.assertEqual(node.input_tensors[4].shape.layout, X)
+    self.assertEqual(node.input_tensors[4].shape.dims, [1, 64])
+    self.assertEqual(node.input_tensors[4].shape.layout, NC)
     self.assertEqual(node.input_tensors[4].shape.alignment, self.alignment)
     # Output tensor
     self.assertEqual(node.output_tensors[0].name, "bn")

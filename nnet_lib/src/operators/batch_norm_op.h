@@ -46,11 +46,12 @@ class BatchNormOp : public Operator {
             // This is a volume which should be batch norm'ed by feature map.
             bool isNCHW = layout == DataLayout::NCHW;
             int fmaps = isNCHW ? shape[ndims - 3] : shape[ndims - 1];
-            return TensorShape({ fmaps }, DataLayout::X, Backend::Alignment);
+            return TensorShape(
+                    { 1, fmaps }, DataLayout::NC, Backend::Alignment);
         } else if (ndims == 2) {
             if (layout == DataLayout::NC)
                 return TensorShape(
-                        { shape[1] }, DataLayout::X, Backend::Alignment);
+                        { 1, shape[1] }, DataLayout::NC, Backend::Alignment);
             else
                 assert(false && "Unexpected data layout for batch norm!");
         } else {

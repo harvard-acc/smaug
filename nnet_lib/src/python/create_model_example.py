@@ -68,13 +68,13 @@ def create_sequential_model():
     weight_tensor1 = Tensor(
         data_layout=NC, tensor_data=np.random.rand(10, 256).astype(np.float32))
     bn_mean_tensor = Tensor(
-        data_layout=X, tensor_data=np.random.rand(64).astype(np.float32))
+        data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np.float32))
     bn_var_tensor = Tensor(
-        data_layout=X, tensor_data=np.random.rand(64).astype(np.float32))
+        data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np.float32))
     bn_gamma_tensor = Tensor(
-        data_layout=X, tensor_data=np.random.rand(64).astype(np.float32))
+        data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np.float32))
     bn_beta_tensor = Tensor(
-        data_layout=X, tensor_data=np.random.rand(64).astype(np.float32))
+        data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np.float32))
 
     out = input_data("input", input_tensor)
     out = convolution(
