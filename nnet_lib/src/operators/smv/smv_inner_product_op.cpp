@@ -44,6 +44,9 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
         for (int W = 0; W < weightNeuronTiles; W++) {
             Tensor* outputTile = outputs[outputIdx(N, 0)];
             const TensorShape& outputShape = outputTile->getShape();
+            mapArrayToAccel(smv::kInnerProductHw, "host_results",
+                            outputTile->data<float16>(),
+                            outputShape.storageSize() * sizeof(float16));
             int iC = 0, wC = 0;
             // This keeps track of the activation offset of the inputs.
             int actOffset = 0;
@@ -61,6 +64,12 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
                 Tensor* weightsTile = weights[weightIdx(W, wC)];
                 const TensorShape& inputShape = inputTile->getShape();
                 const TensorShape& weightsShape = weightsTile->getShape();
+                mapArrayToAccel(smv::kInnerProductHw, "host_a",
+                                inputTile->data<float16>(),
+                                inputShape.storageSize() * sizeof(float16));
+                mapArrayToAccel(smv::kInnerProductHw, "host_b",
+                                weightsTile->data<float16>(),
+                                weightsShape.storageSize() * sizeof(float16));
                 int inputDims[2] = { inputShape[0], inputShape[1] };
                 int weightsDims[2] = { weightsShape[0], weightsShape[1] };
                 int outputDims[2] = { outputShape[0], outputShape[1] };
