@@ -97,6 +97,8 @@ extern float* spad2;
 
 class SmvConvolutionOp;
 class SmvInnerProductOp;
+class SmvMaxPoolingOp;
+class SmvAvgPoolingOp;
 class SmvBackend {
 
 #define DECL_CREATE_OP(OpType)                                                 \
@@ -133,10 +135,10 @@ class SmvBackend {
 
     DECL_CREATE_SMV_OP(ConvolutionOp);
     DECL_CREATE_SMV_OP(InnerProductOp);
+    DECL_CREATE_SMV_OP(MaxPoolingOp);
+    DECL_CREATE_SMV_OP(AvgPoolingOp);
     DECL_CREATE_OP(DataOp);
     DECL_CREATE_OP(DepthwiseConvolutionOp);
-    DECL_CREATE_OP(MaxPoolingOp);
-    DECL_CREATE_OP(AvgPoolingOp);
     DECL_CREATE_OP(SoftmaxOp);
     DECL_CREATE_OP(ReorderOp);
     DECL_CREATE_OP(FlattenOp);

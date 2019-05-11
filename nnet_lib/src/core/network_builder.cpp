@@ -25,6 +25,7 @@
 #include "operators/tanh_op.h"
 #include "operators/smv/smv_convolution_op.h"
 #include "operators/smv/smv_inner_product_op.h"
+#include "operators/smv/smv_pooling_op.h"
 #include "utility/utils.h"
 #include "utility/debug_stream.h"
 
