@@ -67,6 +67,30 @@ size_t next_multiple(size_t request, size_t align);
 }
 #endif
 
+typedef enum _activation_type {
+    NO_ACTIVATION,
+    RELU,
+    RELU_THRESHOLD,
+    LRELU,
+    ELU,
+    SELU,
+    TANH,
+    HARD_TANH,
+    SIGMOID,
+    SOFTMAX
+} activation_type;
+
+typedef struct _activation_param_t {
+    // LReLU
+    float slope;
+    // ELU/SELU
+    float alpha;
+    float lambda;
+    // Hard Tanh
+    float min;
+    float max;
+} activation_param_t;
+
 // Scalar types.
 typedef float fp_t;
 typedef int sfx_t;
@@ -210,6 +234,22 @@ typedef sfx_t v4sfx_t
                     input_array_name
 
 #endif
+
+// Apply a mask to a 256-bit packed single precision FP vector.
+//
+// The mask is a vector of either 0s or -1s (all 1s). Entries that are have a
+// mask of 0 are zeroed out.
+//
+// LLVM is smart enough to turn this into a SELECT instruction, rather than a
+// bitwise mask!
+//
+// Args:
+//    input: a v8fp_t vector
+//    mask: a v8sfx_t vector of either 0s or -1s.
+#define VEC256_MASK(input, mask) ((v8fp_t)((v8sfx_t)input & mask))
+
+// Same as above, but for 128-bit vectors.
+#define VEC128_MASK(input, mask) ((v4fp_t)((v4sfx_t)input & mask))
 
 // Macros for computing the maximum of a group of elements.
 //
