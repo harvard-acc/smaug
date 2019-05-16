@@ -19,10 +19,17 @@ std::array<TilingDims, 2> TilingOptimizer::determineBestTilingDims(
     // Determine the best tiling dims for each of inputs and weights. The
     // outputs have the same shape as the inputs and should use the same tiling
     // dims.
-    TilingDims bestInputTilingDims = findBestTilingDims(
-            inputs->getShape(),
-            maxTileSize,
-            { 1, kVectorSize, weights->getShape()[1], kVectorSize });
+    const TensorShape& inputShape = inputs->getShape();
+    TilingDims bestInputTilingDims;
+    if (inputShape.ndims() == 4) {
+        bestInputTilingDims = findBestTilingDims(
+                inputShape,
+                maxTileSize,
+                { 1, inputShape[1], kVectorSize, kVectorSize });
+    } else {
+        bestInputTilingDims =
+                findBestTilingDims(inputShape, maxTileSize, { 1, kVectorSize });
+    }
     TilingDims bestWeightTilingDims = findBestTilingDims(
             weights->getShape(), maxTileSize, { 4, kVectorSize });
 
@@ -138,28 +145,28 @@ void TilingOptimizer::enumPostConvTilingConfigs(
     } else if (inputTilingDims == DimNC) {
         std::vector<int> minShape = inputsShape.dims();
         minShape[0] = 1;
-        minShape[1] = kVectorSize;
-        enum4DTensorTilingConfigs(inputsShape,
-                                  maxTileSize,
-                                  minShape,
-                                  { 1, kVectorSize, 1, 1 },
-                                  inputsConfigs);
-    } else if (inputTilingDims == DimNW) {
-        std::vector<int> minShape = inputsShape.dims();
-        minShape[0] = 1;
         minShape[3] = kVectorSize;
         enum4DTensorTilingConfigs(inputsShape,
                                   maxTileSize,
                                   minShape,
                                   { 1, 1, 1, kVectorSize },
                                   inputsConfigs);
+    } else if (inputTilingDims == DimNW) {
+        std::vector<int> minShape = inputsShape.dims();
+        minShape[0] = 1;
+        minShape[2] = kVectorSize;
+        enum4DTensorTilingConfigs(inputsShape,
+                                  maxTileSize,
+                                  minShape,
+                                  { 1, 1, kVectorSize, 1 },
+                                  inputsConfigs);
     } else if (inputTilingDims == DimNCW) {
-        std::vector<int> minShape = { 1, kVectorSize, inputsShape[2],
+        std::vector<int> minShape = { 1, inputsShape[1], kVectorSize,
                                       kVectorSize };
         enum4DTensorTilingConfigs(inputsShape,
                                   maxTileSize,
                                   minShape,
-                                  { 1, kVectorSize, 1, kVectorSize },
+                                  { 1, 1, kVectorSize, kVectorSize },
                                   inputsConfigs);
     } else {
         inputsConfigs.push_back(inputsShape);

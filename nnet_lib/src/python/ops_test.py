@@ -274,7 +274,9 @@ class SequentialGraphTest(OperatorTest):
     # Output tensor
     self.assertEqual(node.output_tensors[0].name, "bn")
     self.assertEqual(node.output_tensors[0].data_type, self.expected_dtype)
-    self.assertEqual(node.output_tensors[0].shape.dims, [1, 64, 28, 28])
+    self.assertEqualDims(node.output_tensors[0].shape.dims,
+                         node.output_tensors[0].shape.layout, [1, 64, 28, 28],
+                         NCHW)
     self.assertEqual(node.output_tensors[0].shape.layout,
                      node.input_tensors[0].shape.layout)
     self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
@@ -495,7 +497,9 @@ class ResidualGraphTest(OperatorTest):
     # Output tensor
     self.assertEqual(node.output_tensors[0].name, "bn")
     self.assertEqual(node.output_tensors[0].data_type, self.expected_dtype)
-    self.assertEqual(node.output_tensors[0].shape.dims, [1, 64, 28, 28])
+    self.assertEqualDims(node.output_tensors[0].shape.dims,
+                         node.output_tensors[0].shape.layout, [1, 64, 28, 28],
+                         NCHW)
     self.assertEqual(node.output_tensors[0].shape.layout,
                      node.input_tensors[0].shape.layout)
     self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
@@ -543,22 +547,14 @@ class SMVSequentialGraphTest(smaug_test.SmaugTest, SequentialGraphTest):
     # conv0_relu (ReLU).
     node = self.get_node(self.test_graph.graph, "conv0_relu")
     self.assertEqual(node.parents[0], "conv0")
-    self.assertEqual(node.children[0], "conv0_relu->bn")
-    # Reorder conv0_relu from NHWC to HCHW.
-    node = self.get_node(self.test_graph.graph, "conv0_relu->bn")
-    self.assertEqual(node.parents[0], "conv0_relu")
     self.assertEqual(node.children[0], "bn")
     # bn (BN).
     node = self.get_node(self.test_graph.graph, "bn")
-    self.assertEqual(node.parents[0], "conv0_relu->bn")
-    self.assertEqual(node.children[0], "bn->conv1")
-    # Reorder bn from NCHW to NHWC.
-    node = self.get_node(self.test_graph.graph, "bn->conv1")
-    self.assertEqual(node.parents[0], "bn")
+    self.assertEqual(node.parents[0], "conv0_relu")
     self.assertEqual(node.children[0], "conv1")
     # conv1 (Convolution).
     node = self.get_node(self.test_graph.graph, "conv1")
-    self.assertEqual(node.parents[0], "bn->conv1")
+    self.assertEqual(node.parents[0], "bn")
     self.assertEqual(node.children[0], "conv1_relu")
     # conv1_relu (ReLU).
     node = self.get_node(self.test_graph.graph, "conv1_relu")
@@ -680,26 +676,18 @@ class SMVResidualGraphTest(smaug_test.SmaugTest, ResidualGraphTest):
     # conv1 (Convolution).
     node = self.get_node(self.test_graph.graph, "conv1")
     self.assertEqual(node.parents[0], "input->conv0")
-    self.assertEqual(node.children[0], "conv1->bn")
-    # Reorder input from NHWC to NCHW.
-    node = self.get_node(self.test_graph.graph, "conv1->bn")
-    self.assertEqual(node.parents[0], "conv1")
     self.assertEqual(node.children[0], "bn")
     # bn (BN).
     node = self.get_node(self.test_graph.graph, "bn")
-    self.assertEqual(node.parents[0], "conv1->bn")
+    self.assertEqual(node.parents[0], "conv1")
     self.assertEqual(node.children[0], "relu")
     # relu (ReLU).
     node = self.get_node(self.test_graph.graph, "relu")
     self.assertEqual(node.parents[0], "bn")
-    self.assertEqual(node.children[0], "relu->conv2")
-    # Reorder input from NCHW to NHWC.
-    node = self.get_node(self.test_graph.graph, "relu->conv2")
-    self.assertEqual(node.parents[0], "relu")
     self.assertEqual(node.children[0], "conv2")
     # conv2 (Convolution).
     node = self.get_node(self.test_graph.graph, "conv2")
-    self.assertEqual(node.parents[0], "relu->conv2")
+    self.assertEqual(node.parents[0], "relu")
     self.assertEqual(node.children[0], "add")
     # add (EltwiseAdd).
     node = self.get_node(self.test_graph.graph, "add")

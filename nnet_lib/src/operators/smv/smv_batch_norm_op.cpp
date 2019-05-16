@@ -84,17 +84,17 @@ void SmvBatchNormOp::runNA(TiledTensor& inputs,
 // The tile dispatcher for post-convolution batch norms. The tile iteration is
 // in the following order:
 // 1) N: batch-wise tiles in the inputs.
-// 2) C: channel-wise tiles in the inputs.
-// 3) W: column-wise tiles in the inputs.
+// 2) W: column-wise tiles in the inputs.
+// 3) C: channel-wise tiles in the inputs.
 // TODO: Add row-wise tiling if we need it later.
-void SmvBatchNormOp::runNCW(TiledTensor& inputs,
+void SmvBatchNormOp::runNWC(TiledTensor& inputs,
                             TiledTensor& weights,
                             TiledTensor& outputs) {
     // Ordinarily, we don't need to tile the weights.
     assert(weights.size() == 1);
     int inputNumTiles = inputs.getShape()[0];
-    int inputColTiles = inputs.getShape()[3];
-    int inputChanTiles = inputs.getShape()[1];
+    int inputColTiles = inputs.getShape()[2];
+    int inputChanTiles = inputs.getShape()[3];
     auto inputIdx = inputs.startIndex();
     auto outputIdx = outputs.startIndex();
     Tensor* weightTile = weights[0];
@@ -103,14 +103,14 @@ void SmvBatchNormOp::runNCW(TiledTensor& inputs,
                     weightTile->data<float16>(),
                     weightShape.storageSize() * sizeof(float16));
     for (int N = 0; N < inputNumTiles; N++) {
-        // This keeps track of the channel offset of the inputs.
-        int ifmapOffset = 0;
-        for (int C = 0; C < inputChanTiles; C++) {
-            for (int W = 0; W < inputColTiles; W++) {
-                dout(2) << "Input: " << inputIdx(N, C, 0, W) << ", Weight: 0"
-                        << ", output: " << outputIdx(N, C, 0, W) << "\n";
-                Tensor* inputTile = inputs[inputIdx(N, C, 0, W)];
-                Tensor* outputTile = outputs[outputIdx(N, C, 0, W)];
+        for (int W = 0; W < inputColTiles; W++) {
+            // This keeps track of the channel offset of the inputs.
+            int ifmapOffset = 0;
+            for (int C = 0; C < inputChanTiles; C++) {
+                dout(2) << "Input: " << inputIdx(N, 0, W, C) << ", Weight: 0"
+                        << ", output: " << outputIdx(N, 0, W, C) << "\n";
+                Tensor* inputTile = inputs[inputIdx(N, 0, W, C)];
+                Tensor* outputTile = outputs[outputIdx(N, 0, W, C)];
                 const TensorShape& inputShape = inputTile->getShape();
                 const TensorShape& outputShape = outputTile->getShape();
                 mapArrayToAccel(smv::kBatchNormHw, "host_inputs",
@@ -123,15 +123,15 @@ void SmvBatchNormOp::runNCW(TiledTensor& inputs,
                                      inputShape[2], inputShape[3] };
 
                 invokeKernel(smv::kBatchNormHw,
-                             smv_batch_norm_post_conv_nchw_vec_fxp,
+                             smv_batch_norm_post_conv_nhwc_vec_fxp,
                              inputTile->data<float16>(),
                              weightTile->data<float16>(),
                              outputTile->data<float16>(), smv::spad0,
                              smv::spad1, smv::spad2, inputDims, weightShape[1],
                              inputShape.getPadding(3),
                              weightShape.getPadding(1), ifmapOffset);
+                ifmapOffset += inputShape[3];
             }
-            ifmapOffset += inputs[inputIdx(N, C, 0, 0)]->getShape()[1];
         }
     }
 }
@@ -159,9 +159,9 @@ void SmvBatchNormOp::run() {
     // the four weights tensors into one and does tiling on it.
     std::array<TiledTensor, 3> tiledTensors = TilingOptimizer::doTiling(this);
     if (isPostConv) {
-        assert(inputShape.getLayout() == DataLayout::NCHW);
-        assert(outputShape.getLayout() == DataLayout::NCHW);
-        runNCW(tiledTensors[0], tiledTensors[1], tiledTensors[2]);
+        assert(inputShape.getLayout() == DataLayout::NHWC);
+        assert(outputShape.getLayout() == DataLayout::NHWC);
+        runNWC(tiledTensors[0], tiledTensors[1], tiledTensors[2]);
     } else {
         assert(inputShape.getLayout() == DataLayout::NC);
         assert(outputShape.getLayout() == DataLayout::NC);

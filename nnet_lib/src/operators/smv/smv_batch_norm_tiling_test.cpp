@@ -28,7 +28,7 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
 
     SECTION("No tiling needed") {
         TensorShape inputShape(
-                { 1, 16, 32, 32 }, DataLayout::NCHW, SmvBackend::Alignment);
+                { 1, 32, 32, 16 }, DataLayout::NHWC, SmvBackend::Alignment);
         Tensor* inputs = new Tensor("inputs", inputShape);
         workspace()->addTensor(inputs);
         bnOp->setInput(inputs, 0);
@@ -45,7 +45,7 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
 
     SECTION("DimNC tiling") {
         TensorShape inputShape(
-                { 1, 128, 16, 16 }, DataLayout::NCHW, SmvBackend::Alignment);
+                { 1, 16, 16, 128 }, DataLayout::NHWC, SmvBackend::Alignment);
         Tensor* inputs = new Tensor("inputs", inputShape);
         workspace()->addTensor(inputs);
         bnOp->setInput(inputs, 0);
@@ -55,9 +55,9 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
         auto outputs = bnOp->getOutput(0);
         TilingConfig config = TilingOptimizer::computeBasicTileShapes(
                 inputs, weights, outputs);
-        REQUIRE(config.inputs.dims() == std::vector<int>{ 1, 64, 16, 16 });
+        REQUIRE(config.inputs.dims() == std::vector<int>{ 1, 16, 16, 64 });
         REQUIRE(config.weights == weights->getShape());
-        REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 64, 16, 16 });
+        REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 16, 16, 64 });
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
@@ -67,7 +67,7 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
             for (auto i = inputsTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(inputsTiles[i]->getShape().dims() ==
                         config.inputs.dims());
-                verifyTensorWithFixedData(inputsTiles[i], 0);
+                verifyTensorWithFixedData(inputsTiles[i], 64 * i);
             }
 
             fillTensorWithFixedData(weights);
@@ -85,14 +85,14 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
             for (auto i = outputsTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(outputsTiles[i]->getShape().dims() ==
                         config.outputs.dims());
-                verifyTensorWithFixedData(outputsTiles[i], 0);
+                verifyTensorWithFixedData(outputsTiles[i], 64 * i);
             }
         }
     }
 
     SECTION("DimNW tiling") {
         TensorShape inputShape(
-                { 1, 32, 64, 64 }, DataLayout::NCHW, SmvBackend::Alignment);
+                { 1, 64, 64, 32 }, DataLayout::NHWC, SmvBackend::Alignment);
         Tensor* inputs = new Tensor("inputs", inputShape);
         workspace()->addTensor(inputs);
         bnOp->setInput(inputs, 0);
@@ -102,9 +102,9 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
         auto outputs = bnOp->getOutput(0);
         TilingConfig config = TilingOptimizer::computeBasicTileShapes(
                 inputs, weights, outputs);
-        REQUIRE(config.inputs.dims() == std::vector<int>{ 1, 32, 64, 8 });
+        REQUIRE(config.inputs.dims() == std::vector<int>{ 1, 64, 8, 32 });
         REQUIRE(config.weights == weights->getShape());
-        REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 32, 64, 8 });
+        REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 64, 8, 32 });
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
@@ -114,7 +114,7 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
             for (auto i = inputsTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(inputsTiles[i]->getShape().dims() ==
                         config.inputs.dims());
-                verifyTensorWithFixedData(inputsTiles[i], 8 * i);
+                verifyTensorWithFixedData(inputsTiles[i], 0);
             }
 
             fillTensorWithFixedData(weights);
@@ -132,14 +132,14 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
             for (auto i = outputsTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(outputsTiles[i]->getShape().dims() ==
                         config.outputs.dims());
-                verifyTensorWithFixedData(outputsTiles[i], 8 * i);
+                verifyTensorWithFixedData(outputsTiles[i], 0);
             }
         }
     }
 
     SECTION("DimNCW tiling") {
         TensorShape inputShape(
-                { 1, 64, 128, 128 }, DataLayout::NCHW, SmvBackend::Alignment);
+                { 1, 128, 128, 64 }, DataLayout::NHWC, SmvBackend::Alignment);
         Tensor* inputs = new Tensor("inputs", inputShape);
         workspace()->addTensor(inputs);
         bnOp->setInput(inputs, 0);
@@ -149,9 +149,9 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
         auto outputs = bnOp->getOutput(0);
         TilingConfig config = TilingOptimizer::computeBasicTileShapes(
                 inputs, weights, outputs);
-        REQUIRE(config.inputs.dims() == std::vector<int>{ 1, 8, 128, 16 });
+        REQUIRE(config.inputs.dims() == std::vector<int>{ 1, 128, 16, 8 });
         REQUIRE(config.weights == weights->getShape());
-        REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 8, 128, 16 });
+        REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 128, 16, 8 });
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
@@ -161,7 +161,7 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
             for (auto i = inputsTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(inputsTiles[i]->getShape().dims() ==
                         config.inputs.dims());
-                verifyTensorWithFixedData(inputsTiles[i], (i % 8) * 16);
+                verifyTensorWithFixedData(inputsTiles[i], (i % 8) * 8);
             }
 
             fillTensorWithFixedData(weights);
@@ -179,7 +179,7 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
             for (auto i = outputsTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(outputsTiles[i]->getShape().dims() ==
                         config.outputs.dims());
-                verifyTensorWithFixedData(outputsTiles[i], (i % 8) * 16);
+                verifyTensorWithFixedData(outputsTiles[i], (i % 8) * 8);
             }
         }
     }

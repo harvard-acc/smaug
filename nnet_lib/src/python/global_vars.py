@@ -59,7 +59,7 @@ backend_layouts = {
         MaxPooling: OperatorLayouts([NHWC, NHWC], NHWC),
         AveragePooling: OperatorLayouts([NHWC, NHWC], NHWC),
         InnerProduct: OperatorLayouts([NC, NC], NC),
-        BatchNorm: OperatorLayouts([NCHW, NC, NC, NC, NC], NCHW),
+        BatchNorm: OperatorLayouts([NHWC, NC, NC, NC, NC], NHWC),
         Data: OperatorLayouts([X], X),
         ReLU: OperatorLayouts([X], X),
         LReLU: OperatorLayouts([X], X),

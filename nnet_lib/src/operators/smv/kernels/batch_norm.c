@@ -152,6 +152,66 @@ void smv_batch_norm_post_conv_nchw_vec_fxp(float16* host_inputs,
     dma_store_fp16(results, host_results, results_size, 0, 0);
 }
 
+void smv_batch_norm_post_conv_nhwc_vec_fxp(float16* host_inputs,
+                                           float16* host_weights,
+                                           float16* host_results,
+                                           float* inputs,
+                                           float* weights,
+                                           float* results,
+                                           int inputs_dims[4],
+                                           int weights_chans,
+                                           int inputs_pad,
+                                           int weights_pad,
+                                           int weights_start) {
+    int inputs_nums = inputs_dims[0];
+    int inputs_rows = inputs_dims[1];
+    int inputs_cols = inputs_dims[2];
+    int inputs_chans = inputs_dims[3];
+    int inputs_size = inputs_nums * inputs_rows * inputs_cols *
+                      (inputs_chans + inputs_pad);
+    int weights_size = 4 * (weights_chans + weights_pad);
+    int results_size = inputs_size;
+    int weights_start_vec = weights_start / VECTOR_SIZE;
+    int inputs_chans_vec = FRAC_CEIL(inputs_chans, VECTOR_SIZE);
+
+    // Load inputs and weights if needed.
+    dma_load_fp16(inputs, host_inputs, inputs_size, 0, 0);
+    if (weights_start == 0)
+        dma_load_fp16(weights, host_weights, weights_size, 0, 0);
+
+    VEC_ARRAY_4D(v8fp_t, _inputs, inputs, inputs_rows, inputs_cols,
+                 inputs_chans + inputs_pad);
+    VEC_ARRAY_2D(v8fp_t, _weights, weights, weights_chans + weights_pad);
+    VEC_ARRAY_4D(v8fp_t, _results, results, inputs_rows, inputs_cols,
+                 inputs_chans + inputs_pad);
+
+    bn_batch:
+    for (int i = 0; i < inputs_nums; i++) {
+        bn_chan:
+        for (int h = 0; h < inputs_chans_vec; h++) {
+            v8fp_t mean = _weights[0][h + weights_start_vec];
+            v8fp_t recip_sqrt_var = _weights[1][h + weights_start_vec];
+            v8fp_t gamma = _weights[2][h + weights_start_vec];
+            v8fp_t beta = _weights[3][h + weights_start_vec];
+            bn_row:
+            for (int r = 0; r < inputs_rows; r++) {
+                bn_col:
+                for (int c = 0; c < inputs_cols; c++) {
+                    _results[i][r][c][h] =
+                            batch_norm_simd_op(_inputs[i][r][c][h],
+                                               mean,
+                                               recip_sqrt_var,
+                                               gamma,
+                                               beta);
+                }
+            }
+        }
+    }
+
+    // Store results to the host memory.
+    dma_store_fp16(results, host_results, results_size, 0, 0);
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

@@ -23,13 +23,13 @@ class SmvBatchNormOp : public BatchNormOp<SmvBackend> {
     virtual void run();
     virtual DataLayoutSet getInputDataLayouts() const {
         if (inputs[Inputs]->ndims() == 4)
-            return DataLayoutSet(DataLayout::NCHW);
+            return DataLayoutSet(DataLayout::NHWC);
         else
             return DataLayoutSet(DataLayout::NC);
     }
     virtual DataLayoutSet getOutputDataLayouts() const {
         if (inputs[Inputs]->ndims() == 4)
-            return DataLayoutSet(DataLayout::NCHW);
+            return DataLayoutSet(DataLayout::NHWC);
         return DataLayoutSet(DataLayout::NC);
     }
 
@@ -37,7 +37,7 @@ class SmvBatchNormOp : public BatchNormOp<SmvBackend> {
    // This is for post-FC batch norm.
    void runNA(TiledTensor& inputs, TiledTensor& weights, TiledTensor& outputs);
    // This is for post-Conv bath norm.
-   void runNCW(TiledTensor& inputs, TiledTensor& weights, TiledTensor& outputs);
+   void runNWC(TiledTensor& inputs, TiledTensor& weights, TiledTensor& outputs);
 };
 
 }  // namespace smaug
