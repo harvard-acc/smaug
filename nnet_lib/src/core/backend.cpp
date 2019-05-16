@@ -20,6 +20,7 @@
 #include "operators/smv/smv_elu_op.h"
 #include "operators/smv/smv_tanh_op.h"
 #include "operators/smv/smv_sigmoid_op.h"
+#include "operators/smv/smv_eltwise_add_op.h"
 
 namespace smaug {
 
@@ -67,12 +68,12 @@ DEF_CREATE_SMV_OP(SeluOp)
 DEF_CREATE_SMV_OP(TanhOp)
 DEF_CREATE_SMV_OP(HardTanhOp)
 DEF_CREATE_SMV_OP(SigmoidOp)
+DEF_CREATE_SMV_OP(EltwiseAddOp)
 DEF_CREATE_OP(DataOp, SmvBackend)
 DEF_CREATE_OP(DepthwiseConvolutionOp, SmvBackend)
 DEF_CREATE_OP(SoftmaxOp, SmvBackend)
 DEF_CREATE_OP(ReorderOp, SmvBackend)
 DEF_CREATE_OP(FlattenOp, SmvBackend)
-DEF_CREATE_OP(EltwiseAddOp, SmvBackend)
 
 namespace ref {
 const unsigned kConvolutionHw = 0x0001;

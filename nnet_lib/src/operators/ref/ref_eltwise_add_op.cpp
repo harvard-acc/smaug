@@ -12,6 +12,7 @@ void ref_eltwise_add(float* input0,
                      int input_size) {
     dmaLoad(input0, input0, input_size * sizeof(float));
     dmaLoad(input1, input1, input_size * sizeof(float));
+    eltwise_add_loop:
     for (int i = 0; i < input_size; i++) {
         results[i] = input0[i] + input1[i];
     }

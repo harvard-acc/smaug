@@ -30,3 +30,4 @@ smv_avgpooling_nhwc_vec_fxp
 smv_batch_norm_post_fc_nc_vec_fxp
 smv_batch_norm_post_conv_nchw_vec_fxp
 smv_activation_fun_nc_vec_fxp
+smv_eltwise_add_nc_vec_fxp
