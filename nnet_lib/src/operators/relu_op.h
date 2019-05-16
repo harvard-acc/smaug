@@ -19,6 +19,7 @@ class ReluOp : public UnaryOp<Backend> {
         return slope == 0 ? "ReLU" : "LReLU";
     }
     void setSlope(float _slope) { slope = _slope; }
+    float getSlope () const { return slope; }
 
    protected:
     // Slope in the negative region.

@@ -18,6 +18,7 @@ class EluOp : public UnaryOp<Backend> {
     virtual std::string opTypeName() const { return "ELU"; }
 
     void setAlpha(float _alpha) { alpha = _alpha; }
+    float getAlpha() const { return alpha; }
 
    protected:
     float alpha;
@@ -35,6 +36,7 @@ class SeluOp : public EluOp<Backend> {
     virtual std::string opTypeName() const { return "SELU"; }
 
     void setLambda(float _lambda) { lambda = _lambda; }
+    float getLambda() const { return lambda; }
 
    protected:
     float lambda;

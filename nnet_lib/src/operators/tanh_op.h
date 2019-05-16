@@ -33,6 +33,8 @@ class HardTanhOp : public UnaryOp<Backend> {
 
     void setMin(float _min) { min = _min; }
     void setMax(float _max) { max = _max; }
+    float getMin() const { return min; }
+    float getMax() const { return max; }
 
    protected:
     float min;
