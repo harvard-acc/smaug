@@ -1,6 +1,8 @@
 #ifndef _OPERATORS_SMV_KERNELS_H_
 #define _OPERATORS_SMV_KERNELS_H_
 
+#include "operators/common.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -93,6 +95,14 @@ void smv_batch_norm_post_conv_nchw_vec_fxp(float16* host_inpits,
                                            int inputs_pad,
                                            int weights_pad,
                                            int weights_start);
+
+void smv_activation_fun_nc_vec_fxp(float16* host_inputs,
+                                   float16* host_results,
+                                   float* inputs,
+                                   float* results,
+                                   int inputs_size,
+                                   activation_type function,
+                                   activation_param_t params);
 
 #ifdef __cplusplus
 }

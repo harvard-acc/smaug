@@ -96,6 +96,39 @@ void copyTensorRegion(Tensor* dest,
     }
 }
 
+// Copy a block of a tensor to another tensor.
+void copyRawTensorData(Tensor* dest,
+                       Tensor* src,
+                       int destOffset,
+                       int srcOffset,
+                       int copySize) {
+    assert(dest->getDataType() == src->getDataType());
+    switch (dest->getDataType()) {
+        case Float16:
+            internal::copyRawTensorData<uint16_t>(
+                    dest, src, destOffset, srcOffset, copySize);
+            break;
+        case Float32:
+            internal::copyRawTensorData<float>(
+                    dest, src, destOffset, srcOffset, copySize);
+            break;
+        case Float64:
+            internal::copyRawTensorData<double>(
+                    dest, src, destOffset, srcOffset, copySize);
+            break;
+        case Int32:
+            internal::copyRawTensorData<int>(
+                    dest, src, destOffset, srcOffset, copySize);
+            break;
+        case Int64:
+            internal::copyRawTensorData<int64_t>(
+                    dest, src, destOffset, srcOffset, copySize);
+            break;
+        default:
+            assert(false && "Unknown data type!");
+    }
+}
+
 TiledTensor generateTiledTensor(Tensor* tensor,
                                 const TensorShape& tileShape,
                                 std::vector<int> halos,
@@ -172,6 +205,20 @@ void untileTiledTensor(TiledTensor& tiledTensor, Tensor* destTensor) {
             } else
                 break;
         }
+    }
+}
+
+void flattenTiledTensor(TiledTensor& tiledTensor, Tensor* destTensor) {
+    const TensorShape& tensorShape = destTensor->getShape();
+    int ndims = tensorShape.ndims();
+    int destOffset = 0;
+    for (auto tileIndex = tiledTensor.startIndex(); !tileIndex.end();
+         ++tileIndex) {
+        Tensor* tile = tiledTensor[tileIndex];
+        const TensorShape& tileShape = tile->getShape();
+        copyRawTensorData(
+                destTensor, tile, destOffset, 0, tileShape.storageSize());
+        destOffset += tileShape.storageSize();
     }
 }
 

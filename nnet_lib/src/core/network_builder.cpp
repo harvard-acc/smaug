@@ -27,6 +27,10 @@
 #include "operators/smv/smv_inner_product_op.h"
 #include "operators/smv/smv_pooling_op.h"
 #include "operators/smv/smv_batch_norm_op.h"
+#include "operators/smv/smv_relu_op.h"
+#include "operators/smv/smv_elu_op.h"
+#include "operators/smv/smv_tanh_op.h"
+#include "operators/smv/smv_sigmoid_op.h"
 #include "utility/utils.h"
 #include "utility/debug_stream.h"
 

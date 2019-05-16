@@ -46,7 +46,6 @@ class UnaryOp : public Operator {
         outputs[Outputs] = output;
     }
 
-   protected:
     enum { Inputs, kNumInputs };
     enum { Outputs, kNumOutputs };
 };

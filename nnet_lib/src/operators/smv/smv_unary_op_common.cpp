@@ -1,0 +1,132 @@
+#include "core/backend.h"
+#include "operators/common.h"
+#include "operators/smv/smv_unary_op_common.h"
+#include "operators/smv/smv_relu_op.h"
+#include "operators/smv/smv_elu_op.h"
+#include "operators/smv/smv_tanh_op.h"
+#include "operators/smv/smv_sigmoid_op.h"
+#include "operators/smv/smv_kernels.h"
+#include "utility/debug_stream.h"
+
+namespace smaug {
+namespace smv {
+namespace unary {
+
+std::pair<activation_type, activation_param_t> getActivationParams(
+        UnaryOp<SmvBackend>* op) {
+    activation_type function;
+    activation_param_t params;
+    OpType opType = op->getOpType();
+    if (opType == OpType::ReLU) {
+        auto reluOp = dynamic_cast<SmvReluOp*>(op);
+        params.slope = reluOp->getSlope();
+        if (params.slope > 0)
+            function = activation_type::LRELU;
+        else
+            function = activation_type::RELU;
+    } else if (opType == OpType::ELU) {
+        function = activation_type::ELU;
+        auto eluOp = dynamic_cast<SmvEluOp*>(op);
+        params.alpha = eluOp->getAlpha();
+    } else if (opType == OpType::SELU) {
+        function = activation_type::SELU;
+        auto seluOp = dynamic_cast<SmvSeluOp*>(op);
+        params.alpha = seluOp->getAlpha();
+        params.lambda = seluOp->getLambda();
+    } else if (opType == OpType::Tanh) {
+        function = activation_type::TANH;
+    } else if (opType == OpType::HardTanh) {
+        function = activation_type::HARD_TANH;
+        auto hardTanhOp = dynamic_cast<SmvHardTanhOp*>(op);
+        params.min = hardTanhOp->getMin();
+        params.max = hardTanhOp->getMax();
+    } else if (opType == OpType::Sigmoid) {
+        function = activation_type::SIGMOID;
+    } else if (opType == OpType::Softmax) {
+        function = activation_type::SOFTMAX;
+    }
+    return { function, params };
+}
+
+// The tile dispatcher for activation functions.
+void runX(UnaryOp<SmvBackend>* op, TiledTensor& inputs, TiledTensor& outputs) {
+    assert(inputs.size() == outputs.size());
+    auto actParams = getActivationParams(op);
+    for (int i = 0; i < inputs.size(); i++) {
+        dout(2) << "Input: " << i << ", output: " << i << "\n";
+        Tensor* inputTile = inputs[i];
+        Tensor* outputTile = outputs[i];
+        const TensorShape& inputShape = inputTile->getShape();
+        const TensorShape& outputShape = outputTile->getShape();
+        mapArrayToAccel(smv::kEltwiseOpHw, "host_inputs",
+                        inputTile->data<float16>(),
+                        inputShape.storageSize() * sizeof(float16));
+        mapArrayToAccel(smv::kEltwiseOpHw, "host_results",
+                        outputTile->data<float16>(),
+                        outputShape.storageSize() * sizeof(float16));
+
+        invokeKernel(smv::kEltwiseOpHw, smv_activation_fun_nc_vec_fxp,
+                     inputTile->data<float16>(), outputTile->data<float16>(),
+                     smv::spad0, smv::spad1, inputShape.storageSize(),
+                     actParams.first, actParams.second);
+    }
+}
+
+TiledTensor generateTiles(Tensor* tensor,
+                          const TensorShape& tileShape,
+                          Workspace* workspace) {
+    const TensorShape& inputShape = tensor->getShape();
+    int inputSize = inputShape.storageSize();
+    int tileSize = tileShape.storageSize();
+    int numTiles = std::ceil(inputSize * 1.0 / tileSize);
+    TiledTensor tiledTensor(TensorShape({ 1, numTiles }, DataLayout::NC));
+    int remainingSize = inputSize;
+    int srcOffset = 0;
+    for (auto tileIndex = tiledTensor.startIndex(); !tileIndex.end();
+         ++tileIndex) {
+        int currentTileSize = std::min(remainingSize, tileSize);
+        TensorShape currentShape({ 1, currentTileSize },
+                                 DataLayout::NC,
+                                 tileShape.getAlignment());
+        std::string tileName =
+                tensor->getName() + "/tile:" + std::to_string((int)tileIndex);
+        Tensor* tile = new Tensor(tileName, currentShape);
+        tile->allocateStorage(tensor->getDataType());
+        copyRawTensorData(tile, tensor, 0, srcOffset, currentTileSize);
+        srcOffset += currentTileSize;
+        remainingSize -= currentTileSize;
+        tiledTensor[tileIndex] = tile;
+    }
+    workspace->addTiledTensor(tiledTensor);
+    return tiledTensor;
+}
+
+std::array<TiledTensor, 2> doTiling(UnaryOp<SmvBackend>* op) {
+    auto inputs = op->getInput(UnaryOp<SmvBackend>::Inputs);
+    auto outputs = op->getOutput(UnaryOp<SmvBackend>::Outputs);
+    // The tiling for unary operators can be greatly simplified in comparison to
+    // other operators. The tile shape is determined as [1, spadSize].
+    int maxTileSize =
+            std::min(SmvBackend::SpadSize() / inputs->getDataTypeSize(),
+                     inputs->getShape().storageSize());
+    TensorShape tileShape(
+            { 1, maxTileSize }, DataLayout::NC, SmvBackend::Alignment);
+    TiledTensor tiledInputs =
+            generateTiles(inputs, tileShape, op->getWorkspace());
+    TiledTensor tiledOutputs =
+            generateTiles(outputs, tileShape, op->getWorkspace());
+    return { tiledInputs, tiledOutputs };
+}
+
+void run(UnaryOp<SmvBackend>* op) {
+    auto inputs = op->getInput(UnaryOp<SmvBackend>::Inputs);
+    auto outputs = op->getOutput(UnaryOp<SmvBackend>::Outputs);
+    std::array<TiledTensor, 2> tiledTensors = doTiling(op);
+    runX(op, tiledTensors[0], tiledTensors[1]);
+    flattenTiledTensor(tiledTensors[1], outputs);
+}
+
+}  // namespace unary
+}  // namespace smv
+}  // namespace smaug
+

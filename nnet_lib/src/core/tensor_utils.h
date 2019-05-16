@@ -55,6 +55,7 @@ void writeTensorToOstream(std::ostream& os, const Tensor& tensor) {
 }
 
 namespace internal {
+
 template <typename DType>
 void copyTensorRegion(Tensor* dest,
                       Tensor* src,
@@ -73,6 +74,22 @@ void copyTensorRegion(Tensor* dest,
         ++srcIt;
     }
 }
+
+// The difference between this and the above one is that this copies data
+// linearly from the tensor to another tensor, whereas the copy in the above one
+// is dimension specific.
+template <typename DType>
+void copyRawTensorData(Tensor* dest,
+                       Tensor* src,
+                       int destOffset,
+                       int srcOffset,
+                       int copySize) {
+    DType* destPtr = dest->template data<DType>();
+    DType* srcPtr = src->template data<DType>();
+    std::memcpy(
+            &destPtr[destOffset], &srcPtr[srcOffset], copySize * sizeof(DType));
+}
+
 }  // namespace internal
 
 void copyTensorRegion(Tensor* dest,
@@ -80,6 +97,9 @@ void copyTensorRegion(Tensor* dest,
                       std::vector<int> destOrigin,
                       std::vector<int> srcOrigin,
                       std::vector<int> regionSize);
+
+void copyRawTensorData(
+        Tensor* dest, Tensor* src, int destOffset, int srcOffset, int copySize);
 
 // This generates a TiledTensor from a Tensor using the specified tile shape.
 TiledTensor generateTiledTensor(Tensor* tensor,
@@ -90,6 +110,13 @@ TiledTensor generateTiledTensor(Tensor* tensor,
 // This will copy data from a tiled tensor into a single tensor. We name it as
 // "untile" because what it does reverses the tiling process.
 void untileTiledTensor(TiledTensor& tiledTensor, Tensor* destTensor);
+
+// The difference between this and untileTiledTensor is:
+//  - untileTiledTensor copies tensors into specific regions of memory
+//    corresponding to their tile origins.
+//  - flattenTiledTensor copies tensor data as a contiguous block into the
+//    destination, as if only a single dimension existed.
+void flattenTiledTensor(TiledTensor& tiledTensor, Tensor* destTensor);
 
 // This concatenates tensors on the specified dimension into one single tensor.
 Tensor* concatTensors(std::vector<Tensor*> inputTensors,

@@ -100,6 +100,12 @@ class SmvInnerProductOp;
 class SmvMaxPoolingOp;
 class SmvAvgPoolingOp;
 class SmvBatchNormOp;
+class SmvReluOp;
+class SmvEluOp;
+class SmvSeluOp;
+class SmvTanhOp;
+class SmvHardTanhOp;
+class SmvSigmoidOp;
 class SmvBackend {
 
 #define DECL_CREATE_OP(OpType)                                                 \
@@ -139,18 +145,18 @@ class SmvBackend {
     DECL_CREATE_SMV_OP(MaxPoolingOp);
     DECL_CREATE_SMV_OP(AvgPoolingOp);
     DECL_CREATE_SMV_OP(BatchNormOp);
+    DECL_CREATE_SMV_OP(ReluOp);
+    DECL_CREATE_SMV_OP(EluOp);
+    DECL_CREATE_SMV_OP(SeluOp);
+    DECL_CREATE_SMV_OP(TanhOp);
+    DECL_CREATE_SMV_OP(HardTanhOp);
+    DECL_CREATE_SMV_OP(SigmoidOp);
     DECL_CREATE_OP(DataOp);
     DECL_CREATE_OP(DepthwiseConvolutionOp);
     DECL_CREATE_OP(SoftmaxOp);
     DECL_CREATE_OP(ReorderOp);
     DECL_CREATE_OP(FlattenOp);
     DECL_CREATE_OP(EltwiseAddOp);
-    DECL_CREATE_OP(ReluOp);
-    DECL_CREATE_OP(SigmoidOp);
-    DECL_CREATE_OP(EluOp);
-    DECL_CREATE_OP(SeluOp);
-    DECL_CREATE_OP(TanhOp);
-    DECL_CREATE_OP(HardTanhOp);
 
 #undef DECL_SMV_OP
 #undef DECL_CREATE_OP

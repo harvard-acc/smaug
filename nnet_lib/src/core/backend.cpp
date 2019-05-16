@@ -16,6 +16,10 @@
 #include "operators/smv/smv_inner_product_op.h"
 #include "operators/smv/smv_pooling_op.h"
 #include "operators/smv/smv_batch_norm_op.h"
+#include "operators/smv/smv_relu_op.h"
+#include "operators/smv/smv_elu_op.h"
+#include "operators/smv/smv_tanh_op.h"
+#include "operators/smv/smv_sigmoid_op.h"
 
 namespace smaug {
 
@@ -57,18 +61,18 @@ DEF_CREATE_SMV_OP(InnerProductOp)
 DEF_CREATE_SMV_OP(MaxPoolingOp)
 DEF_CREATE_SMV_OP(AvgPoolingOp)
 DEF_CREATE_SMV_OP(BatchNormOp)
+DEF_CREATE_SMV_OP(ReluOp)
+DEF_CREATE_SMV_OP(EluOp)
+DEF_CREATE_SMV_OP(SeluOp)
+DEF_CREATE_SMV_OP(TanhOp)
+DEF_CREATE_SMV_OP(HardTanhOp)
+DEF_CREATE_SMV_OP(SigmoidOp)
 DEF_CREATE_OP(DataOp, SmvBackend)
 DEF_CREATE_OP(DepthwiseConvolutionOp, SmvBackend)
 DEF_CREATE_OP(SoftmaxOp, SmvBackend)
 DEF_CREATE_OP(ReorderOp, SmvBackend)
 DEF_CREATE_OP(FlattenOp, SmvBackend)
 DEF_CREATE_OP(EltwiseAddOp, SmvBackend)
-DEF_CREATE_OP(ReluOp, SmvBackend)
-DEF_CREATE_OP(SigmoidOp, SmvBackend)
-DEF_CREATE_OP(EluOp, SmvBackend)
-DEF_CREATE_OP(SeluOp, SmvBackend)
-DEF_CREATE_OP(TanhOp, SmvBackend)
-DEF_CREATE_OP(HardTanhOp, SmvBackend)
 
 namespace ref {
 const unsigned kConvolutionHw = 0x0001;
