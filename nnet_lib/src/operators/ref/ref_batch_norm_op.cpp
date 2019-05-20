@@ -105,6 +105,54 @@ void ref_batch_norm_nchw_post_conv(float* inputs,
     dmaStore(result, result, result_size * sizeof(float));
 }
 
+void ref_batch_norm_nhwc_post_conv(float* inputs,
+                                   float* mean,
+                                   float* variance,
+                                   float* gamma,
+                                   float* beta,
+                                   float* result,
+                                   int img_nums,
+                                   int img_rows,
+                                   int img_cols,
+                                   int img_chans,
+                                   int img_pad,
+                                   int wgt_pad) {
+    int input_size = img_nums * img_rows * img_cols * (img_chans + img_pad);
+    int kernel_size = img_chans;
+    int result_size = input_size;
+    dmaLoad(inputs, inputs, input_size * sizeof(float));
+    dmaLoad(mean, mean, kernel_size * sizeof(float));
+    dmaLoad(variance, variance, kernel_size * sizeof(float));
+    dmaLoad(gamma, gamma, kernel_size * sizeof(float));
+    dmaLoad(beta, beta, kernel_size * sizeof(float));
+
+    ARRAY_4D(float, _inputs, inputs, img_rows, img_cols, img_chans + img_pad);
+    ARRAY_4D(float, _result, result, img_rows, img_cols, img_chans + img_pad);
+
+    bn_batch:
+    for (int i = 0; i < img_nums; i++) {
+        bn_chan:
+        for (int h = 0; h < img_chans; h++) {
+            float mean_val = mean[h];
+            float recip_sqrt_var_val = variance[h];
+            float gamma_val = gamma[h];
+            float beta_val = beta[h];
+            bn_row:
+            for (int r = 0; r < img_rows; r++) {
+                bn_col:
+                for (int c = 0; c < img_cols; c++) {
+                    _result[i][r][c][h] = batch_norm_op(_inputs[i][r][c][h],
+                                                        mean_val,
+                                                        recip_sqrt_var_val,
+                                                        gamma_val,
+                                                        beta_val);
+                }
+            }
+        }
+    }
+    dmaStore(result, result, result_size * sizeof(float));
+}
+
 #ifdef __cplusplus
 }
 #endif
@@ -147,13 +195,13 @@ void BatchNormOp<ReferenceBackend>::run() {
     mapArrayToAccel(ref::kBatchNormHw, "result", outputData,
                     outputShape.storageSize() * sizeof(float));
     if (isPostConv) {
-        assert(inputShape.getLayout() == DataLayout::NCHW);
-        assert(outputShape.getLayout() == DataLayout::NCHW);
-        invokeKernel(ref::kBatchNormHw, ref_batch_norm_nchw_post_conv,
-                     inputData, meanData, varianceData, gammaData, betaData,
-                     outputData, inputShape[0], inputShape[1], inputShape[2],
-                     inputShape[3], inputShape.getPadding(3),
-                     kernelShape.getPadding(3));
+        bool isNCHW = input->getShape().getLayout() == NCHW;
+        auto func = isNCHW ? ref_batch_norm_nchw_post_conv
+                           : ref_batch_norm_nhwc_post_conv;
+        invokeKernel(ref::kBatchNormHw, func, inputData, meanData, varianceData,
+                     gammaData, betaData, outputData, inputShape[0],
+                     inputShape[1], inputShape[2], inputShape[3],
+                     inputShape.getPadding(3), kernelShape.getPadding(3));
     } else {
         assert(inputShape.getLayout() == DataLayout::NC);
         assert(outputShape.getLayout() == DataLayout::NC);

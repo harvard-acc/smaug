@@ -3,6 +3,7 @@ ref_conv3d_nchw_valid_padding
 ref_conv3d_nhwc_same_padding
 ref_conv3d_nhwc_valid_padding
 ref_batch_norm_nchw_post_conv
+ref_batch_norm_nhwc_post_conv
 ref_batch_norm_post_fc
 ref_inner_product_ab_times_bc
 ref_inner_product_ab_times_cb
