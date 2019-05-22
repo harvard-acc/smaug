@@ -1,45 +1,7 @@
-#include <cmath>
-
 #include "core/backend.h"
 #include "operators/common.h"
 #include "operators/elu_op.h"
-#include "operators/ref/ref_common.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-void ref_elu(float* inputs, float* results, int input_size, float alpha) {
-    dmaLoad(inputs, inputs, input_size * sizeof(float));
-    elu_loop:
-    for (int i = 0; i < input_size; i++) {
-        float value = inputs[i];
-        if (value < 0.0) {
-            results[i] = alpha * (exp(value) - 1);
-        } else {
-            results[i] = value;
-        }
-    }
-    dmaStore(results, results, input_size * sizeof(float));
-}
-
-void ref_selu(float* inputs,
-              float* results,
-              int input_size,
-              float alpha,
-              float lambda) {
-    dmaLoad(inputs, inputs, input_size * sizeof(float));
-    ref_elu(inputs, results, input_size, alpha);
-    selu_loop:
-    for (int i = 0; i < input_size; i++) {
-        results[i] = lambda * results[i];
-    }
-    dmaStore(results, results, input_size * sizeof(float));
-}
-
-#ifdef __cplusplus
-}
-#endif
+#include "operators/ref/ref_activation_fun_op.h"
 
 namespace smaug {
 
@@ -54,8 +16,11 @@ void EluOp<ReferenceBackend>::run() {
                     inputs->getShape().storageSize() * sizeof(float));
     mapArrayToAccel(ref::kEltwiseOpHw, "results", outputData,
                     inputs->getShape().storageSize() * sizeof(float));
-    invokeKernel(ref::kEltwiseOpHw, ref_elu, inputData, outputData,
-                 inputs->getShape().size(), alpha);
+    activation_type function = activation_type::ELU;
+    activation_param_t params;
+    params.alpha = alpha;
+    invokeKernel(ref::kEltwiseOpHw, ref_activation_fun_nc, inputData,
+                 outputData, inputs->getShape().size(), function, params);
 }
 
 template <>
@@ -69,8 +34,12 @@ void SeluOp<ReferenceBackend>::run() {
                     inputs->getShape().storageSize() * sizeof(float));
     mapArrayToAccel(ref::kEltwiseOpHw, "results", outputData,
                     inputs->getShape().storageSize() * sizeof(float));
-    invokeKernel(ref::kEltwiseOpHw, ref_selu, inputData, outputData,
-                 inputs->getShape().size(), this->alpha, lambda);
+    activation_type function = activation_type::SELU;
+    activation_param_t params;
+    params.alpha = alpha;
+    params.lambda = lambda;
+    invokeKernel(ref::kEltwiseOpHw, ref_activation_fun_nc, inputData,
+                 outputData, inputs->getShape().size(), function, params);
 }
 
 }  // namespace smaug

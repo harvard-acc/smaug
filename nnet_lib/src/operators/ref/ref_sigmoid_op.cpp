@@ -1,33 +1,7 @@
 #include "core/backend.h"
 #include "operators/common.h"
 #include "operators/sigmoid_op.h"
-#include "operators/ref/ref_common.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-// The logistic activation function.
-//
-// Operates on a single float.
-ALWAYS_INLINE
-float sigmoid_fxp(float a) {
-    return 1.0 / (1.0 + exp(-a));
-}
-
-// The logistic activation function
-void ref_sigmoid(float* inputs, float* results, int input_size) {
-    dmaLoad(inputs, inputs, input_size * sizeof(float));
-    sigmoid_loop:
-    for (int i = 0; i < input_size; i++) {
-        results[i] = sigmoid_fxp(inputs[i]);
-    }
-    dmaStore(results, results, input_size * sizeof(float));
-}
-
-#ifdef __cplusplus
-}
-#endif
+#include "operators/ref/ref_activation_fun_op.h"
 
 namespace smaug {
 
@@ -42,8 +16,10 @@ void SigmoidOp<ReferenceBackend>::run() {
                     inputs->getShape().storageSize() * sizeof(float));
     mapArrayToAccel(ref::kEltwiseOpHw, "results", outputData,
                     inputs->getShape().storageSize() * sizeof(float));
-    invokeKernel(ref::kEltwiseOpHw, ref_sigmoid, inputData, outputData,
-                 inputs->getShape().size());
+    activation_type function = activation_type::SIGMOID;
+    activation_param_t params;
+    invokeKernel(ref::kEltwiseOpHw, ref_activation_fun_nc, inputData,
+                 outputData, inputs->getShape().size(), function, params);
 }
 
 }  // namespace smaug

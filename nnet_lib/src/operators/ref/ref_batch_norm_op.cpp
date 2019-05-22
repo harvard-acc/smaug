@@ -1,6 +1,7 @@
 #include "core/backend.h"
 #include "operators/common.h"
 #include "operators/batch_norm_op.h"
+#include "operators/ref/ref_activation_fun_op.h"
 #include "utility/debug_stream.h"
 
 #ifdef __cplusplus
@@ -30,7 +31,9 @@ void ref_batch_norm_post_fc(float* inputs,
                             float* result,
                             int input_nums,
                             int input_size,
-                            int input_pad) {
+                            int input_pad,
+                            activation_type act_function,
+                            activation_param_t act_params) {
     int inputs_size = input_nums * (input_size + input_pad);
     int kernel_size = inputs_size;
     int result_size = inputs_size;
@@ -51,6 +54,9 @@ void ref_batch_norm_post_fc(float* inputs,
                     _inputs[i][j], mean[j], variance[j], gamma[j], beta[j]);
         }
     }
+    if (act_function != NO_ACTIVATION) {
+        activation_fun(result, result, result_size, act_function, act_params);
+    }
     dmaStore(result, result, result_size * sizeof(float));
 }
 
@@ -67,7 +73,9 @@ void ref_batch_norm_nchw_post_conv(float* inputs,
                                    int img_rows,
                                    int img_cols,
                                    int img_pad,
-                                   int wgt_pad) {
+                                   int wgt_pad,
+                                   activation_type act_function,
+                                   activation_param_t act_params) {
     int input_size = img_nums * img_chans * img_rows * (img_cols + img_pad);
     int kernel_size = img_chans;
     int result_size = input_size;
@@ -102,6 +110,9 @@ void ref_batch_norm_nchw_post_conv(float* inputs,
             }
         }
     }
+    if (act_function != NO_ACTIVATION) {
+        activation_fun(result, result, result_size, act_function, act_params);
+    }
     dmaStore(result, result, result_size * sizeof(float));
 }
 
@@ -116,7 +127,9 @@ void ref_batch_norm_nhwc_post_conv(float* inputs,
                                    int img_cols,
                                    int img_chans,
                                    int img_pad,
-                                   int wgt_pad) {
+                                   int wgt_pad,
+                                   activation_type act_function,
+                                   activation_param_t act_params) {
     int input_size = img_nums * img_rows * img_cols * (img_chans + img_pad);
     int kernel_size = img_chans;
     int result_size = input_size;
@@ -149,6 +162,9 @@ void ref_batch_norm_nhwc_post_conv(float* inputs,
                 }
             }
         }
+    }
+    if (act_function != NO_ACTIVATION) {
+        activation_fun(result, result, result_size, act_function, act_params);
     }
     dmaStore(result, result, result_size * sizeof(float));
 }
@@ -201,13 +217,15 @@ void BatchNormOp<ReferenceBackend>::run() {
         invokeKernel(ref::kBatchNormHw, func, inputData, meanData, varianceData,
                      gammaData, betaData, outputData, inputShape[0],
                      inputShape[1], inputShape[2], inputShape[3],
-                     inputShape.getPadding(3), kernelShape.getPadding(3));
+                     inputShape.getPadding(3), kernelShape.getPadding(3),
+                     actInfo.function, actInfo.params);
     } else {
         assert(inputShape.getLayout() == DataLayout::NC);
         assert(outputShape.getLayout() == DataLayout::NC);
         invokeKernel(ref::kBatchNormHw, ref_batch_norm_post_fc, inputData,
                      meanData, varianceData, gammaData, betaData, outputData,
-                     inputShape[0], inputShape[1], inputShape.getPadding(1));
+                     inputShape[0], inputShape[1], inputShape.getPadding(1),
+                     actInfo.function, actInfo.params);
     }
 }
 

@@ -3,7 +3,6 @@
 #include "core/backend.h"
 #include "operators/common.h"
 #include "operators/softmax_op.h"
-#include "operators/ref/ref_common.h"
 
 #ifdef __cplusplus
 extern "C" {

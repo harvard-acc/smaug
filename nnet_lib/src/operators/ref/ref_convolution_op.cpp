@@ -1,6 +1,7 @@
 #include "core/backend.h"
 #include "operators/common.h"
 #include "operators/convolution_op.h"
+#include "operators/ref/ref_activation_fun_op.h"
 #include "utility/debug_stream.h"
 
 #ifdef __cplusplus
@@ -23,7 +24,9 @@ void ref_conv3d_nchw_valid_padding(float* input,
                                    int k_col_stride,
                                    int res_rows,
                                    int res_cols,
-                                   int res_pad) {
+                                   int res_pad,
+                                   activation_type act_function,
+                                   activation_param_t act_params) {
     int input_size = img_num * img_chans * img_rows * (img_cols + img_pad);
     int kernel_size = k_num * img_chans * k_rows * (k_cols + k_pad);
     int result_size = img_num * k_num * res_rows * (res_cols + res_pad);
@@ -72,6 +75,9 @@ void ref_conv3d_nchw_valid_padding(float* input,
             }
         }
     }
+    if (act_function != NO_ACTIVATION) {
+        activation_fun(result, result, result_size, act_function, act_params);
+    }
     dmaStore(result, result, result_size * sizeof(float));
 }
 
@@ -91,7 +97,9 @@ void ref_conv3d_nchw_same_padding(float* input,
                                   int k_col_stride,
                                   int res_rows,
                                   int res_cols,
-                                  int res_pad) {
+                                  int res_pad,
+                                  activation_type act_function,
+                                  activation_param_t act_params) {
     int input_size = img_num * img_chans * img_rows * (img_cols + img_pad);
     int kernel_size = k_num * img_chans * k_rows * (k_cols + k_pad);
     int result_size = img_num * k_num * res_rows * (res_cols + res_pad);
@@ -156,6 +164,9 @@ void ref_conv3d_nchw_same_padding(float* input,
             }
         }
     }
+    if (act_function != NO_ACTIVATION) {
+        activation_fun(result, result, result_size, act_function, act_params);
+    }
     dmaStore(result, result, result_size * sizeof(float));
 }
 
@@ -175,7 +186,9 @@ void ref_conv3d_nhwc_valid_padding(float* input,
                                    int k_col_stride,
                                    int res_rows,
                                    int res_cols,
-                                   int res_pad) {
+                                   int res_pad,
+                                   activation_type act_function,
+                                   activation_param_t act_params) {
     int input_size = img_num * img_rows * img_cols * (img_chans + img_pad);
     int kernel_size = k_num * k_rows * k_cols * (img_chans + k_pad);
     int result_size = img_num * res_rows * res_cols * (k_num + res_pad);
@@ -224,6 +237,9 @@ void ref_conv3d_nhwc_valid_padding(float* input,
             }
         }
     }
+    if (act_function != NO_ACTIVATION) {
+        activation_fun(result, result, result_size, act_function, act_params);
+    }
     dmaStore(result, result, result_size * sizeof(float));
 }
 
@@ -243,7 +259,9 @@ void ref_conv3d_nhwc_same_padding(float* input,
                                   int k_col_stride,
                                   int res_rows,
                                   int res_cols,
-                                  int res_pad) {
+                                  int res_pad,
+                                  activation_type act_function,
+                                  activation_param_t act_params) {
     int input_size = img_num * img_rows * img_cols * (img_chans + img_pad);
     int kernel_size = k_num * k_rows * k_cols * (img_chans + k_pad);
     int result_size = img_num * res_rows * res_cols * (k_num + res_pad);
@@ -308,6 +326,9 @@ void ref_conv3d_nhwc_same_padding(float* input,
             }
         }
     }
+    if (act_function != NO_ACTIVATION) {
+        activation_fun(result, result, result_size, act_function, act_params);
+    }
     dmaStore(result, result, result_size * sizeof(float));
 }
 
@@ -352,7 +373,7 @@ void ConvolutionOp<ReferenceBackend>::run() {
                  kernelShape[rowIdx], kernelShape[colIdx],
                  kernelShape.getPadding(3), getRowStride(), getColStride(),
                  outputShape[rowIdx], outputShape[colIdx],
-                 outputShape.getPadding(3));
+                 outputShape.getPadding(3), actInfo.function, actInfo.params);
 }
 
 }  // namespace smaug

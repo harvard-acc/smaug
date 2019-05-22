@@ -1,43 +1,7 @@
 #include "core/backend.h"
 #include "operators/common.h"
 #include "operators/tanh_op.h"
-#include "operators/ref/ref_common.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-void ref_tanh(float* inputs, float* results, int input_size) {
-    int i;
-    dmaLoad(inputs, inputs, input_size * sizeof(float));
-    tanh_act_loop1:
-    for (i = 0; i < input_size; i++) {
-        results[i] = 2 * inputs[i];
-    }
-
-    ref_sigmoid(results, results, input_size);
-
-    tanh_act_loop2:
-    for (i = 0; i < input_size; i++) {
-        results[i] = 2 * results[i] - 1;
-    }
-    dmaStore(results, results, input_size * sizeof(float));
-}
-
-void ref_hard_tanh(
-        float* inputs, float* results, int input_size, float min, float max) {
-    dmaLoad(inputs, inputs, input_size * sizeof(float));
-    hard_tanh_loop:
-    for (int i = 0; i < input_size; i++) {
-        float value = inputs[i];
-        results[i] = (value < min) ? min : (value > max) ? max : value;
-    }
-    dmaStore(results, results, input_size * sizeof(float));
-}
-
-#ifdef __cplusplus
-}
-#endif
+#include "operators/ref/ref_activation_fun_op.h"
 
 namespace smaug {
 
@@ -52,8 +16,10 @@ void TanhOp<ReferenceBackend>::run() {
                     inputs->getShape().storageSize() * sizeof(float));
     mapArrayToAccel(ref::kEltwiseOpHw, "results", outputData,
                     inputs->getShape().storageSize() * sizeof(float));
-    invokeKernel(ref::kEltwiseOpHw, ref_tanh, inputData, outputData,
-                 inputs->getShape().size());
+    activation_type function = activation_type::TANH;
+    activation_param_t params;
+    invokeKernel(ref::kEltwiseOpHw, ref_activation_fun_nc, inputData,
+                 outputData, inputs->getShape().size(), function, params);
 }
 
 template <>
@@ -67,8 +33,12 @@ void HardTanhOp<ReferenceBackend>::run() {
                     inputs->getShape().storageSize() * sizeof(float));
     mapArrayToAccel(ref::kEltwiseOpHw, "results", outputData,
                     inputs->getShape().storageSize() * sizeof(float));
-    invokeKernel(ref::kEltwiseOpHw, ref_hard_tanh, inputData, outputData,
-                 inputs->getShape().size(), min, max);
+    activation_type function = activation_type::HARD_TANH;
+    activation_param_t params;
+    params.min = min;
+    params.max = max;
+    invokeKernel(ref::kEltwiseOpHw, ref_activation_fun_nc, inputData,
+                 outputData, inputs->getShape().size(), function, params);
 }
 
 }  // namespace smaug

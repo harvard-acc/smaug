@@ -1,6 +1,7 @@
 #include "core/backend.h"
 #include "operators/common.h"
 #include "operators/inner_product_op.h"
+#include "operators/ref/ref_activation_fun_op.h"
 #include "utility/debug_stream.h"
 
 #ifdef __cplusplus
@@ -15,7 +16,9 @@ void ref_inner_product_ab_times_bc(float* a,
                                    int b_width,
                                    int a_pad,
                                    int b_pad,
-                                   int c_pad) {
+                                   int c_pad,
+                                   activation_type act_function,
+                                   activation_param_t act_params) {
     int input_size = a_height * (a_width + a_pad);
     int weight_size = a_width * (b_width + b_pad);
     int result_size = a_height * (b_width + c_pad);
@@ -40,6 +43,9 @@ void ref_inner_product_ab_times_bc(float* a,
             _c[i][j] = result;
         }
     }
+    if (act_function != NO_ACTIVATION) {
+        activation_fun(c, c, result_size, act_function, act_params);
+    }
     dmaLoad(c, c, result_size * sizeof(float));
 }
 
@@ -51,7 +57,9 @@ void ref_inner_product_ab_times_cb(float* a,
                                    int b_height,
                                    int a_pad,
                                    int b_pad,
-                                   int c_pad) {
+                                   int c_pad,
+                                   activation_type act_function,
+                                   activation_param_t act_params) {
     int a_width = b_width;
     int input_size = a_height * (a_width + a_pad);
     int weight_size = b_height * (b_width + b_pad);
@@ -76,6 +84,9 @@ void ref_inner_product_ab_times_cb(float* a,
             }
             _c[i][j] = result;
         }
+    }
+    if (act_function != NO_ACTIVATION) {
+        activation_fun(c, c, result_size, act_function, act_params);
     }
     dmaLoad(c, c, result_size * sizeof(float));
 }
@@ -117,7 +128,7 @@ void InnerProductOp<ReferenceBackend>::run() {
     invokeKernel(ref::kInnerProductHw, func, inputData, weightData, outputData,
                  inputShape[0], weightShape[actIdx], weightShape[neuronIdx],
                  inputShape.getPadding(1), weightShape.getPadding(1),
-                 outputShape.getPadding(1));
+                 outputShape.getPadding(1), actInfo.function, actInfo.params);
 }
 
 }  // namespace smaug
