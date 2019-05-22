@@ -91,6 +91,17 @@ typedef struct _activation_param_t {
     float max;
 } activation_param_t;
 
+#ifdef __cplusplus
+struct ActivationInfo {
+   public:
+    ActivationInfo() : function(activation_type::NO_ACTIVATION) {}
+    ActivationInfo(activation_type _function, activation_param_t _params)
+            : function(_function), params(_params) {}
+    activation_type function;
+    activation_param_t params;
+};
+#endif
+
 // Scalar types.
 typedef float fp_t;
 typedef int sfx_t;

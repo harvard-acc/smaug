@@ -38,6 +38,45 @@
 using namespace smaug;
 using namespace std;
 
+ActivationInfo getActivationInfo(const ActivationParams& params) {
+    ActivationInfo actInfo;
+    OpType opType = params.activation();
+    switch (opType) {
+        case OpType::ReLU:
+            actInfo.function = activation_type::RELU;
+            break;
+        case OpType::LReLU:
+            actInfo.function = activation_type::LRELU;
+            actInfo.params.slope = params.lrelu_params().slope();
+            break;
+        case OpType::ELU:
+            actInfo.function = activation_type::ELU;
+            actInfo.params.alpha = params.elu_params().alpha();
+            break;
+        case OpType::SELU:
+            actInfo.function = activation_type::SELU;
+            actInfo.params.alpha = params.elu_params().alpha();
+            actInfo.params.lambda = params.elu_params().lambda_param();
+            break;
+        case OpType::Tanh:
+            actInfo.function = activation_type::TANH;
+            break;
+        case OpType::HardTanh:
+            actInfo.function = activation_type::HARD_TANH;
+            actInfo.params.min = params.hard_tanh_params().min();
+            actInfo.params.max = params.hard_tanh_params().max();
+            break;
+        case OpType::Sigmoid:
+            actInfo.function = activation_type::SIGMOID;
+            break;
+        case OpType::Softmax:
+            actInfo.function = activation_type::SOFTMAX;
+        default:
+            actInfo.function = activation_type::NO_ACTIVATION;
+    }
+    return actInfo;
+}
+
 // Create an operator by deserializing a node in the graph, and add it to the
 // network.
 template <typename Backend>
@@ -85,6 +124,7 @@ static void createAndAddOperator(const NodeProto& node,
         assert(convParams.stride_size() == 2);
         op->setStride(convParams.stride(0), convParams.stride(1));
         op->setPadding(convParams.padding());
+        op->setActivation(getActivationInfo(node.params().act_params()));
         network->addOperator(op, inputs);
     } else if (type == OpType::MaxPooling || type == OpType::AveragePooling) {
         PoolingOp<Backend>* op;
@@ -106,6 +146,7 @@ static void createAndAddOperator(const NodeProto& node,
             op->setNumOutputs(weightTensorProto.shape().dims(0));
         else
             op->setNumOutputs(weightTensorProto.shape().dims(1));
+        op->setActivation(getActivationInfo(node.params().act_params()));
         network->addOperator(op, inputs);
     } else if (type == OpType::Reorder) {
         DataLayout srcLayout = node.input_tensors(0).shape().layout();
@@ -121,6 +162,7 @@ static void createAndAddOperator(const NodeProto& node,
         network->addOperator(op, inputs);
     } else if (type == OpType::BatchNorm) {
         auto op = Backend::createBatchNormOp(name, workspace);
+        op->setActivation(getActivationInfo(node.params().act_params()));
         network->addOperator(op, inputs);
     } else if (type == OpType::EltwiseAdd) {
         auto op = Backend::createEltwiseAddOp(name, workspace);

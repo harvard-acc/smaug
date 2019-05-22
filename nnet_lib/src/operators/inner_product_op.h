@@ -6,16 +6,18 @@
 #include "core/tensor.h"
 #include "core/tensor_utils.h"
 #include "core/workspace.h"
+#include "operators/common.h"
+#include "operators/fused_activation_op.h"
 
 namespace smaug {
 
 template <typename Backend>
-class InnerProductOp : public Operator {
+class InnerProductOp : public FusedActivationOp {
    public:
     InnerProductOp(const std::string& name, Workspace* workspace)
-            : Operator(name, OpType::InnerProduct, workspace), numOutputs(0),
-              weightsTensorsCreated(false), outputTensorsCreated(false),
-              weightsName(name + "/weights") {
+            : FusedActivationOp(name, OpType::InnerProduct, workspace),
+              numOutputs(0), weightsTensorsCreated(false),
+              outputTensorsCreated(false), weightsName(name + "/weights") {
         inputs.resize(kNumInputs, nullptr);
         outputs.resize(kNumOutputs, nullptr);
     }

@@ -8,16 +8,19 @@
 #include "core/workspace.h"
 #include "core/tensor_utils.h"
 #include "core/types.pb.h"
+#include "operators/common.h"
+#include "operators/fused_activation_op.h"
 
 namespace smaug {
 
 template <typename Backend>
-class ConvolutionOp : public Operator {
+class ConvolutionOp : public FusedActivationOp {
    public:
     ConvolutionOp(const std::string& name, Workspace* workspace)
-            : Operator(name, OpType::Convolution3d, workspace), weightRows(0),
-              weightCols(0), numOfmaps(0), rowStride(0), colStride(0),
-              paddingType(UnknownPadding), weightsName(name + "/kernels") {
+            : FusedActivationOp(name, OpType::Convolution3d, workspace),
+              weightRows(0), weightCols(0), numOfmaps(0), rowStride(0),
+              colStride(0), paddingType(UnknownPadding),
+              weightsName(name + "/kernels") {
         inputs.resize(kNumInputs, nullptr);
         outputs.resize(kNumOutputs, nullptr);
     }

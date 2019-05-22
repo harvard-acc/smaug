@@ -8,11 +8,13 @@
 #include "core/workspace.h"
 // TODO: This might be dangerous...
 #include "operators/reorder_op.h"
+#include "operators/common.h"
+#include "operators/fused_activation_op.h"
 
 namespace smaug {
 
 template <typename Backend>
-class BatchNormOp : public Operator {
+class BatchNormOp : public FusedActivationOp {
    public:
     enum {
         Inputs,
@@ -27,7 +29,7 @@ class BatchNormOp : public Operator {
     static constexpr float kEpsilon = 1e-5;
 
     BatchNormOp(const std::string& name, Workspace* workspace)
-            : Operator(name, OpType::BatchNorm, workspace),
+            : FusedActivationOp(name, OpType::BatchNorm, workspace),
               meanName(name + "/mean"), varianceName(name + "/variance"),
               gammaName(name + "/gamma"), betaName(name + "/beta") {
         inputs.resize(kNumInputs, nullptr);
