@@ -15,11 +15,35 @@ message PoolParams {
   repeated int32 pool_size = 2;
 }
 
+message LreluParams {
+  float slope = 1;
+}
+
+message EluParams {
+  float alpha = 1;
+  float lambda_param = 2;
+}
+
+message HardTanhParams {
+  float min = 1;
+  float max = 2;
+}
+
+message ActivationParams {
+  OpType activation = 1;
+  oneof value {
+    LreluParams lrelu_params = 2;
+    EluParams elu_params = 3;
+    HardTanhParams hard_tanh_params = 4;
+  }
+}
+
 message Params {
   oneof value {
     ConvParams conv_params = 1;
     PoolParams pool_params = 2;
   }
+  ActivationParams act_params = 3;
 }
 
 message NodeProto {

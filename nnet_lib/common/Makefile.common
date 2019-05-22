@@ -74,7 +74,9 @@ TESTS = src/core/tensor_test.cpp \
         src/operators/smv/smv_eltwise_add_op_test.cpp \
         src/operators/smv/kernels/load_store_fp16_data_test.cpp
 PY_TESTS = src/python/tensor_test.py \
-           src/python/ops_test.py
+           src/python/ops_test.py \
+           src/python/activation_functions_test.py
+
 
 
 GEM5_DMA_SRC = gem5/dma_interface.c gem5/dma_interface.h

@@ -90,7 +90,42 @@ def to_padding_type(padding):
   else:
     return UnknownPadding
 
-def convolution(name, input_tensor, filter_tensor, stride, padding):
+def set_activation_params(activation, act_params_proto, act_params):
+  if activation not in supported_activations:
+    raise AssertionError(
+        ("%s is not a supported activation function. "
+         "Supported activations: %s.")
+        % (OpType.Name(activation),
+           [OpType.Name(a) for a in supported_activations]))
+  if act_params != None:
+    if activation == LReLU:
+      act_params_proto.lrelu_params.CopyFrom(act_params)
+    elif activation == ELU:
+      act_params_proto.elu_params.CopyFrom(act_params)
+    elif activation == SELU:
+      act_params_proto.elu_params.CopyFrom(act_params)
+    elif activation == HardTanh:
+      act_params_proto.hard_tanh_params.CopyFrom(act_params)
+  else:
+    # Use default values for the parameters if not specified.
+    if activation == LReLU:
+      act_params_proto.lrelu_params.slope = 0.2
+    elif activation == ELU:
+      act_params_proto.elu_params.alpha = 0.1
+    elif activation == SELU:
+      act_params_proto.elu_params.alpha = 1.6733
+      act_params_proto.elu_params.lambda_param = 1.0507
+    elif activation == HardTanh:
+      act_params_proto.hard_tanh_params.min = -1
+      act_params_proto.hard_tanh_params.max = 1
+
+def convolution(name,
+                input_tensor,
+                filter_tensor,
+                stride,
+                padding,
+                activation=None,
+                activation_params=None):
   def compute_output_dim(input_dim, weight_dim, stride, padding):
     pad = 0
     if to_padding_type(padding) == SamePadding:
@@ -126,6 +161,9 @@ def convolution(name, input_tensor, filter_tensor, stride, padding):
   params = Params()
   params.conv_params.padding = to_padding_type(padding)
   params.conv_params.stride.extend(stride)
+  if activation != None:
+    params.act_params.activation = activation
+    set_activation_params(activation, params.act_params, activation_params)
 
   return add_node(
       name=name,
@@ -143,8 +181,76 @@ def relu(name, input_tensor):
       output_tensor_dims=input_tensor.shape.dims,
       output_tensor_layout=input_tensor.shape.layout)
 
-def batch_norm(name, input_tensor, mean_tensor, var_tensor, gamma_tensor,
-               beta_tensor):
+def lrelu(name, input_tensor, slope=0.2):
+  params = Params()
+  params.act_params.lrelu_params.slope = slope
+  return add_node(
+      name=name,
+      op=LReLU,
+      input_tensors=[input_tensor],
+      output_tensor_dims=input_tensor.shape.dims,
+      output_tensor_layout=input_tensor.shape.layout,
+      params=params)
+
+def elu(name, input_tensor, alpha=0.1):
+  params = Params()
+  params.act_params.elu_params.alpha = alpha
+  return add_node(
+      name=name,
+      op=ELU,
+      input_tensors=[input_tensor],
+      output_tensor_dims=input_tensor.shape.dims,
+      output_tensor_layout=input_tensor.shape.layout,
+      params=params)
+
+def selu(name, input_tensor, alpha=1.6733, lambda_param=1.0507):
+  params = Params()
+  params.act_params.elu_params.alpha = alpha
+  params.act_params.elu_params.lambda_param = lambda_param
+  return add_node(
+      name=name,
+      op=SELU,
+      input_tensors=[input_tensor],
+      output_tensor_dims=input_tensor.shape.dims,
+      output_tensor_layout=input_tensor.shape.layout,
+      params=params)
+
+def tanh(name, input_tensor):
+  return add_node(
+      name=name,
+      op=Tanh,
+      input_tensors=[input_tensor],
+      output_tensor_dims=input_tensor.shape.dims,
+      output_tensor_layout=input_tensor.shape.layout)
+
+def hard_tanh(name, input_tensor, min=-1, max=1):
+  params = Params()
+  params.act_params.hard_tanh_params.min = min
+  params.act_params.hard_tanh_params.max = max
+  return add_node(
+      name=name,
+      op=HardTanh,
+      input_tensors=[input_tensor],
+      output_tensor_dims=input_tensor.shape.dims,
+      output_tensor_layout=input_tensor.shape.layout,
+      params=params)
+
+def sigmoid(name, input_tensor):
+  return add_node(
+      name=name,
+      op=Sigmoid,
+      input_tensors=[input_tensor],
+      output_tensor_dims=input_tensor.shape.dims,
+      output_tensor_layout=input_tensor.shape.layout)
+
+def batch_norm(name,
+               input_tensor,
+               mean_tensor,
+               var_tensor,
+               gamma_tensor,
+               beta_tensor,
+               activation=None,
+               activation_params=None):
   assert (len(mean_tensor.shape.dims) == 2 and len(var_tensor.shape.dims) == 2
           and len(gamma_tensor.shape.dims) == 2
           and len(beta_tensor.shape.dims) == 2)
@@ -166,6 +272,10 @@ def batch_norm(name, input_tensor, mean_tensor, var_tensor, gamma_tensor,
   beta_tensor.name = name + "/beta"
   output_layout = UnknownLayout
   output_layout = NC if post_fc else get_output_layout(BatchNorm)
+  params = Params()
+  if activation != None:
+    params.act_params.activation = activation
+    set_activation_params(activation, params.act_params, activation_params)
   return add_node(
       name=name,
       op=BatchNorm,
@@ -173,7 +283,8 @@ def batch_norm(name, input_tensor, mean_tensor, var_tensor, gamma_tensor,
           input_tensor, mean_tensor, var_tensor, gamma_tensor, beta_tensor
       ],
       output_tensor_dims=input_tensor.shape.dims,
-      output_tensor_layout=output_layout)
+      output_tensor_layout=output_layout,
+      params=params)
 
 def max_pool(name, input_tensor, pool_size, stride):
   def compute_output_dim(input_dim, pool_size, stride):
@@ -241,7 +352,11 @@ def flatten(name, input_tensor):
   assert (len(input_tensor.shape.dims) == 4)
   return reorder(name=name, input_tensor=input_tensor, target_layout=NC)
 
-def mat_mul(name, input_tensor, weight_tensor):
+def mat_mul(name,
+            input_tensor,
+            weight_tensor,
+            activation=None,
+            activation_params=None):
   weight_tensor.name = name + "/weights"
 
   input_tensor, weight_tensor = check_and_add_layout_transform(
@@ -256,12 +371,17 @@ def mat_mul(name, input_tensor, weight_tensor):
   output_tensor_dims = [
       input_tensor.shape.dims[0], weight_tensor.shape.dims[neuronIdx]
   ]
+  params = Params()
+  if activation != None:
+    params.act_params.activation = activation
+    set_activation_params(activation, params.act_params, activation_params)
   return add_node(
       name=name,
       op=InnerProduct,
       input_tensors=[input_tensor, weight_tensor],
       output_tensor_dims=output_tensor_dims,
-      output_tensor_layout=NC)
+      output_tensor_layout=NC,
+      params=params)
 
 def add(name, tensor_a, tensor_b):
   assert (tensor_a.shape.dims == tensor_b.shape.dims

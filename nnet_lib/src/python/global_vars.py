@@ -4,6 +4,7 @@ Currently it contains:
   1) A global active graph
   2) Alignment information for various backends.
   3) Input/output layouts for operators of various backends.
+  4) Supported activation functions.
 """
 
 from types_pb2 import *
@@ -72,3 +73,7 @@ backend_layouts = {
         EltwiseAdd: OperatorLayouts([X], X)
     }
 }
+
+supported_activations = [
+    ReLU, LReLU, ELU, SELU, Tanh, HardTanh, Sigmoid, Softmax
+]
