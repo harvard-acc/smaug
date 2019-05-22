@@ -95,6 +95,27 @@ typedef struct _activation_param_t {
 struct ActivationInfo {
    public:
     ActivationInfo() : function(activation_type::NO_ACTIVATION) {}
+    ActivationInfo(activation_type _function) : function(_function) {
+        // Use default parameters if not specified.
+        switch (_function) {
+            case activation_type::LRELU:
+                params.slope = 0.2;
+                break;
+            case activation_type::ELU:
+                params.alpha = 0.1;
+                break;
+            case activation_type::SELU:
+                params.alpha = 1.6733;
+                params.lambda = 1.0507;
+                break;
+            case activation_type::HARD_TANH:
+                params.min = -1;
+                params.max = 1;
+                break;
+            default:
+                break;
+        }
+    }
     ActivationInfo(activation_type _function, activation_param_t _params)
             : function(_function), params(_params) {}
     activation_type function;

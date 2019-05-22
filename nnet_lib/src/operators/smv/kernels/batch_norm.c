@@ -4,6 +4,7 @@
 #include "operators/common.h"
 #include "params.h"
 #include "load_store_fp16_data.h"
+#include "activation_functions_simd.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,7 +33,9 @@ void smv_batch_norm_post_fc_nc_vec_fxp(float16* host_inputs,
                                        int weights_acts,
                                        int inputs_pad,
                                        int inputs_start,
-                                       int send_results) {
+                                       int send_results,
+                                       activation_type act_function,
+                                       activation_param_t act_params) {
     int inputs_nums = inputs_dims[0];
     int inputs_acts = inputs_dims[1];
     int inputs_size = inputs_nums * (inputs_acts + inputs_pad);
@@ -61,7 +64,11 @@ void smv_batch_norm_post_fc_nc_vec_fxp(float16* host_inputs,
                                        _weights[3][j]);
         }
     }
-
+    // Only run activation functions when the results are finished.
+    if (act_function != NO_ACTIVATION && send_results) {
+        activation_fun_vec(
+                results, results, results_size, act_function, act_params);
+    }
     // Store results to the host memory if needed.
     if (send_results)
         dma_store_fp16(results, host_results, results_size, 0, 0);
@@ -79,7 +86,9 @@ void smv_batch_norm_post_conv_nchw_vec_fxp(float16* host_inputs,
                                            int weights_chans,
                                            int inputs_pad,
                                            int weights_pad,
-                                           int weights_start) {
+                                           int weights_start,
+                                           activation_type act_function,
+                                           activation_param_t act_params) {
     int inputs_nums = inputs_dims[0];
     int inputs_chans = inputs_dims[1];
     int inputs_rows = inputs_dims[2];
@@ -147,7 +156,10 @@ void smv_batch_norm_post_conv_nchw_vec_fxp(float16* host_inputs,
             }
         }
     }
-
+    if (act_function != NO_ACTIVATION) {
+        activation_fun_vec(
+                results, results, results_size, act_function, act_params);
+    }
     // Store results to the host memory.
     dma_store_fp16(results, host_results, results_size, 0, 0);
 }
@@ -162,7 +174,9 @@ void smv_batch_norm_post_conv_nhwc_vec_fxp(float16* host_inputs,
                                            int weights_chans,
                                            int inputs_pad,
                                            int weights_pad,
-                                           int weights_start) {
+                                           int weights_start,
+                                           activation_type act_function,
+                                           activation_param_t act_params) {
     int inputs_nums = inputs_dims[0];
     int inputs_rows = inputs_dims[1];
     int inputs_cols = inputs_dims[2];
@@ -207,7 +221,10 @@ void smv_batch_norm_post_conv_nhwc_vec_fxp(float16* host_inputs,
             }
         }
     }
-
+    if (act_function != NO_ACTIVATION) {
+        activation_fun_vec(
+                results, results, results_size, act_function, act_params);
+    }
     // Store results to the host memory.
     dma_store_fp16(results, host_results, results_size, 0, 0);
 }

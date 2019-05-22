@@ -11,11 +11,6 @@
 extern "C" {
 #endif
 
-// Each activation function kernel internally calls its xx_vec_unit(), which
-// implements an 8-way (256-bit) vectorization. These xx_vec_unit() functions
-// can also be directly called from other major kernels like convolutions via
-// activation_fun_vec_unit().
-
 // The rectified linear activation function
 ALWAYS_INLINE
 static inline v8fp_t relu_vec_unit(v8fp_t a) {
@@ -172,48 +167,27 @@ static inline v8fp_t hard_tanh_vec(v8fp_t* inputs,
 }
 
 ALWAYS_INLINE
-static inline v8fp_t activation_fun_vec_unit(v8fp_t inputs,
-                                             activation_type function,
-                                             activation_param_t params) {
+static inline void activation_fun_vec(float* inputs,
+                                      float* results,
+                                      int inputs_size,
+                                      activation_type function,
+                                      activation_param_t params) {
+    VEC_ARRAY_1D(v8fp_t, _inputs, inputs);
+    VEC_ARRAY_1D(v8fp_t, _results, results);
     if (function == RELU) {
-        return relu_vec_unit(inputs);
+        relu_vec(_inputs, _results, inputs_size);
     } else if (function == LRELU) {
-        return lrelu_vec_unit(inputs, params.slope);
+        lrelu_vec(_inputs, _results, inputs_size, params.slope);
     } else if (function == ELU) {
-        return elu_vec_unit(inputs, params.alpha);
+        elu_vec(_inputs, _results, inputs_size, params.alpha);
     } else if (function == SELU) {
-        return selu_vec_unit(inputs, params.alpha, params.lambda);
+        selu_vec(_inputs, _results, inputs_size, params.alpha, params.lambda);
     } else if (function == TANH) {
-        return tanh_vec_unit(inputs);
+        tanh_vec(_inputs, _results, inputs_size);
     } else if (function == HARD_TANH) {
-        return hard_tanh_vec_unit(inputs, params.min, params.max);
+        hard_tanh_vec(_inputs, _results, inputs_size, params.min, params.max);
     } else if (function == SIGMOID) {
-        return sigmoid_vec_unit(inputs);
-    } else if (function == SOFTMAX) {
-        assert(false && "Softmax SIMD not added yet!");
-    }
-}
-
-ALWAYS_INLINE
-static inline v8fp_t activation_fun_vec(v8fp_t* inputs,
-                                        v8fp_t* results,
-                                        int inputs_size,
-                                        activation_type function,
-                                        activation_param_t params) {
-    if (function == RELU) {
-        relu_vec(inputs, results, inputs_size);
-    } else if (function == LRELU) {
-        lrelu_vec(inputs, results, inputs_size, params.slope);
-    } else if (function == ELU) {
-        elu_vec(inputs, results, inputs_size, params.alpha);
-    } else if (function == SELU) {
-        selu_vec(inputs, results, inputs_size, params.alpha, params.lambda);
-    } else if (function == TANH) {
-        tanh_vec(inputs, results, inputs_size);
-    } else if (function == HARD_TANH) {
-        hard_tanh_vec(inputs, results, inputs_size, params.min, params.max);
-    } else if (function == SIGMOID) {
-        sigmoid_vec(inputs, results, inputs_size);
+        sigmoid_vec(_inputs, _results, inputs_size);
     } else if (function == SOFTMAX) {
         assert(false && "Softmax SIMD not added yet!");
     }

@@ -4,6 +4,7 @@
 #include "operators/common.h"
 #include "params.h"
 #include "load_store_fp16_data.h"
+#include "activation_functions_simd.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -46,6 +47,8 @@ extern "C" {
 //       be set to true in order to avoid resetting the result buffer for
 //       non-first b tiles.
 //   send_results: Send the results to the host memory if this is true.
+//   act_function: Activation function the operator runs.
+//   act_params: Parameters for the activation function.
 void smv_matrix_multiply_transpose_nc_vec_fxp(float16* host_a,
                                               float16* host_b,
                                               float16* host_results,
@@ -61,7 +64,9 @@ void smv_matrix_multiply_transpose_nc_vec_fxp(float16* host_a,
                                               int a_start,
                                               int result_start,
                                               bool accumulate,
-                                              bool send_results) {
+                                              bool send_results,
+                                              activation_type act_function,
+                                              activation_param_t act_params) {
     int a_width = a_dims[1];
     int a_height = a_dims[0];
     int b_width = b_dims[1];
@@ -170,7 +175,11 @@ void smv_matrix_multiply_transpose_nc_vec_fxp(float16* host_a,
             }
         }
     }
-
+    // Only run activation functions when the results are finished.
+    if (act_function != NO_ACTIVATION && send_results) {
+        activation_fun_vec(
+                results, results, results_size, act_function, act_params);
+    }
     // Store results to the host memory if needed.
     if (send_results)
         dma_store_fp16(results, host_results, results_size, 0, 0);

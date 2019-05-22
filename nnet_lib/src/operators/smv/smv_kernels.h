@@ -25,7 +25,9 @@ void smv_conv3d_nhwc_vec_fxp(float16* host_inputs,
                              int ifmap_start,
                              int kern_start,
                              bool accumulate,
-                             bool send_results);
+                             bool send_results,
+                             activation_type act_function,
+                             activation_param_t act_params);
 
 void smv_matrix_multiply_transpose_nc_vec_fxp(float16* host_a,
                                               float16* host_b,
@@ -42,7 +44,9 @@ void smv_matrix_multiply_transpose_nc_vec_fxp(float16* host_a,
                                               int a_start,
                                               int result_start,
                                               bool accumulate,
-                                              bool send_results);
+                                              bool send_results,
+                                              activation_type act_function,
+                                              activation_param_t act_params);
 
 void smv_maxpooling_nhwc_vec_fxp(float16* host_inputs,
                                  float16* host_results,
@@ -82,7 +86,9 @@ void smv_batch_norm_post_fc_nc_vec_fxp(float16* host_inputs,
                                        int weights_acts,
                                        int inputs_pad,
                                        int inputs_start,
-                                       int send_results);
+                                       int send_results,
+                                       activation_type act_function,
+                                       activation_param_t act_params);
 
 void smv_batch_norm_post_conv_nchw_vec_fxp(float16* host_inpits,
                                            float16* host_weights,
@@ -94,7 +100,9 @@ void smv_batch_norm_post_conv_nchw_vec_fxp(float16* host_inpits,
                                            int weights_chans,
                                            int inputs_pad,
                                            int weights_pad,
-                                           int weights_start);
+                                           int weights_start,
+                                           activation_type act_function,
+                                           activation_param_t act_params);
 
 void smv_batch_norm_post_conv_nhwc_vec_fxp(float16* host_inpits,
                                            float16* host_weights,
@@ -106,7 +114,9 @@ void smv_batch_norm_post_conv_nhwc_vec_fxp(float16* host_inpits,
                                            int weights_chans,
                                            int inputs_pad,
                                            int weights_pad,
-                                           int weights_start);
+                                           int weights_start,
+                                           activation_type act_function,
+                                           activation_param_t act_params);
 
 void smv_activation_fun_nc_vec_fxp(float16* host_inputs,
                                    float16* host_results,

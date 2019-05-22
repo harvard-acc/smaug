@@ -8,233 +8,160 @@
 
 using namespace smaug;
 
-Tensor* getReferenceOutput(SmvConvolutionOp* convOp, Workspace* workspace) {
-    auto input = convOp->getInput(0);
-    auto kernels = convOp->getInput(1);
-    auto input32 = convertFp16ToFp32Tensor(input, workspace);
-    auto kernels32 = convertFp16ToFp32Tensor(kernels, workspace);
+namespace smaug {
 
-    // A reference convolution operator is used to get the 'correct' output.
-    auto refConvOp = new ConvolutionOp<ReferenceBackend>("ref_conv", workspace);
-    refConvOp->setPadding(convOp->getPadding());
-    refConvOp->setWeightDims(convOp->getWeightRows(), convOp->getWeightCols(),
-                             convOp->getNumOfmaps());
-    refConvOp->setStride(convOp->getRowStride(), convOp->getColStride());
-    refConvOp->setInput(input32, 0);
-    refConvOp->setInput(kernels32, 1);
-    refConvOp->createAllTensors();
-    refConvOp->getOutput(0)->allocateStorage<float>();
-    refConvOp->run();
-    return convertFp32ToFp16Tensor(refConvOp->getOutput(0), workspace);
-}
+class SmvConvolutionOpTest : public SmaugTest {
+   public:
+    using SmaugTest::SmaugTest;
 
-TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
-    auto convOp = new SmvConvolutionOp("conv", workspace());
-    // Outputs should be the same size as inputs.
-    convOp->setStride(1, 1);
-    convOp->setPadding(SamePadding);
+    Tensor* getReferenceOutput(SmvConvolutionOp* convOp) {
+        auto input = convOp->getInput(0);
+        auto kernels = convOp->getInput(1);
+        auto input32 = convertFp16ToFp32Tensor(input, workspace());
+        auto kernels32 = convertFp16ToFp32Tensor(kernels, workspace());
 
-    SECTION("No tiling required") {
-        TensorShape inputShape(
-                { 1, 8, 8, 8 }, DataLayout::NHWC, SmvBackend::Alignment);
+        // A reference convolution operator is used to get the 'correct' output.
+        auto refConvOp =
+                new ConvolutionOp<ReferenceBackend>("ref_conv", workspace());
+        refConvOp->setActivation(convOp->getActivation());
+        refConvOp->setPadding(convOp->getPadding());
+        refConvOp->setWeightDims(convOp->getWeightRows(),
+                                 convOp->getWeightCols(),
+                                 convOp->getNumOfmaps());
+        refConvOp->setStride(convOp->getRowStride(), convOp->getColStride());
+        refConvOp->setInput(input32, 0);
+        refConvOp->setInput(kernels32, 1);
+        refConvOp->createAllTensors();
+        refConvOp->getOutput(0)->allocateStorage<float>();
+        refConvOp->run();
+        return convertFp32ToFp16Tensor(refConvOp->getOutput(0), workspace());
+    }
+
+    void doTest(std::vector<int> inputDims,
+                std::vector<int> kernelDims,
+                PaddingType padding = SamePadding,
+                std::vector<int> strides = { 1, 1 }) {
+        auto convOp = new SmvConvolutionOp("conv", workspace());
+        convOp->setStride(strides[0], strides[1]);
+        convOp->setPadding(padding);
+        TensorShape inputShape(inputDims, NHWC, SmvBackend::Alignment);
         Tensor* inputs = new Tensor("input", inputShape);
         inputs->allocateStorage<float16>();
         workspace()->addTensor(inputs);
         convOp->setInput(inputs, 0);
-        convOp->setWeightDims(3, 3, 8);
+        convOp->setWeightDims(kernelDims[1], kernelDims[2], kernelDims[0]);
+        createAndFillTensorsWithData<float16>(convOp, fillTensorWithRandomData);
+        convOp->run();
+        auto outputs = convOp->getOutput(0);
+        auto refOutputs = getReferenceOutput(convOp);
+        verifyOutputs<float16>(outputs, refOutputs);
+    }
+
+    void doFusionTest(
+            std::vector<int> inputDims,
+            std::vector<int> kernelDims,
+            ActivationInfo actInfo = ActivationInfo(activation_type::ELU),
+            PaddingType padding = SamePadding,
+            std::vector<int> strides = { 1, 1 }) {
+        auto convOp = new SmvConvolutionOp("conv", workspace());
+        convOp->setActivation(actInfo);
+        convOp->setStride(strides[0], strides[1]);
+        convOp->setPadding(padding);
+        TensorShape inputShape(inputDims, NHWC, SmvBackend::Alignment);
+        Tensor* inputs = new Tensor("input", inputShape);
+        inputs->allocateStorage<float16>();
+        workspace()->addTensor(inputs);
+        convOp->setInput(inputs, 0);
+        convOp->setWeightDims(kernelDims[1], kernelDims[2], kernelDims[0]);
+        createAndFillTensorsWithData<float16>(convOp, fillTensorWithRandomData);
+        convOp->run();
+        auto outputs = convOp->getOutput(0);
+        auto refOutputs = getReferenceOutput(convOp);
+        verifyOutputs<float16>(outputs, refOutputs);
+    }
+};
+
+}  // namespace smaug
+
+TEST_CASE_METHOD(SmvConvolutionOpTest,
+                 "SMV Tiled Convolution with fused activation",
+                 "[smvconv]") {
+    auto convOp = new SmvConvolutionOp("conv", workspace());
+    // Outputs should be the same size as inputs.
+
+    SECTION("No tiling required") {
         SECTION("Same padding") {
-            createAndFillTensorsWithData<float16>(
-                    convOp, fillTensorWithRandomData);
-            convOp->run();
-            auto outputs = convOp->getOutput(0);
-            auto refOutputs = getReferenceOutput(convOp, workspace());
-            verifyOutputs<float16>(outputs, refOutputs);
+            // Same padding is used by default.
+            doFusionTest({ 1, 8, 8, 8 }, { 8, 3, 3, 8 });
         }
         SECTION("Valid padding") {
-            convOp->setPadding(ValidPadding);
-            createAndFillTensorsWithData<float16>(
-                    convOp, fillTensorWithRandomData);
-            convOp->run();
-            auto outputs = convOp->getOutput(0);
-            auto refOutputs = getReferenceOutput(convOp, workspace());
-            verifyOutputs<float16>(outputs, refOutputs);
+            doFusionTest({ 1, 8, 8, 8 },
+                         { 8, 3, 3, 8 },
+                         activation_type::ELU,
+                         ValidPadding);
         }
     }
 
     SECTION("DimN tiled convolution") {
         SECTION("Every weight tile contains 8 kernels") {
-            TensorShape inputShape(
-                    { 1, 8, 8, 192 }, DataLayout::NHWC, SmvBackend::Alignment);
-            Tensor* inputs = new Tensor("inputs", inputShape);
-            workspace()->addTensor(inputs);
-            convOp->setInput(inputs, 0);
-            convOp->setWeightDims(3, 3, 128);
-            createAndFillTensorsWithData<float16>(
-                    convOp, fillTensorWithRandomData);
-            convOp->run();
-            auto outputs = convOp->getOutput(0);
-            auto refOutputs = getReferenceOutput(convOp, workspace());
-            verifyOutputs<float16>(outputs, refOutputs);
+            doFusionTest({ 1, 8, 8, 192 }, { 128, 3, 3, 192 });
         }
         SECTION("Every weight tile contains more than 8 kernels") {
-            TensorShape inputShape(
-                    { 1, 8, 8, 32 }, DataLayout::NHWC, SmvBackend::Alignment);
-            Tensor* inputs = new Tensor("inputs", inputShape);
-            workspace()->addTensor(inputs);
-            convOp->setInput(inputs, 0);
             SECTION("Every weight tile contains multiples of 8 kernels") {
                 // The weight tiles will contain 56, 56 and 16 kernels
                 // respectively.
-                convOp->setWeightDims(3, 3, 128);
-                createAndFillTensorsWithData<float16>(
-                        convOp, fillTensorWithRandomData);
-                convOp->run();
-                auto outputs = convOp->getOutput(0);
-                auto refOutputs = getReferenceOutput(convOp, workspace());
-                verifyOutputs<float16>(outputs, refOutputs);
+                doFusionTest({ 1, 8, 8, 32 }, { 128, 3, 3, 32 });
             }
             SECTION("Weight tile contains non-multiples of 8 kernels") {
                 // The weight tiles will contain 50 kernels.
-                convOp->setWeightDims(3, 3, 50);
-                createAndFillTensorsWithData<float16>(
-                        convOp, fillTensorWithRandomData);
-                convOp->run();
-                auto outputs = convOp->getOutput(0);
-                auto refOutputs = getReferenceOutput(convOp, workspace());
-                verifyOutputs<float16>(outputs, refOutputs);
+                doFusionTest({ 1, 8, 8, 32 }, { 50, 3, 3, 32 });
             }
         }
     }
 
     SECTION("DimNH tiled convolution") {
         SECTION("Inputs DimNH tiled, No need to tile the weights") {
-            TensorShape inputShape(
-                    { 1, 32, 32, 32 }, DataLayout::NHWC, SmvBackend::Alignment);
-            Tensor* inputs = new Tensor("inputs", inputShape);
-            workspace()->addTensor(inputs);
-            convOp->setInput(inputs, 0);
-            convOp->setWeightDims(3, 3, 8);
             SECTION("Same padding") {
-                createAndFillTensorsWithData<float16>(
-                        convOp, fillTensorWithRandomData);
-                convOp->run();
-                auto outputs = convOp->getOutput(0);
-                auto refOutputs = getReferenceOutput(convOp, workspace());
-                verifyOutputs<float16>(outputs, refOutputs);
+                doFusionTest({ 1, 32, 32, 32 }, { 8, 3, 3, 32 });
             }
             SECTION("Valid padding") {
-                convOp->setPadding(ValidPadding);
-                createAndFillTensorsWithData<float16>(
-                        convOp, fillTensorWithRandomData);
-                convOp->run();
-                auto outputs = convOp->getOutput(0);
-                auto refOutputs = getReferenceOutput(convOp, workspace());
-                verifyOutputs<float16>(outputs, refOutputs);
+                doFusionTest({ 1, 32, 32, 32 },
+                             { 8, 3, 3, 32 },
+                             activation_type::ELU,
+                             ValidPadding);
             }
         }
         SECTION("Inputs DimNH tiled, weights DimN tiled") {
-            TensorShape inputShape(
-                    { 1, 32, 32, 32 }, DataLayout::NHWC, SmvBackend::Alignment);
-            Tensor* inputs = new Tensor("inputs", inputShape);
-            workspace()->addTensor(inputs);
-            convOp->setInput(inputs, 0);
             SECTION("5x5 kernel size") {
-                convOp->setWeightDims(5, 5, 128);
-                createAndFillTensorsWithData<float16>(
-                        convOp, fillTensorWithRandomData);
-                convOp->run();
-                auto outputs = convOp->getOutput(0);
-                auto refOutputs = getReferenceOutput(convOp, workspace());
-                verifyOutputs<float16>(outputs, refOutputs);
+                doFusionTest({ 1, 32, 32, 32 }, { 128, 5, 5, 32 });
             }
             SECTION("2x2 kernel size") {
-                convOp->setWeightDims(2, 2, 256);
-                createAndFillTensorsWithData<float16>(
-                        convOp, fillTensorWithRandomData);
-                convOp->run();
-                auto outputs = convOp->getOutput(0);
-                auto refOutputs = getReferenceOutput(convOp, workspace());
-                verifyOutputs<float16>(outputs, refOutputs);
+                doFusionTest({ 1, 32, 32, 32 }, { 256, 2, 2, 32 });
             }
         }
         // The difference between this and the previous one is the tiling in the
         // weights due to the input channels.
         SECTION("Inputs DimNH tiled, weights DimNC tiled") {
-            TensorShape inputShape({ 1, 64, 16, 256 }, DataLayout::NHWC,
-                                   SmvBackend::Alignment);
-            Tensor* inputs = new Tensor("inputs", inputShape);
-            workspace()->addTensor(inputs);
-            convOp->setInput(inputs, 0);
-            convOp->setWeightDims(4, 4, 128);
-            createAndFillTensorsWithData<float16>(
-                    convOp, fillTensorWithRandomData);
-            convOp->run();
-            auto outputs = convOp->getOutput(0);
-            auto refOutputs = getReferenceOutput(convOp, workspace());
-            verifyOutputs<float16>(outputs, refOutputs);
+            doFusionTest({ 1, 64, 16, 256 }, { 128, 4, 4, 256 });
         }
     }
 
     SECTION("DimNC tiled convolution") {
         SECTION("Input tile and weight tile have the same channel dimension.") {
             SECTION("Both have 1 channelwise tile.") {
-                TensorShape inputShape({ 1, 16, 8, 64 }, DataLayout::NHWC,
-                                       SmvBackend::Alignment);
-                Tensor* inputs = new Tensor("inputs", inputShape);
-                workspace()->addTensor(inputs);
-                convOp->setInput(inputs, 0);
-                convOp->setWeightDims(5, 5, 8);
-                createAndFillTensorsWithData<float16>(
-                        convOp, fillTensorWithRandomData);
-                convOp->run();
-                auto outputs = convOp->getOutput(0);
-                auto refOutputs = getReferenceOutput(convOp, workspace());
-                verifyOutputs<float16>(outputs, refOutputs);
+                doFusionTest({ 1, 16, 8, 64 }, { 8, 5, 5, 64 });
             }
             SECTION("Both have 4 channelwise tiles.") {
-                TensorShape inputShape({ 1, 16, 16, 256 }, DataLayout::NHWC,
-                                       SmvBackend::Alignment);
-                Tensor* inputs = new Tensor("inputs", inputShape);
-                workspace()->addTensor(inputs);
-                convOp->setInput(inputs, 0);
-                convOp->setWeightDims(5, 5, 8);
-                createAndFillTensorsWithData<float16>(
-                        convOp, fillTensorWithRandomData);
-                convOp->run();
-                auto outputs = convOp->getOutput(0);
-                auto refOutputs = getReferenceOutput(convOp, workspace());
-                verifyOutputs<float16>(outputs, refOutputs);
+                doFusionTest({ 1, 16, 16, 256 }, { 8, 5, 5, 256 });
             }
         }
         SECTION("Inputs are not tiled channelwise, weights have 2 channelwise "
                 "tiles") {
-            TensorShape inputShape(
-                    { 1, 8, 8, 256 }, DataLayout::NHWC, SmvBackend::Alignment);
-            Tensor* inputs = new Tensor("inputs", inputShape);
-            workspace()->addTensor(inputs);
-            convOp->setInput(inputs, 0);
-            convOp->setWeightDims(3, 3, 8);
-            createAndFillTensorsWithData<float16>(
-                    convOp, fillTensorWithRandomData);
-            convOp->run();
-            auto outputs = convOp->getOutput(0);
-            auto refOutputs = getReferenceOutput(convOp, workspace());
-            verifyOutputs<float16>(outputs, refOutputs);
+            doFusionTest({ 1, 8, 8, 256 }, { 8, 3, 3, 256 });
         }
         SECTION("Inputs are not tiled channelwise, weights have 3 channelwise "
                 "tiles") {
-            TensorShape inputShape(
-                    { 1, 4, 4, 512 }, DataLayout::NHWC, SmvBackend::Alignment);
-            Tensor* inputs = new Tensor("inputs", inputShape);
-            workspace()->addTensor(inputs);
-            convOp->setInput(inputs, 0);
-            convOp->setWeightDims(3, 3, 8);
-            createAndFillTensorsWithData<float16>(
-                    convOp, fillTensorWithRandomData);
-            convOp->run();
-            auto outputs = convOp->getOutput(0);
-            auto refOutputs = getReferenceOutput(convOp, workspace());
-            verifyOutputs<float16>(outputs, refOutputs);
+            doFusionTest({ 1, 4, 4, 512 }, { 8, 3, 3, 512 });
         }
         SECTION("Inputs and weights don't need tiling, outputs need DimNC "
                 "tiling") {
@@ -244,114 +171,142 @@ TEST_CASE_METHOD(SmaugTest, "SMV Tiled Convolution", "[smvconv]") {
             workspace()->addTensor(inputs);
             convOp->setInput(inputs, 0);
             SECTION("16 output tiles") {
-                convOp->setWeightDims(1, 1, 256);
-                createAndFillTensorsWithData<float16>(
-                        convOp, fillTensorWithRandomData);
-                convOp->run();
-                auto outputs = convOp->getOutput(0);
-                auto refOutputs = getReferenceOutput(convOp, workspace());
-                verifyOutputs<float16>(outputs, refOutputs);
+                doFusionTest({ 1, 32, 32, 8 }, { 256, 1, 1, 8 });
             }
             SECTION("8 output tiles") {
-                convOp->setWeightDims(2, 2, 128);
-                createAndFillTensorsWithData<float16>(
-                        convOp, fillTensorWithRandomData);
-                convOp->run();
-                auto outputs = convOp->getOutput(0);
-                auto refOutputs = getReferenceOutput(convOp, workspace());
-                verifyOutputs<float16>(outputs, refOutputs);
+                doFusionTest({ 1, 32, 32, 8 }, { 128, 2, 2, 8 });
             }
             SECTION("4 output tiles") {
-                convOp->setWeightDims(3, 3, 64);
-                createAndFillTensorsWithData<float16>(
-                        convOp, fillTensorWithRandomData);
-                convOp->run();
-                auto outputs = convOp->getOutput(0);
-                auto refOutputs = getReferenceOutput(convOp, workspace());
-                verifyOutputs<float16>(outputs, refOutputs);
+                doFusionTest({ 1, 32, 32, 8 }, { 64, 3, 3, 8 });
             }
         }
     }
 
     SECTION("DimNCH tiled convolution") {
         SECTION("Inputs DimNCH tiling: 3 tiles rowwise, 6 tiles channelwise") {
-            TensorShape inputShape({ 1, 32, 32, 192 }, DataLayout::NHWC,
-                                   SmvBackend::Alignment);
-            Tensor* inputs = new Tensor("inputs", inputShape);
-            workspace()->addTensor(inputs);
-            convOp->setInput(inputs, 0);
-            convOp->setWeightDims(4, 4, 32);
-            createAndFillTensorsWithData<float16>(
-                    convOp, fillTensorWithRandomData);
-            convOp->run();
-            auto outputs = convOp->getOutput(0);
-            auto refOutputs = getReferenceOutput(convOp, workspace());
-            verifyOutputs<float16>(outputs, refOutputs);
+            doFusionTest({ 1, 32, 32, 192 }, { 32, 4, 4, 192 });
         }
         SECTION("Inputs DimNCH tiling: 9 tiles rowwise, 6 tiles channelwise") {
-            TensorShape inputShape({ 1, 64, 64, 192 }, DataLayout::NHWC,
-                                   SmvBackend::Alignment);
-            Tensor* inputs = new Tensor("inputs", inputShape);
-            workspace()->addTensor(inputs);
-            convOp->setInput(inputs, 0);
-            convOp->setWeightDims(2, 2, 32);
-            createAndFillTensorsWithData<float16>(
-                    convOp, fillTensorWithRandomData);
-            convOp->run();
-            auto outputs = convOp->getOutput(0);
-            auto refOutputs = getReferenceOutput(convOp, workspace());
-            verifyOutputs<float16>(outputs, refOutputs);
+            doFusionTest({ 1, 64, 64, 192 }, { 32, 2, 2, 192 });
         }
         SECTION("Inputs DimNCH tiling: 43 tiles rowwise, 6 tiles channelwise") {
-            TensorShape inputShape({ 1, 128, 128, 192 }, DataLayout::NHWC,
-                                   SmvBackend::Alignment);
-            Tensor* inputs = new Tensor("inputs", inputShape);
-            workspace()->addTensor(inputs);
-            convOp->setInput(inputs, 0);
-            convOp->setWeightDims(2, 2, 32);
-            createAndFillTensorsWithData<float16>(
-                    convOp, fillTensorWithRandomData);
-            convOp->run();
-            auto outputs = convOp->getOutput(0);
-            auto refOutputs = getReferenceOutput(convOp, workspace());
-            verifyOutputs<float16>(outputs, refOutputs);
+            doFusionTest({ 1, 128, 128, 192 }, { 32, 2, 2, 192 });
         }
     }
 }
 
-TEST_CASE_METHOD(SmaugTest, "Stride size tests", "[smvconv]") {
+TEST_CASE_METHOD(SmvConvolutionOpTest,
+                 "SMV Tiled Convolution without fused activation",
+                 "[smvconv]") {
     auto convOp = new SmvConvolutionOp("conv", workspace());
-    convOp->setPadding(ValidPadding);
+    // Outputs should be the same size as inputs.
 
+    SECTION("No tiling required") {
+        SECTION("Same padding") {
+            // Same padding is used by default.
+            doTest({ 1, 8, 8, 8 }, { 8, 3, 3, 8 });
+        }
+        SECTION("Valid padding") {
+            doTest({ 1, 8, 8, 8 }, { 8, 3, 3, 8 }, ValidPadding);
+        }
+    }
+
+    SECTION("DimN tiled convolution") {
+        SECTION("Every weight tile contains 8 kernels") {
+            doTest({ 1, 8, 8, 192 }, { 128, 3, 3, 192 });
+        }
+        SECTION("Every weight tile contains more than 8 kernels") {
+            SECTION("Every weight tile contains multiples of 8 kernels") {
+                // The weight tiles will contain 56, 56 and 16 kernels
+                // respectively.
+                doTest({ 1, 8, 8, 32 }, { 128, 3, 3, 32 });
+            }
+            SECTION("Weight tile contains non-multiples of 8 kernels") {
+                // The weight tiles will contain 50 kernels.
+                doTest({ 1, 8, 8, 32 }, { 50, 3, 3, 32 });
+            }
+        }
+    }
+
+    SECTION("DimNH tiled convolution") {
+        SECTION("Inputs DimNH tiled, No need to tile the weights") {
+            SECTION("Same padding") {
+                doTest({ 1, 32, 32, 32 }, { 8, 3, 3, 32 });
+            }
+            SECTION("Valid padding") {
+                doTest({ 1, 32, 32, 32 }, { 8, 3, 3, 32 }, ValidPadding);
+            }
+        }
+        SECTION("Inputs DimNH tiled, weights DimN tiled") {
+            SECTION("5x5 kernel size") {
+                doTest({ 1, 32, 32, 32 }, { 128, 5, 5, 32 });
+            }
+            SECTION("2x2 kernel size") {
+                doTest({ 1, 32, 32, 32 }, { 256, 2, 2, 32 });
+            }
+        }
+        // The difference between this and the previous one is the tiling in the
+        // weights due to the input channels.
+        SECTION("Inputs DimNH tiled, weights DimNC tiled") {
+            doTest({ 1, 64, 16, 256 }, { 128, 4, 4, 256 });
+        }
+    }
+
+    SECTION("DimNC tiled convolution") {
+        SECTION("Input tile and weight tile have the same channel dimension.") {
+            SECTION("Both have 1 channelwise tile.") {
+                doTest({ 1, 16, 8, 64 }, { 8, 5, 5, 64 });
+            }
+            SECTION("Both have 4 channelwise tiles.") {
+                doTest({ 1, 16, 16, 256 }, { 8, 5, 5, 256 });
+            }
+        }
+        SECTION("Inputs are not tiled channelwise, weights have 2 channelwise "
+                "tiles") {
+            doTest({ 1, 8, 8, 256 }, { 8, 3, 3, 256 });
+        }
+        SECTION("Inputs are not tiled channelwise, weights have 3 channelwise "
+                "tiles") {
+            doTest({ 1, 4, 4, 512 }, { 8, 3, 3, 512 });
+        }
+        SECTION("Inputs and weights don't need tiling, outputs need DimNC "
+                "tiling") {
+            TensorShape inputShape(
+                    { 1, 32, 32, 8 }, DataLayout::NHWC, SmvBackend::Alignment);
+            Tensor* inputs = new Tensor("inputs", inputShape);
+            workspace()->addTensor(inputs);
+            convOp->setInput(inputs, 0);
+            SECTION("16 output tiles") {
+                doTest({ 1, 32, 32, 8 }, { 256, 1, 1, 8 });
+            }
+            SECTION("8 output tiles") {
+                doTest({ 1, 32, 32, 8 }, { 128, 2, 2, 8 });
+            }
+            SECTION("4 output tiles") {
+                doTest({ 1, 32, 32, 8 }, { 64, 3, 3, 8 });
+            }
+        }
+    }
+
+    SECTION("DimNCH tiled convolution") {
+        SECTION("Inputs DimNCH tiling: 3 tiles rowwise, 6 tiles channelwise") {
+            doTest({ 1, 32, 32, 192 }, { 32, 4, 4, 192 });
+        }
+        SECTION("Inputs DimNCH tiling: 9 tiles rowwise, 6 tiles channelwise") {
+            doTest({ 1, 64, 64, 192 }, { 32, 2, 2, 192 });
+        }
+        SECTION("Inputs DimNCH tiling: 43 tiles rowwise, 6 tiles channelwise") {
+            doTest({ 1, 128, 128, 192 }, { 32, 2, 2, 192 });
+        }
+    }
+}
+
+TEST_CASE_METHOD(SmvConvolutionOpTest, "Stride size tests", "[smvconv]") {
     SECTION("2x2 strides") {
-        convOp->setStride(2, 2);
-        TensorShape inputShape(
-                { 1, 64, 64, 32 }, DataLayout::NHWC, SmvBackend::Alignment);
-        Tensor* inputs = new Tensor("input", inputShape);
-        inputs->allocateStorage<float16>();
-        workspace()->addTensor(inputs);
-        convOp->setInput(inputs, 0);
-        convOp->setWeightDims(3, 3, 16);
-        createAndFillTensorsWithData<float16>(convOp, fillTensorWithRandomData);
-        convOp->run();
-        auto outputs = convOp->getOutput(0);
-        auto refOutputs = getReferenceOutput(convOp, workspace());
-        verifyOutputs<float16>(outputs, refOutputs);
+        doTest({ 1, 64, 64, 32 }, { 16, 3, 3, 32 }, ValidPadding, { 2, 2 });
     }
 
     SECTION("3x3 strides") {
-        convOp->setStride(3, 3);
-        TensorShape inputShape(
-                { 1, 64, 64, 32 }, DataLayout::NHWC, SmvBackend::Alignment);
-        Tensor* inputs = new Tensor("input", inputShape);
-        inputs->allocateStorage<float16>();
-        workspace()->addTensor(inputs);
-        convOp->setInput(inputs, 0);
-        convOp->setWeightDims(5, 5, 16);
-        createAndFillTensorsWithData<float16>(convOp, fillTensorWithRandomData);
-        convOp->run();
-        auto outputs = convOp->getOutput(0);
-        auto refOutputs = getReferenceOutput(convOp, workspace());
-        verifyOutputs<float16>(outputs, refOutputs);
+        doTest({ 1, 64, 64, 32 }, { 16, 5, 5, 32 }, ValidPadding, { 3, 3 });
     }
 }

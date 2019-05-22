@@ -64,7 +64,8 @@ void SmvBatchNormOp::runNA(TiledTensor& inputs,
                          weightsTile->data<float16>(),
                          outputTile->data<float16>(), smv::spad0, smv::spad1,
                          smv::spad2, inputDims, weightsShape[1],
-                         inputShape.getPadding(1), actStart, sendOutputs);
+                         inputShape.getPadding(1), actStart, sendOutputs,
+                         actInfo.function, actInfo.params);
 
             actOffset += weightsTile->getShape()[1];
             if (inputActTiles == weightActTiles) {
@@ -122,14 +123,14 @@ void SmvBatchNormOp::runNWC(TiledTensor& inputs,
                 int inputDims[4] = { inputShape[0], inputShape[1],
                                      inputShape[2], inputShape[3] };
 
-                invokeKernel(smv::kBatchNormHw,
-                             smv_batch_norm_post_conv_nhwc_vec_fxp,
-                             inputTile->data<float16>(),
-                             weightTile->data<float16>(),
-                             outputTile->data<float16>(), smv::spad0,
-                             smv::spad1, smv::spad2, inputDims, weightShape[1],
-                             inputShape.getPadding(3),
-                             weightShape.getPadding(1), ifmapOffset);
+                invokeKernel(
+                        smv::kBatchNormHw,
+                        smv_batch_norm_post_conv_nhwc_vec_fxp,
+                        inputTile->data<float16>(), weightTile->data<float16>(),
+                        outputTile->data<float16>(), smv::spad0, smv::spad1,
+                        smv::spad2, inputDims, weightShape[1],
+                        inputShape.getPadding(3), weightShape.getPadding(1),
+                        ifmapOffset, actInfo.function, actInfo.params);
                 ifmapOffset += inputShape[3];
             }
         }

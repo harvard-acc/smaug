@@ -28,6 +28,7 @@ class SmvBatchNormOpTest : public SmaugTest {
         // A reference batch norm operator is used to get the 'correct' output.
         BatchNormOp<ReferenceBackend>* refBnOp =
                 new BatchNormOp<ReferenceBackend>("ref_bn", workspace());
+        refBnOp->setActivation(bnOp->getActivation());
         refBnOp->setInput(input32, 0);
         refBnOp->setInput(mean32, SmvBatchNormOp::Mean);
         refBnOp->setInput(variance32, SmvBatchNormOp::Variance);
@@ -41,6 +42,24 @@ class SmvBatchNormOpTest : public SmaugTest {
 
     void doTest(std::vector<int> dims) {
         auto bnOp = new SmvBatchNormOp("bn", workspace());
+        DataLayout layout = dims.size() == 4 ? NHWC : NC;
+        TensorShape inputShape(dims, layout, SmvBackend::Alignment);
+        Tensor* inputs = new Tensor("input", inputShape);
+        inputs->allocateStorage<float16>();
+        workspace()->addTensor(inputs);
+        bnOp->setInput(inputs, 0);
+        createAndFillTensorsWithData<float16>(bnOp, fillTensorWithRandomData);
+        bnOp->run();
+        auto outputs = bnOp->getOutput(0);
+        auto refOutputs = getReferenceOutput(bnOp);
+        verifyOutputs<float16>(outputs, refOutputs);
+    }
+
+    void doFusionTest(std::vector<int> dims) {
+        auto bnOp = new SmvBatchNormOp("bn", workspace());
+        ActivationInfo actInfo;
+        actInfo.function = activation_type::ELU;
+        bnOp->setActivation(actInfo);
         DataLayout layout = dims.size() == 4 ? NHWC : NC;
         TensorShape inputShape(dims, layout, SmvBackend::Alignment);
         Tensor* inputs = new Tensor("input", inputShape);
@@ -69,4 +88,20 @@ TEST_CASE_METHOD(SmvBatchNormOpTest,
 TEST_CASE_METHOD(SmvBatchNormOpTest, "SMV Post-FC Batch Norm", "[smvpool]") {
     SECTION("No tiling required") { doTest({ 1, 1024 }); }
     SECTION("DimNC required") { doTest({ 1, 32768 }); }
+}
+
+TEST_CASE_METHOD(SmvBatchNormOpTest,
+                 "SMV Post-Conv Batch Norm with fused activation",
+                 "[smvpool]") {
+    SECTION("No tiling required") { doFusionTest({ 1, 32, 32, 16 }); }
+    SECTION("DimNC tiling") { doFusionTest({ 1, 16, 16, 128 }); }
+    SECTION("DimNW tiling") { doFusionTest({ 1, 64, 64, 32 }); }
+    SECTION("DimNCW tiling") { doFusionTest({ 1, 128, 128, 64 }); }
+}
+
+TEST_CASE_METHOD(SmvBatchNormOpTest,
+                 "SMV Post-FC Batch Norm with fused activation",
+                 "[smvpool]") {
+    SECTION("No tiling required") { doFusionTest({ 1, 1024 }); }
+    SECTION("DimNC required") { doFusionTest({ 1, 32768 }); }
 }

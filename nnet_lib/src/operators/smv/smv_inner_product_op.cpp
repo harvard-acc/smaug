@@ -97,7 +97,8 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
                              outputDims, inputShape.getPadding(1),
                              weightsShape.getPadding(1),
                              outputShape.getPadding(1), actStart,
-                             finishedNeurons, accumulate, sendOutputs);
+                             finishedNeurons, accumulate, sendOutputs,
+                             actInfo.function, actInfo.params);
 
                 actOffset += weightsTile->getShape()[1];
                 if (inputActTiles == weightActTiles) {

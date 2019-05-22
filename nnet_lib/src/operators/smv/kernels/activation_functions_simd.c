@@ -16,11 +16,7 @@ void smv_activation_fun_nc_vec_fxp(float16* host_inputs,
                                    activation_param_t params) {
     // Load inputs.
     dma_load_fp16(inputs, host_inputs, inputs_size, 0, 0);
-
-    VEC_ARRAY_1D(v8fp_t, _inputs, inputs);
-    VEC_ARRAY_1D(v8fp_t, _results, results);
-    activation_fun_vec(_inputs, _results, inputs_size, function, params);
-
+    activation_fun_vec(inputs, results, inputs_size, function, params);
     // Store results to the host memory.
     dma_store_fp16(results, host_results, inputs_size, 0, 0);
 }
