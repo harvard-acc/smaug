@@ -56,53 +56,6 @@ class Network {
     const Graph& getGraph() const { return graph; }
     void dumpDataflowGraph() const;
 
-    template <typename Backend>
-    void addDataLayoutTransformations(Workspace* workspace) {
-        // For every operation in the graph, examine whether its output formats
-        // are compatible with every one of its dependencies. If all of children
-        // are incompatible, insert a reorder.
-        std::vector<OperatorInsertion> reorders;
-        BGL_FORALL_VERTICES(sourceVertex, graph, Graph) {
-            Operator* sourceOp = get(boost::vertex_op, graph, sourceVertex);
-            DataLayoutSet inputLayouts = sourceOp->getOutputDataLayouts();
-            std::set<OpLayoutPair> expectedLayouts;
-            BGL_FORALL_OUTEDGES(sourceVertex, edge, graph, Graph) {
-                Vertex targetVertex = target(edge, graph);
-                Operator* targetOp = get(boost::vertex_op, graph, targetVertex);
-                DataLayoutSet outputLayouts = targetOp->getInputDataLayouts();
-                if (!inputLayouts.overlapsWith(outputLayouts)) {
-                    expectedLayouts.insert(
-                            std::make_pair(targetOp, outputLayouts));
-                }
-            }
-            if (expectedLayouts.empty())
-                continue;
-            LayoutOpsMap transformGroups =
-                    findMinimalTransformGroups(expectedLayouts);
-            // By construction, these are the required transformations, so it
-            // doesn't matter which input data layout we pick.
-            auto temp = inputLayouts.toArray();
-            DataLayout sourceLayout = temp[0];
-            for (auto elem : transformGroups) {
-                if (elem.second.empty())
-                    continue;
-                DataLayout targetLayout = elem.first;
-                ReorderOp<Backend>* reorder = new ReorderOp<Backend>(
-                        sourceOp->getName() + "_to_" +
-                                dataLayoutToStr(targetLayout),
-                        targetLayout,
-                        workspace);
-                addOperator(reorder, { sourceOp });
-                reorders.push_back({ reorder, sourceOp, elem.second });
-            }
-        }
-        for (auto reorderTask : reorders) {
-            insertOperatorBetween(reorderTask.newOp,
-                                  reorderTask.sourceOp,
-                                  reorderTask.targetOps);
-        }
-    }
-
     void printSummary() const;
     void addLayerLastOperator(std::string label, Operator* op) {
         assert(op && "Operator cannot be NULL!");
@@ -120,14 +73,6 @@ class Network {
     };
 
     typedef std::pair<Operator*, DataLayoutSet> OpLayoutPair;
-
-    LayoutOpsMap findMinimalTransformGroups(
-            const std::set<OpLayoutPair>& expectedLayouts);
-    void findMinimalContainingSet(LayoutOpsMap currentSet,
-                                  std::set<DataLayout> remainingLayouts,
-                                  std::set<OpLayoutPair> remainingOpLayoutPairs,
-                                  LayoutOpsMap& minSet);
-
 
     // The dataflow graph.
     Graph graph;

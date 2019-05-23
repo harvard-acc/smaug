@@ -6,8 +6,6 @@
 #include "core/tensor.h"
 #include "core/tensor_utils.h"
 #include "core/workspace.h"
-// TODO: This might be dangerous...
-#include "operators/reorder_op.h"
 #include "operators/common.h"
 #include "operators/fused_activation_op.h"
 
@@ -89,29 +87,11 @@ class BatchNormOp : public FusedActivationOp {
     }
 
     virtual DataLayoutSet getInputDataLayouts() const {
-        // We have to keep going backwards until we find the first operation
-        // from which we can deduce the structure of this operation's input.
-        /*
-        switch (sourceOp->getOpType()) {
-            case Convolution3d:
-            case ConvolutionDepthwise:
-            case MaxPooling:
-            case AveragePooling:
-                return DataLayoutSet(DataLayout::NCHW);
-            case InnerProduct:
-                return DataLayoutSet(DataLayout::NC);
-            case Reorder:
-                return dynamic_cast<ReorderOp<Backend>*>(sourceOp)
-                        ->getTargetDataLayout();
-            default:
-                assert(false && "No valid input op for batch norm!");
-        }
-        */
         return DataLayoutSet(DataLayout::UnknownLayout);
     }
 
     virtual DataLayoutSet getOutputDataLayouts() const {
-        return getInputDataLayouts();
+        return DataLayoutSet(DataLayout::UnknownLayout);
     }
 
     virtual void printSummary(std::ostream& out) const {

@@ -56,60 +56,6 @@ void Network::insertOperatorBetween(Operator* newOp,
     }
 }
 
-Network::LayoutOpsMap Network::findMinimalTransformGroups(
-    const std::set<OpLayoutPair>& expectedLayouts) {
-    // We have a list of sets of supported data layouts. The goal is to find
-    // the minimum number of unique data layouts such that every set has at
-    // least one element.
-    // {NCHW, NHWC}, {NCHW}, {NC}, {X} -> should produce {NCHW, NC}.
-    // remainingOpLayoutPairs.remove(j);
-    std::set<DataLayout> allPossibleLayouts{
-        DataLayout::NCHW, DataLayout::NHWC, DataLayout::NC
-    };
-    LayoutOpsMap assignment;
-    for (auto layout : allPossibleLayouts)
-        assignment[layout] = std::vector<Operator*>();
-    findMinimalContainingSet(assignment,
-                             allPossibleLayouts,
-                             expectedLayouts,
-                             assignment);
-    return assignment;
-}
-
-void Network::findMinimalContainingSet(
-        LayoutOpsMap currentSet,
-        std::set<DataLayout> remainingLayouts,
-        std::set<OpLayoutPair> remainingOpLayoutPairs,
-        LayoutOpsMap& minSet) {
-    if (remainingOpLayoutPairs.empty()) {
-        if (currentSet.size() <= minSet.size())
-            minSet = currentSet;
-        return;
-    }
-    for (auto layoutIt = remainingLayouts.begin();
-         layoutIt != remainingLayouts.end();) {
-        DataLayout currLayout = *layoutIt;
-        std::set<OpLayoutPair> newRemaining;
-        for (auto pairIt = remainingOpLayoutPairs.begin();
-             pairIt != remainingOpLayoutPairs.end();
-             ++pairIt) {
-            auto p = *pairIt;
-            if (p.second.contains(currLayout)) {
-                currentSet[currLayout].push_back(p.first);
-            } else {
-                newRemaining.insert(p);
-            }
-        }
-        layoutIt = remainingLayouts.erase(layoutIt);
-        findMinimalContainingSet(currentSet,
-                                 remainingLayouts,
-                                 newRemaining,
-                                 minSet);
-        // Restore currentSet.
-        currentSet[currLayout].clear();
-    }
-}
-
 void Network::dumpDataflowGraph() const {
     std::ofstream out(name + "_dataflow_graph.dot", std::ofstream::out);
     write_graphviz(out, graph, DataflowGraphWriter(graph));
