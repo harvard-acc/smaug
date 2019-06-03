@@ -15,6 +15,14 @@ class SmaugTest(unittest.TestCase):
     for i in range(len(graph.nodes)):
       if graph.nodes[i].name == node_name:
         return graph.nodes[i]
+    return None
+
+  def get_tensor_data(self, tensor_data_array, tensor_name):
+    """ Find the tensor data for this tensor by its name."""
+    for i in range(len(tensor_data_array.data_array)):
+      if tensor_data_array.data_array[i].name == tensor_name:
+        return tensor_data_array.data_array[i]
+    return None
 
   def assertEqualFP16(self, packed_fp16_data, unpacked_fp16_data):
     """Test equality between packed and unpacked float16 lists.

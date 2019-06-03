@@ -62,11 +62,12 @@ class Tensor:
       return 0
     return (self.shape.alignment - (value % self.shape.alignment))
 
-  def to_tensor_proto(self, tensor_proto):
+  def to_tensor_proto(self, tensor_proto, tensor_data_array):
     """Serialize the tensor into a tensor proto.
 
     Args:
       tensor_proto: The tensor proto this tensor gets serialized into.
+      tensor_data_array: The tensor data array this tensor gets serialized into.
     """
     tensor_proto.name = self.name
     tensor_proto.shape.CopyFrom(self.shape)
@@ -89,14 +90,16 @@ class Tensor:
         self.tensor_data = self.tensor_data.view(np.int32)
 
       # Serialize the data into the proto.
+      tensor_data_proto = tensor_data_array.data_array.add()
+      tensor_data_proto.name = tensor_proto.name
       data_list = [x for x in np.nditer(self.tensor_data)]
       if self.data_type == Float16:
-        tensor_proto.half_data.extend(data_list)
+        tensor_data_proto.half_data.extend(data_list)
       elif self.data_type == Float32:
-        tensor_proto.float_data.extend(data_list)
+        tensor_data_proto.float_data.extend(data_list)
       elif self.data_type == Float64:
-        tensor_proto.double_data.extend(data_list)
+        tensor_data_proto.double_data.extend(data_list)
       elif self.data_type == Int32:
-        tensor_proto.int_data.extend(data_list)
+        tensor_data_proto.int_data.extend(data_list)
       elif self.data_type == Int64:
-        tensor_proto.int64_data.extend(data_list)
+        tensor_data_proto.int64_data.extend(data_list)

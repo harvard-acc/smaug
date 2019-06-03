@@ -1,4 +1,5 @@
 from collections import namedtuple
+from google.protobuf import text_format
 from graph_pb2 import *
 from types_pb2 import *
 from global_vars import *
@@ -11,6 +12,8 @@ class Graph:
     self.graph.name = name
     self.graph.backend = backend
     self.alignment = backend_alignment[backend]
+    # This proto stores all the parameters in the network.
+    self.tensor_data_array = TensorDataArray()
 
   def __enter__(self):
     if get_graph() != None:
@@ -53,7 +56,7 @@ class Graph:
     node.name = name
     node.op = op
 
-    # Add the parameter to the node.
+    # Add the parameters to the node.
     if params != None:
       node.params.CopyFrom(params)
 
@@ -64,7 +67,7 @@ class Graph:
         node.parents.append(tensor.source.name)
         tensor.source.children.append(node.name)
       input_tensor_proto = node.input_tensors.add()
-      tensor.to_tensor_proto(input_tensor_proto)
+      tensor.to_tensor_proto(input_tensor_proto, self.tensor_data_array)
 
     # Create the output tensor (with the node as its source), and add it to the
     # node.
@@ -77,7 +80,7 @@ class Graph:
         source=node,
         alignment=self.alignment)
     output_tensor_proto = node.output_tensors.add()
-    output_tensor.to_tensor_proto(output_tensor_proto)
+    output_tensor.to_tensor_proto(output_tensor_proto, self.tensor_data_array)
 
     return output_tensor
 
@@ -155,10 +158,11 @@ class Graph:
             name instead.
     """
     if name == None:
-      name = self.graph.name + ".pb"
-    f = open(name, "w")
-    f.write(self.graph.SerializeToString())
-    f.close()
+      topo_name = self.graph.name + "_topo.txt"
+      params_name = self.graph.name + "_params.pb"
+    with open(topo_name, "w") as f_topo, open(params_name, "w") as f_params:
+      f_topo.write(text_format.MessageToString(self.graph))
+      f_params.write(self.tensor_data_array.SerializeToString())
 
   def print_summary(self):
     """Print the summary of the graph.

@@ -15,23 +15,35 @@ message TensorProto {
   DataType data_type = 2;
   TensorShapeProto shape = 3;
   DataStorageFormat data_format = 4;
+}
 
+message TensorData {
   // The data stored in the tensor. Only the field with data_type will be set.
+
+  string name = 1;
 
   // Float16. This will be used for quantization. Note that since protobuf has
   // no int16 type, we will pack two half-precision floats into one element
   // here.
-  repeated int32 half_data = 5 [packed = true];
+  repeated int32 half_data = 2 [packed = true];
 
   // Float32.
-  repeated float float_data = 6 [packed = true];
+  repeated float float_data = 3 [packed = true];
 
   // Float64.
-  repeated double double_data = 7 [packed = true];
+  repeated double double_data = 4 [packed = true];
 
   // Int32
-  repeated int32 int_data = 8 [packed = true];
+  repeated int32 int_data = 5 [packed = true];
 
   // Int64
-  repeated int64 int64_data = 9 [packed = true];
+  repeated int64 int64_data = 6 [packed = true];
+}
+
+// The tensor data is stored separately from the TensorProto. Each TensorData
+// message is linked to the corresponding tensors in network topology file by
+// the tensor's name. Therefore, we can easily look at the network topology
+// from a small txt file. It also enables us to compress the parameters.
+message TensorDataArray {
+  repeated TensorData data_array = 1;
 }
