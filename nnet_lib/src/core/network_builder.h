@@ -6,7 +6,9 @@
 #include "core/workspace.h"
 
 namespace smaug {
-Network* buildNetwork(const std::string& modelFile, Workspace* workspace);
+Network* buildNetwork(const std::string& modelTopoFile,
+                      const std::string& modelParamsFile,
+                      Workspace* workspace);
 }  // namespace smaug
 
 #endif

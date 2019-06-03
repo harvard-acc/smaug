@@ -13,35 +13,43 @@ namespace po = boost::program_options;
 using namespace smaug;
 
 int main(int argc, char* argv[]) {
-    std::string modelpb;
+    std::string modelTopo;
+    std::string modelParams;
     int debugLevel = -1;
     std::string lastOutputFile;
     bool dumpGraph = false;
     runningInSimulation = false;
-    po::options_description options("SMAUG Usage:  ./smaug model.pb [options]");
-    options.add_options()("help,h", "Display this help message")(
-            "debug-level", po::value(&debugLevel)->implicit_value(0),
-            "Set the debugging output level. If omitted, all debugging output "
-            "is ignored. If specified without a value, the debug level is set "
-            "to "
-            "zero.")("dump-graph", po::value(&dumpGraph)->implicit_value(true),
-                     "Dump the network in GraphViz format.")(
-            "gem5", po::value(&runningInSimulation)->implicit_value(true),
-            "Run the network in gem5 simulation.")(
-            "print-last-output,p",
-            po::value(&lastOutputFile)->implicit_value("stdout"),
-            "Dump the output of the last layer to this file. If specified with "
-            "no argument, it is printed to stdout.");
+    po::options_description options(
+            "SMAUG Usage:  ./smaug model_topo.pbtxt model_params.pb [options]");
+    // clang-format off
+    options.add_options()
+        ("help,h", "Display this help message")
+        ("debug-level", po::value(&debugLevel)->implicit_value(0),
+         "Set the debugging output level. If omitted, all debugging output "
+         "is ignored. If specified without a value, the debug level is set "
+         "to zero.")
+        ("dump-graph", po::value(&dumpGraph)->implicit_value(true),
+         "Dump the network in GraphViz format.")
+        ("gem5", po::value(&runningInSimulation)->implicit_value(true),
+         "Run the network in gem5 simulation.")
+        ("print-last-output,p",
+         po::value(&lastOutputFile)->implicit_value("stdout"),
+         "Dump the output of the last layer to this file. If specified with no "
+         "argument, it is printed to stdout.");
+    // clang-format on
 
     po::options_description hidden;
-    hidden.add_options()(
-            "model-pb-file", po::value(&modelpb), "Model protobuf file");
+    hidden.add_options()("model-topo-file", po::value(&modelTopo),
+                         "Model topology protobuf file");
+    hidden.add_options()("model-params-file", po::value(&modelParams),
+                         "Model parameters protobuf file");
     po::options_description all, visible;
     all.add(options).add(hidden);
     visible.add(options);
 
     po::positional_options_description p;
-    p.add("model-pb-file", -1);
+    p.add("model-topo-file", 1);
+    p.add("model-params-file", 1);
     po::variables_map vm;
     po::store(po::command_line_parser(argc, argv)
                       .options(all)
@@ -59,16 +67,17 @@ int main(int argc, char* argv[]) {
         std::cout << visible << "\n";
         return 1;
     }
-    if (modelpb.empty()) {
-        std::cout << "The model protobuf file must be specified!\n";
+    if (modelTopo.empty() || modelParams.empty()) {
+        std::cout << "The model protobuf files must be specified!\n";
         exit(1);
     }
     initDebugStream(debugLevel);
 
-    std::cout << "Model protobuf file: " << modelpb << "\n";
+    std::cout << "Model topology file: " << modelTopo << "\n";
+    std::cout << "Model parameters file: " << modelParams << "\n";
 
     Workspace* workspace = new Workspace();
-    Network* network = buildNetwork(modelpb, workspace);
+    Network* network = buildNetwork(modelTopo, modelParams, workspace);
     SmvBackend::initGlobals();
 
     network->dumpDataflowGraph();

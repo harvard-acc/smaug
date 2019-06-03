@@ -260,24 +260,24 @@ class Tensor : public TensorBase {
             : TensorBase(_name, _shape), tensorData(NULL) {}
     virtual ~Tensor() {}
 
-    Tensor(const TensorProto& tensorProto)
+    Tensor(const TensorProto& tensorProto, const TensorData& tensorData)
             : TensorBase(tensorProto), tensorData(NULL) {
         DataType dataType = tensorProto.data_type();
         switch (dataType) {
             case Float16:
-                fillHalfData(tensorProto.half_data());
+                fillHalfData(tensorData.half_data());
                 break;
             case Float32:
-                fillData<float>(tensorProto.float_data());
+                fillData<float>(tensorData.float_data());
                 break;
             case Float64:
-                fillData<double>(tensorProto.double_data());
+                fillData<double>(tensorData.double_data());
                 break;
             case Int32:
-                fillData<int>(tensorProto.int_data());
+                fillData<int>(tensorData.int_data());
                 break;
             case Int64:
-                fillData<int64_t>(tensorProto.int64_data());
+                fillData<int64_t>(tensorData.int64_data());
             default:
                 assert(false && "Unknown data format!");
         }

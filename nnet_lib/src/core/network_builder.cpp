@@ -1,5 +1,9 @@
 #include <iostream>
 #include <fstream>
+#include <fcntl.h>
+
+#include <google/protobuf/text_format.h>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
 
 #include "core/backend.h"
 #include "core/tensor.h"
@@ -81,6 +85,7 @@ ActivationInfo getActivationInfo(const ActivationParams& params) {
 // network.
 template <typename Backend>
 static void createAndAddOperator(const NodeProto& node,
+                                 const TensorDataArray& tensorDataArray,
                                  Network* network,
                                  Workspace* workspace) {
     const std::string& name = node.name();
@@ -96,8 +101,17 @@ static void createAndAddOperator(const NodeProto& node,
     }
 
     if (type == OpType::Data) {
-        auto inputTensor =
-                workspace->addTensor(new Tensor(node.input_tensors(0)));
+        // Find the tensor data from the tensor data array.
+        TensorData tensorData;
+        for (int i = 0; i < tensorDataArray.data_array_size(); i++) {
+            if (tensorDataArray.data_array(i).name() ==
+                node.input_tensors(0).name()) {
+                tensorData = tensorDataArray.data_array(i);
+                break;
+            }
+        }
+        auto inputTensor = workspace->addTensor(
+                new Tensor(node.input_tensors(0), tensorData));
         auto inputTensorOp =
                 Backend::createDataOp(inputTensor->getName(), workspace);
         inputTensorOp->setData(inputTensor);
@@ -209,24 +223,40 @@ static void createAndAddOperator(const NodeProto& node,
 // protobuf model.
 template <typename Backend>
 static Network* createNetworkFromProto(const GraphProto& graph,
+                                       const TensorDataArray& tensorDataArray,
                                        Workspace* workspace) {
     Network* network = new Network(graph.name());
     for (int i = 0; i < graph.nodes_size(); i++) {
         const NodeProto& node = graph.nodes(i);
-        createAndAddOperator<Backend>(node, network, workspace);
+        createAndAddOperator<Backend>(
+                node, tensorDataArray, network, workspace);
     }
     return network;
 }
 
-Network* smaug::buildNetwork(const std::string& modelFile,
+Network* smaug::buildNetwork(const std::string& modelTopo,
+                             const std::string& modelParams,
                              Workspace* workspace) {
+    // Parse the network topology from the protobuf text file.
     GraphProto graph;
-    fstream model(modelFile, ios::in | ios::binary);
-    if (!model) {
-        cout << modelFile << ": File not found." << endl;
+    int modelTopoDescriptor = open(modelTopo.c_str(), O_RDONLY);
+    if (modelTopoDescriptor < 0) {
+        cout << modelTopo << ": network topology file not found." << endl;
         exit(1);
-    } else if (!graph.ParseFromIstream(&model)) {
-        cout << "Failed to parse the model file.\n";
+    }
+    google::protobuf::io::FileInputStream modelTopoInput(modelTopoDescriptor);
+    if (!google::protobuf::TextFormat::Parse(&modelTopoInput, &graph)) {
+        cout << "Failed to parse the network topology file!" << endl;
+        exit(1);
+    }
+    // Parse the network parameters from the protobuf binary file.
+    TensorDataArray tensorDataArray;
+    fstream modelParamsFile(modelParams, ios::in | ios::binary);
+    if (!modelParamsFile) {
+        cout << modelParams << ": network parameters file not found." << endl;
+        exit(1);
+    } else if (!tensorDataArray.ParseFromIstream(&modelParamsFile)) {
+        cout << "Failed to parse the network parameters file.\n";
         exit(1);
     }
 
@@ -235,9 +265,11 @@ Network* smaug::buildNetwork(const std::string& modelFile,
     cout << "======================================================\n";
     Network* network = nullptr;
     if (graph.backend() == ReferenceBackend::Name) {
-        network = createNetworkFromProto<ReferenceBackend>(graph, workspace);
+        network = createNetworkFromProto<ReferenceBackend>(
+                graph, tensorDataArray, workspace);
     } else if (graph.backend() == SmvBackend::Name) {
-        network = createNetworkFromProto<SmvBackend>(graph, workspace);
+        network = createNetworkFromProto<SmvBackend>(
+                graph, tensorDataArray, workspace);
     } else {
         assert(false && "Unknown backend!");
     }

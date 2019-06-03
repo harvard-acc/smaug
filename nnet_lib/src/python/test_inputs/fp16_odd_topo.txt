@@ -1,0 +1,28 @@
+name: "fp16_odd"
+nodes {
+  name: "input"
+  op: Data
+  input_tensors {
+    name: "input"
+    data_type: Float16
+    shape {
+      dims: 4
+      dims: 3
+      layout: NCHW
+      alignment: 8
+    }
+    data_format: Uncompressed
+  }
+  output_tensors {
+    name: "input"
+    data_type: Float16
+    shape {
+      dims: 4
+      dims: 3
+      layout: NCHW
+      alignment: 8
+    }
+    data_format: Uncompressed
+  }
+}
+backend: "SMV"

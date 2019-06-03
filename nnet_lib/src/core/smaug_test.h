@@ -80,10 +80,12 @@ class SmaugTest {
         }
     }
 
-    Network* buildNetwork(const std::string& modelpb) {
+    Network* buildNetwork(const std::string& modelTopo,
+                          const std::string& modelParams) {
         if (network_ != nullptr)
             delete network_;
-        network_ = smaug::buildNetwork(resolvePath(modelpb), workspace_);
+        network_ = smaug::buildNetwork(
+                resolvePath(modelTopo), resolvePath(modelParams), workspace_);
         return network_;
     }
 
