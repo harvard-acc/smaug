@@ -28,6 +28,26 @@ TEST_CASE_METHOD(SmaugTest, "Network tests", "[network]") {
                 convertFp16ToFp32Tensor(output, workspace()), refOutput);
     }
 
+    SECTION("LeNet5 network. 2 layers of Convs, 1 layout of Pool and 2 layers "
+            "of FCs.") {
+        // LeNet5 network with the SMV backend.
+        Network* network =
+                buildNetwork(modelPath + "lenet5/lenet5_smv_topo.pbtxt",
+                             modelPath + "lenet5/lenet5_smv_params.pb");
+        Tensor* output = runNetwork(network, workspace());
+
+        // The same network with the reference backend. This is used for
+        // producing expected outputs.
+        Network* refNetwork =
+                buildNetwork(modelPath + "lenet5/lenet5_ref_topo.pbtxt",
+                             modelPath + "lenet5/lenet5_ref_params.pb");
+        Tensor* refOutput = runNetwork(refNetwork, workspace());
+
+        // SMV outputs need to be converted into float32 before validations.
+        verifyOutputs<float>(
+                convertFp16ToFp32Tensor(output, workspace()), refOutput);
+    }
+
     SECTION("ELU network. 11 layers of convolutions and 5 layers of "
             "poolings.") {
         // ELU network with the SMV backend.
