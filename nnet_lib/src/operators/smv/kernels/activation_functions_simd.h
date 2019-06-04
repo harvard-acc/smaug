@@ -20,9 +20,7 @@ static inline v8fp_t relu_vec_unit(v8fp_t a) {
 }
 
 ALWAYS_INLINE
-static inline v8fp_t relu_vec(v8fp_t* inputs,
-                              v8fp_t* results,
-                              int inputs_size) {
+static inline void relu_vec(v8fp_t* inputs, v8fp_t* results, int inputs_size) {
     relu_loop:
     for (int i = 0; i < inputs_size / VECTOR_SIZE; i++) {
         results[i] = relu_vec_unit(inputs[i]);
@@ -44,10 +42,10 @@ static inline v8fp_t lrelu_vec_unit(v8fp_t a, float slope) {
 }
 
 ALWAYS_INLINE
-static inline v8fp_t lrelu_vec(v8fp_t* inputs,
-                              v8fp_t* results,
-                              int inputs_size,
-                              float slope) {
+static inline void lrelu_vec(v8fp_t* inputs,
+                             v8fp_t* results,
+                             int inputs_size,
+                             float slope) {
     lrelu_loop:
     for (int i = 0; i < inputs_size / VECTOR_SIZE; i++) {
         results[i] = lrelu_vec_unit(inputs[i], slope);
@@ -68,10 +66,10 @@ static inline v8fp_t elu_vec_unit(v8fp_t a, float alpha) {
 }
 
 ALWAYS_INLINE
-static inline v8fp_t elu_vec(v8fp_t* inputs,
-                             v8fp_t* results,
-                             int inputs_size,
-                             float alpha) {
+static inline void elu_vec(v8fp_t* inputs,
+                           v8fp_t* results,
+                           int inputs_size,
+                           float alpha) {
     elu_loop:
     for (int i = 0; i < inputs_size / VECTOR_SIZE; i++) {
         results[i] = elu_vec_unit(inputs[i], alpha);
@@ -90,11 +88,11 @@ static inline v8fp_t selu_vec_unit(v8fp_t a, float alpha, float lambda) {
 }
 
 ALWAYS_INLINE
-static inline v8fp_t selu_vec(v8fp_t* inputs,
-                              v8fp_t* results,
-                              int inputs_size,
-                              float alpha,
-                              float lambda) {
+static inline void selu_vec(v8fp_t* inputs,
+                            v8fp_t* results,
+                            int inputs_size,
+                            float alpha,
+                            float lambda) {
     selu_loop:
     for (int i = 0; i < inputs_size / VECTOR_SIZE; i++) {
         results[i] = selu_vec_unit(inputs[i], alpha, lambda);
@@ -114,9 +112,9 @@ static inline v8fp_t sigmoid_vec_unit(v8fp_t a) {
 }
 
 ALWAYS_INLINE
-static inline v8fp_t sigmoid_vec(v8fp_t* inputs,
-                                 v8fp_t* results,
-                                 int inputs_size) {
+static inline void sigmoid_vec(v8fp_t* inputs,
+                               v8fp_t* results,
+                               int inputs_size) {
     sigmoid_loop:
     for (int i = 0; i < inputs_size / VECTOR_SIZE; i++) {
         results[i] = sigmoid_vec_unit(inputs[i]);
@@ -134,9 +132,7 @@ static inline v8fp_t tanh_vec_unit(v8fp_t a) {
 }
 
 ALWAYS_INLINE
-static inline v8fp_t tanh_vec(v8fp_t* inputs,
-                              v8fp_t* results,
-                              int inputs_size) {
+static inline void tanh_vec(v8fp_t* inputs, v8fp_t* results, int inputs_size) {
     tanh_loop:
     for (int i = 0; i < inputs_size / VECTOR_SIZE; i++) {
         results[i] = tanh_vec_unit(inputs[i]);
@@ -155,11 +151,11 @@ static inline v8fp_t hard_tanh_vec_unit(v8fp_t a, float min, float max) {
 }
 
 ALWAYS_INLINE
-static inline v8fp_t hard_tanh_vec(v8fp_t* inputs,
-                                   v8fp_t* results,
-                                   int inputs_size,
-                                   float min,
-                                   float max) {
+static inline void hard_tanh_vec(v8fp_t* inputs,
+                                 v8fp_t* results,
+                                 int inputs_size,
+                                 float min,
+                                 float max) {
     hard_tanh_loop:
     for (int i = 0; i < inputs_size / VECTOR_SIZE; i++) {
         results[i] = hard_tanh_vec_unit(inputs[i], min, max);
