@@ -67,4 +67,23 @@ TEST_CASE_METHOD(SmaugTest, "Network tests", "[network]") {
         verifyOutputs<float>(
                 convertFp16ToFp32Tensor(output, workspace()), refOutput);
     }
+
+    SECTION("CIFAR-10 VGG network. 10 Convs, 4 Pools and 2 FCs.") {
+        // VGG network with the SMV backend.
+        Network* network =
+                buildNetwork(modelPath + "cifar10-vgg/vgg_smv_topo.pbtxt",
+                             modelPath + "cifar10-vgg/vgg_smv_params.pb");
+        Tensor* output = runNetwork(network, workspace());
+
+        // The same network with the reference backend. This is used for
+        // producing expected outputs.
+        Network* refNetwork =
+                buildNetwork(modelPath + "cifar10-vgg/vgg_ref_topo.pbtxt",
+                             modelPath + "cifar10-vgg/vgg_ref_params.pb");
+        Tensor* refOutput = runNetwork(refNetwork, workspace());
+
+        // SMV outputs need to be converted into float32 before validations.
+        verifyOutputs<float>(
+                convertFp16ToFp32Tensor(output, workspace()), refOutput);
+    }
 }
