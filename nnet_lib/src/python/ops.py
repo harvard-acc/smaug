@@ -140,10 +140,10 @@ def convolution(name,
   row_idx = 2 if input_tensor.shape.layout == NCHW else 1
   col_idx = 3 if input_tensor.shape.layout == NCHW else 2
   output_rows = compute_output_dim(input_tensor.shape.dims[row_idx],
-                                   filter_tensor.shape.dims[2], stride[0],
+                                   filter_tensor.shape.dims[row_idx], stride[0],
                                    padding)
   output_cols = compute_output_dim(input_tensor.shape.dims[col_idx],
-                                   filter_tensor.shape.dims[3], stride[1],
+                                   filter_tensor.shape.dims[col_idx], stride[1],
                                    padding)
   output_layout = get_output_layout(Convolution3d)
   if output_layout == NCHW:
