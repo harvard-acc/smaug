@@ -292,42 +292,59 @@ class Tensor : public TensorBase {
     template <typename T>
     void fillData(T* externalData, int size) {
         T* rawPtr = data<T>();
+#ifdef USE_PEDANTIC_COPY
         for (int i = 0; i < size; i++) {
             rawPtr[i] = externalData[i];
         }
+#else
+        std::copy(externalData, externalData + size, rawPtr);
+#endif
     }
 
     template <typename T>
     void fillData(std::initializer_list<T> externalData) {
         T* rawPtr = data<T>();
+#ifdef USE_PEDANTIC_COPY
         int i = 0;
         for (auto dataPtr = externalData.begin(); dataPtr != externalData.end();
              ++dataPtr, ++i) {
             rawPtr[i] = *dataPtr;
         }
+#else
+        std::copy(externalData.begin(), externalData.end(), rawPtr);
+#endif
     }
 
     template <typename T>
     void fillData(const google::protobuf::RepeatedField<T>& externalData) {
         allocateStorage<T>();
         T* rawPtr = data<T>();
+#ifdef USE_PEDANTIC_COPY
         int i = 0;
         for (auto dataPtr = externalData.begin(); dataPtr != externalData.end();
              ++dataPtr, ++i) {
             rawPtr[i] = *dataPtr;
         }
+#else
+        std::copy(externalData.begin(), externalData.end(), rawPtr);
+#endif
     }
 
     // Fill the tensor with float16 data. This is needed because the data in
-    // tensor proto packs two float16 into one int32. Here we do the unpacking.
+    // tensor proto packs two float16 into one int32.
     void fillHalfData(
             const google::protobuf::RepeatedField<int>& externalData) {
         allocateStorage<float16>();
         float16* rawPtr = data<float16>();
+#ifdef USE_PEDANTIC_COPY
         for (int i = 0; i < shape.storageSize(); i++) {
             bool useLowHalf = (i % 2 == 0);
             rawPtr[i] = externalData[i / 2] >> (useLowHalf ? 0 : 16);
         }
+#else
+        const int* externalPtr = externalData.data();
+        memcpy(rawPtr, externalPtr, shape.storageSize() * sizeof(float16));
+#endif
     }
 
     template <typename T>
