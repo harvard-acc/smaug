@@ -20,6 +20,8 @@ def check_and_add_layout_transform(name, op, input_tensors):
     A list of transformed input tensors, or the original input tensors if no
     layout transformation is required.
   """
+  if not get_graph().layout_trans_enabled:
+    return input_tensors
   backend = get_graph().graph.backend
   for i in range(len(input_tensors)):
     expected_layoutset = backend_layouts[backend][op].input_layoutsets[i]
@@ -28,18 +30,6 @@ def check_and_add_layout_transform(name, op, input_tensors):
       input_tensors[i] = reorder("%s->%s" % (input_tensors[i].name, name),
                                  input_tensors[i], expected_layoutset.layouts)
   return input_tensors
-
-def get_output_layout(op):
-  """ Get the expected output layout for the operator.
-
-  Args:
-    op: OpType of the operator.
-
-  Returns:
-    The expected layout type of the operator.
-  """
-  backend = get_graph().graph.backend
-  return backend_layouts[backend][op].output_layoutset.layouts
 
 def add_node(name,
              op,
@@ -145,7 +135,7 @@ def convolution(name,
   output_cols = compute_output_dim(input_tensor.shape.dims[col_idx],
                                    filter_tensor.shape.dims[col_idx], stride[1],
                                    padding)
-  output_layout = get_output_layout(Convolution3d)
+  output_layout = input_tensor.shape.layout
   if output_layout == NCHW:
     output_tensor_dims = [
         input_tensor.shape.dims[0], filter_tensor.shape.dims[0], output_rows,
@@ -271,7 +261,7 @@ def batch_norm(name,
   gamma_tensor.name = name + "/gamma"
   beta_tensor.name = name + "/beta"
   output_layout = UnknownLayout
-  output_layout = NC if post_fc else get_output_layout(BatchNorm)
+  output_layout = NC if post_fc else input_tensor.shape.layout
   params = Params()
   if activation != None:
     params.act_params.activation = activation
@@ -299,7 +289,7 @@ def max_pool(name, input_tensor, pool_size, stride):
                                    pool_size[0], stride[0])
   output_cols = compute_output_dim(input_tensor.shape.dims[col_idx],
                                    pool_size[1], stride[1])
-  output_layout = get_output_layout(MaxPooling)
+  output_layout = input_tensor.shape.layout
   if output_layout == NCHW:
     output_tensor_dims = [
         input_tensor.shape.dims[0], input_tensor.shape.dims[1], output_rows,

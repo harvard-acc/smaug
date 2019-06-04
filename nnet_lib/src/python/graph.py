@@ -12,6 +12,8 @@ class Graph:
     self.graph.name = name
     self.graph.backend = backend
     self.alignment = backend_alignment[backend]
+    # Layout transformation is enabled by default.
+    self.layout_trans_enabled = True
     # This proto stores all the parameters in the network.
     self.tensor_data_array = TensorDataArray()
 
@@ -83,6 +85,19 @@ class Graph:
     output_tensor.to_tensor_proto(output_tensor_proto, self.tensor_data_array)
 
     return output_tensor
+
+  def disable_layout_transform(self):
+    """Disable automatic layout transformation.
+
+    Note that if the backend kernels do not support the data layouts that are
+    manually specified when automatic layout transformations are disabled,
+    execution will fail.
+    """
+    self.layout_trans_enabled = False
+
+  def eable_layout_transform(self):
+    """Enable automatic layout transformation."""
+    self.layout_trans_enabled = True
 
   def remove_extra_reorder_ops(self):
     """Remove extraneous reorder operators from the graph.
