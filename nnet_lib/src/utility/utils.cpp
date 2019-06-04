@@ -6,11 +6,13 @@
 
 namespace smaug {
 
-void* malloc_aligned(size_t size) {
+void* malloc_aligned(size_t size, bool zeroOut) {
     void* ptr = NULL;
     int err = posix_memalign(
             (void**)&ptr, CACHELINE_SIZE, next_multiple(size, CACHELINE_SIZE));
     assert(err == 0 && "Failed to allocate memory!");
+    if (zeroOut)
+        memset(ptr, 0, next_multiple(size, CACHELINE_SIZE));
     return ptr;
 }
 

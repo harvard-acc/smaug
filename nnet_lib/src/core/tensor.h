@@ -334,11 +334,10 @@ class Tensor : public TensorBase {
     T* allocateStorage() {
         if (tensorData == NULL) {
             dataType = ToDataType<T>::dataType;
-            // TODO: Replace this with malloc_aligned.
             int size = shape.storageSize();
             assert(size > 0 && "Attempted to allocate zero storage!");
             tensorData = std::shared_ptr<void>(
-                    new T[size](), std::default_delete<T[]>());
+                    malloc_aligned(size * sizeof(T), true), free);
         }
         return reinterpret_cast<T*>(tensorData.get());
     }
