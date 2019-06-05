@@ -4,3 +4,6 @@
 [submodule "nnet_lib/src/third_party/Catch2"]
 	path = nnet_lib/src/third_party/Catch2
 	url = https://github.com/catchorg/Catch2
+[submodule "models"]
+	path = models
+	url = https://github.com/yaoyuannnn/models
