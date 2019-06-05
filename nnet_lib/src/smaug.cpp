@@ -80,7 +80,6 @@ int main(int argc, char* argv[]) {
     Network* network = buildNetwork(modelTopo, modelParams, workspace);
     SmvBackend::initGlobals();
 
-    network->dumpDataflowGraph();
     if (dumpGraph)
         network->dumpDataflowGraph();
 
