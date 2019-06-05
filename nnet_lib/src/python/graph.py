@@ -173,7 +173,7 @@ class Graph:
             name instead.
     """
     if name == None:
-      topo_name = self.graph.name + "_topo.txt"
+      topo_name = self.graph.name + "_topo.pbtxt"
       params_name = self.graph.name + "_params.pb"
     with open(topo_name, "w") as f_topo, open(params_name, "w") as f_params:
       f_topo.write(text_format.MessageToString(self.graph))
