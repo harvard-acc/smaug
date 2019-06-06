@@ -76,34 +76,42 @@ $(BUILD_DIR)/$(EXEC)-instrumented: $(BUILD_DIR)/full.s
 	@echo Producing final binary...
 	@g++ -O0 -fno-inline -o $@ $^ $(LFLAGS)
 
+# A release build of clang-6 will by default pass -discard-value-names to the
+# cc1 compiler, which changes value names into numeric registers. Because
+# there's no clang-6 option to avoid that, we directly run the raw cc1 command
+# with the option excluded.
 %-opt.llvm: %.c %-labelmap
 	@echo Building $<
-	@clang -g -O1 -S -fno-slp-vectorize -fno-vectorize -fno-unroll-loops \
-        -fno-inline -fno-builtin \
-				-mavx \
-				-mf16c \
-				-emit-llvm \
-				$(INCLUDES) \
-				$(CPPFLAGS) \
-        $(BMARK_SPECIFIC_CFLAGS) \
-        -o $*.llvm $<
+	@$(eval CC1_COMMAND=$(shell clang -g -O1 -S -fno-slp-vectorize \
+		-fno-vectorize -fno-unroll-loops \
+		-fno-inline -fno-builtin \
+		-mavx \
+		-mf16c \
+		-emit-llvm \
+		$(INCLUDES) \
+		$(CPPFLAGS) \
+		$(BMARK_SPECIFIC_CFLAGS) \
+		-o $*.llvm $< -### 2>&1 >/dev/null | tail -n 1 | sed 's/"-discard-value-names"//g'))
+	@$(CC1_COMMAND)
 	@opt -S -load=$(TRACER) -fulltrace \
 				-labelmapwriter -trace-all-callees -i $(BUILD_DIR)/labelmap \
 				$*.llvm -o $*-opt.llvm
 
 %-opt.llvm: %.cpp %-labelmap
 	@echo Building $<
-	@clang++ -g -O1 -S -fno-slp-vectorize -fno-vectorize -fno-unroll-loops \
-        -fno-inline -fno-builtin \
-				-mavx \
-				-mf16c \
-				-emit-llvm \
-				-std=c++11 \
-				-D_GLIBCXX11_USE_CXX11_ABI=1 \
-				$(INCLUDES) \
-				$(CPPFLAGS) \
-        $(BMARK_SPECIFIC_CFLAGS) \
-        -o $*.llvm $<
+	@$(eval CC1_COMMAND=$(shell clang++ -g -O1 -S -fno-slp-vectorize \
+		-fno-vectorize -fno-unroll-loops \
+		-fno-inline -fno-builtin \
+		-mavx \
+		-mf16c \
+		-emit-llvm \
+		-std=c++11 \
+		-D_GLIBCXX11_USE_CXX11_ABI=1 \
+		$(INCLUDES) \
+		$(CPPFLAGS) \
+		$(BMARK_SPECIFIC_CFLAGS) \
+		-o $*.llvm $< -### 2>&1 >/dev/null | tail -n 1 | sed 's/"-discard-value-names"//g'))
+	@$(CC1_COMMAND)
 	@opt -S -load=$(TRACER) -fulltrace \
 				-labelmapwriter -trace-all-callees -i $(BUILD_DIR)/labelmap \
 				$*.llvm -o $*-opt.llvm
