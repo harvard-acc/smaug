@@ -88,7 +88,7 @@ GEM5_SYS_SRCS = gem5/aladdin_sys_connection.cpp gem5/aladdin_sys_connection.h \
 GEM5_SRCS = $(GEM5_DMA_SRC) $(GEM5_SYS_SRCS)
 
 LFLAGS = -L$(BOOST_ROOT)/lib -lm -lrt -lboost_graph -lboost_program_options -lprotobuf -lpthread
-CFLAGS = -O0 -g
+CFLAGS = -O3 -g
 CXXFLAGS = -std=c++11 $(CFLAGS) -Wno-deprecated-declarations
 INCLUDES = -I$(BUILD_DIR) \
            -I$(BUILD_DIR)/gem5 \
