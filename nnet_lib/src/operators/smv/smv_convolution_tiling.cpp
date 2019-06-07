@@ -350,7 +350,8 @@ TiledTensor TilingOptimizer::generateRowwiseOutputTiledTensor(
                            "DimNH input tiling results in output tile sizes "
                            "larger than the max tile size!");
                     int oi = outputIndex(n, h, w, c);
-                    std::string tileName = outputTensor->getName() +
+                    std::string tileName = op->getName() + ":" +
+                                           outputTensor->getName() +
                                            "/tile:" + std::to_string((int)oi);
                     Tensor* outputTile = new Tensor(tileName, outputTileShape);
                     outputTile->allocateStorage(outputTensor->getDataType());
@@ -384,10 +385,10 @@ std::array<TiledTensor, 3> TilingOptimizer::doTiling(SmvConvolutionOp* op) {
     TilingConfig tileConfig = TilingOptimizer::computeBasicTileShapes(op);
     std::vector<int> inputHalos{ 0, op->getWeightRows() - op->getRowStride(),
                                  op->getWeightCols() - op->getColStride(), 0 };
-    TiledTensor tiledInputs = generateTiledTensor(
-            input, tileConfig.inputs, inputHalos, op->getWorkspace());
+    TiledTensor tiledInputs =
+            generateTiledTensor(input, tileConfig.inputs, inputHalos, op);
     TiledTensor tiledWeights = generateTiledTensor(
-            kernels, tileConfig.weights, { 0, 0, 0, 0 }, op->getWorkspace());
+            kernels, tileConfig.weights, { 0, 0, 0, 0 }, op);
     TiledTensor tiledOutputs;
     if (needsHwiseTiling(tileConfig.outputTilingDims)) {
         tiledOutputs = TilingOptimizer::generateRowwiseOutputTiledTensor(
@@ -399,7 +400,7 @@ std::array<TiledTensor, 3> TilingOptimizer::doTiling(SmvConvolutionOp* op) {
                 true);
     } else {
         tiledOutputs = generateTiledTensor(
-                output, tileConfig.outputs, { 0, 0, 0, 0 }, op->getWorkspace());
+                output, tileConfig.outputs, { 0, 0, 0, 0 }, op);
     }
     return { tiledInputs, tiledWeights, tiledOutputs };
 }

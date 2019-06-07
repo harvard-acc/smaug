@@ -49,12 +49,9 @@ std::array<TiledTensor, 3> SmvEltwiseAddOp::doTiling() {
                      inputs0->getShape().storageSize());
     TensorShape tileShape(
             { 1, maxTileSize }, DataLayout::NC, SmvBackend::Alignment);
-    TiledTensor tiledInputs0 =
-            generateTiles(inputs0, tileShape, getWorkspace());
-    TiledTensor tiledInputs1 =
-            generateTiles(inputs1, tileShape, getWorkspace());
-    TiledTensor tiledOutputs =
-            generateTiles(outputs, tileShape, getWorkspace());
+    TiledTensor tiledInputs0 = generateTiles(inputs0, tileShape, this);
+    TiledTensor tiledInputs1 = generateTiles(inputs1, tileShape, this);
+    TiledTensor tiledOutputs = generateTiles(outputs, tileShape, this);
     return { tiledInputs0, tiledInputs1, tiledOutputs };
 }
 

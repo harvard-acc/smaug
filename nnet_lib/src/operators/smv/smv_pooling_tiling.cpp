@@ -185,10 +185,10 @@ std::array<TiledTensor, 2> TilingOptimizer::doTiling(SmvPoolingOp* op) {
     std::tie(poolRowStride, poolColStride) = op->getPoolingStride();
     std::vector<int> inputHalos{ 0, std::max(poolRowSize - poolRowStride, 0),
                                  std::max(poolColSize - poolColStride, 0), 0 };
-    TiledTensor tiledInputs = generateTiledTensor(
-            input, tileConfig.inputs, inputHalos, op->getWorkspace());
-    TiledTensor tiledOutputs = generateTiledTensor(
-            output, tileConfig.outputs, { 0, 0, 0, 0 }, op->getWorkspace());
+    TiledTensor tiledInputs =
+            generateTiledTensor(input, tileConfig.inputs, inputHalos, op);
+    TiledTensor tiledOutputs =
+            generateTiledTensor(output, tileConfig.outputs, { 0, 0, 0, 0 }, op);
     return { tiledInputs, tiledOutputs };
 }
 

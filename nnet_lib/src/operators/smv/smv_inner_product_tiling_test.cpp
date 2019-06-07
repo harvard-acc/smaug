@@ -47,15 +47,15 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
-            TiledTensor inputTiles = generateTiledTensor(
-                    inputs, config.inputs, halos, workspace());
+            TiledTensor inputTiles =
+                    generateTiledTensor(inputs, config.inputs, halos, fcOp);
             REQUIRE(inputTiles.size() == 1);
             verifyTensorWithFixedData(inputTiles[0], 0);
 
             auto weights = fcOp->getInput(1);
             fillTensorWithFixedData(weights);
-            TiledTensor weightTiles = generateTiledTensor(
-                    weights, config.weights, halos, workspace());
+            TiledTensor weightTiles =
+                    generateTiledTensor(weights, config.weights, halos, fcOp);
             REQUIRE(weightTiles.size() == 2);
             for (auto i = weightTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(weightTiles[i]->getShape().dims() ==
@@ -65,8 +65,8 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
 
             auto outputs = fcOp->getOutput(0);
             fillTensorWithFixedData(outputs);
-            TiledTensor outputTiles = generateTiledTensor(
-                    outputs, config.outputs, halos, workspace());
+            TiledTensor outputTiles =
+                    generateTiledTensor(outputs, config.outputs, halos, fcOp);
             REQUIRE(outputTiles.size() == 1);
             verifyTensorWithFixedData(outputTiles[0], 0);
         }
@@ -91,15 +91,15 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
-            TiledTensor inputTiles = generateTiledTensor(
-                    inputs, config.inputs, halos, workspace());
+            TiledTensor inputTiles =
+                    generateTiledTensor(inputs, config.inputs, halos, fcOp);
             REQUIRE(inputTiles.size() == 1);
             verifyTensorWithFixedData(inputTiles[0], 0);
 
             auto weights = fcOp->getInput(1);
             fillTensorWithFixedData(weights);
-            TiledTensor weightTiles = generateTiledTensor(
-                    weights, config.weights, halos, workspace());
+            TiledTensor weightTiles =
+                    generateTiledTensor(weights, config.weights, halos, fcOp);
             REQUIRE(weightTiles.size() == 16 * 2);
             for (auto i = weightTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(weightTiles[i]->getShape().dims() ==
@@ -109,8 +109,8 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
 
             auto outputs = fcOp->getOutput(0);
             fillTensorWithFixedData(outputs);
-            TiledTensor outputTiles = generateTiledTensor(
-                    outputs, config.outputs, halos, workspace());
+            TiledTensor outputTiles =
+                    generateTiledTensor(outputs, config.outputs, halos, fcOp);
             REQUIRE(outputTiles.size() == 1);
             verifyTensorWithFixedData(outputTiles[0], 0);
         }
@@ -134,8 +134,8 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
-            TiledTensor inputTiles = generateTiledTensor(
-                    inputs, config.inputs, halos, workspace());
+            TiledTensor inputTiles =
+                    generateTiledTensor(inputs, config.inputs, halos, fcOp);
             REQUIRE(inputTiles.size() == 16);
             for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(inputTiles[i]->getShape().dims() ==
@@ -145,8 +145,8 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
 
             auto weights = fcOp->getInput(1);
             fillTensorWithFixedData(weights);
-            TiledTensor weightTiles = generateTiledTensor(
-                    weights, config.weights, halos, workspace());
+            TiledTensor weightTiles =
+                    generateTiledTensor(weights, config.weights, halos, fcOp);
             REQUIRE(weightTiles.size() == 16 * 32);
             for (auto i = weightTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(weightTiles[i]->getShape().dims() ==
@@ -156,8 +156,8 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
 
             auto outputs = fcOp->getOutput(0);
             fillTensorWithFixedData(outputs);
-            TiledTensor outputTiles = generateTiledTensor(
-                    outputs, config.outputs, halos, workspace());
+            TiledTensor outputTiles =
+                    generateTiledTensor(outputs, config.outputs, halos, fcOp);
             REQUIRE(outputTiles.size() == 1);
             verifyTensorWithFixedData(outputTiles[0], 0);
         }

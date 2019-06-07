@@ -10,6 +10,7 @@
 namespace smaug {
 
 class Workspace;
+class Operator;
 
 std::ostream& operator<<(std::ostream& os, const TensorIndexIterator& iter);
 std::ostream& operator<<(std::ostream& os, const TensorShape& shape);
@@ -106,7 +107,7 @@ void copyRawTensorData(
 TiledTensor generateTiledTensor(Tensor* tensor,
                                 const TensorShape& tileShape,
                                 std::vector<int> halos,
-                                Workspace* workspace);
+                                Operator* op);
 
 // This will copy data from a tiled tensor into a single tensor. We name it as
 // "untile" because what it does reverses the tiling process.

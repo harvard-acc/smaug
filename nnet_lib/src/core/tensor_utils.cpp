@@ -132,7 +132,7 @@ void copyRawTensorData(Tensor* dest,
 TiledTensor generateTiledTensor(Tensor* tensor,
                                 const TensorShape& tileShape,
                                 std::vector<int> halos,
-                                Workspace* workspace) {
+                                Operator* op) {
     assert(halos.size() == tileShape.ndims());
     const TensorShape& inputShape = tensor->getShape();
     const int ndims = inputShape.ndims();
@@ -160,8 +160,8 @@ TiledTensor generateTiledTensor(Tensor* tensor,
         TensorShape currentShape(currentTileShape,
                                  tileShape.getLayout(),
                                  tileShape.getAlignment());
-        std::string tileName =
-                tensor->getName() + "/tile:" + std::to_string((int)tileIndex);
+        std::string tileName = op->getName() + ":" + tensor->getName() +
+                               "/tile:" + std::to_string((int)tileIndex);
         Tensor* tile = new Tensor(tileName, currentShape);
         tile->allocateStorage(tensor->getDataType());
         copyTensorRegion(tile,
@@ -180,7 +180,7 @@ TiledTensor generateTiledTensor(Tensor* tensor,
         }
         tiledTensor[tileIndex] = tile;
     }
-    workspace->addTiledTensor(tiledTensor);
+    op->getWorkspace()->addTiledTensor(tiledTensor);
     return tiledTensor;
 }
 

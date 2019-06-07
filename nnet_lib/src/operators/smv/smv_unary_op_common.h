@@ -16,7 +16,7 @@ void runX(UnaryOp<SmvBackend>* op, TiledTensor& inputs, TiledTensor& outputs);
 
 TiledTensor generateTiles(Tensor* tensor,
                           const TensorShape& tileShape,
-                          Workspace* workspace);
+                          Operator* op);
 
 std::array<TiledTensor, 2> doTiling(UnaryOp<SmvBackend>* op);
 

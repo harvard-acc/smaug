@@ -238,12 +238,12 @@ std::array<TiledTensor, 3> TilingOptimizer::doTiling(SmvInnerProductOp* op) {
     auto output = op->getOutput(SmvInnerProductOp::Outputs);
     TilingConfig tileConfig = TilingOptimizer::computeBasicTileShapes(op);
     std::vector<int> halos{ 0, 0 };
-    TiledTensor tiledInputs = generateTiledTensor(
-            input, tileConfig.inputs, halos, op->getWorkspace());
-    TiledTensor tiledWeights = generateTiledTensor(
-            kernels, tileConfig.weights, halos, op->getWorkspace());
-    TiledTensor tiledOutputs = generateTiledTensor(
-            output, tileConfig.outputs, halos, op->getWorkspace());
+    TiledTensor tiledInputs =
+            generateTiledTensor(input, tileConfig.inputs, halos, op);
+    TiledTensor tiledWeights =
+            generateTiledTensor(kernels, tileConfig.weights, halos, op);
+    TiledTensor tiledOutputs =
+            generateTiledTensor(output, tileConfig.outputs, halos, op);
     return { tiledInputs, tiledWeights, tiledOutputs };
 }
 

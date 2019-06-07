@@ -74,7 +74,7 @@ void runX(UnaryOp<SmvBackend>* op, TiledTensor& inputs, TiledTensor& outputs) {
 
 TiledTensor generateTiles(Tensor* tensor,
                           const TensorShape& tileShape,
-                          Workspace* workspace) {
+                          Operator* op) {
     const TensorShape& inputShape = tensor->getShape();
     int inputSize = inputShape.storageSize();
     int tileSize = tileShape.storageSize();
@@ -88,8 +88,8 @@ TiledTensor generateTiles(Tensor* tensor,
         TensorShape currentShape({ 1, currentTileSize },
                                  DataLayout::NC,
                                  tileShape.getAlignment());
-        std::string tileName =
-                tensor->getName() + "/tile:" + std::to_string((int)tileIndex);
+        std::string tileName = op->getName() + ":" + tensor->getName() +
+                               "/tile:" + std::to_string((int)tileIndex);
         Tensor* tile = new Tensor(tileName, currentShape);
         tile->allocateStorage(tensor->getDataType());
         copyRawTensorData(tile, tensor, 0, srcOffset, currentTileSize);
@@ -97,7 +97,7 @@ TiledTensor generateTiles(Tensor* tensor,
         remainingSize -= currentTileSize;
         tiledTensor[tileIndex] = tile;
     }
-    workspace->addTiledTensor(tiledTensor);
+    op->getWorkspace()->addTiledTensor(tiledTensor);
     return tiledTensor;
 }
 
@@ -111,10 +111,8 @@ std::array<TiledTensor, 2> doTiling(UnaryOp<SmvBackend>* op) {
                      inputs->getShape().storageSize());
     TensorShape tileShape(
             { 1, maxTileSize }, DataLayout::NC, SmvBackend::Alignment);
-    TiledTensor tiledInputs =
-            generateTiles(inputs, tileShape, op->getWorkspace());
-    TiledTensor tiledOutputs =
-            generateTiles(outputs, tileShape, op->getWorkspace());
+    TiledTensor tiledInputs = generateTiles(inputs, tileShape, op);
+    TiledTensor tiledOutputs = generateTiles(outputs, tileShape, op);
     return { tiledInputs, tiledOutputs };
 }
 
