@@ -185,7 +185,8 @@ void smv_conv3d_nhwc_vec_fxp(float16* host_inputs,
                              out_col += col_stride) {
                             // Local Regs. These should always be sized the same
                             // (so NUM_PE_INSTS, rather than kNumEffPeInsts).
-                            v8fp_t product_reg[NUM_PE_INSTS][NUM_MACC_INSTS];
+                            v8fp_t smv_conv_product_reg[NUM_PE_INSTS]
+                                                       [NUM_MACC_INSTS];
                             v8fp_t act_reg[NUM_MACC_INSTS];
                             results_buffer = start_from_zero
                                                      ? zero
@@ -220,7 +221,7 @@ void smv_conv3d_nhwc_vec_fxp(float16* host_inputs,
                                 for (int macc_idx = 0;
                                      macc_idx < NUM_MACC_INSTS;
                                      macc_idx++) {
-                                    product_reg[pe_id][macc_idx] =
+                                    smv_conv_product_reg[pe_id][macc_idx] =
                                             kernel_reg[pe_id][macc_idx] *
                                             act_reg[macc_idx];
                                 }
@@ -230,7 +231,8 @@ void smv_conv3d_nhwc_vec_fxp(float16* host_inputs,
                                      macc_idx < NUM_MACC_INSTS;
                                      macc_idx++) {
                                     accum_vec_reg +=
-                                            product_reg[pe_id][macc_idx];
+                                            smv_conv_product_reg[pe_id]
+                                                                [macc_idx];
                                 }
 
                                 float accum_reg = 0;
