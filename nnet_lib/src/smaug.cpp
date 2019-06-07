@@ -28,7 +28,7 @@ int main(int argc, char* argv[]) {
          "Set the debugging output level. If omitted, all debugging output "
          "is ignored. If specified without a value, the debug level is set "
          "to zero.")
-        ("dump-graph", po::value(&dumpGraph)->implicit_value(true),
+        ("dump-graph", po::value(&dumpGraph)->implicit_value(false),
          "Dump the network in GraphViz format.")
         ("gem5", po::value(&runningInSimulation)->implicit_value(true),
          "Run the network in gem5 simulation.")
