@@ -53,7 +53,7 @@ void runX(UnaryOp<SmvBackend>* op, TiledTensor& inputs, TiledTensor& outputs) {
     assert(inputs.size() == outputs.size());
     auto actParams = getActivationParams(op);
     for (int i = 0; i < inputs.size(); i++) {
-        dout(2) << "Input: " << i << ", output: " << i << "\n";
+        dout(1) << "Input: " << i << ", output: " << i << "\n";
         Tensor* inputTile = inputs[i];
         Tensor* outputTile = outputs[i];
         const TensorShape& inputShape = inputTile->getShape();
@@ -98,6 +98,9 @@ TiledTensor generateTiles(Tensor* tensor,
         tiledTensor[tileIndex] = tile;
     }
     op->getWorkspace()->addTiledTensor(tiledTensor);
+    dout(1) << "Tiled Tensor " << tensor->getName() << ": \n"
+            << "tile shape " << tileShape
+            << ", number of tiles: " << tiledTensor.size() << "\n";
     return tiledTensor;
 }
 

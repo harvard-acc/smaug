@@ -37,7 +37,7 @@ void SmvPoolingOp::runNHC(TiledTensor& inputs, TiledTensor& outputs) {
                 // If the outputs don't need tiling on channels whereas the
                 // inputs need it, the tiling optimizer allows the output tile
                 // to have different number of channels from the input tile.
-                dout(2) << "Input: " << inputIdx(N, H, 0, iC)
+                dout(1) << "Input: " << inputIdx(N, H, 0, iC)
                         << ", output: " << outputIdx(N, H, 0, oC) << "\n";
                 Tensor* inputTile = inputs[inputIdx(N, H, 0, iC)];
                 Tensor* outputTile = outputs[outputIdx(N, H, 0, oC)];

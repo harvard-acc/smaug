@@ -14,7 +14,7 @@ void SmvEltwiseAddOp::runX(TiledTensor& inputs0,
     assert(inputs0.size() == inputs1.size() &&
            inputs0.size() == outputs.size());
     for (int i = 0; i < inputs0.size(); i++) {
-        dout(2) << "Input0: " << i << ", input1: " << i << ", output: " << i
+        dout(1) << "Input0: " << i << ", input1: " << i << ", output: " << i
                 << "\n";
         Tensor* input0Tile = inputs0[i];
         Tensor* input1Tile = inputs1[i];

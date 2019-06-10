@@ -4,6 +4,7 @@
 #include "core/workspace.h"
 #include "core/tensor.h"
 #include "core/tensor_utils.h"
+#include "utility/debug_stream.h"
 
 namespace smaug {
 
@@ -181,6 +182,9 @@ TiledTensor generateTiledTensor(Tensor* tensor,
         tiledTensor[tileIndex] = tile;
     }
     op->getWorkspace()->addTiledTensor(tiledTensor);
+    dout(1) << "Tiled Tensor " << tensor->getName() << ": \n"
+            << "  tile shape: " << tileShape
+            << ", number of tiles: " << tiledTensor.size() << "\n";
     return tiledTensor;
 }
 

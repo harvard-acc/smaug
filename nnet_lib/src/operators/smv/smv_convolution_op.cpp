@@ -96,7 +96,7 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                     // channel tile, producing results for the same output
                     // channels.
                     while (iC < inputChanTiles && wC < weightChanTiles) {
-                        dout(2) << "Input: " << inputIdx(N, H, 0, iC)
+                        dout(1) << "Input: " << inputIdx(N, H, 0, iC)
                                 << ", weights: " << weightIdx(W, 0, 0, wC)
                                 << ", output: " << outputIdx(N, H, 0, W + oC)
                                 << "\n";

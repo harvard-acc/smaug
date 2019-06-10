@@ -375,6 +375,8 @@ TiledTensor TilingOptimizer::generateRowwiseOutputTiledTensor(
         }
     }
     op->getWorkspace()->addTiledTensor(outputTiledTensor);
+    dout(1) << "Tiled Tensor " << outputTensor->getName() << "(rowwise): \n"
+            << "number of tiles: " << outputTiledTensor.size() << "\n";
     return outputTiledTensor;
 }
 

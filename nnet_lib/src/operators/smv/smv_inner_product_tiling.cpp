@@ -76,7 +76,7 @@ TilingConfig TilingOptimizer::computeBasicTileShapes(SmvInnerProductOp* op) {
     TilingDims weightTilingDims = strategies[1];
     TilingDims outputTilingDims = strategies[2];
 
-    dout(2) << "Tiling dimensions chosen: \n"
+    dout(1) << "Tiling dimensions chosen: \n"
             << "  input: " << inputTilingDims
             << ", weight: " << weightTilingDims
             << ", output: " << outputTilingDims << "\n";

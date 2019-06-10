@@ -32,7 +32,7 @@ void SmvBatchNormOp::runNA(TiledTensor& inputs,
         // This keeps track of the activation offset of the inputs.
         int actOffset = 0;
         while (iC < inputActTiles && wC < weightActTiles) {
-            dout(2) << "Input: " << inputIdx(N, iC)
+            dout(1) << "Input: " << inputIdx(N, iC)
                     << ", weight: " << weightIdx(0, wC)
                     << ", output: " << outputIdx(N, iC) << "\n";
             Tensor* inputTile = inputs[inputIdx(N, iC)];
@@ -108,7 +108,7 @@ void SmvBatchNormOp::runNWC(TiledTensor& inputs,
             // This keeps track of the channel offset of the inputs.
             int ifmapOffset = 0;
             for (int C = 0; C < inputChanTiles; C++) {
-                dout(2) << "Input: " << inputIdx(N, 0, W, C) << ", Weight: 0"
+                dout(1) << "Input: " << inputIdx(N, 0, W, C) << ", Weight: 0"
                         << ", output: " << outputIdx(N, 0, W, C) << "\n";
                 Tensor* inputTile = inputs[inputIdx(N, 0, W, C)];
                 Tensor* outputTile = outputs[outputIdx(N, 0, W, C)];

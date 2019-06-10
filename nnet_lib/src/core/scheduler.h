@@ -26,7 +26,7 @@ Tensor* runNetwork(Network* network, Workspace* workspace) {
                 << OpType_Name(op->getOpType()) << ").\n";
         op->run();
         output = op->getOutput(0);
-        dout(1) << *output << "\n";
+        dout(2) << *output << "\n";
     }
     return output;
 }

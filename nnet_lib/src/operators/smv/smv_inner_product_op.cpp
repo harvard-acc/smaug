@@ -57,7 +57,7 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
                 // case, we send the input tile once and keep the input tile
                 // stationary in the scrachpad, finishing the weight
                 // activation-wise tiles with multiple invocations.
-                dout(2) << "Input: " << inputIdx(N, iC)
+                dout(1) << "Input: " << inputIdx(N, iC)
                         << ", weights: " << weightIdx(W, wC)
                         << ", output: " << outputIdx(N, 0) << "\n";
                 Tensor* inputTile = inputs[inputIdx(N, iC)];
