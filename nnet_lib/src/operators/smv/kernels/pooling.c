@@ -16,7 +16,7 @@ extern "C" {
 //   host_inputs: Host inputs buffer in NHWC.
 //   host_results: Host results buffer in NHWC.
 //   inputs: Local inputs buffer in NHWC.
-//   results: Local results bufferin NHWC.
+//   results: Local results buffer in NHWC.
 //   inputs_dims: Dimensions of the inputs.
 //   weights_dims: Dimensions of the weights.
 //   results_dims: Dimensions of the results.
@@ -116,7 +116,7 @@ void smv_maxpooling_nhwc_vec_fxp(float16* host_inputs,
 //   host_inputs: Host inputs buffer in NHWC.
 //   host_results: Host results buffer in NHWC.
 //   inputs: Local inputs buffer in NHWC.
-//   results: Local results bufferin NHWC.
+//   results: Local results buffer in NHWC.
 //   inputs_dims: Dimensions of the inputs.
 //   weights_dims: Dimensions of the weights.
 //   results_dims: Dimensions of the results.

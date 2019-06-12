@@ -19,7 +19,7 @@ extern "C" {
 //   host_results: Host results buffer in NHWC.
 //   inputs: Local inputs buffer in NHWC.
 //   weights: Local weights buffer in NHWC.
-//   results: Local results bufferin NHWC.
+//   results: Local results buffer in NHWC.
 //   inputs_dims: Dimensions of the inputs.
 //   weights_dims: Dimensions of the weights.
 //   results_dims: Dimensions of the results.
