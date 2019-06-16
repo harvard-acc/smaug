@@ -8,7 +8,7 @@
 using namespace smaug;
 
 TEST_CASE_METHOD(SmaugTest, "Network tests", "[network]") {
-    std::string modelPath = "../../models/";
+    std::string modelPath = "../../experiments/models/";
     SECTION("Minerva network. 4 layers of FCs.") {
         // Minerva network with the SMV backend.
         Network* network =
