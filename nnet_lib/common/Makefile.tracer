@@ -42,6 +42,8 @@ LLVM_OBJS = $(filter-out %.h, \
 						$(patsubst src/%.c, $(BUILD_DIR)/%-opt.llvm, \
 						$(patsubst src/%.cpp, $(BUILD_DIR)/%-opt.llvm, $(ALL_TRACER_SRCS))))))
 
+LABELMAPS = $(patsubst %-opt.llvm, %-labelmap, $(LLVM_OBJS))
+
 ################################
 #         SANITY CHECKS        #
 ################################
@@ -54,16 +56,20 @@ build-trace: src-symlinks $(BUILD_PROTO_CPP_SRCS)
 	@$(MAKE) -f common/Makefile.tracer $(BUILD_DIR)/$(EXEC)-instrumented
 
 %-labelmap: %.cpp
-	@$(GET_LABELED_STMTS) $^ -- \
+	@echo Generating labelmap for $<
+	@$(GET_LABELED_STMTS) $^ -output $@ -- \
 			-I$(LLVM_HOME)/lib/clang/$(LLVM_VERSION)/include \
 			$(INCLUDES) $(CPPFLAGS) $(CXXFLAGS) -mf16c $(BMARK_SPECIFIC_CFLAGS)
-	@cat labelmap >> $(BUILD_DIR)/labelmap
 
 %-labelmap: %.c
-	@$(GET_LABELED_STMTS) $^ -- \
+	@echo Generateing labelmap for $<
+	@$(GET_LABELED_STMTS) $^ -output $@ -- \
 			-I$(LLVM_HOME)/lib/clang/$(LLVM_VERSION)/include \
 			$(INCLUDES) $(CPPFLAGS) $(CFLAGS) -mf16c $(BMARK_SPECIFIC_CFLAGS)
-	@cat labelmap >> $(BUILD_DIR)/labelmap
+
+$(BUILD_DIR)/labelmap: $(LABELMAPS)
+	@rm -f $@
+	@for l in $^; do cat $$l >> $@; done
 
 $(BUILD_DIR)/full.llvm: $(LLVM_OBJS)
 	@echo Linking instrumented LLVM objects...
@@ -80,7 +86,7 @@ $(BUILD_DIR)/$(EXEC)-instrumented: $(BUILD_DIR)/full.s
 # cc1 compiler, which changes value names into numeric registers. Because
 # there's no clang-6 option to avoid that, we directly run the raw cc1 command
 # with the option excluded.
-%-opt.llvm: %.c %-labelmap
+%-opt.llvm: %.c $(BUILD_DIR)/labelmap
 	@echo Building $<
 	@$(eval CC1_COMMAND=$(shell clang -g -O1 -S -fno-slp-vectorize \
 		-fno-vectorize -fno-unroll-loops \
@@ -97,7 +103,7 @@ $(BUILD_DIR)/$(EXEC)-instrumented: $(BUILD_DIR)/full.s
 				-labelmapwriter -trace-all-callees -i $(BUILD_DIR)/labelmap \
 				$*.llvm -o $*-opt.llvm
 
-%-opt.llvm: %.cpp %-labelmap
+%-opt.llvm: %.cpp $(BUILD_DIR)/labelmap
 	@echo Building $<
 	@$(eval CC1_COMMAND=$(shell clang++ -g -O1 -S -fno-slp-vectorize \
 		-fno-vectorize -fno-unroll-loops \
@@ -118,7 +124,5 @@ $(BUILD_DIR)/$(EXEC)-instrumented: $(BUILD_DIR)/full.s
 
 clean-trace:
 	@echo "Cleaning trace build products..."
-	@cd $(BUILD_DIR) && rm -rf *.llvm *.h *.cpp *.s labelmap *-instrumented
+	@find $(BUILD_DIR) -name "*.llvm" -o -name "*.s" -o -name "*labelmap" -o -name "*-instrumented" | xargs rm -f
 	@rm -f dynamic_trace.gz
-	@rm -f labelmap
-	@rm -f output_labels.out
