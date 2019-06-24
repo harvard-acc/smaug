@@ -121,9 +121,9 @@ void smv_conv3d_nhwc_vec_fxp(float16* host_inputs,
         int ofmap_offset = ofmap_iters * NUM_PE_INSTS;
         // If we have less than eight output channels, don't run the extra ones.
         int kEffNumPeInsts = min2(result_height - ofmap_offset, NUM_PE_INSTS);
-        k_col:
+        k_row:
         for (int kern_row = 0; kern_row < k_rows; kern_row++) {  // Kernel rows
-            k_row:
+            k_col:
             for (int kern_col = 0; kern_col < k_cols;
                  kern_col++) {  // Kernel cols
                 // This loops over all the input channels in groups of
