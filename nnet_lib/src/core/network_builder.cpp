@@ -208,10 +208,14 @@ static void createAndAddOperator(const NodeProto& node,
         assert(false && "Invalid operator type!");
     }
 
+    Operator* op = network->getOperator(name);
+    // Set the sampling info for the operator if it supports sampling.
+    if (op->isSamplingSupported())
+        op->setSamplingInfo(network->getSamplingInfo());
+
     // Allocate storage for the output tensors of the newly added operator. We
     // have filled data for all the parameterizable input tensors from the model
     // file, now we only need to allocate storage for the output tensors.
-    Operator* op = network->getOperator(name);
     DataType dataType = node.input_tensors(0).data_type();
     for (auto output : op->getOutputs()) {
         Tensor* tensor = dynamic_cast<Tensor*>(output);
@@ -224,8 +228,10 @@ static void createAndAddOperator(const NodeProto& node,
 template <typename Backend>
 static Network* createNetworkFromProto(const GraphProto& graph,
                                        const TensorDataArray& tensorDataArray,
+                                       SamplingInfo& sampling,
                                        Workspace* workspace) {
     Network* network = new Network(graph.name());
+    network->setSamplingInfo(sampling);
     for (int i = 0; i < graph.nodes_size(); i++) {
         const NodeProto& node = graph.nodes(i);
         createAndAddOperator<Backend>(
@@ -236,6 +242,7 @@ static Network* createNetworkFromProto(const GraphProto& graph,
 
 Network* smaug::buildNetwork(const std::string& modelTopo,
                              const std::string& modelParams,
+                             SamplingInfo& sampling,
                              Workspace* workspace) {
     // Parse the network topology from the protobuf text file.
     GraphProto graph;
@@ -266,10 +273,10 @@ Network* smaug::buildNetwork(const std::string& modelTopo,
     Network* network = nullptr;
     if (graph.backend() == ReferenceBackend::Name) {
         network = createNetworkFromProto<ReferenceBackend>(
-                graph, tensorDataArray, workspace);
+                graph, tensorDataArray, sampling, workspace);
     } else if (graph.backend() == SmvBackend::Name) {
         network = createNetworkFromProto<SmvBackend>(
-                graph, tensorDataArray, workspace);
+                graph, tensorDataArray, sampling, workspace);
     } else {
         assert(false && "Unknown backend!");
     }

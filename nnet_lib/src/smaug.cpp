@@ -6,6 +6,7 @@
 #include "core/globals.h"
 #include "core/scheduler.h"
 #include "core/network_builder.h"
+#include "operators/common.h"
 #include "utility/debug_stream.h"
 
 namespace po = boost::program_options;
@@ -19,6 +20,9 @@ int main(int argc, char* argv[]) {
     std::string lastOutputFile;
     bool dumpGraph = false;
     runningInSimulation = false;
+    SamplingInfo sampling;
+    std::string samplingLevel = "no";
+    sampling.num_sample_iterations = 1;
     po::options_description options(
             "SMAUG Usage:  ./smaug model_topo.pbtxt model_params.pb [options]");
     // clang-format off
@@ -35,7 +39,18 @@ int main(int argc, char* argv[]) {
         ("print-last-output,p",
          po::value(&lastOutputFile)->implicit_value("stdout"),
          "Dump the output of the last layer to this file. If specified with no "
-         "argument, it is printed to stdout.");
+         "argument, it is printed to stdout.")
+        ("sample-level",
+          po::value(&samplingLevel)->implicit_value("no"),
+         "Set the sampling level. By default, SMAUG doesn't do any sampling. "
+         "There are four options of sampling: no, low, medium and high. With "
+         "more sampling, the simulation speed can be greatly improved at the "
+         "expense of accuracy loss.")
+        ("sample-num",
+          po::value(&(sampling.num_sample_iterations))->implicit_value(1),
+         "Set the number of sample iterations used by every sampling enabled "
+         "entity. By default, the global sample number is set to 1. Larger "
+         "sample number means less sampling.");
     // clang-format on
 
     po::options_description hidden;
@@ -76,8 +91,28 @@ int main(int argc, char* argv[]) {
     std::cout << "Model topology file: " << modelTopo << "\n";
     std::cout << "Model parameters file: " << modelParams << "\n";
 
+    if (samplingLevel == "no") {
+        sampling.level = NoSampling;
+    } else if (samplingLevel == "low") {
+        sampling.level = Low;
+    } else if (samplingLevel == "medium") {
+        sampling.level = Medium;
+    } else if (samplingLevel == "high") {
+        sampling.level = High;
+    } else {
+        std::cout << "Doesn't support the specified sampling option: "
+                  << samplingLevel << "\n";
+        exit(1);
+    }
+    if (sampling.level > NoSampling) {
+        std::cout << "Sampling level: " << samplingLevel
+                  << ", number of sample iterations: "
+                  << sampling.num_sample_iterations << "\n";
+    }
+
     Workspace* workspace = new Workspace();
-    Network* network = buildNetwork(modelTopo, modelParams, workspace);
+    Network* network =
+            buildNetwork(modelTopo, modelParams, sampling, workspace);
     SmvBackend::initGlobals();
 
     if (dumpGraph)

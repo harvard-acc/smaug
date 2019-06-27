@@ -10,6 +10,7 @@
 #include "core/typedefs.h"
 #include "core/operator.h"
 #include "core/workspace.h"
+#include "operators/common.h"
 
 namespace smaug {
 
@@ -65,6 +66,11 @@ class Network {
     OperatorMap::iterator begin() { return operators.begin(); }
     OperatorMap::iterator end() { return operators.end(); }
 
+    void setSamplingInfo(const SamplingInfo& _sampling) {
+        sampling = _sampling;
+    }
+    SamplingInfo& getSamplingInfo() { return sampling; }
+
    protected:
     struct OperatorInsertion {
         Operator* newOp;
@@ -90,6 +96,9 @@ class Network {
     // they are specified as a single named layer section, and subsequent layer
     // sections can specify the overall output of that layer as an input.
     OperatorMap layerLastOps;
+
+    // The sampling information of the model.
+    SamplingInfo sampling;
 
     // Name of the model.
     std::string name;

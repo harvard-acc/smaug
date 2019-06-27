@@ -8,6 +8,7 @@
 #include "core/typedefs.h"
 #include "core/tensor.h"
 #include "core/types.pb.h"
+#include "operators/common.h"
 
 #define REGISTER_SPECIAL_OP(Operator, Backend)                                 \
     template <>                                                                \
@@ -30,6 +31,8 @@ class Operator {
     virtual void createAllTensors() = 0;
     virtual std::vector<TensorBase*> getParameterizableInputs() { return {}; }
     virtual void printSummary(std::ostream& out) const {}
+    virtual bool isSamplingSupported() const { return false; }
+    virtual void setSamplingInfo(const SamplingInfo& sampling) {}
 
     virtual DataLayoutSet getInputDataLayouts() const {
         return DataLayoutSet(DataLayout::UnknownLayout);

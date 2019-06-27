@@ -123,6 +123,18 @@ struct ActivationInfo {
 };
 #endif
 
+typedef enum _SamplingLevel {
+    NoSampling = 0,
+    Low = 1,
+    Medium = 2,
+    High = 3
+} SamplingLevel;
+
+typedef struct _SamplingInfo {
+    SamplingLevel level;
+    int num_sample_iterations;
+} SamplingInfo;
+
 // Scalar types.
 typedef float fp_t;
 typedef int sfx_t;
