@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#include "sampling_interface.h"
+
 #ifdef DMA_MODE
 #ifdef __cplusplus
 extern "C" {

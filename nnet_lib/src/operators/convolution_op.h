@@ -138,6 +138,11 @@ class ConvolutionOp : public FusedActivationOp {
     int getWeightCols() const { return weightCols; }
     PaddingType getPadding() const {return paddingType;}
 
+    virtual bool isSamplingSupported() const { return true; }
+    virtual void setSamplingInfo(const SamplingInfo& _sampling) {
+        sampling = _sampling;
+    }
+
    protected:
     int computeOutputDim(int inputDim,
                          int weightDim,
@@ -159,6 +164,7 @@ class ConvolutionOp : public FusedActivationOp {
     int colStride;
     PaddingType paddingType;
     std::string weightsName;
+    SamplingInfo sampling;
 };
 
 REGISTER_SPECIAL_OP(ConvolutionOp, ReferenceBackend);

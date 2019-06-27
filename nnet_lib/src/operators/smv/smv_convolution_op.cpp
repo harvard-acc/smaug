@@ -146,7 +146,7 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                                 outputShape.getPadding(3), inputHaloPad,
                                 getRowStride(), getColStride(), ifmapStart,
                                 kernStart, accumulate, sendResults,
-                                actInfo.function, actInfo.params);
+                                actInfo.function, actInfo.params, &sampling);
 
                         ifmapOffset += weightsTile->getShape()[3];
                         if (inputChanTiles == weightChanTiles) {

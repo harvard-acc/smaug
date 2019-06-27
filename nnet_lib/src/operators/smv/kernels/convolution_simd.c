@@ -61,7 +61,8 @@ void smv_conv3d_nhwc_vec_fxp(float16* host_inputs,
                              bool accumulate,
                              bool send_results,
                              activation_type act_function,
-                             activation_param_t act_params) {
+                             activation_param_t act_params,
+                             SamplingInfo* sampling) {
     int result_rows = results_dims[1];
     int result_cols = results_dims[2];
     int result_height = results_dims[3];
@@ -115,21 +116,43 @@ void smv_conv3d_nhwc_vec_fxp(float16* host_inputs,
     if (kern_start == 0)
         dma_load_fp16(weights, host_weights, weights_size, 0, 0);
 
+    // Set up the sample sizes and factors.
+    int pe_block_sample = num_kernel_blocks + 1;
+    int kern_row_sample = k_rows;
+    int kern_col_sample = k_cols;
+    int chan_block_sample = num_chan_blocks + 1;
+    int sample_num = sampling->num_sample_iterations;
+    if (sampling->level >= Low)
+        pe_block_sample = min2(pe_block_sample, sample_num);
+    if (sampling->level >= Medium) {
+        kern_row_sample = min2(kern_row_sample, sample_num);
+        kern_col_sample = min2(kern_col_sample, sample_num);
+    }
+    if (sampling->level >= High)
+        chan_block_sample = min2(chan_block_sample, sample_num);
+    setSamplingFactor(
+            "ofmap_block_iteration", (num_kernel_blocks + 1) / pe_block_sample);
+    setSamplingFactor("k_row", k_rows / kern_row_sample);
+    setSamplingFactor("k_col", k_cols / kern_col_sample);
+    setSamplingFactor(
+            "pe_iteration", (num_chan_blocks + 1) / chan_block_sample);
+
     ofmap_block_iteration:
-    for (int ofmap_iters = 0; ofmap_iters < num_kernel_blocks + 1;
+    for (int ofmap_iters = 0; ofmap_iters < pe_block_sample;
          ofmap_iters++) {  // Result channel blocks
         int ofmap_offset = ofmap_iters * NUM_PE_INSTS;
         // If we have less than eight output channels, don't run the extra ones.
         int kEffNumPeInsts = min2(result_height - ofmap_offset, NUM_PE_INSTS);
+        // Kernel rows
         k_row:
-        for (int kern_row = 0; kern_row < k_rows; kern_row++) {  // Kernel rows
+        for (int kern_row = 0; kern_row < kern_row_sample; kern_row++) {
             k_col:
-            for (int kern_col = 0; kern_col < k_cols;
+            for (int kern_col = 0; kern_col < kern_col_sample;
                  kern_col++) {  // Kernel cols
                 // This loops over all the input channels in groups of
                 // VECTOR_SIZE * NUM_MACC_INSTS.
                 pe_iteration:
-                for (int ifmap_iters = 0; ifmap_iters < num_chan_blocks + 1;
+                for (int ifmap_iters = 0; ifmap_iters < chan_block_sample;
                      ifmap_iters++) {
                     bool start_from_zero = (!accumulate && kern_row == 0 &&
                                             kern_col == 0 && ifmap_iters == 0);

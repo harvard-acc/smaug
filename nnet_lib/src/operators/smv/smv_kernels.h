@@ -27,7 +27,8 @@ void smv_conv3d_nhwc_vec_fxp(float16* host_inputs,
                              bool accumulate,
                              bool send_results,
                              activation_type act_function,
-                             activation_param_t act_params);
+                             activation_param_t act_params,
+                             SamplingInfo* sampling);
 
 void smv_matrix_multiply_transpose_nc_vec_fxp(float16* host_a,
                                               float16* host_b,
