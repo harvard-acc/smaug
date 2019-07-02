@@ -121,6 +121,8 @@ void smv_conv3d_nhwc_vec_fxp(float16* host_inputs,
     int kern_row_sample = k_rows;
     int kern_col_sample = k_cols;
     int chan_block_sample = num_chan_blocks + 1;
+    int output_row_sample = end_row;
+    int output_col_sample = end_col;
     int sample_num = sampling->num_sample_iterations;
     if (sampling->level >= Low)
         pe_block_sample = min2(pe_block_sample, sample_num);
@@ -130,12 +132,19 @@ void smv_conv3d_nhwc_vec_fxp(float16* host_inputs,
     }
     if (sampling->level >= High)
         chan_block_sample = min2(chan_block_sample, sample_num);
+    if (sampling->level >= VeryHigh) {
+        output_row_sample = min2(output_row_sample, sample_num);
+        // Pipelined loops need at minimum 2 sampled iterations.
+        output_col_sample = min2(output_col_sample, max2(2, sample_num));
+    }
     setSamplingFactor(
             "ofmap_block_iteration", (num_kernel_blocks + 1) / pe_block_sample);
     setSamplingFactor("k_row", k_rows / kern_row_sample);
     setSamplingFactor("k_col", k_cols / kern_col_sample);
     setSamplingFactor(
             "pe_iteration", (num_chan_blocks + 1) / chan_block_sample);
+    setSamplingFactor("conv3d_row", end_row / output_row_sample);
+    setSamplingFactor("conv3d_col", end_col / output_col_sample);
 
     ofmap_block_iteration:
     for (int ofmap_iters = 0; ofmap_iters < pe_block_sample;
@@ -195,7 +204,7 @@ void smv_conv3d_nhwc_vec_fxp(float16* host_inputs,
                     }
 
                     conv3d_row:
-                    for (int out_row = 0; out_row < end_row;
+                    for (int out_row = 0; out_row < output_row_sample;
                          out_row += row_stride) {
                         int out_j = 0;  // The result col.
 
@@ -204,7 +213,7 @@ void smv_conv3d_nhwc_vec_fxp(float16* host_inputs,
                         v8fp_t results_buffer;
 
                         conv3d_col:
-                        for (int out_col = 0; out_col < end_col;
+                        for (int out_col = 0; out_col < output_col_sample;
                              out_col += col_stride) {
                             // Local Regs. These should always be sized the same
                             // (so NUM_PE_INSTS, rather than kNumEffPeInsts).

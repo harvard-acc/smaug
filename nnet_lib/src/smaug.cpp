@@ -43,9 +43,9 @@ int main(int argc, char* argv[]) {
         ("sample-level",
           po::value(&samplingLevel)->implicit_value("no"),
          "Set the sampling level. By default, SMAUG doesn't do any sampling. "
-         "There are four options of sampling: no, low, medium and high. With "
-         "more sampling, the simulation speed can be greatly improved at the "
-         "expense of accuracy loss.")
+         "There are five options of sampling: No, Low, Medium, High and "
+         "VeryHigh With more sampling, the simulation speed can be greatly "
+         "improved at the expense of accuracy loss.")
         ("sample-num",
           po::value(&(sampling.num_sample_iterations))->implicit_value(1),
          "Set the number of sample iterations used by every sampling enabled "
@@ -91,14 +91,16 @@ int main(int argc, char* argv[]) {
     std::cout << "Model topology file: " << modelTopo << "\n";
     std::cout << "Model parameters file: " << modelParams << "\n";
 
-    if (samplingLevel == "no") {
+    if (samplingLevel == "No") {
         sampling.level = NoSampling;
-    } else if (samplingLevel == "low") {
+    } else if (samplingLevel == "Low") {
         sampling.level = Low;
-    } else if (samplingLevel == "medium") {
+    } else if (samplingLevel == "Medium") {
         sampling.level = Medium;
-    } else if (samplingLevel == "high") {
+    } else if (samplingLevel == "High") {
         sampling.level = High;
+    } else if (samplingLevel == "VeryHigh") {
+        sampling.level = VeryHigh;
     } else {
         std::cout << "Doesn't support the specified sampling option: "
                   << samplingLevel << "\n";
