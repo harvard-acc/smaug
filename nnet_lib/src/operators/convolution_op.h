@@ -20,7 +20,7 @@ class ConvolutionOp : public FusedActivationOp {
             : FusedActivationOp(name, OpType::Convolution3d, workspace),
               weightRows(0), weightCols(0), numOfmaps(0), rowStride(0),
               colStride(0), paddingType(UnknownPadding),
-              weightsName(name + "/kernels") {
+              weightsName(name + "/kernels"), sampling({ NoSampling, 1 }) {
         inputs.resize(kNumInputs, nullptr);
         outputs.resize(kNumOutputs, nullptr);
     }

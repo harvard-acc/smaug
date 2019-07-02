@@ -84,8 +84,11 @@ class SmaugTest {
                           const std::string& modelParams) {
         if (network_ != nullptr)
             delete network_;
-        network_ = smaug::buildNetwork(
-                resolvePath(modelTopo), resolvePath(modelParams), workspace_);
+        SamplingInfo sampling = { NoSampling, 1 };
+        network_ = smaug::buildNetwork(resolvePath(modelTopo),
+                                       resolvePath(modelParams),
+                                       sampling,
+                                       workspace_);
         return network_;
     }
 
