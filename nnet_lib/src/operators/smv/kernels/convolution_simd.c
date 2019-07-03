@@ -246,6 +246,11 @@ void smv_conv3d_nhwc_vec_fxp(float16* host_inputs,
                                                     [ifmap_offset + macc_idx];
                             }
 
+                            v8fp_t accum_vec_reg[NUM_PE_INSTS] = {
+                                zero, zero, zero, zero, zero, zero, zero, zero
+                            };
+                            float accum_reg[NUM_PE_INSTS] = { 0, 0, 0, 0,
+                                                              0, 0, 0, 0 };
                             pe_groups:
                             for (int pe_id = 0; pe_id < kEffNumPeInsts;
                                  pe_id++) {
@@ -257,23 +262,21 @@ void smv_conv3d_nhwc_vec_fxp(float16* host_inputs,
                                             kernel_reg[pe_id][macc_idx] *
                                             act_reg[macc_idx];
                                 }
-                                v8fp_t accum_vec_reg = zero;
                                 reduction_1:
                                 for (int macc_idx = 0;
                                      macc_idx < NUM_MACC_INSTS;
                                      macc_idx++) {
-                                    accum_vec_reg +=
+                                    accum_vec_reg[pe_id] +=
                                             smv_conv_product_reg[pe_id]
                                                                 [macc_idx];
                                 }
-
-                                float accum_reg = 0;
                                 reduction_2:
                                 for (int vec_i = 0; vec_i < VECTOR_SIZE;
                                      vec_i++) {
-                                    accum_reg += accum_vec_reg[vec_i];
+                                    accum_reg[pe_id] +=
+                                            accum_vec_reg[pe_id][vec_i];
                                 }
-                                results_buffer[pe_id] += accum_reg;
+                                results_buffer[pe_id] += accum_reg[pe_id];
                             }
 
                             // Write the results back to scratchpad.
