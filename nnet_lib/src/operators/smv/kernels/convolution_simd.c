@@ -137,14 +137,14 @@ void smv_conv3d_nhwc_vec_fxp(float16* host_inputs,
         // Pipelined loops need at minimum 2 sampled iterations.
         output_col_sample = min2(output_col_sample, max2(2, sample_num));
     }
+    setSamplingFactor("ofmap_block_iteration",
+                      (num_kernel_blocks + 1) * 1.0 / pe_block_sample);
+    setSamplingFactor("k_row", k_rows * 1.0 / kern_row_sample);
+    setSamplingFactor("k_col", k_cols * 1.0 / kern_col_sample);
     setSamplingFactor(
-            "ofmap_block_iteration", (num_kernel_blocks + 1) / pe_block_sample);
-    setSamplingFactor("k_row", k_rows / kern_row_sample);
-    setSamplingFactor("k_col", k_cols / kern_col_sample);
-    setSamplingFactor(
-            "pe_iteration", (num_chan_blocks + 1) / chan_block_sample);
-    setSamplingFactor("conv3d_row", end_row / output_row_sample);
-    setSamplingFactor("conv3d_col", end_col / output_col_sample);
+            "pe_iteration", (num_chan_blocks + 1) * 1.0 / chan_block_sample);
+    setSamplingFactor("conv3d_row", end_row * 1.0 / output_row_sample);
+    setSamplingFactor("conv3d_col", end_col * 1.0 / output_col_sample);
 
     ofmap_block_iteration:
     for (int ofmap_iters = 0; ofmap_iters < pe_block_sample;
