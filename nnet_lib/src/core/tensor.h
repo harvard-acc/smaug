@@ -104,7 +104,8 @@ class TensorShape {
 class TensorIndexIterator {
    public:
     TensorIndexIterator(const TensorShape& shape, bool _atEnd = false)
-            : dims(shape.dims()), padding(shape.padding()), atEnd(_atEnd) {
+            : dims(shape.dims()), padding(shape.padding()), atEnd(_atEnd),
+              advanceOne(std::vector<int>(dims.size(), 1)) {
         state.resize(dims.size(), 0);
     }
 
@@ -112,18 +113,11 @@ class TensorIndexIterator {
 
     bool end() const { return atEnd; }
 
-    void operator++() {
-        bool carry = true;
-        for (int i = (int)state.size() - 1; i >= 0 && carry; i--) {
-            int currValue = state[i];
-            currValue++;
-            carry = (currValue >= dims[i]);
-            if (carry)
-                currValue = 0;
-            state[i] = currValue;
-        }
-        if (carry)
-            atEnd = true;
+    void operator++() { advanceRegion(advanceOne); }
+
+    void operator+=(const std::vector<int>& region) {
+        assert(region.size() == state.size());
+        advanceRegion(region);
     }
 
     template <typename... Args>
@@ -155,10 +149,24 @@ class TensorIndexIterator {
         return linearIndex;
     }
 
+    virtual void advanceRegion(const std::vector<int>& region) {
+        bool carry = true;
+        for (int i = (int)state.size() - 1; i >= 0 && carry; i--) {
+            int currValue = state[i] + region[i];
+            carry = (currValue >= dims[i]);
+            if (carry)
+                currValue = 0;
+            state[i] = currValue;
+        }
+        if (carry)
+            atEnd = true;
+    }
+
     std::vector<int> state;
     std::vector<int> dims;
     std::vector<int> padding;
     bool atEnd;
+    const std::vector<int> advanceOne;
 };
 
 // A tensor index iterator that stays within a specified rectangular region.
@@ -185,11 +193,12 @@ class TensorRegionIndexIterator : public TensorIndexIterator {
         state = origin;
     }
 
-    void operator++() {
+   protected:
+    // Advance the tensor region index with the specified region size.
+    virtual void advanceRegion(const std::vector<int>& advanceRegionSize) {
         bool carry = true;
         for (int i = (int)state.size() - 1; i >= 0 && carry; i--) {
-            int currValue = state[i];
-            currValue++;
+            int currValue = state[i] + advanceRegionSize[i];
             carry = (currValue >= dims[i] ||
                      currValue >= origin[i] + regionSize[i]);
             if (carry)
@@ -200,7 +209,6 @@ class TensorRegionIndexIterator : public TensorIndexIterator {
             atEnd = true;
     }
 
-   protected:
     std::vector<int> origin;
     std::vector<int> regionSize;
 };

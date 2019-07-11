@@ -64,16 +64,44 @@ void copyTensorRegion(Tensor* dest,
                       const std::vector<int>& destOrigin,
                       const std::vector<int>& srcOrigin,
                       const std::vector<int>& regionSize) {
-    auto destIt =
-            TensorRegionIndexIterator(dest->getShape(), destOrigin, regionSize);
-    auto srcIt =
-            TensorRegionIndexIterator(src->getShape(), srcOrigin, regionSize);
+    const TensorShape& srcShape = src->getShape();
+    const TensorShape& destShape = dest->getShape();
+    TensorShape regionShape(
+            regionSize, srcShape.getLayout(), srcShape.getAlignment());
+    const int ndims = srcShape.ndims();
+    auto destIt = TensorRegionIndexIterator(destShape, destOrigin, regionSize);
+    auto srcIt = TensorRegionIndexIterator(srcShape, srcOrigin, regionSize);
+
+    // We know where to copy data from and how much data we should copy (the
+    // data region), now starting from the last dimension, we figure out how
+    // much contiguous data there exists such that we can apply more efficient
+    // data copy mechanisms (memcpy).
+    std::vector<int> contiguousRegion(ndims, 1);
+    int contiguousSize = 1;
+    for (int i = ndims - 1; i >= 0; i--) {
+        contiguousSize *= regionShape.getStorageDim(i);
+        contiguousRegion[i] = regionShape[i];
+        // If we find a region dimension smaller than that of either src or
+        // dest tensor, then the next region dimension must not be contiguous.
+        if (regionShape[i] < srcShape[i] || regionShape[i] < destShape[i])
+            break;
+    }
+
+    // Copy the data region from the src tensor to the dest tensor.
     DType* destPtr = dest->template data<DType>();
     DType* srcPtr = src->template data<DType>();
     while (!srcIt.end() && !destIt.end()) {
+#ifdef PEDANTIC
         destPtr[destIt] = srcPtr[srcIt];
         ++destIt;
         ++srcIt;
+#else
+        memcpy(&destPtr[destIt],
+               &srcPtr[srcIt],
+               contiguousSize * sizeof(DType));
+        destIt += contiguousRegion;
+        srcIt += contiguousRegion;
+#endif
     }
 }
 
