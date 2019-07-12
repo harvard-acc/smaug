@@ -86,13 +86,15 @@ GEM5_SYS_SRCS = gem5/aladdin_sys_connection.cpp gem5/aladdin_sys_connection.h \
                 gem5/aladdin_sys_constants.cpp gem5/aladdin_sys_constants.h \
                 gem5/sampling_interface.c gem5/sampling_interface.h \
                 gem5/gem5_harness.h
-GEM5_SRCS = $(GEM5_DMA_SRC) $(GEM5_SYS_SRCS)
+GEM5_UTIL_SRCS = ../../util/m5/m5op_x86.S
+GEM5_SRCS = $(GEM5_DMA_SRC) $(GEM5_SYS_SRCS) $(GEM5_UTIL_SRCS)
 
 LFLAGS = -L$(BOOST_ROOT)/lib -lm -lrt -lboost_graph -lboost_program_options -lprotobuf -lpthread
 CFLAGS = -O3 -g
 CXXFLAGS = -std=c++11 $(CFLAGS) -Wno-deprecated-declarations
 INCLUDES = -I$(BUILD_DIR) \
            -I$(BUILD_DIR)/gem5 \
+           -I$(ALADDIN_HOME)/../../include \
            -I$(BOOST_ROOT)/include \
            -Isrc/third_party/Catch2/single_include \
            -Isrc/third_party/FP16/include
@@ -118,7 +120,7 @@ SRC_SYMLINKS := $(patsubst src/%, $(BUILD_DIR)/%, $(SRC_SYMLINKS))
 PROTO_PY_SRCS = $(patsubst src/core/%.proto, $(PYTHON_DIR)/%_pb2.py, $(PROTO_SRCS))
 PROTO_CPP_SRCS = $(patsubst %.proto, %.pb.cpp, $(PROTO_SRCS))
 BUILD_PROTO_CPP_SRCS = $(patsubst src/%, $(BUILD_DIR)/%, $(PROTO_CPP_SRCS))
-BUILD_GEM5_SRCS = $(filter-out %.h, $(patsubst %, $(BUILD_DIR)/%, $(GEM5_SRCS)))
+BUILD_GEM5_SRCS = $(filter-out %.h, $(patsubst %, $(BUILD_DIR)/gem5/%, $(notdir $(GEM5_SRCS))))
 
 # Create a build directory that just has symlinks to all the source files, so
 # we can build everything seemingly "alongside" the source.
@@ -128,7 +130,7 @@ $(SRC_SYMLINKS):
 	@if [ -d $(BUILD_DIR) ]; then find -L $(BUILD_DIR) -type l -print -delete 2>&1 > /dev/null; fi
 	@mkdir -p $(BUILD_DIR)/gem5
 	@cp -asf $(CURRENT_DIR)/../src/* $(BUILD_DIR)/
-	@$(foreach f, $(GEM5_SRCS), cp -asf $(ALADDIN_HOME)/$(f) $(BUILD_DIR)/$(f);)
+	@$(foreach f, $(GEM5_SRCS), cp -asf $(ALADDIN_HOME)/$(f) $(BUILD_DIR)/gem5/$(notdir $(f));)
 
 %.pb.cpp: %.proto
 	$(PROTOC) -I=$(dir $^) --cpp_out=$(dir $^) $^

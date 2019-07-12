@@ -8,6 +8,7 @@
 #include "core/network_builder.h"
 #include "operators/common.h"
 #include "utility/debug_stream.h"
+#include "gem5/m5ops.h"
 
 namespace po = boost::program_options;
 
@@ -122,6 +123,12 @@ int main(int argc, char* argv[]) {
 
     if (!network->validate())
         return -1;
+
+    if (runningInSimulation) {
+        // We have finished loading the model and building the network, now we
+        // can stop fast forwarding.
+        m5_switch_cpu();
+    }
 
     Tensor* output = runNetwork(network, workspace);
     if (!lastOutputFile.empty()) {

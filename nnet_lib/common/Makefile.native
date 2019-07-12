@@ -21,6 +21,7 @@ BUILD_SRCS = $(patsubst src/%, $(BUILD_DIR)/%, $(SRCS))
 BUILD_SRCS += $(BUILD_PROTO_CPP_SRCS) $(BUILD_GEM5_SRCS)
 BUILD_SRCS_OBJS := $(patsubst %.cpp, %.o, $(BUILD_SRCS))
 BUILD_SRCS_OBJS := $(patsubst %.c, %.o, $(BUILD_SRCS_OBJS))
+BUILD_SRCS_OBJS := $(patsubst %.S, %.o, $(BUILD_SRCS_OBJS))
 
 BUILD_TESTS_COMMON = $(patsubst src/%, $(BUILD_DIR)/%, $(TESTS_COMMON))
 BUILD_TESTS = $(patsubst src/%, $(BUILD_DIR)/%, $(TESTS))
@@ -38,6 +39,9 @@ $(BUILD_DIR)/$(EXEC): $(BUILD_SRCS_OBJS) $(BUILD_MAIN_OBJ)
 	$(CXX) -c $(CXXFLAGS) $(INCLUDES) $^ -o $@
 
 %.o: %.c
+	$(CC) -c $(CFLAGS) $(INCLUDES) $^ -o $@
+
+%.o: %.S
 	$(CC) -c $(CFLAGS) $(INCLUDES) $^ -o $@
 
 ########################################
