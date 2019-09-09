@@ -127,7 +127,9 @@ int main(int argc, char* argv[]) {
     if (runningInSimulation) {
         // We have finished loading the model and building the network, now we
         // can stop fast forwarding.
+#ifndef TRACE_MODE
         m5_switch_cpu();
+#endif
     }
 
     Tensor* output = runNetwork(network, workspace);
