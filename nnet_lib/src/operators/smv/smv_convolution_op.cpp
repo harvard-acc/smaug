@@ -142,7 +142,10 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                                     inputTile->data<float16>(),
                                     weightsTile->data<float16>(),
                                     outputTile->data<float16>(), inputDims,
-                                    weightsDims, outputDims, inputHaloPad,
+                                    weightsDims, outputDims,
+                                    inputShape.getPadding(3),
+                                    weightsShape.getPadding(3),
+                                    outputShape.getPadding(3), inputHaloPad,
                                     getRowStride(), ifmapStart, kernStart,
                                     accumulate, sendResults, &actInfo);
                         } else {
@@ -192,6 +195,9 @@ void SmvConvolutionOp::invokeSystolicArrayKernel(unsigned accelId,
                                                  int inputsDims[4],
                                                  int weightsDims[4],
                                                  int outputsDims[4],
+                                                 int inputsPad,
+                                                 int weightsPad,
+                                                 int outputPad,
                                                  int inputHaloPad[4],
                                                  int stride,
                                                  int ifmapStart,
@@ -210,6 +216,9 @@ void SmvConvolutionOp::invokeSystolicArrayKernel(unsigned accelId,
     memcpy(params.input_dims, inputsDims, sizeof(int) * 4);
     memcpy(params.weight_dims, weightsDims, sizeof(int) * 4);
     memcpy(params.output_dims, outputsDims, sizeof(int) * 4);
+    params.input_dims[3] += inputsPad;
+    params.weight_dims[3] += weightsPad;
+    params.output_dims[3] += outputPad;
     params.stride = stride;
     memcpy(params.input_halo_pad, inputHaloPad, sizeof(int) * 4);
     params.ifmap_start = ifmapStart;
