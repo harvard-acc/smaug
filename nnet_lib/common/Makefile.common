@@ -85,7 +85,10 @@ GEM5_DMA_SRC = gem5/dma_interface.c gem5/dma_interface.h
 GEM5_SYS_SRCS = gem5/aladdin_sys_connection.cpp gem5/aladdin_sys_connection.h \
                 gem5/aladdin_sys_constants.cpp gem5/aladdin_sys_constants.h \
                 gem5/sampling_interface.c gem5/sampling_interface.h \
-                gem5/gem5_harness.h
+                gem5/gem5_harness.h \
+                ../systolic_array/systolic_array_connection.cpp \
+                ../systolic_array/systolic_array_connection.h \
+                ../systolic_array/systolic_array_params.h
 GEM5_UTIL_SRCS = ../../util/m5/m5op_x86.S
 GEM5_SRCS = $(GEM5_DMA_SRC) $(GEM5_SYS_SRCS) $(GEM5_UTIL_SRCS)
 

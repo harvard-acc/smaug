@@ -34,6 +34,20 @@ class SmvConvolutionOp : public ConvolutionOp<SmvBackend> {
    void runNHWC(TiledTensor& inputs,
                 TiledTensor& weights,
                 TiledTensor& outputs);
+   void invokeSystolicArrayKernel(unsigned accelId,
+                                  float16* inputs,
+                                  float16* weights,
+                                  float16* outputs,
+                                  int inputsDims[4],
+                                  int weightsDims[4],
+                                  int outputsDims[4],
+                                  int inputHaloPad[4],
+                                  int stride,
+                                  int ifmapStart,
+                                  int kernStart,
+                                  bool accumulate,
+                                  bool sendResults,
+                                  ActivationInfo* actInfo);
 };
 
 }  // namespace smaug

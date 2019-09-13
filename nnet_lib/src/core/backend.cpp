@@ -98,6 +98,9 @@ const unsigned kInnerProductHw = 0x0003;
 const unsigned kEltwiseOpHw = 0x0003;
 const unsigned kBatchNormHw = 0x0003;
 const unsigned kPoolingHw = 0x0003;
+// The systolic array is implemented in gem5 instead of Aladdin, so it needs to
+// have a different accelerator id.
+const unsigned kSystolicArrayHw = 0x0004;
 float* spad0;
 float* spad1;
 float* spad2;

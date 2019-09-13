@@ -88,6 +88,7 @@ extern const unsigned kInnerProductHw;
 extern const unsigned kEltwiseOpHw;
 extern const unsigned kBatchNormHw;
 extern const unsigned kPoolingHw;
+extern const unsigned kSystolicArrayHw;
 // Note that these naked pointers are never to be used except when invoking the
 // kernels themselves.
 extern float* spad0;

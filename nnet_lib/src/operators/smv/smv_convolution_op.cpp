@@ -135,18 +135,34 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                         // to be sent back to the host.
                         bool sendResults = wC == weightChanTiles - 1;
 
-                        invokeKernel(
-                                smv::kConvolutionHw, smv_conv3d_nhwc_vec_fxp,
-                                inputTile->data<float16>(),
-                                weightsTile->data<float16>(),
-                                outputTile->data<float16>(), smv::spad0,
-                                smv::spad1, smv::spad2, inputDims, weightsDims,
-                                outputDims, inputShape.getPadding(3),
-                                weightsShape.getPadding(3),
-                                outputShape.getPadding(3), inputHaloPad,
-                                getRowStride(), getColStride(), ifmapStart,
-                                kernStart, accumulate, sendResults,
-                                actInfo.function, actInfo.params, &sampling);
+                        if (useSystolicArrayWhenAvailable) {
+                            // Invoke the systolic array if specified.
+                            invokeSystolicArrayKernel(
+                                    smv::kSystolicArrayHw,
+                                    inputTile->data<float16>(),
+                                    weightsTile->data<float16>(),
+                                    outputTile->data<float16>(), inputDims,
+                                    weightsDims, outputDims, inputHaloPad,
+                                    getRowStride(), ifmapStart, kernStart,
+                                    accumulate, sendResults, &actInfo);
+                        } else {
+                            // Otherwise invoke the DLA-like kernel.
+                            invokeKernel(smv::kConvolutionHw,
+                                         smv_conv3d_nhwc_vec_fxp,
+                                         inputTile->data<float16>(),
+                                         weightsTile->data<float16>(),
+                                         outputTile->data<float16>(),
+                                         smv::spad0, smv::spad1, smv::spad2,
+                                         inputDims, weightsDims, outputDims,
+                                         inputShape.getPadding(3),
+                                         weightsShape.getPadding(3),
+                                         outputShape.getPadding(3),
+                                         inputHaloPad, getRowStride(),
+                                         getColStride(), ifmapStart, kernStart,
+                                         accumulate, sendResults,
+                                         actInfo.function, actInfo.params,
+                                         &sampling);
+                        }
 
                         ifmapOffset += weightsTile->getShape()[3];
                         if (inputChanTiles == weightChanTiles) {
@@ -167,6 +183,45 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
             }
         }
     }
+}
+
+void SmvConvolutionOp::invokeSystolicArrayKernel(unsigned accelId,
+                                                 float16* inputs,
+                                                 float16* weights,
+                                                 float16* outputs,
+                                                 int inputsDims[4],
+                                                 int weightsDims[4],
+                                                 int outputsDims[4],
+                                                 int inputHaloPad[4],
+                                                 int stride,
+                                                 int ifmapStart,
+                                                 int kernStart,
+                                                 bool accumulate,
+                                                 bool sendResults,
+                                                 ActivationInfo* actInfo) {
+    // Note that if we are in trace mode, we should skip this gem5 accelerator.
+#ifndef TRACE_MODE
+    assert(runningInSimulation && "The systolic array must be invoked in "
+                                  "simuation.");
+    systolic_array_params_t params;
+    params.input_base_addr = inputs;
+    params.weight_base_addr = weights;
+    params.output_base_addr = outputs;
+    memcpy(params.input_dims, inputsDims, sizeof(int) * 4);
+    memcpy(params.weight_dims, weightsDims, sizeof(int) * 4);
+    memcpy(params.output_dims, outputsDims, sizeof(int) * 4);
+    params.stride = stride;
+    memcpy(params.input_halo_pad, inputHaloPad, sizeof(int) * 4);
+    params.ifmap_start = ifmapStart;
+    params.kern_start = kernStart;
+    params.accum_results = accumulate;
+    params.send_results = sendResults;
+    // The systolic array kernel in gem5 uses the same
+    // activation type/params structures.
+    memcpy(&params.act_type, &(actInfo->function), sizeof(activation_type));
+    memcpy(&params.act_params, &(actInfo->params), sizeof(activation_param_t));
+    invokeSystolicArrayAndBlock(accelId, params);
+#endif
 }
 
 void SmvConvolutionOp::run() {

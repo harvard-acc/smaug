@@ -5,6 +5,7 @@ namespace smaug {
 // This is true if the user chooses to run the network in gem5
 // simulation.
 extern bool runningInSimulation;
+extern bool useSystolicArrayWhenAvailable;
 }  // namespace smaug
 
 #endif

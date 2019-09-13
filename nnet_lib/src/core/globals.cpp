@@ -2,4 +2,5 @@
 
 namespace smaug {
 bool runningInSimulation;
+bool useSystolicArrayWhenAvailable;
 }  // namespace smaug

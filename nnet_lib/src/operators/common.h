@@ -15,6 +15,7 @@ extern "C" {
 #endif
 #include "gem5/aladdin_sys_connection.h"
 #include "gem5/aladdin_sys_constants.h"
+#include "gem5/systolic_array_connection.h"
 #endif
 
 #ifdef __cplusplus

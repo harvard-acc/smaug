@@ -24,6 +24,7 @@ int main(int argc, char* argv[]) {
     SamplingInfo sampling;
     std::string samplingLevel = "no";
     sampling.num_sample_iterations = 1;
+    useSystolicArrayWhenAvailable = false;
     po::options_description options(
             "SMAUG Usage:  ./smaug model_topo.pbtxt model_params.pb [options]");
     // clang-format off
@@ -51,7 +52,10 @@ int main(int argc, char* argv[]) {
           po::value(&(sampling.num_sample_iterations))->implicit_value(1),
          "Set the number of sample iterations used by every sampling enabled "
          "entity. By default, the global sample number is set to 1. Larger "
-         "sample number means less sampling.");
+         "sample number means less sampling.")
+        ("use-systolic-array",
+         po::value(&useSystolicArrayWhenAvailable)->implicit_value(true),
+         "If the backend contains a systolic array, use it whenever possible.");
     // clang-format on
 
     po::options_description hidden;
