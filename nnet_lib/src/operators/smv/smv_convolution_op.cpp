@@ -74,6 +74,9 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
             assert(numOutputInvocations > 1
                            ? weightOfmapTiles == 1
                            : weightOfmapTiles == outputChanTiles);
+            unsigned accelId = useSystolicArrayWhenAvailable
+                                       ? smv::kSystolicArrayHw
+                                       : smv::kConvolutionHw;
             for (int W = 0; W < weightOfmapTiles; W++) {
                 for (int oC = 0; oC < numOutputInvocations; oC++) {
                     int iC = 0, wC = 0;
@@ -82,7 +85,7 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                     Tensor* outputTile = outputs[outputIdx(N, H, 0, W + oC)];
                     const TensorShape& outputShape = outputTile->getShape();
                     mapArrayToAccel(
-                            smv::kConvolutionHw, "host_results",
+                            accelId, "host_results",
                             outputTile->data<float16>(),
                             outputShape.storageSize() * sizeof(float16));
 
@@ -106,11 +109,11 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                         const TensorShape& weightsShape =
                                 weightsTile->getShape();
                         mapArrayToAccel(
-                                smv::kConvolutionHw, "host_inputs",
+                                accelId, "host_inputs",
                                 inputTile->data<float16>(),
                                 inputShape.storageSize() * sizeof(float16));
                         mapArrayToAccel(
-                                smv::kConvolutionHw, "host_weights",
+                                accelId, "host_weights",
                                 weightsTile->data<float16>(),
                                 weightsShape.storageSize() * sizeof(float16));
                         int inputDims[4] = { inputShape[0], inputShape[1],
@@ -138,8 +141,7 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                         if (useSystolicArrayWhenAvailable) {
                             // Invoke the systolic array if specified.
                             invokeSystolicArrayKernel(
-                                    smv::kSystolicArrayHw,
-                                    inputTile->data<float16>(),
+                                    accelId, inputTile->data<float16>(),
                                     weightsTile->data<float16>(),
                                     outputTile->data<float16>(), inputDims,
                                     weightsDims, outputDims,
@@ -150,8 +152,7 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                                     accumulate, sendResults, &actInfo);
                         } else {
                             // Otherwise invoke the DLA-like kernel.
-                            invokeKernel(smv::kConvolutionHw,
-                                         smv_conv3d_nhwc_vec_fxp,
+                            invokeKernel(accelId, smv_conv3d_nhwc_vec_fxp,
                                          inputTile->data<float16>(),
                                          weightsTile->data<float16>(),
                                          outputTile->data<float16>(),
