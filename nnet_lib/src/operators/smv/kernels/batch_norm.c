@@ -45,8 +45,8 @@ void smv_batch_norm_post_fc_nc_vec_fxp(float16* host_inputs,
 
     // Load inputs and weights if needed.
     if (inputs_start == 0)
-        dma_load_fp16(inputs, host_inputs, inputs_size, 0, 0);
-    dma_load_fp16(weights, host_weights, weights_size, 0, 0);
+        host_load_fp16(inputs, host_inputs, inputs_size, 0, 0);
+    host_load_fp16(weights, host_weights, weights_size, 0, 0);
 
     VEC_ARRAY_2D(v8fp_t, _inputs, inputs, inputs_size + inputs_pad);
     VEC_ARRAY_2D(v8fp_t, _weights, weights, weights_acts + inputs_pad);
@@ -71,7 +71,7 @@ void smv_batch_norm_post_fc_nc_vec_fxp(float16* host_inputs,
     }
     // Store results to the host memory if needed.
     if (send_results)
-        dma_store_fp16(results, host_results, results_size, 0, 0);
+        host_store_fp16(results, host_results, results_size, 0, 0);
 }
 
 // For batch norm following a convolutional/pooling layer, we only have a
@@ -100,9 +100,9 @@ void smv_batch_norm_post_conv_nchw_vec_fxp(float16* host_inputs,
     int weights_start_vec = weights_start / VECTOR_SIZE;
 
     // Load inputs and weights if needed.
-    dma_load_fp16(inputs, host_inputs, inputs_size, 0, 0);
+    host_load_fp16(inputs, host_inputs, inputs_size, 0, 0);
     if (weights_start == 0)
-        dma_load_fp16(weights, host_weights, weights_size, 0, 0);
+        host_load_fp16(weights, host_weights, weights_size, 0, 0);
 
     VEC_ARRAY_4D(v8fp_t,
                  _inputs,
@@ -161,7 +161,7 @@ void smv_batch_norm_post_conv_nchw_vec_fxp(float16* host_inputs,
                 results, results, results_size, act_function, act_params);
     }
     // Store results to the host memory.
-    dma_store_fp16(results, host_results, results_size, 0, 0);
+    host_store_fp16(results, host_results, results_size, 0, 0);
 }
 
 void smv_batch_norm_post_conv_nhwc_vec_fxp(float16* host_inputs,
@@ -189,9 +189,9 @@ void smv_batch_norm_post_conv_nhwc_vec_fxp(float16* host_inputs,
     int inputs_chans_vec = FRAC_CEIL(inputs_chans, VECTOR_SIZE);
 
     // Load inputs and weights if needed.
-    dma_load_fp16(inputs, host_inputs, inputs_size, 0, 0);
+    host_load_fp16(inputs, host_inputs, inputs_size, 0, 0);
     if (weights_start == 0)
-        dma_load_fp16(weights, host_weights, weights_size, 0, 0);
+        host_load_fp16(weights, host_weights, weights_size, 0, 0);
 
     VEC_ARRAY_4D(v8fp_t, _inputs, inputs, inputs_rows, inputs_cols,
                  inputs_chans + inputs_pad);
@@ -226,7 +226,7 @@ void smv_batch_norm_post_conv_nhwc_vec_fxp(float16* host_inputs,
                 results, results, results_size, act_function, act_params);
     }
     // Store results to the host memory.
-    dma_store_fp16(results, host_results, results_size, 0, 0);
+    host_store_fp16(results, host_results, results_size, 0, 0);
 }
 
 #ifdef __cplusplus

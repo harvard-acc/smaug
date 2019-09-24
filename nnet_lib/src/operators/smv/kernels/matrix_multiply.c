@@ -89,8 +89,8 @@ void smv_matrix_multiply_transpose_nc_vec_fxp(float16* host_a,
 
     // Load a and b if needed.
     if (a_start == 0)
-        dma_load_fp16(a, host_a, a_size, 0, 0);
-    dma_load_fp16(b, host_b, b_size, 0, 0);
+        host_load_fp16(a, host_a, a_size, 0, 0);
+    host_load_fp16(b, host_b, b_size, 0, 0);
 
     a_act:
     for (int a_act = 0; a_act < a_height; a_act++) {
@@ -182,7 +182,7 @@ void smv_matrix_multiply_transpose_nc_vec_fxp(float16* host_a,
     }
     // Store results to the host memory if needed.
     if (send_results)
-        dma_store_fp16(results, host_results, results_size, 0, 0);
+        host_store_fp16(results, host_results, results_size, 0, 0);
 }
 
 #ifdef __cplusplus

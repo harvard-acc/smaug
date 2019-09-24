@@ -28,6 +28,8 @@ void SmvPoolingOp::runNHC(TiledTensor& inputs, TiledTensor& outputs) {
     int outputChanTiles = outputs.getShape()[3];
     auto inputIdx = inputs.startIndex();
     auto outputIdx = outputs.startIndex();
+    setArrayMemoryType(smv::kPoolingHw, "host_inputs", getInputsMemType());
+    setArrayMemoryType(smv::kPoolingHw, "host_results", getOutputsMemType());
     for (int N = 0; N < inputIfmapTiles; N++) {
         for (int H = 0; H < inputRowTiles; H++) {
             int iC = 0, oC = 0;

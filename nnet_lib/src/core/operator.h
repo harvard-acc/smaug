@@ -63,6 +63,13 @@ class Operator {
     }
     const std::vector<TensorBase*>& getOutputs() const { return outputs; }
 
+    void setInputsMemType(MemoryType type) { inputsMemType = type; }
+    void setWeightsMemType(MemoryType type) { weightsMemType = type; }
+    void setOutputsMemType(MemoryType type) { outputsMemType = type; }
+    MemoryType getInputsMemType() const { return inputsMemType; }
+    MemoryType getWeightsMemType() const { return weightsMemType; }
+    MemoryType getOutputsMemType() const { return outputsMemType; }
+
    protected:
     bool tensorsAllConstructed(const std::vector<TensorBase*>& tensors) const {
         for (auto tensor : tensors)
@@ -91,6 +98,10 @@ class Operator {
     OpType opType;
     Vertex vertex;
     Workspace* workspace;
+    // Host memory access types for different data.
+    MemoryType inputsMemType;
+    MemoryType weightsMemType;
+    MemoryType outputsMemType;
 };
 
 }  // namespace smaug

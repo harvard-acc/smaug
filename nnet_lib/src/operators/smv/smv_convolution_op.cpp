@@ -37,6 +37,11 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
     int bottomPad = totalRowPad - topPad;
     int leftPad = FRAC_CEIL(totalColPad, 2);
     int rightPad = totalColPad - leftPad;
+    unsigned accelId = useSystolicArrayWhenAvailable ? smv::kSystolicArrayHw
+                                                     : smv::kConvolutionHw;
+    setArrayMemoryType(accelId, "host_inputs", getInputsMemType());
+    setArrayMemoryType(accelId, "host_weights", getWeightsMemType());
+    setArrayMemoryType(accelId, "host_results", getOutputsMemType());
     for (int N = 0; N < inputIfmapTiles; N++) {
         for (int H = 0; H < outputRowTiles; H++) {
             int currentTileTopPad = topPad;
@@ -74,9 +79,6 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
             assert(numOutputInvocations > 1
                            ? weightOfmapTiles == 1
                            : weightOfmapTiles == outputChanTiles);
-            unsigned accelId = useSystolicArrayWhenAvailable
-                                       ? smv::kSystolicArrayHw
-                                       : smv::kConvolutionHw;
             for (int W = 0; W < weightOfmapTiles; W++) {
                 for (int oC = 0; oC < numOutputInvocations; oC++) {
                     int iC = 0, wC = 0;

@@ -36,6 +36,10 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
     auto inputIdx = inputs.startIndex();
     auto weightIdx = weights.startIndex();
     auto outputIdx = outputs.startIndex();
+    setArrayMemoryType(smv::kInnerProductHw, "host_a", getInputsMemType());
+    setArrayMemoryType(smv::kInnerProductHw, "host_b", getWeightsMemType());
+    setArrayMemoryType(
+            smv::kInnerProductHw, "host_results", getOutputsMemType());
     for (int N = 0; N < inputNumTiles; N++) {
         // Usually we are constrained by weights whereas outputs can fit in the
         // scratchpad. This keeps track of finished neurons and will be used by

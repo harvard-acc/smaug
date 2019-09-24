@@ -52,6 +52,10 @@ std::pair<activation_type, activation_param_t> getActivationParams(
 void runX(UnaryOp<SmvBackend>* op, TiledTensor& inputs, TiledTensor& outputs) {
     assert(inputs.size() == outputs.size());
     auto actParams = getActivationParams(op);
+    setArrayMemoryType(
+            smv::kEltwiseOpHw, "host_inputs", op->getInputsMemType());
+    setArrayMemoryType(
+            smv::kEltwiseOpHw, "host_results", op->getOutputsMemType());
     for (int i = 0; i < inputs.size(); i++) {
         dout(1) << "Input: " << i << ", output: " << i << "\n";
         Tensor* inputTile = inputs[i];

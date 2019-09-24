@@ -25,11 +25,11 @@ extern "C" {
  *   remote_offset: Start from this offset in the remote buffer.
  */
 ALWAYS_INLINE
-static inline void dma_load_fp16(float* local_data,
-                                 float16* remote_data,
-                                 int num_elems,
-                                 int local_offset,
-                                 int remote_offset) {
+static inline void host_load_fp16(float* local_data,
+                                  float16* remote_data,
+                                  int num_elems,
+                                  int local_offset,
+                                  int remote_offset) {
     VEC_ARRAY_1D(v8ph_t, _local_data_hp, local_data);
     VEC_ARRAY_1D(v8fp_t, _local_data_sp, local_data);
     const int page_size = (1 << LOG_PAGE_SIZE);
@@ -42,9 +42,9 @@ static inline void dma_load_fp16(float* local_data,
     for (int i = 0; i < num_xfers; i++) {
         int transfer_size = min2(num_bytes_remaining, max_transfer_size);
         int curr_offset = (i * page_size * 2) / sizeof(float);
-        dmaLoad(local_data + local_offset + curr_offset,
-                remote_data + remote_offset + curr_offset,
-                transfer_size);
+        hostLoad(local_data + local_offset + curr_offset,
+                 remote_data + remote_offset + curr_offset,
+                 transfer_size);
 
         // This loads N bytes of FP16 data into local_data. We now expand
         // N bytes of half precision to 2*N bytes of single precision, in
@@ -79,11 +79,11 @@ static inline void dma_load_fp16(float* local_data,
  *   remote_offset: Start from this offset in the remote buffer.
  */
 ALWAYS_INLINE
-static inline void dma_store_fp16(float* local_data,
-                                  float16* remote_data,
-                                  int num_elems,
-                                  int local_offset,
-                                  int remote_offset) {
+static inline void host_store_fp16(float* local_data,
+                                   float16* remote_data,
+                                   int num_elems,
+                                   int local_offset,
+                                   int remote_offset) {
     VEC_ARRAY_1D(v8ph_t, _local_data_hp, local_data);
     VEC_ARRAY_1D(v8fp_t, _local_data_sp, local_data);
     const int page_size = (1 << LOG_PAGE_SIZE);
@@ -109,9 +109,9 @@ static inline void dma_store_fp16(float* local_data,
             _local_data_hp[page_offset_vec * 2 + v] = fp16_data;
         }
 
-        dmaStore(remote_data + remote_offset + curr_offset,
-                 local_data + local_offset + curr_offset,
-                 transfer_size);
+        hostStore(remote_data + remote_offset + curr_offset,
+                  local_data + local_offset + curr_offset,
+                  transfer_size);
 
         num_bytes_remaining -= transfer_size;
     }

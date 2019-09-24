@@ -14,8 +14,8 @@ void smv_eltwise_add_nc_vec_fxp(float16* host_inputs0,
                                 float* results,
                                 int inputs_size) {
     // Load inputs.
-    dma_load_fp16(inputs0, host_inputs0, inputs_size, 0, 0);
-    dma_load_fp16(inputs1, host_inputs1, inputs_size, 0, 0);
+    host_load_fp16(inputs0, host_inputs0, inputs_size, 0, 0);
+    host_load_fp16(inputs1, host_inputs1, inputs_size, 0, 0);
 
     VEC_ARRAY_1D(v8fp_t, _inputs0, inputs0);
     VEC_ARRAY_1D(v8fp_t, _inputs1, inputs1);
@@ -27,7 +27,7 @@ void smv_eltwise_add_nc_vec_fxp(float16* host_inputs0,
     }
 
     // Store results to the host memory.
-    dma_store_fp16(results, host_results, inputs_size, 0, 0);
+    host_store_fp16(results, host_results, inputs_size, 0, 0);
 }
 
 #ifdef __cplusplus

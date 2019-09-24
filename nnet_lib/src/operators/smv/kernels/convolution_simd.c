@@ -112,9 +112,9 @@ void smv_conv3d_nhwc_vec_fxp(float16* host_inputs,
 
     // Load inputs and weights if needed.
     if (ifmap_start == 0)
-        dma_load_fp16(inputs, host_inputs, inputs_size, 0, 0);
+        host_load_fp16(inputs, host_inputs, inputs_size, 0, 0);
     if (kern_start == 0)
-        dma_load_fp16(weights, host_weights, weights_size, 0, 0);
+        host_load_fp16(weights, host_weights, weights_size, 0, 0);
 
     // Set up the sample sizes and factors.
     int pe_block_sample = num_kernel_blocks + 1;
@@ -297,7 +297,7 @@ void smv_conv3d_nhwc_vec_fxp(float16* host_inputs,
     }
     // Store results to the host memory if needed.
     if (send_results)
-        dma_store_fp16(results, host_results, results_size, 0, 0);
+        host_store_fp16(results, host_results, results_size, 0, 0);
 }
 
 #ifdef __cplusplus

@@ -13,6 +13,9 @@ void SmvEltwiseAddOp::runX(TiledTensor& inputs0,
                            TiledTensor& outputs) {
     assert(inputs0.size() == inputs1.size() &&
            inputs0.size() == outputs.size());
+    setArrayMemoryType(smv::kEltwiseOpHw, "host_inputs0", getInputsMemType());
+    setArrayMemoryType(smv::kEltwiseOpHw, "host_inputs1", getInputsMemType());
+    setArrayMemoryType(smv::kEltwiseOpHw, "host_results", getOutputsMemType());
     for (int i = 0; i < inputs0.size(); i++) {
         dout(1) << "Input0: " << i << ", input1: " << i << ", output: " << i
                 << "\n";

@@ -27,6 +27,9 @@ void SmvBatchNormOp::runNA(TiledTensor& inputs,
     auto inputIdx = inputs.startIndex();
     auto weightIdx = weights.startIndex();
     auto outputIdx = outputs.startIndex();
+    setArrayMemoryType(smv::kBatchNormHw, "host_inputs", getInputsMemType());
+    setArrayMemoryType(smv::kBatchNormHw, "host_weights", getWeightsMemType());
+    setArrayMemoryType(smv::kBatchNormHw, "host_results", getOutputsMemType());
     for (int N = 0; N < inputNumTiles; N++) {
         int iC = 0, wC = 0;
         // This keeps track of the activation offset of the inputs.
@@ -103,6 +106,9 @@ void SmvBatchNormOp::runNWC(TiledTensor& inputs,
     mapArrayToAccel(smv::kBatchNormHw, "host_weights",
                     weightTile->data<float16>(),
                     weightShape.storageSize() * sizeof(float16));
+    setArrayMemoryType(smv::kBatchNormHw, "host_inputs", getInputsMemType());
+    setArrayMemoryType(smv::kBatchNormHw, "host_weights", getWeightsMemType());
+    setArrayMemoryType(smv::kBatchNormHw, "host_results", getOutputsMemType());
     for (int N = 0; N < inputNumTiles; N++) {
         for (int W = 0; W < inputColTiles; W++) {
             // This keeps track of the channel offset of the inputs.

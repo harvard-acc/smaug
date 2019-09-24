@@ -14,6 +14,7 @@
 #include "core/node.pb.h"
 #include "core/tensor.pb.h"
 #include "core/types.pb.h"
+#include "operators/common.h"
 #include "operators/batch_norm_op.h"
 #include "operators/convolution_op.h"
 #include "operators/data_op.h"
@@ -86,6 +87,7 @@ ActivationInfo getActivationInfo(const ActivationParams& params) {
 template <typename Backend>
 static void createAndAddOperator(const NodeProto& node,
                                  const TensorDataArray& tensorDataArray,
+                                 HostMemoryAccessPolicy memPolicy,
                                  Network* network,
                                  Workspace* workspace) {
     const std::string& name = node.name();
@@ -212,6 +214,26 @@ static void createAndAddOperator(const NodeProto& node,
     // Set the sampling info for the operator if it supports sampling.
     if (op->isSamplingSupported())
         op->setSamplingInfo(network->getSamplingInfo());
+    // Set the memory access types for the operator's data.
+    if (memPolicy == HostMemoryAccessPolicy::AllDma) {
+        op->setInputsMemType(MemoryType::dma);
+        op->setWeightsMemType(MemoryType::dma);
+        op->setOutputsMemType(MemoryType::dma);
+    } else if (memPolicy == HostMemoryAccessPolicy::AllAcp) {
+        op->setInputsMemType(MemoryType::acp);
+        op->setWeightsMemType(MemoryType::acp);
+        op->setOutputsMemType(MemoryType::acp);
+    } else if (memPolicy == HostMemoryAccessPolicy::AllCache) {
+        op->setInputsMemType(MemoryType::cache);
+        op->setWeightsMemType(MemoryType::cache);
+        op->setOutputsMemType(MemoryType::cache);
+    } else if (memPolicy == HostMemoryAccessPolicy::AllAcpWithDmaForWeights) {
+        op->setInputsMemType(MemoryType::acp);
+        op->setWeightsMemType(MemoryType::dma);
+        op->setOutputsMemType(MemoryType::acp);
+    } else if (memPolicy == HostMemoryAccessPolicy::UnknownMemoryPolicy) {
+        assert(false && "Invalid host memory access policy!");
+    }
 
     // Allocate storage for the output tensors of the newly added operator. We
     // have filled data for all the parameterizable input tensors from the model
@@ -235,7 +257,7 @@ static Network* createNetworkFromProto(const GraphProto& graph,
     for (int i = 0; i < graph.nodes_size(); i++) {
         const NodeProto& node = graph.nodes(i);
         createAndAddOperator<Backend>(
-                node, tensorDataArray, network, workspace);
+                node, tensorDataArray, graph.mem_policy(), network, workspace);
     }
     return network;
 }

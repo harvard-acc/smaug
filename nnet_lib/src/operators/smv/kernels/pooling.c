@@ -68,7 +68,7 @@ void smv_maxpooling_nhwc_vec_fxp(float16* host_inputs,
                  results_height + results_pad);
 
     // Load inputs.
-    dma_load_fp16(inputs, host_inputs, inputs_size, 0, 0);
+    host_load_fp16(inputs, host_inputs, inputs_size, 0, 0);
 
     int out_row = 0;
     maxpool_input_row:
@@ -106,7 +106,7 @@ void smv_maxpooling_nhwc_vec_fxp(float16* host_inputs,
 
     // Store results to the host memory if needed.
     if (ofmap_start + a_height == results_height)
-        dma_store_fp16(results, host_results, results_size, 0, 0);
+        host_store_fp16(results, host_results, results_size, 0, 0);
 }
 
 // An average-pooling operation on SMV with NHWC format. This is the
@@ -176,7 +176,7 @@ void smv_avgpooling_nhwc_vec_fxp(float16* host_inputs,
                  results_height + results_pad);
 
     // Load inputs.
-    dma_load_fp16(inputs, host_inputs, inputs_size, 0, 0);
+    host_load_fp16(inputs, host_inputs, inputs_size, 0, 0);
 
     int out_row = 0;
     avgpool_input_row:
@@ -206,7 +206,7 @@ void smv_avgpooling_nhwc_vec_fxp(float16* host_inputs,
 
     // Store results to the host memory if needed.
     if (ofmap_start + a_height == results_height)
-        dma_store_fp16(results, host_results, results_size, 0, 0);
+        host_store_fp16(results, host_results, results_size, 0, 0);
 }
 
 #ifdef __cplusplus
