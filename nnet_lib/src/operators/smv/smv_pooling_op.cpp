@@ -43,10 +43,10 @@ void SmvPoolingOp::runNHC(TiledTensor& inputs, TiledTensor& outputs) {
                 Tensor* outputTile = outputs[outputIdx(N, H, 0, oC)];
                 const TensorShape& inputShape = inputTile->getShape();
                 const TensorShape& outputShape = outputTile->getShape();
-                mapArrayToAccel(smv::kConvolutionHw, "host_inputs",
+                mapArrayToAccel(smv::kPoolingHw, "host_inputs",
                                 inputTile->data<float16>(),
                                 inputShape.storageSize() * sizeof(float16));
-                mapArrayToAccel(smv::kConvolutionHw, "host_results",
+                mapArrayToAccel(smv::kPoolingHw, "host_results",
                                 outputTile->data<float16>(),
                                 outputShape.storageSize() * sizeof(float16));
                 int inputDims[4] = { inputShape[0], inputShape[1],
