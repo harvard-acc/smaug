@@ -6,11 +6,13 @@ from global_vars import *
 from tensor import *
 
 class Graph:
-  def __init__(self, name="DefaultGraph", backend="Reference"):
+  def __init__(self, name="DefaultGraph", backend="Reference",
+               mem_policy=AllDma):
     assert (backend in backend_alignment)
     self.graph = GraphProto()
     self.graph.name = name
     self.graph.backend = backend
+    self.graph.mem_policy = mem_policy
     self.alignment = backend_alignment[backend]
     # Layout transformation is enabled by default.
     self.layout_trans_enabled = True
@@ -190,6 +192,9 @@ class Graph:
     print "      Summary of the network: %s (%s)" % (self.graph.name,
                                                      self.graph.backend)
     print "================================================================="
+    print "Host memory access policy: %s." % HostMemoryAccessPolicy.Name(
+        self.graph.mem_policy)
+    print "-----------------------------------------------------------------"
     for node in self.graph.nodes:
       print "Name: %s (%s)" % (node.name, OpType.Name(node.op))
       print "Parents:",

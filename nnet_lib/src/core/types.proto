@@ -56,3 +56,11 @@ enum PaddingType {
   SamePadding = 1;
   ValidPadding = 2;
 }
+
+enum HostMemoryAccessPolicy {
+  UnknownMemoryPolicy = 0;
+  AllDma = 1;
+  AllAcp = 2;
+  AllCache = 3;
+  AllAcpWithDmaForWeights = 4;
+}
