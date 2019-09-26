@@ -130,7 +130,7 @@ def convolution(name,
   row_idx = 2 if input_tensor.shape.layout == NCHW else 1
   col_idx = 3 if input_tensor.shape.layout == NCHW else 2
   chan_idx = 1 if input_tensor.shape.layout == NCHW else 3
-  assert input_tensor[chan_idx] == filter_tensor[chan_idx], (
+  assert input_tensor.dims(chan_idx) == filter_tensor.dims(chan_idx), (
       "The weights must have the same number of channels as the inputs.")
   output_rows = compute_output_dim(input_tensor.shape.dims[row_idx],
                                    filter_tensor.shape.dims[row_idx], stride[0],

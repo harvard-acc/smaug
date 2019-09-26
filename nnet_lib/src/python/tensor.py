@@ -43,6 +43,11 @@ class Tensor:
       pad_width.append((0, self.calc_padding(self.shape.dims[-1])))
       self.tensor_data = np.pad(self.tensor_data, pad_width, 'constant')
 
+  def dims(self, index):
+    """This returns the size of the dimension."""
+    assert index < len(self.shape.dims), "The dimension index is out of bound!"
+    return self.shape.dims[index]
+
   def deduce_attrs_from_data(self):
     """Deduce tensor attributes from the supplied tensor data.
 
