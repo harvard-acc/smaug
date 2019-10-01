@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "core/datatypes.h"
+#include "gem5/m5ops.h"
 
 namespace smaug {
 
@@ -49,6 +50,20 @@ void* malloc_aligned(size_t size, bool zeroOut = false);
 int calc_padding(int value, unsigned alignment);
 
 std::string dataLayoutToStr(DataLayout layout);
+
+#ifndef TRACE_MODE
+#define M5_SWITCH_CPU()                                                        \
+    if (runningInSimulation) {                                                 \
+        m5_switch_cpu();                                                       \
+    }
+#define M5_DUMP_STATS()                                                        \
+    if (runningInSimulation) {                                                 \
+        m5_dump_stats(0, 0);                                                   \
+    }
+#else
+#define M5_SWITCH_CPU()
+#define M5_DUMP_STATS()
+#endif
 
 }  // namespace smaug
 
