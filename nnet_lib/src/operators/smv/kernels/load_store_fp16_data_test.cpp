@@ -28,7 +28,7 @@ void doFp16LoadTest(int numElems) {
     std::vector<float16> fp16Data(numElems, 0);
     std::vector<float> fp32Data(numElems, 0);
     fillFp16Data(fp16Data);
-    dma_load_fp16(fp32Data.data(), fp16Data.data(), numElems, 0, 0);
+    host_load_fp16(fp32Data.data(), fp16Data.data(), numElems, 0, 0);
     verifyFp32Data(fp32Data);
 }
 
@@ -36,7 +36,7 @@ void doFp16StoreTest(int numElems) {
     std::vector<float16> fp16Data(numElems, 0);
     std::vector<float> fp32Data(numElems, 0);
     fillFp32Data(fp32Data);
-    dma_store_fp16(fp32Data.data(), fp16Data.data(), numElems, 0, 0);
+    host_store_fp16(fp32Data.data(), fp16Data.data(), numElems, 0, 0);
     verifyFp16Data(fp16Data);
 }
 
