@@ -39,6 +39,8 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
     int rightPad = totalColPad - leftPad;
     unsigned accelId = useSystolicArrayWhenAvailable ? smv::kSystolicArrayHw
                                                      : smv::kConvolutionHw;
+    int lastReadInputTileIdx = -1;
+    int lastReadWeightTileIdx = -1;
     setArrayMemoryType(accelId, "host_inputs", getInputsMemType());
     setArrayMemoryType(accelId, "host_weights", getWeightsMemType());
     setArrayMemoryType(accelId, "host_results", getOutputsMemType());
@@ -84,7 +86,8 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                     int iC = 0, wC = 0;
                     // This keeps track of the channel offset of the input.
                     int ifmapOffset = 0;
-                    Tensor* outputTile = outputs[outputIdx(N, H, 0, W + oC)];
+                    int outputTileIdx = outputIdx(N, H, 0, W + oC);
+                    Tensor* outputTile = outputs[outputTileIdx];
                     const TensorShape& outputShape = outputTile->getShape();
                     mapArrayToAccel(
                             accelId, "host_results",
@@ -101,12 +104,13 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                     // channel tile, producing results for the same output
                     // channels.
                     while (iC < inputChanTiles && wC < weightChanTiles) {
-                        dout(1) << "Input: " << inputIdx(N, H, 0, iC)
-                                << ", weights: " << weightIdx(W, 0, 0, wC)
-                                << ", output: " << outputIdx(N, H, 0, W + oC)
-                                << "\n";
-                        Tensor* inputTile = inputs[inputIdx(N, H, 0, iC)];
-                        Tensor* weightsTile = weights[weightIdx(W, 0, 0, wC)];
+                        int inputTileIdx = inputIdx(N, H, 0, iC);
+                        int weightTileIdx = weightIdx(W, 0, 0, wC);
+                        dout(1) << "Input: " << inputTileIdx
+                                << ", weights: " << weightTileIdx
+                                << ", output: " << outputTileIdx << "\n";
+                        Tensor* inputTile = inputs[inputTileIdx];
+                        Tensor* weightsTile = weights[weightTileIdx];
                         const TensorShape& inputShape = inputTile->getShape();
                         const TensorShape& weightsShape =
                                 weightsTile->getShape();
@@ -135,6 +139,18 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                         // avoid resetting the result for non-first (wC > 0)
                         // weight channelwise tiles.
                         bool accumulate = wC > 0;
+                        // If this is a new input/weight tile, then we need to
+                        // read it.
+                        bool readInputs = false;
+                        if (inputTileIdx != lastReadInputTileIdx) {
+                            readInputs = true;
+                            lastReadInputTileIdx = inputTileIdx;
+                        }
+                        bool readWeights = false;
+                        if (weightTileIdx != lastReadWeightTileIdx) {
+                            readWeights = true;
+                            lastReadWeightTileIdx = weightTileIdx;
+                        }
                         // If we reach the last invocation for the weight
                         // channelwise tiles, the results are finished and need
                         // to be sent back to the host.
@@ -151,7 +167,8 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                                     weightsShape.getPadding(3),
                                     outputShape.getPadding(3), inputHaloPad,
                                     getRowStride(), ifmapStart, kernStart,
-                                    accumulate, sendResults, &actInfo);
+                                    accumulate, readInputs, readWeights,
+                                    sendResults, &actInfo);
                         } else {
                             // Otherwise invoke the DLA-like kernel.
                             invokeKernel(accelId, smv_conv3d_nhwc_vec_fxp,
@@ -165,9 +182,9 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                                          outputShape.getPadding(3),
                                          inputHaloPad, getRowStride(),
                                          getColStride(), ifmapStart, kernStart,
-                                         accumulate, sendResults,
-                                         actInfo.function, actInfo.params,
-                                         &sampling);
+                                         accumulate, readInputs, readWeights,
+                                         sendResults, actInfo.function,
+                                         actInfo.params, &sampling);
                         }
 
                         ifmapOffset += weightsTile->getShape()[3];
@@ -206,6 +223,8 @@ void SmvConvolutionOp::invokeSystolicArrayKernel(unsigned accelId,
                                                  int ifmapStart,
                                                  int kernStart,
                                                  bool accumulate,
+                                                 bool readInputs,
+                                                 bool readWeights,
                                                  bool sendResults,
                                                  ActivationInfo* actInfo) {
     // Note that if we are in trace mode, we should skip this gem5 accelerator.
@@ -227,6 +246,8 @@ void SmvConvolutionOp::invokeSystolicArrayKernel(unsigned accelId,
     params.ifmap_start = ifmapStart;
     params.kern_start = kernStart;
     params.accum_results = accumulate;
+    params.read_inputs = readInputs;
+    params.read_weights = readWeights;
     params.send_results = sendResults;
     // The systolic array kernel in gem5 uses the same
     // activation type/params structures.

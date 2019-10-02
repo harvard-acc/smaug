@@ -64,6 +64,7 @@ void smv_matrix_multiply_transpose_nc_vec_fxp(float16* host_a,
                                               int a_start,
                                               int result_start,
                                               bool accumulate,
+                                              bool read_inputs,
                                               bool send_results,
                                               activation_type act_function,
                                               activation_param_t act_params) {
@@ -88,7 +89,7 @@ void smv_matrix_multiply_transpose_nc_vec_fxp(float16* host_a,
     v8fp_t partial_sums;
 
     // Load a and b if needed.
-    if (a_start == 0)
+    if (read_inputs)
         host_load_fp16(a, host_a, a_size, 0, 0);
     host_load_fp16(b, host_b, b_size, 0, 0);
 

@@ -49,6 +49,8 @@ class SmvConvolutionOp : public ConvolutionOp<SmvBackend> {
                                   int ifmapStart,
                                   int kernStart,
                                   bool accumulate,
+                                  bool readInputs,
+                                  bool readWeights,
                                   bool sendResults,
                                   ActivationInfo* actInfo);
 };

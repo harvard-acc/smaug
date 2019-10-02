@@ -59,6 +59,8 @@ void smv_conv3d_nhwc_vec_fxp(float16* host_inputs,
                              int ifmap_start,
                              int kern_start,
                              bool accumulate,
+                             bool read_inputs,
+                             bool read_weights,
                              bool send_results,
                              activation_type act_function,
                              activation_param_t act_params,
@@ -111,9 +113,9 @@ void smv_conv3d_nhwc_vec_fxp(float16* host_inputs,
     int num_kernel_blocks = (num_eff_kernels - 1) / NUM_PE_INSTS;
 
     // Load inputs and weights if needed.
-    if (ifmap_start == 0)
+    if (read_inputs)
         host_load_fp16(inputs, host_inputs, inputs_size, 0, 0);
-    if (kern_start == 0)
+    if (read_weights)
         host_load_fp16(weights, host_weights, weights_size, 0, 0);
 
     // Set up the sample sizes and factors.

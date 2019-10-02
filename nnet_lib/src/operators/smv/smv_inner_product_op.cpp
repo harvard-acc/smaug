@@ -40,13 +40,15 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
     setArrayMemoryType(smv::kInnerProductHw, "host_b", getWeightsMemType());
     setArrayMemoryType(
             smv::kInnerProductHw, "host_results", getOutputsMemType());
+    int lastReadInputTileIdx = -1;
     for (int N = 0; N < inputNumTiles; N++) {
         // Usually we are constrained by weights whereas outputs can fit in the
         // scratchpad. This keeps track of finished neurons and will be used by
         // the kernel for correct offset in the outputs scratchpad.
         int finishedNeurons = 0;
         for (int W = 0; W < weightNeuronTiles; W++) {
-            Tensor* outputTile = outputs[outputIdx(N, 0)];
+            int outputTileIdx = outputIdx(N, 0);
+            Tensor* outputTile = outputs[outputTileIdx];
             const TensorShape& outputShape = outputTile->getShape();
             mapArrayToAccel(smv::kInnerProductHw, "host_results",
                             outputTile->data<float16>(),
@@ -55,17 +57,19 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
             // This keeps track of the activation offset of the inputs.
             int actOffset = 0;
             while (iC < inputActTiles && wC < weightActTiles) {
+                int inputTileIdx = inputIdx(N, iC);
+                int weightTileIdx = weightIdx(W, wC);
                 // There is one condition on which the input tile has different
                 // number of activations from the weight tile: the inputs don't
                 // need tiling on activations while the weights do. In that
                 // case, we send the input tile once and keep the input tile
                 // stationary in the scrachpad, finishing the weight
                 // activation-wise tiles with multiple invocations.
-                dout(1) << "Input: " << inputIdx(N, iC)
-                        << ", weights: " << weightIdx(W, wC)
-                        << ", output: " << outputIdx(N, 0) << "\n";
-                Tensor* inputTile = inputs[inputIdx(N, iC)];
-                Tensor* weightsTile = weights[weightIdx(W, wC)];
+                dout(1) << "Input: " << inputTileIdx
+                        << ", weights: " << weightTileIdx
+                        << ", output: " << outputTileIdx << "\n";
+                Tensor* inputTile = inputs[inputTileIdx];
+                Tensor* weightsTile = weights[weightTileIdx];
                 const TensorShape& inputShape = inputTile->getShape();
                 const TensorShape& weightsShape = weightsTile->getShape();
                 mapArrayToAccel(smv::kInnerProductHw, "host_a",
@@ -86,6 +90,12 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
                 // to true for non-first weight tiles to avoid resetting the
                 // result buffer.
                 bool accumulate = wC > 0;
+                // If this is a new input tile, then we need to read it.
+                bool readInputs = false;
+                if (inputTileIdx != lastReadInputTileIdx) {
+                    readInputs = true;
+                    lastReadInputTileIdx = inputTileIdx;
+                }
                 // We only need to send the results back to host memory in the
                 // very last invocation.
                 bool sendOutputs = (N == inputNumTiles - 1) &&
@@ -101,8 +111,8 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
                              outputDims, inputShape.getPadding(1),
                              weightsShape.getPadding(1),
                              outputShape.getPadding(1), actStart,
-                             finishedNeurons, accumulate, sendOutputs,
-                             actInfo.function, actInfo.params);
+                             finishedNeurons, accumulate, readInputs,
+                             sendOutputs, actInfo.function, actInfo.params);
 
                 actOffset += weightsTile->getShape()[1];
                 if (inputActTiles == weightActTiles) {
