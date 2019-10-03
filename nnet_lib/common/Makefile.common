@@ -39,6 +39,7 @@ SRCS = src/operators/common.cpp \
        src/operators/smv/kernels/activation_functions_simd.c \
        src/operators/smv/smv_eltwise_add_op.cpp \
        src/operators/smv/kernels/eltwise_add.c \
+       src/operators/smv/kernels/load_store_fp16_data.c \
        src/core/backend.cpp \
        src/core/globals.cpp \
        src/core/tensor_utils.cpp \
