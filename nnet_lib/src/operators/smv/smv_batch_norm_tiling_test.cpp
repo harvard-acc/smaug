@@ -61,7 +61,7 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
-            TiledTensor inputsTiles = generateTiledTensor(
+            TiledTensor inputsTiles = generateTiledTensorAndCopyData(
                     inputs, config.inputs, inputsHalos, bnOp);
             REQUIRE(inputsTiles.size() == 2);
             for (auto i = inputsTiles.startIndex(); !i.end(); ++i) {
@@ -71,7 +71,7 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
             }
 
             fillTensorWithFixedData(weights);
-            TiledTensor weightsTiles = generateTiledTensor(
+            TiledTensor weightsTiles = generateTiledTensorAndCopyData(
                     weights, config.weights, weightsHalos, bnOp);
             REQUIRE(weightsTiles.size() == 1);
             REQUIRE(weightsTiles[0]->getShape().dims() ==
@@ -79,7 +79,7 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
             verifyTensorWithFixedData(weightsTiles[0], 0);
 
             fillTensorWithFixedData(outputs);
-            TiledTensor outputsTiles = generateTiledTensor(
+            TiledTensor outputsTiles = generateTiledTensorAndCopyData(
                     outputs, config.outputs, outputsHalos, bnOp);
             REQUIRE(outputsTiles.size() == 2);
             for (auto i = outputsTiles.startIndex(); !i.end(); ++i) {
@@ -108,7 +108,7 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
-            TiledTensor inputsTiles = generateTiledTensor(
+            TiledTensor inputsTiles = generateTiledTensorAndCopyData(
                     inputs, config.inputs, inputsHalos, bnOp);
             REQUIRE(inputsTiles.size() == 8);
             for (auto i = inputsTiles.startIndex(); !i.end(); ++i) {
@@ -118,7 +118,7 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
             }
 
             fillTensorWithFixedData(weights);
-            TiledTensor weightsTiles = generateTiledTensor(
+            TiledTensor weightsTiles = generateTiledTensorAndCopyData(
                     weights, config.weights, weightsHalos, bnOp);
             REQUIRE(weightsTiles.size() == 1);
             REQUIRE(weightsTiles[0]->getShape().dims() ==
@@ -126,7 +126,7 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
             verifyTensorWithFixedData(weightsTiles[0], 0);
 
             fillTensorWithFixedData(outputs);
-            TiledTensor outputsTiles = generateTiledTensor(
+            TiledTensor outputsTiles = generateTiledTensorAndCopyData(
                     outputs, config.outputs, outputsHalos, bnOp);
             REQUIRE(outputsTiles.size() == 8);
             for (auto i = outputsTiles.startIndex(); !i.end(); ++i) {
@@ -155,7 +155,7 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
-            TiledTensor inputsTiles = generateTiledTensor(
+            TiledTensor inputsTiles = generateTiledTensorAndCopyData(
                     inputs, config.inputs, inputsHalos, bnOp);
             REQUIRE(inputsTiles.size() == 64);
             for (auto i = inputsTiles.startIndex(); !i.end(); ++i) {
@@ -165,7 +165,7 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
             }
 
             fillTensorWithFixedData(weights);
-            TiledTensor weightsTiles = generateTiledTensor(
+            TiledTensor weightsTiles = generateTiledTensorAndCopyData(
                     weights, config.weights, weightsHalos, bnOp);
             REQUIRE(weightsTiles.size() == 1);
             REQUIRE(weightsTiles[0]->getShape().dims() ==
@@ -173,7 +173,7 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
             verifyTensorWithFixedData(weightsTiles[0], 0);
 
             fillTensorWithFixedData(outputs);
-            TiledTensor outputsTiles = generateTiledTensor(
+            TiledTensor outputsTiles = generateTiledTensorAndCopyData(
                     outputs, config.outputs, outputsHalos, bnOp);
             REQUIRE(outputsTiles.size() == 64);
             for (auto i = outputsTiles.startIndex(); !i.end(); ++i) {
@@ -226,8 +226,8 @@ TEST_CASE_METHOD(SmaugTest, "Post-fc bn tiling", "[smvtiling]") {
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
-            TiledTensor inputsTiles =
-                    generateTiledTensor(inputs, config.inputs, halos, bnOp);
+            TiledTensor inputsTiles = generateTiledTensorAndCopyData(
+                    inputs, config.inputs, halos, bnOp);
             REQUIRE(inputsTiles.size() == 8);
             for (auto i = inputsTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(inputsTiles[i]->getShape().dims() ==
@@ -236,8 +236,8 @@ TEST_CASE_METHOD(SmaugTest, "Post-fc bn tiling", "[smvtiling]") {
             }
 
             fillTensorWithFixedData(weights);
-            TiledTensor weightsTiles =
-                    generateTiledTensor(weights, config.weights, halos, bnOp);
+            TiledTensor weightsTiles = generateTiledTensorAndCopyData(
+                    weights, config.weights, halos, bnOp);
             REQUIRE(weightsTiles.size() == 8);
             for (auto i = weightsTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(weightsTiles[i]->getShape().dims() ==
@@ -246,8 +246,8 @@ TEST_CASE_METHOD(SmaugTest, "Post-fc bn tiling", "[smvtiling]") {
             }
 
             fillTensorWithFixedData(outputs);
-            TiledTensor outputsTiles =
-                    generateTiledTensor(outputs, config.outputs, halos, bnOp);
+            TiledTensor outputsTiles = generateTiledTensorAndCopyData(
+                    outputs, config.outputs, halos, bnOp);
             REQUIRE(outputsTiles.size() == 8);
             for (auto i = outputsTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(outputsTiles[i]->getShape().dims() ==

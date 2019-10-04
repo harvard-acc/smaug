@@ -19,9 +19,9 @@ void SmvEltwiseAddOp::runX(TiledTensor& inputs0,
     for (int i = 0; i < inputs0.size(); i++) {
         dout(1) << "Input0: " << i << ", input1: " << i << ", output: " << i
                 << "\n";
-        Tensor* input0Tile = inputs0[i];
-        Tensor* input1Tile = inputs1[i];
-        Tensor* outputTile = outputs[i];
+        Tensor* input0Tile = inputs0.getTileWithData(i);
+        Tensor* input1Tile = inputs1.getTileWithData(i);
+        Tensor* outputTile = outputs.getTileWithData(i);
         const TensorShape& inputShape = input0Tile->getShape();
         const TensorShape& outputShape = outputTile->getShape();
         mapArrayToAccel(smv::kEltwiseOpHw, "host_inputs0",
@@ -41,7 +41,7 @@ void SmvEltwiseAddOp::runX(TiledTensor& inputs0,
     }
 }
 
-std::array<TiledTensor, 3> SmvEltwiseAddOp::doTiling() {
+void SmvEltwiseAddOp::tile() {
     // We reuse the unary op tiler for the elementwise addition operator.
     using namespace smaug::smv::unary;
     auto inputs0 = getInput(Input0);
@@ -52,14 +52,12 @@ std::array<TiledTensor, 3> SmvEltwiseAddOp::doTiling() {
                      inputs0->getShape().storageSize());
     TensorShape tileShape(
             { 1, maxTileSize }, DataLayout::NC, SmvBackend::Alignment);
-    TiledTensor tiledInputs0 = generateTiles(inputs0, tileShape, this);
-    TiledTensor tiledInputs1 = generateTiles(inputs1, tileShape, this);
-    TiledTensor tiledOutputs = generateTiles(outputs, tileShape, this);
-    return { tiledInputs0, tiledInputs1, tiledOutputs };
+    tiledTensors[0] = generateTiles(inputs0, tileShape, this);
+    tiledTensors[1] = generateTiles(inputs1, tileShape, this);
+    tiledTensors[2] = generateTiles(outputs, tileShape, this);
 }
 
 void SmvEltwiseAddOp::run() {
-    using namespace smaug::smv::unary;
     auto inputs0 = getInput(Input0);
     auto inputs1 = getInput(Input1);
     auto outputs = getOutput(Outputs);
@@ -68,7 +66,6 @@ void SmvEltwiseAddOp::run() {
     const TensorShape& outputsShape = outputs->getShape();
     assert(inputs0Shape == inputs1Shape && inputs0Shape == outputsShape);
 
-    std::array<TiledTensor, 3> tiledTensors = doTiling();
     runX(tiledTensors[0], tiledTensors[1], tiledTensors[2]);
     flattenTiledTensor(tiledTensors[2], outputs);
 }

@@ -148,9 +148,8 @@ TiledTensor generateTiledTensor(Tensor* tensor,
         }
     }
     TiledTensor tiledTensor(
-            TensorShape(numBlocksInDim, inputShape.getLayout()));
+            TensorShape(numBlocksInDim, inputShape.getLayout()), tensor);
     std::vector<int> currentOrigin(ndims, 0);
-    std::vector<int> dstOrigin(ndims, 0);
     for (auto tileIndex = tiledTensor.startIndex(); !tileIndex.end();
          ++tileIndex) {
         std::vector<int> currentTileShape(ndims);
@@ -165,11 +164,7 @@ TiledTensor generateTiledTensor(Tensor* tensor,
                                "/tile:" + std::to_string((int)tileIndex);
         Tensor* tile = new Tensor(tileName, currentShape);
         tile->allocateStorage(tensor->getDataType());
-        copyTensorRegion(tile,
-                         tensor,
-                         dstOrigin,
-                         currentOrigin,
-                         currentShape.dims());
+        tiledTensor.setTile(tileIndex, currentOrigin, tile, false);
         for (int i = ndims - 1; i >= 0; i--) {
             currentOrigin[i] += currentShape[i];
             if (currentOrigin[i] >= inputShape[i]) {
@@ -179,12 +174,20 @@ TiledTensor generateTiledTensor(Tensor* tensor,
                 break;
             }
         }
-        tiledTensor[tileIndex] = tile;
     }
     op->getWorkspace()->addTiledTensor(tiledTensor);
     dout(1) << "Tiled Tensor " << tensor->getName() << ": \n"
             << "  tile shape: " << tileShape
             << ", number of tiles: " << tiledTensor.size() << "\n";
+    return tiledTensor;
+}
+
+TiledTensor generateTiledTensorAndCopyData(Tensor* tensor,
+                                           const TensorShape& tileShape,
+                                           std::vector<int> halos,
+                                           Operator* op) {
+    TiledTensor tiledTensor = generateTiledTensor(tensor, tileShape, halos, op);
+    tiledTensor.copyDataToAllTiles();
     return tiledTensor;
 }
 

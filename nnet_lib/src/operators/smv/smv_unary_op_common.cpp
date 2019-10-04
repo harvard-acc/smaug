@@ -58,8 +58,8 @@ void runX(UnaryOp<SmvBackend>* op, TiledTensor& inputs, TiledTensor& outputs) {
             smv::kEltwiseOpHw, "host_results", op->getOutputsMemType());
     for (int i = 0; i < inputs.size(); i++) {
         dout(1) << "Input: " << i << ", output: " << i << "\n";
-        Tensor* inputTile = inputs[i];
-        Tensor* outputTile = outputs[i];
+        Tensor* inputTile = inputs.getTileWithData(i);
+        Tensor* outputTile = outputs.getTileWithData(i);
         const TensorShape& inputShape = inputTile->getShape();
         const TensorShape& outputShape = outputTile->getShape();
         mapArrayToAccel(smv::kEltwiseOpHw, "host_inputs",
@@ -78,12 +78,14 @@ void runX(UnaryOp<SmvBackend>* op, TiledTensor& inputs, TiledTensor& outputs) {
 
 TiledTensor generateTiles(Tensor* tensor,
                           const TensorShape& tileShape,
-                          Operator* op) {
+                          Operator* op,
+                          bool copyData) {
     const TensorShape& inputShape = tensor->getShape();
     int inputSize = inputShape.storageSize();
     int tileSize = tileShape.storageSize();
     int numTiles = std::ceil(inputSize * 1.0 / tileSize);
-    TiledTensor tiledTensor(TensorShape({ 1, numTiles }, DataLayout::NC));
+    TiledTensor tiledTensor(
+            TensorShape({ 1, numTiles }, DataLayout::NC), tensor, true);
     int remainingSize = inputSize;
     int srcOffset = 0;
     for (auto tileIndex = tiledTensor.startIndex(); !tileIndex.end();
@@ -96,10 +98,9 @@ TiledTensor generateTiles(Tensor* tensor,
                                "/tile:" + std::to_string((int)tileIndex);
         Tensor* tile = new Tensor(tileName, currentShape);
         tile->allocateStorage(tensor->getDataType());
-        copyRawTensorData(tile, tensor, 0, srcOffset, currentTileSize);
+        tiledTensor.setTile(tileIndex, { srcOffset }, tile, copyData);
         srcOffset += currentTileSize;
         remainingSize -= currentTileSize;
-        tiledTensor[tileIndex] = tile;
     }
     op->getWorkspace()->addTiledTensor(tiledTensor);
     dout(1) << "Tiled Tensor " << tensor->getName() << ": \n"
@@ -108,7 +109,7 @@ TiledTensor generateTiles(Tensor* tensor,
     return tiledTensor;
 }
 
-std::array<TiledTensor, 2> doTiling(UnaryOp<SmvBackend>* op) {
+std::array<TiledTensor, 2> doTiling(UnaryOp<SmvBackend>* op, bool copyData) {
     auto inputs = op->getInput(UnaryOp<SmvBackend>::Inputs);
     auto outputs = op->getOutput(UnaryOp<SmvBackend>::Outputs);
     // The tiling for unary operators can be greatly simplified in comparison to
@@ -118,8 +119,8 @@ std::array<TiledTensor, 2> doTiling(UnaryOp<SmvBackend>* op) {
                      inputs->getShape().storageSize());
     TensorShape tileShape(
             { 1, maxTileSize }, DataLayout::NC, SmvBackend::Alignment);
-    TiledTensor tiledInputs = generateTiles(inputs, tileShape, op);
-    TiledTensor tiledOutputs = generateTiles(outputs, tileShape, op);
+    TiledTensor tiledInputs = generateTiles(inputs, tileShape, op, copyData);
+    TiledTensor tiledOutputs = generateTiles(outputs, tileShape, op, copyData);
     return { tiledInputs, tiledOutputs };
 }
 

@@ -11,13 +11,21 @@ namespace smaug {
 class SmvTanhOp : public TanhOp<SmvBackend> {
    public:
     using TanhOp<SmvBackend>::TanhOp;
+    void tile() override { tiledTensors = smv::unary::doTiling(this, false); }
     void run() override { smv::unary::run(this); }
+
+   protected:
+    std::array<TiledTensor, 2> tiledTensors;
 };
 
 class SmvHardTanhOp : public HardTanhOp<SmvBackend> {
    public:
     using HardTanhOp<SmvBackend>::HardTanhOp;
+    void tile() override { tiledTensors = smv::unary::doTiling(this, false); }
     void run() override { smv::unary::run(this); }
+
+   protected:
+    std::array<TiledTensor, 2> tiledTensors;
 };
 
 }  // namespace smaug

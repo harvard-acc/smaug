@@ -21,6 +21,7 @@ class TilingOptimizer;
 class SmvConvolutionOp : public ConvolutionOp<SmvBackend> {
   public:
     using ConvolutionOp<SmvBackend>::ConvolutionOp;
+    void tile() override;
     void run() override;
     DataLayoutSet getInputDataLayouts() const override {
         return DataLayoutSet(DataLayout::NHWC);
@@ -53,6 +54,8 @@ class SmvConvolutionOp : public ConvolutionOp<SmvBackend> {
                                   bool readWeights,
                                   bool sendResults,
                                   ActivationInfo* actInfo);
+
+   std::array<TiledTensor, 3> tiledTensors;
 };
 
 }  // namespace smaug

@@ -46,6 +46,7 @@ class SmvInnerProductOpTest : public SmaugTest {
         fcOp->setNumOutputs(numNeurons);
         inputs->allocateStorage<float16>();
         createAndFillTensorsWithData<float16>(fcOp, fillTensorWithRandomData);
+        fcOp->tile();
         fcOp->run();
         auto outputs = fcOp->getOutput(0);
         auto refOutputs = getReferenceOutput(fcOp);
@@ -66,6 +67,7 @@ class SmvInnerProductOpTest : public SmaugTest {
         fcOp->setNumOutputs(numNeurons);
         inputs->allocateStorage<float16>();
         createAndFillTensorsWithData<float16>(fcOp, fillTensorWithRandomData);
+        fcOp->tile();
         fcOp->run();
         auto outputs = fcOp->getOutput(0);
         auto refOutputs = getReferenceOutput(fcOp);

@@ -21,11 +21,14 @@ class TilingOptimizer;
 class SmvInnerProductOp : public InnerProductOp<SmvBackend> {
   public:
     using InnerProductOp<SmvBackend>::InnerProductOp;
+    void tile() override;
     void run() override;
     friend class smv::fc::TilingOptimizer;
 
   protected:
    void runNWA(TiledTensor& inputs, TiledTensor& weights, TiledTensor& outputs);
+
+   std::array<TiledTensor, 3> tiledTensors;
 };
 
 }  // namespace smaug

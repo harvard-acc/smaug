@@ -16,9 +16,11 @@ void runX(UnaryOp<SmvBackend>* op, TiledTensor& inputs, TiledTensor& outputs);
 
 TiledTensor generateTiles(Tensor* tensor,
                           const TensorShape& tileShape,
-                          Operator* op);
+                          Operator* op,
+                          bool copyData = true);
 
-std::array<TiledTensor, 2> doTiling(UnaryOp<SmvBackend>* op);
+std::array<TiledTensor, 2> doTiling(UnaryOp<SmvBackend>* op,
+                                    bool copyData = true);
 
 void untileTiles(TiledTensor& tiledTensor, Tensor* destTensor);
 

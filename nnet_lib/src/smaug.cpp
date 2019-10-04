@@ -132,9 +132,7 @@ int main(int argc, char* argv[]) {
     // can stop fast forwarding.
     M5_SWITCH_CPU();
 
-    M5_DUMP_RESET_STATS();
     Tensor* output = runNetwork(network, workspace);
-    M5_DUMP_RESET_STATS();
 
     if (!lastOutputFile.empty()) {
         if (lastOutputFile == "stdout") {

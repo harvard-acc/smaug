@@ -11,7 +11,11 @@ namespace smaug {
 class SmvReluOp : public ReluOp<SmvBackend> {
    public:
     using ReluOp<SmvBackend>::ReluOp;
+    void tile() override { tiledTensors = smv::unary::doTiling(this, false); }
     void run() override { smv::unary::run(this); };
+
+   protected:
+    std::array<TiledTensor, 2> tiledTensors;
 };
 
 }  // namespace smaug

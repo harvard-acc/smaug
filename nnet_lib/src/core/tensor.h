@@ -362,7 +362,7 @@ class Tensor : public TensorBase {
             int size = shape.storageSize();
             assert(size > 0 && "Attempted to allocate zero storage!");
             tensorData = std::shared_ptr<void>(
-                    malloc_aligned(size * sizeof(T), true), free);
+                    malloc_aligned(size * sizeof(T), false), free);
         }
         return reinterpret_cast<T*>(tensorData.get());
     }
@@ -415,35 +415,71 @@ class Tensor : public TensorBase {
  */
 class TiledTensor : public TensorBase {
   public:
-    TiledTensor() : TensorBase() {}
-    TiledTensor(const TensorShape& shape) : TensorBase("", shape) {
-        tensors.resize(shape.size());
-    }
-    virtual bool containsData() const { return !tensors.empty(); }
+   TiledTensor(Tensor* _origTensor = nullptr, bool _useRawTensor = false)
+           : TensorBase(), origTensor(_origTensor),
+             useRawTensor(_useRawTensor) {}
+   TiledTensor(const TensorShape& shape,
+               Tensor* _origTensor = nullptr,
+               bool _useRawTensor = false)
+           : TensorBase("", shape), origTensor(_origTensor),
+             useRawTensor(_useRawTensor) {
+       tiles.resize(shape.size());
+   }
 
-    TensorIndexIterator startIndex() const {
-        return TensorIndexIterator(shape);
-    }
+   virtual bool containsData() const { return !tiles.empty(); }
 
-    const Tensor* operator[](int index) const {
-        return tensors.at(index);
-    }
-    Tensor*& operator[](int index) { return tensors[index]; }
-    int size() const { return shape.size(); }
+   TensorIndexIterator startIndex() const { return TensorIndexIterator(shape); }
 
-    bool isDimNHTiled() const {
-        if (tensors.empty())
-            return false;
-        if (shape.ndims() != 4)
-            return false;
-        // DimNH tiled means that there is more than one block in the row
-        // dimension.
-        return ((shape.getLayout() == DataLayout::NHWC && shape[1] > 1) ||
-                (shape.getLayout() == DataLayout::NCHW && shape[2] > 1));
-    }
+   const Tensor* operator[](int index) const { return tiles.at(index).tensor; }
+   Tensor*& operator[](int index) { return tiles[index].tensor; }
+   int size() const { return shape.size(); }
 
-   protected:
-    std::vector<Tensor*> tensors;
+   bool isDimNHTiled() const {
+       if (tiles.empty())
+           return false;
+       if (shape.ndims() != 4)
+           return false;
+       // DimNH tiled means that there is more than one block in the row
+       // dimension.
+       return ((shape.getLayout() == DataLayout::NHWC && shape[1] > 1) ||
+               (shape.getLayout() == DataLayout::NCHW && shape[2] > 1));
+   }
+
+   // Return the tile's tensor with its data copied from the original tensor.
+   Tensor* getTileWithData(int index);
+
+   // Set the tile in the TiledTensor, with the option to copy data to it.
+   void setTile(int index,
+                const std::vector<int>& origin,
+                Tensor* tensor,
+                bool copyData);
+
+   // Copy data (if needed) to all the tiles from the original tensor.
+   void copyDataToAllTiles();
+
+  protected:
+   struct Tile {
+       Tensor* tensor;
+       // The tile's origins in the original tensor.
+       std::vector<int> origin;
+       // True if the tile has its origin set.
+       bool hasOrigin;
+       // True if we have copied data to this tile.
+       bool hasData;
+
+       Tile() : tensor(nullptr), origin(), hasOrigin(false), hasData(false) {}
+   };
+
+   // Copy data (if needed) to this tile from the original tensor.
+   void copyDataToTile(Tile* tile);
+
+   // True if we need to use the copyRawTensorData() for copying data.
+   bool useRawTensor;
+
+   // The original tensor that gets tiled into this TiledTensor.
+   Tensor* origTensor;
+
+   std::vector<Tile> tiles;
 };
 
 }  // namespace smaug

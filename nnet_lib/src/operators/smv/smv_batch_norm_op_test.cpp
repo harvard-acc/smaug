@@ -49,6 +49,7 @@ class SmvBatchNormOpTest : public SmaugTest {
         workspace()->addTensor(inputs);
         bnOp->setInput(inputs, 0);
         createAndFillTensorsWithData<float16>(bnOp, fillTensorWithRandomData);
+        bnOp->tile();
         bnOp->run();
         auto outputs = bnOp->getOutput(0);
         auto refOutputs = getReferenceOutput(bnOp);
@@ -67,6 +68,7 @@ class SmvBatchNormOpTest : public SmaugTest {
         workspace()->addTensor(inputs);
         bnOp->setInput(inputs, 0);
         createAndFillTensorsWithData<float16>(bnOp, fillTensorWithRandomData);
+        bnOp->tile();
         bnOp->run();
         auto outputs = bnOp->getOutput(0);
         auto refOutputs = getReferenceOutput(bnOp);

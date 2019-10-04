@@ -308,7 +308,7 @@ TiledTensor TilingOptimizer::generateRowwiseOutputTiledTensor(
     if (lastTileRows + bottomRowPad < weightRows)
         numBlocksInDim[1]--;
     TiledTensor outputTiledTensor(
-            TensorShape(numBlocksInDim, inputShape.getLayout()));
+            TensorShape(numBlocksInDim, inputShape.getLayout()), outputTensor);
     const int ndims = outputShape.ndims();
     std::vector<int> currentOrigin(ndims, 0);
     auto inputIndex = inputTiledTensor.startIndex();
@@ -355,21 +355,15 @@ TiledTensor TilingOptimizer::generateRowwiseOutputTiledTensor(
                                            "/tile:" + std::to_string((int)oi);
                     Tensor* outputTile = new Tensor(tileName, outputTileShape);
                     outputTile->allocateStorage(outputTensor->getDataType());
-                    if (copyData) {
-                        copyTensorRegion(outputTile,
-                                         outputTensor,
-                                         { 0, 0, 0, 0 },
-                                         currentOrigin,
-                                         outputTileShape.dims());
-                        for (int i = ndims - 1; i >= 0; i--) {
-                            currentOrigin[i] += outputTileShape[i];
-                            if (currentOrigin[i] >= outputShape[i])
-                                currentOrigin[i] = 0;
-                            else
-                                break;
-                        }
+                    outputTiledTensor.setTile(
+                            oi, currentOrigin, outputTile, copyData);
+                    for (int i = ndims - 1; i >= 0; i--) {
+                        currentOrigin[i] += outputTileShape[i];
+                        if (currentOrigin[i] >= outputShape[i])
+                            currentOrigin[i] = 0;
+                        else
+                            break;
                     }
-                    outputTiledTensor[oi] = outputTile;
                 }
             }
         }
@@ -387,9 +381,10 @@ std::array<TiledTensor, 3> TilingOptimizer::doTiling(SmvConvolutionOp* op) {
     TilingConfig tileConfig = TilingOptimizer::computeBasicTileShapes(op);
     std::vector<int> inputHalos{ 0, op->getWeightRows() - op->getRowStride(),
                                  op->getWeightCols() - op->getColStride(), 0 };
-    TiledTensor tiledInputs =
-            generateTiledTensor(input, tileConfig.inputs, inputHalos, op);
-    TiledTensor tiledWeights = generateTiledTensor(
+    TiledTensor tiledInputs = generateTiledTensor(
+            input, tileConfig.inputs, inputHalos, op);
+    // Copy data for the weight tiles since the data is read-only.
+    TiledTensor tiledWeights = generateTiledTensorAndCopyData(
             kernels, tileConfig.weights, { 0, 0, 0, 0 }, op);
     TiledTensor tiledOutputs;
     if (needsHwiseTiling(tileConfig.outputTilingDims)) {
@@ -399,7 +394,7 @@ std::array<TiledTensor, 3> TilingOptimizer::doTiling(SmvConvolutionOp* op) {
                 tiledWeights,
                 tileConfig.outputs,
                 output,
-                true);
+                false);
     } else {
         tiledOutputs = generateTiledTensor(
                 output, tileConfig.outputs, { 0, 0, 0, 0 }, op);

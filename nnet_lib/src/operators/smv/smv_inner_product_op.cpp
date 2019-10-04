@@ -48,7 +48,7 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
         int finishedNeurons = 0;
         for (int W = 0; W < weightNeuronTiles; W++) {
             int outputTileIdx = outputIdx(N, 0);
-            Tensor* outputTile = outputs[outputTileIdx];
+            Tensor* outputTile = outputs.getTileWithData(outputTileIdx);
             const TensorShape& outputShape = outputTile->getShape();
             mapArrayToAccel(smv::kInnerProductHw, "host_results",
                             outputTile->data<float16>(),
@@ -68,8 +68,8 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
                 dout(1) << "Input: " << inputTileIdx
                         << ", weights: " << weightTileIdx
                         << ", output: " << outputTileIdx << "\n";
-                Tensor* inputTile = inputs[inputTileIdx];
-                Tensor* weightsTile = weights[weightTileIdx];
+                Tensor* inputTile = inputs.getTileWithData(inputTileIdx);
+                Tensor* weightsTile = weights.getTileWithData(weightTileIdx);
                 const TensorShape& inputShape = inputTile->getShape();
                 const TensorShape& weightsShape = weightsTile->getShape();
                 mapArrayToAccel(smv::kInnerProductHw, "host_a",
@@ -131,8 +131,14 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
     }
 }
 
+void SmvInnerProductOp::tile() {
+    // This function will tile (if necessary) the input/weight/output tensors
+    // of the inner product operator into smaller tensor tiles so that each tile
+    // can fit in the corresponding scratchpad of the accelerator.
+    tiledTensors = smaug::smv::fc::TilingOptimizer::doTiling(this);
+}
+
 void SmvInnerProductOp::run() {
-    using namespace smaug::smv::fc;
     auto inputs = getInput(Inputs);
     auto weights = getInput(Weights);
     auto outputs = getOutput(Outputs);
@@ -144,10 +150,6 @@ void SmvInnerProductOp::run() {
     assert(outputsShape.getLayout() == DataLayout::NC);
     dout(2) << *weights << "\n";
 
-    // This function will tile (if necessary) the input/weight/output tensors
-    // of the inner product operator into smaller tensor tiles so that each tile
-    // can fit in the corresponding scratchpad of the accelerator.
-    std::array<TiledTensor, 3> tiledTensors = TilingOptimizer::doTiling(this);
     runNWA(tiledTensors[0], tiledTensors[1], tiledTensors[2]);
     untileTiledTensor(tiledTensors[2], outputs);
 }

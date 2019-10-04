@@ -26,17 +26,21 @@ class SmvPoolingOp : public PoolingOp<SmvBackend> {
     DataLayoutSet getOutputDataLayouts() const override {
         return DataLayoutSet(DataLayout::NHWC);
     }
+    void tile() override;
     void run() override;
     friend class smv::pool::TilingOptimizer;
 
    protected:
     void runNHC(TiledTensor& inputs, TiledTensor& outputs);
+
+    std::array<TiledTensor, 2> tiledTensors;
 };
 
 class SmvMaxPoolingOp : public SmvPoolingOp {
    public:
     SmvMaxPoolingOp(const std::string& name, Workspace* workspace)
             : SmvPoolingOp(name, OpType::MaxPooling, workspace){};
+    void tile() override;
     void run() override;
     void printSummary(std::ostream& out) const override {
         const TensorShape& outputShape =
@@ -49,6 +53,7 @@ class SmvAvgPoolingOp : public SmvPoolingOp {
    public:
     SmvAvgPoolingOp(const std::string& name, Workspace* workspace)
             : SmvPoolingOp(name, OpType::AveragePooling, workspace){};
+    void tile() override;
     void run() override;
     void printSummary(std::ostream& out) const override {
         const TensorShape& outputShape =

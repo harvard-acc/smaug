@@ -16,10 +16,22 @@ Tensor* runNetwork(Network* network, Workspace* workspace) {
     const Graph& graph = network->getGraph();
     std::list<Vertex> vertices;
     boost::topological_sort(graph, std::front_inserter(vertices));
-    Tensor* output;
+    std::cout << "======================================================\n";
+    std::cout << "      Tiling operators of the network...\n";
+    std::cout << "======================================================\n";
+    M5_DUMP_RESET_STATS();
+    for (auto v : vertices) {
+        Operator* op = get(boost::vertex_op, graph, v);
+        dout(0) << "Tiling " << op->getName() << " ("
+                << OpType_Name(op->getOpType()) << ").\n";
+        op->tile();
+    }
+    M5_DUMP_RESET_STATS();
     std::cout << "======================================================\n";
     std::cout << "      Scheduling operators of the network...\n";
     std::cout << "======================================================\n";
+    Tensor* output;
+    M5_DUMP_RESET_STATS();
     for (auto v : vertices) {
         Operator* op = get(boost::vertex_op, graph, v);
         dout(0) << "Scheduling " << op->getName() << " ("
@@ -28,6 +40,7 @@ Tensor* runNetwork(Network* network, Workspace* workspace) {
         output = op->getOutput(0);
         dout(2) << *output << "\n";
     }
+    M5_DUMP_RESET_STATS();
     return output;
 }
 

@@ -51,6 +51,7 @@ class SmvConvolutionOpTest : public SmaugTest {
         convOp->setInput(inputs, 0);
         convOp->setWeightDims(kernelDims[1], kernelDims[2], kernelDims[0]);
         createAndFillTensorsWithData<float16>(convOp, fillTensorWithRandomData);
+        convOp->tile();
         convOp->run();
         auto outputs = convOp->getOutput(0);
         auto refOutputs = getReferenceOutput(convOp);
@@ -74,6 +75,7 @@ class SmvConvolutionOpTest : public SmaugTest {
         convOp->setInput(inputs, 0);
         convOp->setWeightDims(kernelDims[1], kernelDims[2], kernelDims[0]);
         createAndFillTensorsWithData<float16>(convOp, fillTensorWithRandomData);
+        convOp->tile();
         convOp->run();
         auto outputs = convOp->getOutput(0);
         auto refOutputs = getReferenceOutput(convOp);

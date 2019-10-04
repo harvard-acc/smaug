@@ -36,13 +36,15 @@ void SmvPoolingOp::runNHC(TiledTensor& inputs, TiledTensor& outputs) {
             // This keeps track of the channel offset of the outputs.
             int ofmapOffset = 0;
             while (iC < inputChanTiles && oC < outputChanTiles) {
+                int inputTileIdx = inputIdx(N, H, 0, iC);
+                int outputTileIdx = outputIdx(N, H, 0, oC);
                 // If the outputs don't need tiling on channels whereas the
                 // inputs need it, the tiling optimizer allows the output tile
                 // to have different number of channels from the input tile.
-                dout(1) << "Input: " << inputIdx(N, H, 0, iC)
-                        << ", output: " << outputIdx(N, H, 0, oC) << "\n";
-                Tensor* inputTile = inputs[inputIdx(N, H, 0, iC)];
-                Tensor* outputTile = outputs[outputIdx(N, H, 0, oC)];
+                dout(1) << "Input: " << inputTileIdx
+                        << ", output: " << outputTileIdx << "\n";
+                Tensor* inputTile = inputs.getTileWithData(inputTileIdx);
+                Tensor* outputTile = outputs.getTileWithData(outputTileIdx);
                 const TensorShape& inputShape = inputTile->getShape();
                 const TensorShape& outputShape = outputTile->getShape();
                 mapArrayToAccel(smv::kPoolingHw, "host_inputs",
@@ -89,8 +91,14 @@ void SmvPoolingOp::runNHC(TiledTensor& inputs, TiledTensor& outputs) {
     }
 }
 
+void SmvPoolingOp::tile() {
+    // This function will tile (if necessary) the input/output tensors
+    // of the pooling operator into smaller tensor tiles so that each tile
+    // can fit in the corresponding scratchpad of the accelerator.
+    tiledTensors = smaug::smv::pool::TilingOptimizer::doTiling(this);
+}
+
 void SmvPoolingOp::run() {
-    using namespace smaug::smv::pool;
     auto input = getInput(Inputs);
     auto output = getOutput(Outputs);
     const TensorShape& inputShape = input->getShape();
@@ -98,13 +106,13 @@ void SmvPoolingOp::run() {
     assert(inputShape.getLayout() == DataLayout::NHWC);
     assert(outputShape.getLayout() == DataLayout::NHWC);
 
-    // This function will tile (if necessary) the input/output tensors
-    // of the pooling operator into smaller tensor tiles so that each tile
-    // can fit in the corresponding scratchpad of the accelerator.
-    std::array<TiledTensor, 2> tiledTensors = TilingOptimizer::doTiling(this);
     runNHC(tiledTensors[0], tiledTensors[1]);
     untileTiledTensor(tiledTensors[1], output);
 }
+
+void SmvMaxPoolingOp::tile() { SmvPoolingOp::tile(); }
+
+void SmvAvgPoolingOp::tile() { SmvPoolingOp::tile(); }
 
 void SmvMaxPoolingOp::run() { SmvPoolingOp::run(); }
 

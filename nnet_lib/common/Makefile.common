@@ -42,6 +42,7 @@ SRCS = src/operators/common.cpp \
        src/operators/smv/kernels/load_store_fp16_data.c \
        src/core/backend.cpp \
        src/core/globals.cpp \
+       src/core/tensor.cpp \
        src/core/tensor_utils.cpp \
        src/core/network.cpp \
        src/core/network_builder.cpp \

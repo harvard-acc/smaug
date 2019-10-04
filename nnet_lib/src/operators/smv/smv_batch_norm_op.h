@@ -20,6 +20,7 @@ class TilingOptimizer;
 class SmvBatchNormOp : public BatchNormOp<SmvBackend> {
   public:
     using BatchNormOp<SmvBackend>::BatchNormOp;
+    void tile() override;
     void run() override;
     DataLayoutSet getInputDataLayouts() const override {
         if (inputs[Inputs]->ndims() == 4)
@@ -38,6 +39,8 @@ class SmvBatchNormOp : public BatchNormOp<SmvBackend> {
    void runNA(TiledTensor& inputs, TiledTensor& weights, TiledTensor& outputs);
    // This is for post-Conv bath norm.
    void runNWC(TiledTensor& inputs, TiledTensor& weights, TiledTensor& outputs);
+
+   std::array<TiledTensor, 3> tiledTensors;
 };
 
 }  // namespace smaug

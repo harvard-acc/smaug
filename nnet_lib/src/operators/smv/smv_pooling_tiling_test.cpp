@@ -43,7 +43,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Pooling tiling tests", "[smvtiling]") {
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
-            TiledTensor inputTiles = generateTiledTensor(
+            TiledTensor inputTiles = generateTiledTensorAndCopyData(
                     inputs, config.inputs, { 0, 0, 0, 0 }, poolOp);
             REQUIRE(inputTiles.size() == 2);
             for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
@@ -54,7 +54,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Pooling tiling tests", "[smvtiling]") {
 
             auto outputs = poolOp->getOutput(0);
             fillTensorWithFixedData(outputs);
-            TiledTensor outputTiles = generateTiledTensor(
+            TiledTensor outputTiles = generateTiledTensorAndCopyData(
                     outputs, config.outputs, { 0, 0, 0, 0 }, poolOp);
             REQUIRE(outputTiles.size() == 1);
             REQUIRE(outputTiles[0]->getShape().dims() == config.outputs.dims());
@@ -77,7 +77,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Pooling tiling tests", "[smvtiling]") {
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
-            TiledTensor inputTiles = generateTiledTensor(
+            TiledTensor inputTiles = generateTiledTensorAndCopyData(
                     inputs, config.inputs, { 0, 0, 0, 0 }, poolOp);
             REQUIRE(inputTiles.size() == 8);
             for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
@@ -88,7 +88,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Pooling tiling tests", "[smvtiling]") {
 
             auto outputs = poolOp->getOutput(0);
             fillTensorWithFixedData(outputs);
-            TiledTensor outputTiles = generateTiledTensor(
+            TiledTensor outputTiles = generateTiledTensorAndCopyData(
                     outputs, config.outputs, { 0, 0, 0, 0 }, poolOp);
             REQUIRE(outputTiles.size() == 8);
             for (auto i = outputTiles.startIndex(); !i.end(); ++i) {
@@ -116,7 +116,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Pooling tiling tests", "[smvtiling]") {
 
             SECTION("Generated tiles have correct shape and data") {
                 fillTensorWithFixedData(inputs);
-                TiledTensor inputTiles = generateTiledTensor(
+                TiledTensor inputTiles = generateTiledTensorAndCopyData(
                         inputs, config.inputs, { 0, 0, 0, 0 }, poolOp);
                 REQUIRE(inputTiles.size() == 8);
                 for (auto i = inputTiles.startIndex(); !i.end(); ++i)
@@ -124,7 +124,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Pooling tiling tests", "[smvtiling]") {
 
                 auto outputs = poolOp->getOutput(0);
                 fillTensorWithFixedData(outputs);
-                TiledTensor outputTiles = generateTiledTensor(
+                TiledTensor outputTiles = generateTiledTensorAndCopyData(
                         outputs, config.outputs, { 0, 0, 0, 0 }, poolOp);
                 REQUIRE(outputTiles.size() == 8);
                 for (auto i = outputTiles.startIndex(); !i.end(); ++i)
@@ -147,7 +147,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Pooling tiling tests", "[smvtiling]") {
 
             SECTION("Generated tiles have correct shape and data") {
                 fillTensorWithFixedData(inputs);
-                TiledTensor inputTiles = generateTiledTensor(
+                TiledTensor inputTiles = generateTiledTensorAndCopyData(
                         inputs, config.inputs, { 0, 0, 0, 0 }, poolOp);
                 REQUIRE(inputTiles.size() == 12);
                 for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
@@ -163,7 +163,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Pooling tiling tests", "[smvtiling]") {
 
                 auto outputs = poolOp->getOutput(0);
                 fillTensorWithFixedData(outputs);
-                TiledTensor outputTiles = generateTiledTensor(
+                TiledTensor outputTiles = generateTiledTensorAndCopyData(
                         outputs, config.outputs, { 0, 0, 0, 0 }, poolOp);
                 REQUIRE(outputTiles.size() == 12);
                 for (auto i = outputTiles.startIndex(); !i.end(); ++i) {
@@ -197,7 +197,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Pooling tiling tests", "[smvtiling]") {
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
-            TiledTensor inputTiles = generateTiledTensor(
+            TiledTensor inputTiles = generateTiledTensorAndCopyData(
                     inputs, config.inputs, { 0, 0, 0, 0 }, poolOp);
             REQUIRE(inputTiles.size() == 256 * 2);
             for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
@@ -208,7 +208,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV Pooling tiling tests", "[smvtiling]") {
 
             auto outputs = poolOp->getOutput(0);
             fillTensorWithFixedData(outputs);
-            TiledTensor outputTiles = generateTiledTensor(
+            TiledTensor outputTiles = generateTiledTensorAndCopyData(
                     outputs, config.outputs, { 0, 0, 0, 0 }, poolOp);
             REQUIRE(outputTiles.size() == 256);
             for (auto i = outputTiles.startIndex(); !i.end(); ++i) {

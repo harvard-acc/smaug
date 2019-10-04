@@ -137,6 +137,12 @@ TiledTensor generateTiledTensor(Tensor* tensor,
                                 std::vector<int> halos,
                                 Operator* op);
 
+// This generates the tiles and copies data to them from the original tensor.
+TiledTensor generateTiledTensorAndCopyData(Tensor* tensor,
+                                           const TensorShape& tileShape,
+                                           std::vector<int> halos,
+                                           Operator* op);
+
 // This will copy data from a tiled tensor into a single tensor. We name it as
 // "untile" because what it does reverses the tiling process.
 void untileTiledTensor(TiledTensor& tiledTensor, Tensor* destTensor);

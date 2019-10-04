@@ -44,6 +44,7 @@ class SmvEltwiseAddOpTest : public SmaugTest {
         eltAddOp->setInput(inputs1, 1);
         createAndFillTensorsWithData<float16>(
                 eltAddOp, fillTensorWithRandomData);
+        eltAddOp->tile();
         eltAddOp->run();
         auto outputs = eltAddOp->getOutput(0);
         auto refOutputs = getReferenceOutput(eltAddOp);

@@ -24,6 +24,7 @@ class Operator {
             : name(_name), opType(_opType), workspace(_workspace) {}
     virtual ~Operator() {}
 
+    virtual void tile() {};
     virtual void run() = 0;
     virtual bool validate() {
         return validateInputsOutputs() && opType != OpType::UnknownOp;

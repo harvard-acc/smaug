@@ -35,12 +35,15 @@ void SmvBatchNormOp::runNA(TiledTensor& inputs,
         // This keeps track of the activation offset of the inputs.
         int actOffset = 0;
         while (iC < inputActTiles && wC < weightActTiles) {
+            int inputTileIdx =  inputIdx(N, iC);
+            int weightTileIdx = weightIdx(0, wC);
+            int outputTileIdx = outputIdx(N, iC);
             dout(1) << "Input: " << inputIdx(N, iC)
                     << ", weight: " << weightIdx(0, wC)
                     << ", output: " << outputIdx(N, iC) << "\n";
-            Tensor* inputTile = inputs[inputIdx(N, iC)];
-            Tensor* weightsTile = weights[weightIdx(0, wC)];
-            Tensor* outputTile = outputs[outputIdx(N, iC)];
+            Tensor* inputTile = inputs.getTileWithData(inputTileIdx);
+            Tensor* weightsTile = weights.getTileWithData(weightTileIdx);
+            Tensor* outputTile = outputs.getTileWithData(weightTileIdx);
             const TensorShape& inputShape = inputTile->getShape();
             const TensorShape& weightsShape = weightsTile->getShape();
             const TensorShape& outputShape = outputTile->getShape();
@@ -101,7 +104,7 @@ void SmvBatchNormOp::runNWC(TiledTensor& inputs,
     int inputChanTiles = inputs.getShape()[3];
     auto inputIdx = inputs.startIndex();
     auto outputIdx = outputs.startIndex();
-    Tensor* weightTile = weights[0];
+    Tensor* weightTile = weights.getTileWithData(0);
     const TensorShape& weightShape = weightTile->getShape();
     mapArrayToAccel(smv::kBatchNormHw, "host_weights",
                     weightTile->data<float16>(),
@@ -114,10 +117,12 @@ void SmvBatchNormOp::runNWC(TiledTensor& inputs,
             // This keeps track of the channel offset of the inputs.
             int ifmapOffset = 0;
             for (int C = 0; C < inputChanTiles; C++) {
-                dout(1) << "Input: " << inputIdx(N, 0, W, C) << ", Weight: 0"
-                        << ", output: " << outputIdx(N, 0, W, C) << "\n";
-                Tensor* inputTile = inputs[inputIdx(N, 0, W, C)];
-                Tensor* outputTile = outputs[outputIdx(N, 0, W, C)];
+                int inputTileIdx = inputIdx(N, 0, W, C);
+                int outputTileIdx = outputIdx(N, 0, W, C);
+                dout(1) << "Input: " << inputTileIdx << ", Weight: 0"
+                        << ", output: " << outputTileIdx << "\n";
+                Tensor* inputTile = inputs.getTileWithData(inputTileIdx);
+                Tensor* outputTile = outputs.getTileWithData(outputTileIdx);
                 const TensorShape& inputShape = inputTile->getShape();
                 const TensorShape& outputShape = outputTile->getShape();
                 mapArrayToAccel(smv::kBatchNormHw, "host_inputs",
@@ -143,6 +148,14 @@ void SmvBatchNormOp::runNWC(TiledTensor& inputs,
     }
 }
 
+void SmvBatchNormOp::tile() {
+    // This function will tile (if necessary) the input/weight/output tensors
+    // of the batch norm operator into smaller tensor tiles so that each tile
+    // can fit in the corresponding scratchpad of the accelerator. It merges
+    // the four weights tensors into one and does tiling on it.
+    tiledTensors = smaug::smv::bn::TilingOptimizer::doTiling(this);
+}
+
 void SmvBatchNormOp::run() {
     using namespace smaug::smv::bn;
     auto input = getInput(Inputs);
@@ -160,11 +173,6 @@ void SmvBatchNormOp::run() {
     dout(2) << *gamma << "\n";
     dout(2) << *beta << "\n";
 
-    // This function will tile (if necessary) the input/weight/output tensors
-    // of the batch norm operator into smaller tensor tiles so that each tile
-    // can fit in the corresponding scratchpad of the accelerator. It merges
-    // the four weights tensors into one and does tiling on it.
-    std::array<TiledTensor, 3> tiledTensors = TilingOptimizer::doTiling(this);
     if (isPostConv) {
         assert(inputShape.getLayout() == DataLayout::NHWC);
         assert(outputShape.getLayout() == DataLayout::NHWC);

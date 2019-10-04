@@ -87,7 +87,7 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                     // This keeps track of the channel offset of the input.
                     int ifmapOffset = 0;
                     int outputTileIdx = outputIdx(N, H, 0, W + oC);
-                    Tensor* outputTile = outputs[outputTileIdx];
+                    Tensor* outputTile = outputs.getTileWithData(outputTileIdx);
                     const TensorShape& outputShape = outputTile->getShape();
                     mapArrayToAccel(
                             accelId, "host_results",
@@ -109,8 +109,10 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                         dout(1) << "Input: " << inputTileIdx
                                 << ", weights: " << weightTileIdx
                                 << ", output: " << outputTileIdx << "\n";
-                        Tensor* inputTile = inputs[inputTileIdx];
-                        Tensor* weightsTile = weights[weightTileIdx];
+                        Tensor* inputTile =
+                                inputs.getTileWithData(inputTileIdx);
+                        Tensor* weightsTile =
+                                weights.getTileWithData(weightTileIdx);
                         const TensorShape& inputShape = inputTile->getShape();
                         const TensorShape& weightsShape =
                                 weightsTile->getShape();
@@ -257,8 +259,20 @@ void SmvConvolutionOp::invokeSystolicArrayKernel(unsigned accelId,
 #endif
 }
 
+void SmvConvolutionOp::tile() {
+    // This function will tile (if necessary) the input/weight/output tensors
+    // of the convolution operator into smaller tensor tiles so that each tile
+    // can fit in the corresponding scratchpad of the accelerator.
+    // TODO: A lot of networks have back to back convolutional layers, it would
+    // be much more efficient not to retile in between them. That can be
+    // achieved by directly sending the output tiles to the next convolutional
+    // layer instead of merging them into a single output tensor first. It's
+    // sort of operator fusing that two back-to-back convolution operators are
+    // tiled only once.
+    tiledTensors = smaug::smv::conv::TilingOptimizer::doTiling(this);
+}
+
 void SmvConvolutionOp::run() {
-    using namespace smaug::smv::conv;
     auto input = getInput(Inputs);
     auto kernels = getInput(Kernels);
     auto output = getOutput(Outputs);
@@ -270,16 +284,6 @@ void SmvConvolutionOp::run() {
     assert(outputShape.getLayout() == DataLayout::NHWC);
     dout(2) << *kernels << "\n";
 
-    // This function will tile (if necessary) the input/weight/output tensors
-    // of the convolution operator into smaller tensor tiles so that each tile
-    // can fit in the corresponding scratchpad of the accelerator.
-    // TODO: A lot of networks have back to back convolutional layers, it would
-    // be much more efficient not to retile in between them. That can be
-    // achieved by directly sending the output tiles to the next convolutional
-    // layer instead of merging them into a single output tensor first. It's
-    // sort of operator fusing that two back-to-back convolution operators are
-    // tiled only once.
-    std::array<TiledTensor, 3> tiledTensors = TilingOptimizer::doTiling(this);
     runNHWC(tiledTensors[0], tiledTensors[1], tiledTensors[2]);
     untileTiledTensor(tiledTensors[2], output);
 }
