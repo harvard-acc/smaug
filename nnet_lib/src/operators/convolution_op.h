@@ -40,7 +40,7 @@ class ConvolutionOp : public FusedActivationOp {
         paddingType = padding;
     }
 
-    virtual bool validate() {
+    bool validate() override {
         return (weightRows > 0 && weightCols > 0 && numOfmaps > 0 &&
                 rowStride > 0 && colStride > 0 &&
                 paddingType != UnknownPadding && Operator::validate());
@@ -105,30 +105,30 @@ class ConvolutionOp : public FusedActivationOp {
         outputs.at(Outputs) = output;
     }
 
-    virtual void createAllTensors() {
+    void createAllTensors() override {
         createWeightsTensors();
         createOutputTensors();
     }
 
     int getNumOfmaps() const { return numOfmaps; }
 
-    virtual DataLayoutSet getInputDataLayouts() const {
+    DataLayoutSet getInputDataLayouts() const override {
         return DataLayoutSet(DataLayout::NCHW);
     }
-    virtual DataLayoutSet getOutputDataLayouts() const {
+    DataLayoutSet getOutputDataLayouts() const override {
         return DataLayoutSet(DataLayout::NCHW);
     }
 
-    virtual void run() {}
+    void run() override {}
 
-    virtual void printSummary(std::ostream& out) const {
+    void printSummary(std::ostream& out) const override {
       const TensorShape& weightsShape = inputs.at(Kernels)->getShape();
       const TensorShape& outputShape = outputs.at(Outputs)->getShape();
       out << this->name << " (Convolution3d)\t\t" << outputShape << "\t\t"
           << weightsShape << "\t\t" << weightsShape.size() << "\n";
     }
 
-    virtual std::vector<TensorBase*> getParameterizableInputs() {
+    std::vector<TensorBase*> getParameterizableInputs() override {
         return { inputs[Kernels] };
     }
 
@@ -138,8 +138,8 @@ class ConvolutionOp : public FusedActivationOp {
     int getWeightCols() const { return weightCols; }
     PaddingType getPadding() const {return paddingType;}
 
-    virtual bool isSamplingSupported() const { return true; }
-    virtual void setSamplingInfo(const SamplingInfo& _sampling) {
+    bool isSamplingSupported() const override { return true; }
+    void setSamplingInfo(const SamplingInfo& _sampling) override {
         sampling = _sampling;
     }
 

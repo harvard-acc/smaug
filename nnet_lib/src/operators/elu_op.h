@@ -14,8 +14,8 @@ class EluOp : public UnaryOp<Backend> {
     EluOp(const std::string& name, Workspace* workspace, float _alpha = 0.1)
             : UnaryOp<Backend>(name, OpType::ELU, workspace), alpha(_alpha) {}
 
-    virtual void run() {}
-    virtual std::string opTypeName() const { return "ELU"; }
+    void run() override {}
+    std::string opTypeName() const override { return "ELU"; }
 
     void setAlpha(float _alpha) { alpha = _alpha; }
     float getAlpha() const { return alpha; }
@@ -32,8 +32,8 @@ class SeluOp : public EluOp<Backend> {
         this->opType = OpType::SELU;
     }
 
-    virtual void run() {}
-    virtual std::string opTypeName() const { return "SELU"; }
+    void run() override {}
+    std::string opTypeName() const override { return "SELU"; }
 
     void setLambda(float _lambda) { lambda = _lambda; }
     float getLambda() const { return lambda; }

@@ -24,8 +24,8 @@ class InnerProductOp : public FusedActivationOp {
 
     void setNumOutputs(int _outputs) { numOutputs = _outputs; }
 
-    virtual void run() {}
-    virtual bool validate() { return numOutputs > 0 && Operator::validate(); }
+    void run() override {}
+    bool validate() override { return numOutputs > 0 && Operator::validate(); }
     TensorShape inferOutputShape() const {
         const TensorShape& shape = getInput(Inputs)->getShape();
         assert(shape.getLayout() == DataLayout::NC);
@@ -48,10 +48,10 @@ class InnerProductOp : public FusedActivationOp {
         return TensorShape(outputDims, outLayout, Backend::Alignment);
     }
 
-    virtual DataLayoutSet getInputDataLayouts() const {
+    DataLayoutSet getInputDataLayouts() const override{
         return DataLayoutSet(DataLayout::NC);
     }
-    virtual DataLayoutSet getOutputDataLayouts() const {
+    DataLayoutSet getOutputDataLayouts() const override {
         return DataLayoutSet(DataLayout::NC);
     }
 
@@ -74,21 +74,21 @@ class InnerProductOp : public FusedActivationOp {
         outputs[Outputs] = output;
     }
 
-    virtual void createAllTensors() {
+    void createAllTensors() override {
         createWeightsTensors();
         createOutputTensors();
     }
 
     int getNumOutputs() const { return numOutputs; }
 
-    virtual void printSummary(std::ostream& out) const {
-      const TensorShape& weightsShape = inputs.at(Weights)->getShape();
-      const TensorShape& outputShape = outputs.at(Outputs)->getShape();
-      out << this->name << " (InnerProduct)\t\t" << outputShape << "\t\t"
-          << weightsShape << "\t\t" << weightsShape.size() << "\n";
+    void printSummary(std::ostream& out) const override {
+        const TensorShape& weightsShape = inputs.at(Weights)->getShape();
+        const TensorShape& outputShape = outputs.at(Outputs)->getShape();
+        out << this->name << " (InnerProduct)\t\t" << outputShape << "\t\t"
+            << weightsShape << "\t\t" << weightsShape.size() << "\n";
     }
 
-    virtual std::vector<TensorBase*> getParameterizableInputs() {
+    std::vector<TensorBase*> getParameterizableInputs() override {
         return { inputs[Weights] };
     }
 

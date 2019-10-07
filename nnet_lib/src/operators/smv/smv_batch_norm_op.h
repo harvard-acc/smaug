@@ -20,14 +20,14 @@ class TilingOptimizer;
 class SmvBatchNormOp : public BatchNormOp<SmvBackend> {
   public:
     using BatchNormOp<SmvBackend>::BatchNormOp;
-    virtual void run();
-    virtual DataLayoutSet getInputDataLayouts() const {
+    void run() override;
+    DataLayoutSet getInputDataLayouts() const override {
         if (inputs[Inputs]->ndims() == 4)
             return DataLayoutSet(DataLayout::NHWC);
         else
             return DataLayoutSet(DataLayout::NC);
     }
-    virtual DataLayoutSet getOutputDataLayouts() const {
+    DataLayoutSet getOutputDataLayouts() const override {
         if (inputs[Inputs]->ndims() == 4)
             return DataLayoutSet(DataLayout::NHWC);
         return DataLayoutSet(DataLayout::NC);

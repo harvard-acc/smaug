@@ -18,20 +18,19 @@ class UnaryOp : public Operator {
         outputs.resize(kNumOutputs, nullptr);
     }
 
-    virtual void run() = 0;
-    virtual bool validate() { return Operator::validate(); }
+    bool validate() override { return Operator::validate(); }
     virtual std::string opTypeName() const = 0;
 
-    virtual DataLayoutSet getInputDataLayouts() const {
+    DataLayoutSet getInputDataLayouts() const override {
         return DataLayoutSet(DataLayout::X);
     }
-    virtual DataLayoutSet getOutputDataLayouts() const {
+    DataLayoutSet getOutputDataLayouts() const override {
         return DataLayoutSet(DataLayout::X);
     }
-    virtual void createAllTensors() {
+    void createAllTensors() override {
         createOutputTensors();
     }
-    virtual void printSummary(std::ostream& out) const {
+    void printSummary(std::ostream& out) const override {
         TensorShape outputShape = outputs.at(Outputs)->getShape();
         out << this->name << " (" << opTypeName() << ")\t\t" << outputShape
             << "\n";

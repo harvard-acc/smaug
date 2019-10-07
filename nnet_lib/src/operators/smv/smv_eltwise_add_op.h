@@ -10,7 +10,7 @@ namespace smaug {
 class SmvEltwiseAddOp : public EltwiseAddOp<SmvBackend> {
   public:
     using EltwiseAddOp<SmvBackend>::EltwiseAddOp;
-    virtual void run();
+    void run() override;
 
   protected:
    std::array<TiledTensor, 3> doTiling();

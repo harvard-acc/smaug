@@ -14,8 +14,8 @@ class TanhOp : public UnaryOp<Backend> {
     TanhOp(const std::string& name, Workspace* workspace)
             : UnaryOp<Backend>(name, OpType::Tanh, workspace) {}
 
-    virtual void run() {}
-    virtual std::string opTypeName() const { return "Tanh"; }
+    void run() override {}
+    std::string opTypeName() const override { return "Tanh"; }
 };
 
 template <typename Backend>
@@ -28,8 +28,8 @@ class HardTanhOp : public UnaryOp<Backend> {
             : UnaryOp<Backend>(name, OpType::HardTanh, workspace), min(_min),
               max(_max) {}
 
-    virtual void run() {}
-    virtual std::string opTypeName() const { return "HardTanh"; }
+    void run() override {}
+    std::string opTypeName() const override { return "HardTanh"; }
 
     void setMin(float _min) { min = _min; }
     void setMax(float _max) { max = _max; }

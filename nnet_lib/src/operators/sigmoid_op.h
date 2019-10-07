@@ -14,8 +14,8 @@ class SigmoidOp : public UnaryOp<Backend> {
     SigmoidOp(const std::string& name, Workspace* workspace)
             : UnaryOp<Backend>(name, OpType::Sigmoid, workspace) {}
 
-    virtual void run() {}
-    virtual std::string opTypeName() const { return "Sigmoid"; }
+    void run() override {}
+    std::string opTypeName() const override { return "Sigmoid"; }
 };
 
 REGISTER_SPECIAL_OP(SigmoidOp, ReferenceBackend);

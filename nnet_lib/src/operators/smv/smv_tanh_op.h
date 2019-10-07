@@ -11,13 +11,13 @@ namespace smaug {
 class SmvTanhOp : public TanhOp<SmvBackend> {
    public:
     using TanhOp<SmvBackend>::TanhOp;
-    virtual void run() { smv::unary::run(this); };
+    void run() override { smv::unary::run(this); }
 };
 
 class SmvHardTanhOp : public HardTanhOp<SmvBackend> {
    public:
     using HardTanhOp<SmvBackend>::HardTanhOp;
-    virtual void run() { smv::unary::run(this); };
+    void run() override { smv::unary::run(this); }
 };
 
 }  // namespace smaug

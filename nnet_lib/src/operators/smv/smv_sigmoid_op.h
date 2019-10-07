@@ -11,7 +11,7 @@ namespace smaug {
 class SmvSigmoidOp : public SigmoidOp<SmvBackend> {
    public:
     using SigmoidOp<SmvBackend>::SigmoidOp;
-    virtual void run() { smv::unary::run(this); }
+    void run() override { smv::unary::run(this); }
 };
 
 }  // namespace smaug

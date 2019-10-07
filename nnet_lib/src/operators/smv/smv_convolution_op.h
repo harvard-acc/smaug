@@ -21,11 +21,11 @@ class TilingOptimizer;
 class SmvConvolutionOp : public ConvolutionOp<SmvBackend> {
   public:
     using ConvolutionOp<SmvBackend>::ConvolutionOp;
-    virtual void run();
-    virtual DataLayoutSet getInputDataLayouts() const {
+    void run() override;
+    DataLayoutSet getInputDataLayouts() const override {
         return DataLayoutSet(DataLayout::NHWC);
     }
-    virtual DataLayoutSet getOutputDataLayouts() const {
+    DataLayoutSet getOutputDataLayouts() const override {
         return DataLayoutSet(DataLayout::NHWC);
     }
     friend class smv::conv::TilingOptimizer;

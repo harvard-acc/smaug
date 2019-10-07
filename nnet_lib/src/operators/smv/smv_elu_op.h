@@ -11,13 +11,13 @@ namespace smaug {
 class SmvEluOp : public EluOp<SmvBackend> {
    public:
     using EluOp<SmvBackend>::EluOp;
-    virtual void run() { smv::unary::run(this); };
+    void run() override { smv::unary::run(this); };
 };
 
 class SmvSeluOp : public SeluOp<SmvBackend> {
    public:
     using SeluOp<SmvBackend>::SeluOp;
-    virtual void run() { smv::unary::run(this); };
+    void run() override { smv::unary::run(this); };
 };
 
 }  // namespace smaug

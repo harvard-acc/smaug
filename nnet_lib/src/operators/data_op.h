@@ -23,17 +23,17 @@ class DataOp : public Operator {
         outputs[0] = data;
     }
 
-    virtual void run() {}
-    virtual bool validate() { return data != NULL && Operator::validate(); }
-    virtual void createAllTensors() {}
+    void run() override {}
+    bool validate() override { return data != NULL && Operator::validate(); }
+    void createAllTensors() override {}
 
-    virtual DataLayoutSet getInputDataLayouts() const {
+    DataLayoutSet getInputDataLayouts() const override {
         return DataLayoutSet(data->getShape().getLayout());
     }
-    virtual DataLayoutSet getOutputDataLayouts() const {
+    DataLayoutSet getOutputDataLayouts() const override {
         return getInputDataLayouts();
     }
-    virtual void printSummary(std::ostream& out) const {
+    void printSummary(std::ostream& out) const override {
         const TensorShape& shape = data->getShape();
         out << name << " (Data)\t\t\t" << shape << "\n";
     }

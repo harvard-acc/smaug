@@ -16,9 +16,9 @@ class DepthwiseConvolutionOp : public ConvolutionOp<Backend> {
         this->template opType = OpType::ConvolutionDepthwise;
     }
 
-    virtual void run() {}
+    void run() override {}
 
-    virtual TensorShape inferOutputShape() const {
+    TensorShape inferOutputShape() const override {
         Tensor* input = this->template getInput(Parent::Inputs);
         assert(input && "Unable to get input for convolution op!");
         const TensorShape& shape = input->getShape();
@@ -45,7 +45,7 @@ class DepthwiseConvolutionOp : public ConvolutionOp<Backend> {
         }
     }
 
-    virtual TensorShape inferWeightsShape() const {
+    TensorShape inferWeightsShape() const override {
         Tensor* input = this->template getInput(Parent::Inputs);
         const TensorShape& shape = input->getShape();
         DataLayout layout = shape.getLayout();
@@ -62,7 +62,7 @@ class DepthwiseConvolutionOp : public ConvolutionOp<Backend> {
         }
     }
 
-    virtual void printSummary(std::ostream& out) const {
+    void printSummary(std::ostream& out) const override {
         const TensorShape& weightsShape =
                 this->inputs.at(Parent::Kernels)->getShape();
         const TensorShape& outputShape =

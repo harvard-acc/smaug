@@ -14,8 +14,8 @@ class SoftmaxOp : public UnaryOp<Backend> {
     SoftmaxOp(const std::string& name, Workspace* workspace)
             : UnaryOp<Backend>(name, OpType::Softmax, workspace) {}
 
-    virtual void run() {}
-    virtual std::string opTypeName() const { return "Softmax"; }
+    void run() override {}
+    std::string opTypeName() const override { return "Softmax"; }
 };
 
 REGISTER_SPECIAL_OP(SoftmaxOp, ReferenceBackend);

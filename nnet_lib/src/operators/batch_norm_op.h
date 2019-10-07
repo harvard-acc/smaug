@@ -34,7 +34,7 @@ class BatchNormOp : public FusedActivationOp {
         outputs.resize(kNumOutputs, nullptr);
     }
 
-    virtual void run() {}
+    void run() override {}
     TensorShape inferOutputShape() const {
         return getInput(Inputs)->getShape();
     }
@@ -81,27 +81,27 @@ class BatchNormOp : public FusedActivationOp {
         outputs[Outputs] = output;
     }
 
-    virtual void createAllTensors() {
+    void createAllTensors() override {
         createWeightsTensors();
         createOutputTensors();
     }
 
-    virtual DataLayoutSet getInputDataLayouts() const {
+    DataLayoutSet getInputDataLayouts() const override {
         return DataLayoutSet(DataLayout::UnknownLayout);
     }
 
-    virtual DataLayoutSet getOutputDataLayouts() const {
+    DataLayoutSet getOutputDataLayouts() const override {
         return DataLayoutSet(DataLayout::UnknownLayout);
     }
 
-    virtual void printSummary(std::ostream& out) const {
+    void printSummary(std::ostream& out) const override {
       const TensorShape& weightsShape = inputs.at(Mean)->getShape();
       const TensorShape& outputShape = outputs.at(Outputs)->getShape();
       out << this->name << " (BatchNormalization)\t" << outputShape << "\t\t"
           << weightsShape << "\t\t\t" << 4 * weightsShape.size() << "\n";
     }
 
-    virtual std::vector<TensorBase*> getParameterizableInputs() {
+    std::vector<TensorBase*> getParameterizableInputs() override {
         return { inputs[Mean], inputs[Variance], inputs[Gamma], inputs[Beta] };
     }
 

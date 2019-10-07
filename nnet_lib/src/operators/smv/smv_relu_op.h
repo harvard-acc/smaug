@@ -11,7 +11,7 @@ namespace smaug {
 class SmvReluOp : public ReluOp<SmvBackend> {
    public:
     using ReluOp<SmvBackend>::ReluOp;
-    virtual void run() { smv::unary::run(this); };
+    void run() override { smv::unary::run(this); };
 };
 
 }  // namespace smaug

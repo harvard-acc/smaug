@@ -20,13 +20,13 @@ class TilingOptimizer;
 class SmvPoolingOp : public PoolingOp<SmvBackend> {
    public:
     using PoolingOp<SmvBackend>::PoolingOp;
-    virtual DataLayoutSet getInputDataLayouts() const {
+    DataLayoutSet getInputDataLayouts() const override {
         return DataLayoutSet(DataLayout::NHWC);
     }
-    virtual DataLayoutSet getOutputDataLayouts() const {
+    DataLayoutSet getOutputDataLayouts() const override {
         return DataLayoutSet(DataLayout::NHWC);
     }
-    virtual void run();
+    void run() override;
     friend class smv::pool::TilingOptimizer;
 
    protected:
@@ -37,8 +37,8 @@ class SmvMaxPoolingOp : public SmvPoolingOp {
    public:
     SmvMaxPoolingOp(const std::string& name, Workspace* workspace)
             : SmvPoolingOp(name, OpType::MaxPooling, workspace){};
-    virtual void run();
-    virtual void printSummary(std::ostream& out) const {
+    void run() override;
+    void printSummary(std::ostream& out) const override {
         const TensorShape& outputShape =
                 this->outputs.at(Outputs)->getShape();
         out << this->name << " (MaxPooling)\t\t" << outputShape << "\n";
@@ -49,8 +49,8 @@ class SmvAvgPoolingOp : public SmvPoolingOp {
    public:
     SmvAvgPoolingOp(const std::string& name, Workspace* workspace)
             : SmvPoolingOp(name, OpType::AveragePooling, workspace){};
-    virtual void run();
-    virtual void printSummary(std::ostream& out) const {
+    void run() override;
+    void printSummary(std::ostream& out) const override {
         const TensorShape& outputShape =
                 this->outputs.at(Outputs)->getShape();
         out << this->name << " (AvgPooling)\t\t" << outputShape << "\n";

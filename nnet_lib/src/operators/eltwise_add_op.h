@@ -17,14 +17,14 @@ class EltwiseAddOp : public Operator {
         outputs.resize(kNumOutputs, nullptr);
     }
 
-    virtual void run() {}
+    void run() override {}
     TensorShape inferOutputShape() const {
         return getInput(Input0)->getShape();
     }
-    virtual DataLayoutSet getInputDataLayouts() const {
+    DataLayoutSet getInputDataLayouts() const override {
         return DataLayoutSet(DataLayout::X);
     }
-    virtual DataLayoutSet getOutputDataLayouts() const {
+    DataLayoutSet getOutputDataLayouts() const override {
         return DataLayoutSet(DataLayout::X);
     }
     void createOutputTensors() {
@@ -33,12 +33,10 @@ class EltwiseAddOp : public Operator {
         outputs.at(Outputs) = output;
         workspace->addTensor(output);
     }
-    virtual void createAllTensors() {
-        createOutputTensors();
-    }
-    virtual void printSummary(std::ostream& out) const {
-      const TensorShape& outputShape = outputs.at(Outputs)->getShape();
-      out << this->name << " (EltwiseAdd)\t\t" << outputShape << "\n";
+    void createAllTensors() override { createOutputTensors(); }
+    void printSummary(std::ostream& out) const override {
+        const TensorShape& outputShape = outputs.at(Outputs)->getShape();
+        out << this->name << " (EltwiseAdd)\t\t" << outputShape << "\n";
     }
 
    protected:

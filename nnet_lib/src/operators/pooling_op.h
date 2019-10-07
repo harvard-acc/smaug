@@ -36,16 +36,15 @@ class PoolingOp : public Operator {
         poolingColStride = colStride;
     }
 
-    virtual void run() = 0;
-    virtual bool validate() {
+    bool validate() override {
         return (poolingColSize > 0 && poolingRowStride > 0 &&
                 poolingColStride > 0 && Operator::validate());
     }
 
-    virtual DataLayoutSet getInputDataLayouts() const {
+    DataLayoutSet getInputDataLayouts() const override {
         return DataLayoutSet(DataLayout::NCHW);
     }
-    virtual DataLayoutSet getOutputDataLayouts() const {
+    DataLayoutSet getOutputDataLayouts() const override {
         return DataLayoutSet(DataLayout::NCHW);
     }
 
@@ -88,9 +87,7 @@ class PoolingOp : public Operator {
         outputs.at(Outputs) = output;
     }
 
-    virtual void createAllTensors() {
-        createOutputTensors();
-    }
+    void createAllTensors() override { createOutputTensors(); }
 
    protected:
     int calcOutputRows(int inputRows) const {
@@ -121,8 +118,8 @@ class MaxPoolingOp : public PoolingOp<Backend> {
    public:
     MaxPoolingOp(const std::string& name, Workspace* workspace)
             : PoolingOp<Backend>(name, OpType::MaxPooling, workspace) {}
-    virtual void run(){};
-    virtual void printSummary(std::ostream& out) const {
+    void run() override{};
+    void printSummary(std::ostream& out) const override {
         const TensorShape& outputShape =
                 this->outputs.at(Parent::Outputs)->getShape();
         out << this->name << " (MaxPooling)\t\t" << outputShape << "\n";
@@ -137,8 +134,8 @@ class AvgPoolingOp : public PoolingOp<Backend> {
    public:
     AvgPoolingOp(const std::string& name, Workspace* workspace)
             : PoolingOp<Backend>(name, OpType::AveragePooling, workspace) {}
-    virtual void run(){};
-    virtual void printSummary(std::ostream& out) const {
+    void run() override{};
+    void printSummary(std::ostream& out) const override {
         const TensorShape& outputShape =
                 this->outputs.at(Parent::Outputs)->getShape();
         out << this->name << " (AvgPooling)\t\t" << outputShape << "\n";

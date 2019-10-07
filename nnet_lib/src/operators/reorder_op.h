@@ -25,7 +25,7 @@ class ReorderOp : public Operator {
     DataLayout getTargetDataLayout() const { return targetLayout; }
     void setTargetLayout(DataLayout layout) { targetLayout = layout; }
 
-    virtual void run() {
+    void run() override {
         Tensor* input = getInput(Inputs);
         Tensor* output = getOutput(Outputs);
         DataLayout srcLayout = input->getShape().getLayout();
@@ -56,7 +56,7 @@ class ReorderOp : public Operator {
         }
     }
 
-    virtual bool validate() {
+    bool validate() override {
         if (!Operator::validate())
             return false;
         DataLayout sourceLayout = inputs[Inputs]->getShape().getLayout();
@@ -114,18 +114,18 @@ class ReorderOp : public Operator {
         workspace->addTensor(output);
         outputs.at(Outputs) = output;
     }
-    virtual void createAllTensors() {
+    void createAllTensors() override {
         createOutputTensors();
     }
-    virtual DataLayoutSet getInputDataLayouts() const {
+    DataLayoutSet getInputDataLayouts() const override {
         // TODO: Use the input tensor.
         return DataLayoutSet(getInput(Inputs)->getShape().getLayout());
         // return DataLayoutSet(DataLayout::UnknownLayout);
     }
-    virtual DataLayoutSet getOutputDataLayouts() const {
+    DataLayoutSet getOutputDataLayouts() const override {
         return DataLayoutSet(targetLayout);
     }
-    virtual void printSummary(std::ostream& out) const {
+    void printSummary(std::ostream& out) const override {
         const TensorShape& shape = outputs.at(Outputs)->getShape();
         out << name << " (Reorder)\t\t" << shape << "\n";
     }
@@ -144,7 +144,7 @@ class FlattenOp : public ReorderOp<Backend> {
     FlattenOp(const std::string& name, Workspace* workspace)
             : ReorderOp<Backend>(name, DataLayout::NC, workspace) {}
 
-    virtual void printSummary(std::ostream& out) const {
+    void printSummary(std::ostream& out) const override {
         const TensorShape& shape =
                 this->outputs.at(Parent::Outputs)->getShape();
         out << this->name << " (Flatten)\t\t" << shape << "\n";

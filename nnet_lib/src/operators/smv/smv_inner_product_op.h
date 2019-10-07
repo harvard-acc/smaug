@@ -21,7 +21,7 @@ class TilingOptimizer;
 class SmvInnerProductOp : public InnerProductOp<SmvBackend> {
   public:
     using InnerProductOp<SmvBackend>::InnerProductOp;
-    virtual void run();
+    void run() override;
     friend class smv::fc::TilingOptimizer;
 
   protected:
