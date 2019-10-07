@@ -60,6 +60,10 @@ std::string dataLayoutToStr(DataLayout layout);
     if (runningInSimulation) {                                                 \
         m5_dump_stats(0, 0);                                                   \
     }
+#define M5_DUMP_RESET_STATS()                                                  \
+    if (runningInSimulation) {                                                 \
+        m5_dump_reset_stats(0, 0);                                             \
+    }
 #else
 #define M5_SWITCH_CPU()
 #define M5_DUMP_STATS()
