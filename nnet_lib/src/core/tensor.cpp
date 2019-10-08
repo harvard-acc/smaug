@@ -29,8 +29,9 @@ void TiledTensor::copyDataToAllTiles() {
 void TiledTensor::copyDataToTile(Tile* tile) {
     assert(origTensor != nullptr &&
            "TiledTensor must have the original tensor to copy data from!");
-    // Don't copy if the tile already has data.
-    if (tile->hasData)
+    // Don't copy if the tile already has data,  or if the tile is the original
+    // tensor (we have only one tile).
+    if (tile->hasData || tile->tensor == origTensor)
         return;
 
     // Perform the data copy.

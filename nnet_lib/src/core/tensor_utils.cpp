@@ -149,29 +149,35 @@ TiledTensor generateTiledTensor(Tensor* tensor,
     }
     TiledTensor tiledTensor(
             TensorShape(numBlocksInDim, inputShape.getLayout()), tensor);
-    std::vector<int> currentOrigin(ndims, 0);
-    for (auto tileIndex = tiledTensor.startIndex(); !tileIndex.end();
-         ++tileIndex) {
-        std::vector<int> currentTileShape(ndims);
-        for (int i = 0; i < ndims; i++) {
-            currentTileShape[i] =
-                    std::min(inputShape[i] - currentOrigin[i], tileShape[i]);
-        }
-        TensorShape currentShape(currentTileShape,
-                                 tileShape.getLayout(),
-                                 tileShape.getAlignment());
-        std::string tileName = op->getName() + ":" + tensor->getName() +
-                               "/tile:" + std::to_string((int)tileIndex);
-        Tensor* tile = new Tensor(tileName, currentShape);
-        tile->allocateStorage(tensor->getDataType());
-        tiledTensor.setTile(tileIndex, currentOrigin, tile, false);
-        for (int i = ndims - 1; i >= 0; i--) {
-            currentOrigin[i] += currentShape[i];
-            if (currentOrigin[i] >= inputShape[i]) {
-                currentOrigin[i] = 0;
-            } else {
-                currentOrigin[i] -= halos[i];
-                break;
+    if (tiledTensor.size() == 1) {
+        // If there's only one tile, we don't need to tile the original tensor.
+        // So directly use it as the tile.
+        tiledTensor[0] = tensor;
+    } else {
+        std::vector<int> currentOrigin(ndims, 0);
+        for (auto tileIndex = tiledTensor.startIndex(); !tileIndex.end();
+             ++tileIndex) {
+            std::vector<int> currentTileShape(ndims);
+            for (int i = 0; i < ndims; i++) {
+                currentTileShape[i] = std::min(
+                        inputShape[i] - currentOrigin[i], tileShape[i]);
+            }
+            TensorShape currentShape(currentTileShape,
+                                     tileShape.getLayout(),
+                                     tileShape.getAlignment());
+            std::string tileName = op->getName() + ":" + tensor->getName() +
+                                   "/tile:" + std::to_string((int)tileIndex);
+            Tensor* tile = new Tensor(tileName, currentShape);
+            tile->allocateStorage(tensor->getDataType());
+            tiledTensor.setTile(tileIndex, currentOrigin, tile, false);
+            for (int i = ndims - 1; i >= 0; i--) {
+                currentOrigin[i] += currentShape[i];
+                if (currentOrigin[i] >= inputShape[i]) {
+                    currentOrigin[i] = 0;
+                } else {
+                    currentOrigin[i] -= halos[i];
+                    break;
+                }
             }
         }
     }
@@ -194,6 +200,11 @@ TiledTensor generateTiledTensorAndCopyData(Tensor* tensor,
 void untileTiledTensor(TiledTensor& tiledTensor, Tensor* destTensor) {
     const TensorShape& tensorShape = destTensor->getShape();
     int ndims = tensorShape.ndims();
+    if (tiledTensor[0] == destTensor) {
+        // No need to copy data if the tile is the dest tensor.
+        assert(tiledTensor.size() == 1);
+        return;
+    }
     std::vector<int> currentOrigin(ndims, 0);
     std::vector<int> srcOrigin(ndims, 0);
     for (auto tileIndex = tiledTensor.startIndex(); !tileIndex.end();
