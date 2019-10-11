@@ -67,6 +67,7 @@ std::string dataLayoutToStr(DataLayout layout);
 #else
 #define M5_SWITCH_CPU()
 #define M5_DUMP_STATS()
+#define M5_DUMP_RESET_STATS()
 #endif
 
 }  // namespace smaug
