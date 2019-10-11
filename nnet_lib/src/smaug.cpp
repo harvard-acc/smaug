@@ -24,6 +24,7 @@ int main(int argc, char* argv[]) {
     SamplingInfo sampling;
     std::string samplingLevel = "no";
     sampling.num_sample_iterations = 1;
+    numAcceleratorsAvailable = 1;
     useSystolicArrayWhenAvailable = false;
     po::options_description options(
             "SMAUG Usage:  ./smaug model_topo.pbtxt model_params.pb [options]");
@@ -53,6 +54,12 @@ int main(int argc, char* argv[]) {
          "Set the number of sample iterations used by every sampling enabled "
          "entity. By default, the global sample number is set to 1. Larger "
          "sample number means less sampling.")
+        ("num-accels",
+          po::value(&numAcceleratorsAvailable)->implicit_value(1),
+          "The number of accelerators that the backend has. As far as "
+          "simulation goes, if there are multiple accelerators available, "
+          "SMAUG requires the accelerator IDs (configured in the gem5 "
+          "configuration file) to be monotonically incremented by 1.")
         ("use-systolic-array",
          po::value(&useSystolicArrayWhenAvailable)->implicit_value(true),
          "If the backend contains a systolic array, use it whenever possible.");
@@ -115,6 +122,17 @@ int main(int argc, char* argv[]) {
         std::cout << "Sampling level: " << samplingLevel
                   << ", number of sample iterations: "
                   << sampling.num_sample_iterations << "\n";
+    }
+
+    if (numAcceleratorsAvailable > maxNumAccelerators) {
+        std::cout << "The number of accelerators exceeds the max number!\n";
+        exit(1);
+    }
+    std::cout << "Number of accelerators: " << numAcceleratorsAvailable << "\n";
+    if (numAcceleratorsAvailable > 1 && runningInSimulation) {
+        std::cout << "SMAUG requires the accelerator IDs (configured in the "
+                     "gem5 configuration file) to be monotonically incremented "
+                     "by 1.\n";
     }
 
     Workspace* workspace = new Workspace();

@@ -3,6 +3,7 @@
 #include "operators/smv/smv_inner_product_op.h"
 #include "operators/smv/smv_inner_product_tiling.h"
 #include "operators/smv/smv_kernels.h"
+#include "operators/smv/smv_accel_pool.h"
 #include "utility/debug_stream.h"
 
 namespace smaug {
@@ -36,21 +37,32 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
     auto inputIdx = inputs.startIndex();
     auto weightIdx = weights.startIndex();
     auto outputIdx = outputs.startIndex();
-    setArrayMemoryType(smv::kInnerProductHw, "host_a", getInputsMemType());
-    setArrayMemoryType(smv::kInnerProductHw, "host_b", getWeightsMemType());
-    setArrayMemoryType(
-            smv::kInnerProductHw, "host_results", getOutputsMemType());
-    int lastReadInputTileIdx = -1;
+    for (int i = 0; i < numAcceleratorsAvailable; i++) {
+        setArrayMemoryType(
+                smv::kInnerProductHw + i, "host_a", getInputsMemType());
+        setArrayMemoryType(
+                smv::kInnerProductHw + i, "host_b", getWeightsMemType());
+        setArrayMemoryType(
+                smv::kInnerProductHw + i, "host_results", getOutputsMemType());
+    }
+    SmvAcceleratorPool accelPool(numAcceleratorsAvailable);
+    std::vector<int> lastReadInputTileIdx(numAcceleratorsAvailable, -1);
+    int currAccelIdx = 0;
     for (int N = 0; N < inputNumTiles; N++) {
         // Usually we are constrained by weights whereas outputs can fit in the
         // scratchpad. This keeps track of finished neurons and will be used by
         // the kernel for correct offset in the outputs scratchpad.
         int finishedNeurons = 0;
         for (int W = 0; W < weightNeuronTiles; W++) {
+            // Up to this point, the loop nests do not have data dependency
+            // among themselves, and therefore we can run them in parallel. The
+            // loop nests beyond this level will need to run in serial, because
+            // the input/weight channelwise tiles iteration accumulate results
+            // to the same output tile.
             int outputTileIdx = outputIdx(N, 0);
             Tensor* outputTile = outputs.getTileWithData(outputTileIdx);
             const TensorShape& outputShape = outputTile->getShape();
-            mapArrayToAccel(smv::kInnerProductHw, "host_results",
+            mapArrayToAccel(smv::kInnerProductHw + currAccelIdx, "host_results",
                             outputTile->data<float16>(),
                             outputShape.storageSize() * sizeof(float16));
             int iC = 0, wC = 0;
@@ -72,10 +84,10 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
                 Tensor* weightsTile = weights.getTileWithData(weightTileIdx);
                 const TensorShape& inputShape = inputTile->getShape();
                 const TensorShape& weightsShape = weightsTile->getShape();
-                mapArrayToAccel(smv::kInnerProductHw, "host_a",
+                mapArrayToAccel(smv::kInnerProductHw + currAccelIdx, "host_a",
                                 inputTile->data<float16>(),
                                 inputShape.storageSize() * sizeof(float16));
-                mapArrayToAccel(smv::kInnerProductHw, "host_b",
+                mapArrayToAccel(smv::kInnerProductHw + currAccelIdx, "host_b",
                                 weightsTile->data<float16>(),
                                 weightsShape.storageSize() * sizeof(float16));
                 int inputDims[2] = { inputShape[0], inputShape[1] };
@@ -92,9 +104,9 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
                 bool accumulate = wC > 0;
                 // If this is a new input tile, then we need to read it.
                 bool readInputs = false;
-                if (inputTileIdx != lastReadInputTileIdx) {
+                if (inputTileIdx != lastReadInputTileIdx[currAccelIdx]) {
                     readInputs = true;
-                    lastReadInputTileIdx = inputTileIdx;
+                    lastReadInputTileIdx[currAccelIdx] = inputTileIdx;
                 }
                 // We only need to send the results back to host memory in the
                 // very last invocation.
@@ -102,17 +114,18 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
                                    (W == weightNeuronTiles - 1) &&
                                    (wC == weightActTiles - 1);
 
-                invokeKernel(smv::kInnerProductHw,
-                             smv_matrix_multiply_transpose_nc_vec_fxp,
-                             inputTile->data<float16>(),
-                             weightsTile->data<float16>(),
-                             outputTile->data<float16>(), smv::spad0,
-                             smv::spad1, smv::spad2, inputDims, weightsDims,
-                             outputDims, inputShape.getPadding(1),
-                             weightsShape.getPadding(1),
-                             outputShape.getPadding(1), actStart,
-                             finishedNeurons, accumulate, readInputs,
-                             sendOutputs, actInfo.function, actInfo.params);
+                volatile int* finishFlag = invokeKernelNoBlock(
+                        currAccelIdx, smv::kInnerProductHw + currAccelIdx,
+                        smv_matrix_multiply_transpose_nc_vec_fxp,
+                        inputTile->data<float16>(),
+                        weightsTile->data<float16>(),
+                        outputTile->data<float16>(), smv::spad0, smv::spad1,
+                        smv::spad2, inputDims, weightsDims, outputDims,
+                        inputShape.getPadding(1), weightsShape.getPadding(1),
+                        outputShape.getPadding(1), actStart, finishedNeurons,
+                        accumulate, readInputs, sendOutputs, actInfo.function,
+                        actInfo.params);
+                accelPool.addFinishFlag(currAccelIdx, finishFlag);
 
                 actOffset += weightsTile->getShape()[1];
                 if (inputActTiles == weightActTiles) {
@@ -127,8 +140,11 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
                 }
             }
             finishedNeurons += weights[weightIdx(W, 0)]->getShape()[0];
+            currAccelIdx = accelPool.getNextAvailableAccelerator(currAccelIdx);
         }
     }
+    // Before we leave, make sure all the accelerators have finished.
+    accelPool.joinAll();
 }
 
 void SmvInnerProductOp::tile() {

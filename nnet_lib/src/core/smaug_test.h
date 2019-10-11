@@ -27,6 +27,7 @@ class SmaugTest {
         // Set the global variables.
         runningInSimulation = false;
         useSystolicArrayWhenAvailable = false;
+        numAcceleratorsAvailable = 1;
     }
 
     ~SmaugTest() {

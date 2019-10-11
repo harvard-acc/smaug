@@ -27,29 +27,52 @@ extern "C" {
 // These functions should be called from C++ files and not be included in C
 // files.
 
+#include <string>
 #include <utility>
 #include "core/globals.h"
+#include "tracer/trace_logger_aladdin.h"
 
 namespace smaug {
 
+// Return the trace name.
+std::string getTraceName(int accelIdx);
+
 template <typename Kernel, typename... Args>
-void invokeKernel(unsigned reqCode, const Kernel& kernel, Args&&... args) {
+void invokeKernel(int accelIdx,
+                  unsigned reqCode,
+                  const Kernel& kernel,
+                  Args&&... args) {
     if (runningInSimulation) {
         invokeAcceleratorAndBlock(reqCode);
     } else {
+#ifdef TRACE_MODE
+        llvmtracer_set_trace_name(getTraceName(accelIdx).c_str());
+#endif
         kernel(std::forward<Args>(args)...);
     }
 }
 
+// The difference between this and the one above is the names of generated
+// traces at TRACE mode. This one generates trace to default first accelerator
+// (with "_acc0" suffix).
 template <typename Kernel, typename... Args>
-void invokeKernelNoBlock(unsigned reqCode,
-                         volatile int* finishFlag,
-                         const Kernel& kernel,
-                         Args&&... args) {
+void invokeKernel(unsigned reqCode, const Kernel& kernel, Args&&... args) {
+    invokeKernel(0, reqCode, kernel, std::forward<Args>(args)...);
+}
+
+template <typename Kernel, typename... Args>
+volatile int* invokeKernelNoBlock(int accelIdx,
+                                  unsigned reqCode,
+                                  const Kernel& kernel,
+                                  Args&&... args) {
     if (runningInSimulation) {
-        invokeAcceleratorAndReturn2(reqCode, finishFlag);
+        return invokeAcceleratorAndReturn(reqCode);
     } else {
+#ifdef TRACE_MODE
+        llvmtracer_set_trace_name(getTraceName(accelIdx).c_str());
+#endif
         kernel(std::forward<Args>(args)...);
+        return nullptr;
     }
 }
 

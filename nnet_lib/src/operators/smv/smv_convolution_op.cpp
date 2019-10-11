@@ -3,6 +3,7 @@
 #include "operators/smv/smv_convolution_op.h"
 #include "operators/smv/smv_convolution_tiling.h"
 #include "operators/smv/smv_kernels.h"
+#include "operators/smv/smv_accel_pool.h"
 #include "utility/debug_stream.h"
 
 namespace smaug {
@@ -39,11 +40,15 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
     int rightPad = totalColPad - leftPad;
     unsigned accelId = useSystolicArrayWhenAvailable ? smv::kSystolicArrayHw
                                                      : smv::kConvolutionHw;
-    int lastReadInputTileIdx = -1;
-    int lastReadWeightTileIdx = -1;
-    setArrayMemoryType(accelId, "host_inputs", getInputsMemType());
-    setArrayMemoryType(accelId, "host_weights", getWeightsMemType());
-    setArrayMemoryType(accelId, "host_results", getOutputsMemType());
+    SmvAcceleratorPool accelPool(numAcceleratorsAvailable);
+    std::vector<int> lastReadInputTileIdx(numAcceleratorsAvailable, -1);
+    std::vector<int> lastReadWeightTileIdx(numAcceleratorsAvailable, -1);
+    for (int i = 0; i < numAcceleratorsAvailable; i++) {
+        setArrayMemoryType(accelId + i, "host_inputs", getInputsMemType());
+        setArrayMemoryType(accelId + i, "host_weights", getWeightsMemType());
+        setArrayMemoryType(accelId + i, "host_results", getOutputsMemType());
+    }
+    int currAccelIdx = 0;
     for (int N = 0; N < inputIfmapTiles; N++) {
         for (int H = 0; H < outputRowTiles; H++) {
             int currentTileTopPad = topPad;
@@ -82,6 +87,21 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                            ? weightOfmapTiles == 1
                            : weightOfmapTiles == outputChanTiles);
             for (int W = 0; W < weightOfmapTiles; W++) {
+                // We have three loop levels up to this point, the first for
+                // input batch-wise tiles iteration, the second for input
+                // rowwise tiles iteration, the third for weight N-wise tiles
+                // iteration. There is no data dependency among the loop nests
+                // involve in these levels, and therefore we can run them
+                // in parallel.
+                //
+                // We have another two loop level beyond this point, one for
+                // output channelwise tiles iteration and the other for weight
+                // channelwise tiles iteration. We run these loop nests in
+                // serial (i.e., on one single accelerator). The ones in the
+                // latter loop accumulate results to the same output tile and
+                // thus exhibiting data dependency, whereas the former could run
+                // in parallel technically, but we will need to reload too much
+                // weights for that and therefore I choose not to.
                 for (int oC = 0; oC < numOutputInvocations; oC++) {
                     int iC = 0, wC = 0;
                     // This keeps track of the channel offset of the input.
@@ -90,7 +110,7 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                     Tensor* outputTile = outputs.getTileWithData(outputTileIdx);
                     const TensorShape& outputShape = outputTile->getShape();
                     mapArrayToAccel(
-                            accelId, "host_results",
+                            accelId + currAccelIdx, "host_results",
                             outputTile->data<float16>(),
                             outputShape.storageSize() * sizeof(float16));
 
@@ -117,11 +137,11 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                         const TensorShape& weightsShape =
                                 weightsTile->getShape();
                         mapArrayToAccel(
-                                accelId, "host_inputs",
+                                accelId + currAccelIdx, "host_inputs",
                                 inputTile->data<float16>(),
                                 inputShape.storageSize() * sizeof(float16));
                         mapArrayToAccel(
-                                accelId, "host_weights",
+                                accelId + currAccelIdx, "host_weights",
                                 weightsTile->data<float16>(),
                                 weightsShape.storageSize() * sizeof(float16));
                         int inputDims[4] = { inputShape[0], inputShape[1],
@@ -144,14 +164,16 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                         // If this is a new input/weight tile, then we need to
                         // read it.
                         bool readInputs = false;
-                        if (inputTileIdx != lastReadInputTileIdx) {
+                        if (inputTileIdx !=
+                            lastReadInputTileIdx[currAccelIdx]) {
                             readInputs = true;
-                            lastReadInputTileIdx = inputTileIdx;
+                            lastReadInputTileIdx[currAccelIdx] = inputTileIdx;
                         }
                         bool readWeights = false;
-                        if (weightTileIdx != lastReadWeightTileIdx) {
+                        if (weightTileIdx !=
+                            lastReadWeightTileIdx[currAccelIdx]) {
                             readWeights = true;
-                            lastReadWeightTileIdx = weightTileIdx;
+                            lastReadWeightTileIdx[currAccelIdx] = weightTileIdx;
                         }
                         // If we reach the last invocation for the weight
                         // channelwise tiles, the results are finished and need
@@ -161,7 +183,8 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                         if (useSystolicArrayWhenAvailable) {
                             // Invoke the systolic array if specified.
                             invokeSystolicArrayKernel(
-                                    accelId, inputTile->data<float16>(),
+                                    accelId + currAccelIdx,
+                                    inputTile->data<float16>(),
                                     weightsTile->data<float16>(),
                                     outputTile->data<float16>(), inputDims,
                                     weightsDims, outputDims,
@@ -173,20 +196,22 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                                     sendResults, &actInfo);
                         } else {
                             // Otherwise invoke the DLA-like kernel.
-                            invokeKernel(accelId, smv_conv3d_nhwc_vec_fxp,
-                                         inputTile->data<float16>(),
-                                         weightsTile->data<float16>(),
-                                         outputTile->data<float16>(),
-                                         smv::spad0, smv::spad1, smv::spad2,
-                                         inputDims, weightsDims, outputDims,
-                                         inputShape.getPadding(3),
-                                         weightsShape.getPadding(3),
-                                         outputShape.getPadding(3),
-                                         inputHaloPad, getRowStride(),
-                                         getColStride(), ifmapStart, kernStart,
-                                         accumulate, readInputs, readWeights,
-                                         sendResults, actInfo.function,
-                                         actInfo.params, &sampling);
+                            volatile int* finishFlag = invokeKernelNoBlock(
+                                    currAccelIdx, accelId + currAccelIdx,
+                                    smv_conv3d_nhwc_vec_fxp,
+                                    inputTile->data<float16>(),
+                                    weightsTile->data<float16>(),
+                                    outputTile->data<float16>(), smv::spad0,
+                                    smv::spad1, smv::spad2, inputDims,
+                                    weightsDims, outputDims,
+                                    inputShape.getPadding(3),
+                                    weightsShape.getPadding(3),
+                                    outputShape.getPadding(3), inputHaloPad,
+                                    getRowStride(), getColStride(), ifmapStart,
+                                    kernStart, accumulate, readInputs,
+                                    readWeights, sendResults, actInfo.function,
+                                    actInfo.params, &sampling);
+                            accelPool.addFinishFlag(currAccelIdx, finishFlag);
                         }
 
                         ifmapOffset += weightsTile->getShape()[3];
@@ -205,9 +230,13 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                     if (needOutputIteration)
                         kernStart += outputShape[3];
                 }
+                currAccelIdx =
+                        accelPool.getNextAvailableAccelerator(currAccelIdx);
             }
         }
     }
+    // Before we leave, make sure all the accelerators have finished.
+    accelPool.joinAll();
 }
 
 void SmvConvolutionOp::invokeSystolicArrayKernel(unsigned accelId,

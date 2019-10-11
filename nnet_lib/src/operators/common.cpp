@@ -2,6 +2,13 @@
 #include "operators/common.h"
 
 namespace smaug {
+
+std::string getTraceName(int accelIdx) {
+    std::string traceName =
+            "dynamic_trace_acc" + std::to_string(accelIdx) + ".gz";
+    return traceName;
+}
+
 void mapArrayToAccel(unsigned reqCode,
                      const char* arrayName,
                      void* baseAddr,
@@ -10,6 +17,7 @@ void mapArrayToAccel(unsigned reqCode,
         mapArrayToAccelerator(reqCode, arrayName, baseAddr, size);
     }
 }
+
 }  // namespace smaug
 
 #ifdef __cplusplus

@@ -40,6 +40,7 @@ SRCS = src/operators/common.cpp \
        src/operators/smv/smv_eltwise_add_op.cpp \
        src/operators/smv/kernels/eltwise_add.c \
        src/operators/smv/kernels/load_store_fp16_data.c \
+       src/operators/smv/smv_accel_pool.cpp \
        src/core/backend.cpp \
        src/core/globals.cpp \
        src/core/tensor.cpp \
@@ -135,6 +136,8 @@ $(SRC_SYMLINKS):
 	@if [ -d $(BUILD_DIR) ]; then find -L $(BUILD_DIR) -type l -print -delete 2>&1 > /dev/null; fi
 	@mkdir -p $(BUILD_DIR)/gem5
 	@cp -asf $(CURRENT_DIR)/../src/* $(BUILD_DIR)/
+	@mkdir -p $(BUILD_DIR)/tracer
+	@cp -asf $(TRACER_HOME)/profile-func/trace_logger_aladdin.h $(BUILD_DIR)/tracer
 	@$(foreach f, $(GEM5_SRCS), cp -asf $(ALADDIN_HOME)/$(f) $(BUILD_DIR)/gem5/$(notdir $(f));)
 
 %.pb.cpp: %.proto

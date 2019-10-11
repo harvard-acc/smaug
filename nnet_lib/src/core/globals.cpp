@@ -2,5 +2,6 @@
 
 namespace smaug {
 bool runningInSimulation;
+int numAcceleratorsAvailable;
 bool useSystolicArrayWhenAvailable;
 }  // namespace smaug
