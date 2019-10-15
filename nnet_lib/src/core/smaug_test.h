@@ -24,6 +24,9 @@ class SmaugTest {
         network_ = new Network("test");
         workspace_ = new Workspace();
         SmvBackend::initGlobals();
+        // Set the global variables.
+        runningInSimulation = false;
+        useSystolicArrayWhenAvailable = false;
     }
 
     ~SmaugTest() {
