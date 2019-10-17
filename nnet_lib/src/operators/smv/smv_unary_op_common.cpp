@@ -103,8 +103,9 @@ TiledTensor generateTiles(Tensor* tensor,
         remainingSize -= currentTileSize;
     }
     op->getWorkspace()->addTiledTensor(tiledTensor);
-    dout(1) << "Tiled Tensor " << tensor->getName() << ": \n"
-            << "tile shape " << tileShape
+    dout(1) << "  Tiled Tensor " << tensor->getName() << ":\n"
+            << "    original tensor shape: " << tensor->getShape() << "\n"
+            << "    tile shape " << tileShape
             << ", number of tiles: " << tiledTensor.size() << "\n";
     return tiledTensor;
 }
