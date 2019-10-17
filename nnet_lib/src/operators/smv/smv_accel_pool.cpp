@@ -9,10 +9,9 @@ namespace smaug {
 SmvAcceleratorPool::SmvAcceleratorPool(int _size)
         : size(_size), finishFlags(_size) {}
 
-void SmvAcceleratorPool::addFinishFlag(int accelIdx,
-                                       volatile int* _finishFlag) {
+void SmvAcceleratorPool::addFinishFlag(
+        int accelIdx, std::unique_ptr<volatile int> finishFlag) {
     if (runningInSimulation) {
-        std::unique_ptr<volatile int> finishFlag(_finishFlag);
         finishFlags[accelIdx].push_back(std::move(finishFlag));
     }
 }

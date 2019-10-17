@@ -29,6 +29,7 @@ extern "C" {
 
 #include <string>
 #include <utility>
+#include <memory>
 #include "core/globals.h"
 #include "tracer/trace_logger_aladdin.h"
 
@@ -61,12 +62,13 @@ void invokeKernel(unsigned reqCode, const Kernel& kernel, Args&&... args) {
 }
 
 template <typename Kernel, typename... Args>
-volatile int* invokeKernelNoBlock(int accelIdx,
-                                  unsigned reqCode,
-                                  const Kernel& kernel,
-                                  Args&&... args) {
+std::unique_ptr<volatile int> invokeKernelNoBlock(int accelIdx,
+                                                  unsigned reqCode,
+                                                  const Kernel& kernel,
+                                                  Args&&... args) {
     if (runningInSimulation) {
-        return invokeAcceleratorAndReturn(reqCode);
+        return std::unique_ptr<volatile int>(
+                invokeAcceleratorAndReturn(reqCode));
     } else {
 #ifdef TRACE_MODE
         llvmtracer_set_trace_name(getTraceName(accelIdx).c_str());

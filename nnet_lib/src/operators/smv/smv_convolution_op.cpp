@@ -196,22 +196,27 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                                     sendResults, &actInfo);
                         } else {
                             // Otherwise invoke the DLA-like kernel.
-                            volatile int* finishFlag = invokeKernelNoBlock(
-                                    currAccelIdx, accelId + currAccelIdx,
-                                    smv_conv3d_nhwc_vec_fxp,
-                                    inputTile->data<float16>(),
-                                    weightsTile->data<float16>(),
-                                    outputTile->data<float16>(), smv::spad0,
-                                    smv::spad1, smv::spad2, inputDims,
-                                    weightsDims, outputDims,
-                                    inputShape.getPadding(3),
-                                    weightsShape.getPadding(3),
-                                    outputShape.getPadding(3), inputHaloPad,
-                                    getRowStride(), getColStride(), ifmapStart,
-                                    kernStart, accumulate, readInputs,
-                                    readWeights, sendResults, actInfo.function,
-                                    actInfo.params, &sampling);
-                            accelPool.addFinishFlag(currAccelIdx, finishFlag);
+                            std::unique_ptr<volatile int> finishFlag =
+                                    invokeKernelNoBlock(
+                                            currAccelIdx,
+                                            accelId + currAccelIdx,
+                                            smv_conv3d_nhwc_vec_fxp,
+                                            inputTile->data<float16>(),
+                                            weightsTile->data<float16>(),
+                                            outputTile->data<float16>(),
+                                            smv::spad0, smv::spad1, smv::spad2,
+                                            inputDims, weightsDims, outputDims,
+                                            inputShape.getPadding(3),
+                                            weightsShape.getPadding(3),
+                                            outputShape.getPadding(3),
+                                            inputHaloPad, getRowStride(),
+                                            getColStride(), ifmapStart,
+                                            kernStart, accumulate, readInputs,
+                                            readWeights, sendResults,
+                                            actInfo.function, actInfo.params,
+                                            &sampling);
+                            accelPool.addFinishFlag(
+                                    currAccelIdx, std::move(finishFlag));
                         }
 
                         ifmapOffset += weightsTile->getShape()[3];

@@ -114,7 +114,7 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
                                    (W == weightNeuronTiles - 1) &&
                                    (wC == weightActTiles - 1);
 
-                volatile int* finishFlag = invokeKernelNoBlock(
+                std::unique_ptr<volatile int> finishFlag = invokeKernelNoBlock(
                         currAccelIdx, smv::kInnerProductHw + currAccelIdx,
                         smv_matrix_multiply_transpose_nc_vec_fxp,
                         inputTile->data<float16>(),
@@ -125,7 +125,7 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
                         outputShape.getPadding(1), actStart, finishedNeurons,
                         accumulate, readInputs, sendOutputs, actInfo.function,
                         actInfo.params);
-                accelPool.addFinishFlag(currAccelIdx, finishFlag);
+                accelPool.addFinishFlag(currAccelIdx, std::move(finishFlag));
 
                 actOffset += weightsTile->getShape()[1];
                 if (inputActTiles == weightActTiles) {

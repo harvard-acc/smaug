@@ -12,7 +12,7 @@ class SmvAcceleratorPool {
     SmvAcceleratorPool(int _size);
 
     // Add a finish flag for the specified accelerator.
-    void addFinishFlag(int accelIdx, volatile int* finishFlag);
+    void addFinishFlag(int accelIdx, std::unique_ptr<volatile int> finishFlag);
 
     // Wait until all the finish flags turn complete.
     void joinAll();
