@@ -43,7 +43,7 @@ void SmvBatchNormOp::runNA(TiledTensor& inputs,
                     << ", output: " << outputIdx(N, iC) << "\n";
             Tensor* inputTile = inputs.getTileWithData(inputTileIdx);
             Tensor* weightsTile = weights.getTileWithData(weightTileIdx);
-            Tensor* outputTile = outputs.getTileWithData(weightTileIdx);
+            Tensor* outputTile = outputs[outputTileIdx];
             const TensorShape& inputShape = inputTile->getShape();
             const TensorShape& weightsShape = weightsTile->getShape();
             const TensorShape& outputShape = outputTile->getShape();
@@ -122,7 +122,7 @@ void SmvBatchNormOp::runNWC(TiledTensor& inputs,
                 dout(1) << "Input: " << inputTileIdx << ", Weight: 0"
                         << ", output: " << outputTileIdx << "\n";
                 Tensor* inputTile = inputs.getTileWithData(inputTileIdx);
-                Tensor* outputTile = outputs.getTileWithData(outputTileIdx);
+                Tensor* outputTile = outputs[outputTileIdx];
                 const TensorShape& inputShape = inputTile->getShape();
                 const TensorShape& outputShape = outputTile->getShape();
                 mapArrayToAccel(smv::kBatchNormHw, "host_inputs",

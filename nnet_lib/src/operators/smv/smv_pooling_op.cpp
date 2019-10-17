@@ -44,7 +44,7 @@ void SmvPoolingOp::runNHC(TiledTensor& inputs, TiledTensor& outputs) {
                 dout(1) << "Input: " << inputTileIdx
                         << ", output: " << outputTileIdx << "\n";
                 Tensor* inputTile = inputs.getTileWithData(inputTileIdx);
-                Tensor* outputTile = outputs.getTileWithData(outputTileIdx);
+                Tensor* outputTile = outputs[outputTileIdx];
                 const TensorShape& inputShape = inputTile->getShape();
                 const TensorShape& outputShape = outputTile->getShape();
                 mapArrayToAccel(smv::kPoolingHw, "host_inputs",

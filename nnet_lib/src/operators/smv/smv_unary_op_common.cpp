@@ -59,7 +59,7 @@ void runX(UnaryOp<SmvBackend>* op, TiledTensor& inputs, TiledTensor& outputs) {
     for (int i = 0; i < inputs.size(); i++) {
         dout(1) << "Input: " << i << ", output: " << i << "\n";
         Tensor* inputTile = inputs.getTileWithData(i);
-        Tensor* outputTile = outputs.getTileWithData(i);
+        Tensor* outputTile = outputs[i];
         const TensorShape& inputShape = inputTile->getShape();
         const TensorShape& outputShape = outputTile->getShape();
         mapArrayToAccel(smv::kEltwiseOpHw, "host_inputs",

@@ -21,7 +21,7 @@ void SmvEltwiseAddOp::runX(TiledTensor& inputs0,
                 << "\n";
         Tensor* input0Tile = inputs0.getTileWithData(i);
         Tensor* input1Tile = inputs1.getTileWithData(i);
-        Tensor* outputTile = outputs.getTileWithData(i);
+        Tensor* outputTile = outputs[i];
         const TensorShape& inputShape = input0Tile->getShape();
         const TensorShape& outputShape = outputTile->getShape();
         mapArrayToAccel(smv::kEltwiseOpHw, "host_inputs0",

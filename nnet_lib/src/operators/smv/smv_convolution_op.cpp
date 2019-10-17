@@ -107,7 +107,7 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                     // This keeps track of the channel offset of the input.
                     int ifmapOffset = 0;
                     int outputTileIdx = outputIdx(N, H, 0, W + oC);
-                    Tensor* outputTile = outputs.getTileWithData(outputTileIdx);
+                    Tensor* outputTile = outputs[outputTileIdx];
                     const TensorShape& outputShape = outputTile->getShape();
                     mapArrayToAccel(
                             accelId + currAccelIdx, "host_results",

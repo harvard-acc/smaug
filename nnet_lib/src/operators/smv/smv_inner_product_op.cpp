@@ -60,7 +60,7 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
             // the input/weight channelwise tiles iteration accumulate results
             // to the same output tile.
             int outputTileIdx = outputIdx(N, 0);
-            Tensor* outputTile = outputs.getTileWithData(outputTileIdx);
+            Tensor* outputTile = outputs[outputTileIdx];
             const TensorShape& outputShape = outputTile->getShape();
             mapArrayToAccel(smv::kInnerProductHw + currAccelIdx, "host_results",
                             outputTile->data<float16>(),
