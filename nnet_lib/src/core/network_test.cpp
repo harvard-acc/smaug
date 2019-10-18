@@ -86,4 +86,24 @@ TEST_CASE_METHOD(SmaugTest, "Network tests", "[network]") {
         verifyOutputs<float>(
                 convertFp16ToFp32Tensor(output, workspace()), refOutput);
     }
+
+    SECTION("ELU large network. 19 layers of convolutions and 5 layers of "
+            "poolings.") {
+        // ELU network with the SMV backend.
+        Network* network = buildNetwork(
+                modelPath + "cifar100-large-elu/large_elu_smv_topo.pbtxt",
+                modelPath + "cifar100-large-elu/large_elu_smv_params.pb");
+        Tensor* output = runNetwork(network, workspace());
+
+        // The same network with the reference backend. This is used for
+        // producing expected outputs.
+        Network* refNetwork = buildNetwork(
+                modelPath + "cifar100-large-elu/large_elu_ref_topo.pbtxt",
+                modelPath + "cifar100-large-elu/large_elu_ref_params.pb");
+        Tensor* refOutput = runNetwork(refNetwork, workspace());
+
+        // SMV outputs need to be converted into float32 before validations.
+        verifyOutputs<float>(
+                convertFp16ToFp32Tensor(output, workspace()), refOutput);
+    }
 }
