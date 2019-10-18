@@ -166,6 +166,13 @@ void SmvInnerProductOp::run() {
     assert(outputsShape.getLayout() == DataLayout::NC);
     dout(2) << *weights << "\n";
 
+    // If we are using DMA for data transfer, copy data to all the tiles before
+    // we actually run any tiles.
+    if (getInputsMemType() == MemoryType::dma)
+        tiledTensors[0].copyDataToAllTiles();
+    if (getWeightsMemType() == MemoryType::dma)
+        tiledTensors[1].copyDataToAllTiles();
+
     runNWA(tiledTensors[0], tiledTensors[1], tiledTensors[2]);
     untileTiledTensor(tiledTensors[2], outputs);
 }

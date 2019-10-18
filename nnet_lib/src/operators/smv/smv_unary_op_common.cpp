@@ -129,6 +129,12 @@ void run(UnaryOp<SmvBackend>* op) {
     auto inputs = op->getInput(UnaryOp<SmvBackend>::Inputs);
     auto outputs = op->getOutput(UnaryOp<SmvBackend>::Outputs);
     std::array<TiledTensor, 2> tiledTensors = doTiling(op);
+
+    // If we are using DMA for data transfer, copy data to all the tiles before
+    // we actually run any tiles.
+    if (op->getInputsMemType() == MemoryType::dma)
+        tiledTensors[0].copyDataToAllTiles();
+
     runX(op, tiledTensors[0], tiledTensors[1]);
     flattenTiledTensor(tiledTensors[1], outputs);
 }

@@ -106,6 +106,11 @@ void SmvPoolingOp::run() {
     assert(inputShape.getLayout() == DataLayout::NHWC);
     assert(outputShape.getLayout() == DataLayout::NHWC);
 
+    // If we are using DMA for data transfer, copy data to all the tiles before
+    // we actually run any tiles.
+    if (getInputsMemType() == MemoryType::dma)
+        tiledTensors[0].copyDataToAllTiles();
+
     runNHC(tiledTensors[0], tiledTensors[1]);
     untileTiledTensor(tiledTensors[1], output);
 }

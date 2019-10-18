@@ -173,6 +173,13 @@ void SmvBatchNormOp::run() {
     dout(2) << *gamma << "\n";
     dout(2) << *beta << "\n";
 
+    // If we are using DMA for data transfer, copy data to all the tiles before
+    // we actually run any tiles.
+    if (getInputsMemType() == MemoryType::dma)
+        tiledTensors[0].copyDataToAllTiles();
+    if (getWeightsMemType() == MemoryType::dma)
+        tiledTensors[1].copyDataToAllTiles();
+
     if (isPostConv) {
         assert(inputShape.getLayout() == DataLayout::NHWC);
         assert(outputShape.getLayout() == DataLayout::NHWC);
