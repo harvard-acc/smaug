@@ -146,10 +146,6 @@ int main(int argc, char* argv[]) {
     if (!network->validate())
         return -1;
 
-    // We have finished loading the model and building the network, now we
-    // can stop fast forwarding.
-    M5_SWITCH_CPU();
-
     Tensor* output = runNetwork(network, workspace);
 
     if (!lastOutputFile.empty()) {
