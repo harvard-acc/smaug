@@ -149,6 +149,12 @@ class ConvolutionOp : public FusedActivationOp {
                          int stride,
                          PaddingType pad) const {
         int padding = (pad == SamePadding ? (weightDim - 1) : 0);
+        return computeOutputDim(inputDim, weightDim, stride, padding);
+    }
+    int computeOutputDim(int inputDim,
+                         int weightDim,
+                         int stride,
+                         int padding) const {
         return (inputDim - weightDim + padding) / stride + 1;
     }
 

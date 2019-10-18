@@ -234,10 +234,13 @@ TilingConfig TilingOptimizer::computeBasicTileShapes(SmvConvolutionOp* op) {
             config.outputs = outputsShape;
             config.outputs[0] = config.inputs[0];
             if (needsHwiseTiling(outputTilingDims)) {
+                int padding = op->getPadding() == SamePadding
+                                      ? FRAC_CEIL(config.weights[1] - 1, 2)
+                                      : 0;
                 config.outputs[1] = op->computeOutputDim(config.inputs[1],
                                                          config.weights[1],
                                                          op->getRowStride(),
-                                                         op->getPadding());
+                                                         padding);
                 config.outputs[3] = config.weights[0];
             } else {
                 config.outputs[1] = outputsShape[1];

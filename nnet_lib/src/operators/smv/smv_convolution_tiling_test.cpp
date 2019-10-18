@@ -43,7 +43,7 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
         TilingConfig config = TilingOptimizer::computeBasicTileShapes(convOp);
         REQUIRE(config.inputs.dims() == std::vector<int>{ 1, 16, 64, 16 });
         REQUIRE(config.weights.dims() == std::vector<int>{ 8, 3, 3, 16 });
-        REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 16, 64, 8 });
+        REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 15, 64, 8 });
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
@@ -125,7 +125,7 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
                     TilingOptimizer::computeBasicTileShapes(convOp);
             REQUIRE(config.inputs.dims() == std::vector<int>{ 1, 16, 32, 32 });
             REQUIRE(config.weights.dims() == std::vector<int>{ 32, 4, 4, 32 });
-            REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 16, 32, 32 });
+            REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 15, 32, 32 });
 
             SECTION("Generated tiles have correct shape and data") {
                 fillTensorWithFixedData(inputs);
@@ -545,7 +545,7 @@ TEST_CASE_METHOD(SmaugTest, "Kernel shape tests", "[smvtiling]") {
         // The inputs must have at least five rows (same as weights).
         REQUIRE(config.inputs.dims() == std::vector<int>{ 1, 16, 32, 32 });
         REQUIRE(config.weights.dims() == std::vector<int>{ 16, 5, 5, 32 });
-        REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 16, 32, 16 });
+        REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 14, 32, 16 });
 
         SECTION("Test if the halo region of 4 is handled") {
             fillTensorWithFixedData(inputs);
