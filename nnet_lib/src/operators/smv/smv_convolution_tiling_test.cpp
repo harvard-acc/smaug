@@ -547,18 +547,15 @@ TEST_CASE_METHOD(SmaugTest, "Kernel shape tests", "[smvtiling]") {
         REQUIRE(config.weights.dims() == std::vector<int>{ 16, 5, 5, 32 });
         REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 16, 32, 16 });
 
-        SECTION("Test if the halo region of 2 is handled") {
+        SECTION("Test if the halo region of 4 is handled") {
             fillTensorWithFixedData(inputs);
             TiledTensor inputTiles = generateTiledTensorAndCopyData(
-                    inputs, config.inputs, { 0, 2, 0, 0 }, convOp);
-            // Halo size 2: 0-15, 14-29, 28-43, 42-57, 56-63
+                    inputs, config.inputs, { 0, 4, 0, 0 }, convOp);
+            // Halo size 2: 0-15, 12-27, 24-39, 36-51, 48-63
             REQUIRE(inputTiles.size() == 5);
             for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
                 auto& testDims = inputTiles[i]->getShape().dims();
-                if (i < 4)
-                    REQUIRE(testDims == std::vector<int>{ 1, 16, 32, 32 });
-                else
-                    REQUIRE(testDims == std::vector<int>{ 1, 8, 32, 32 });
+                REQUIRE(testDims == std::vector<int>{ 1, 16, 32, 32 });
                 verifyTensorWithFixedData(inputTiles[i], 0);
             }
 
@@ -572,18 +569,24 @@ TEST_CASE_METHOD(SmaugTest, "Kernel shape tests", "[smvtiling]") {
 
             auto outputs = convOp->getOutput(0);
             fillTensorWithFixedData(outputs);
-            TiledTensor outputTiles = generateTiledTensorAndCopyData(
-                    outputs, config.outputs, { 0, 2, 0, 0 }, convOp);
+            TiledTensor outputTiles =
+                    TilingOptimizer::generateRowwiseOutputTiledTensor(
+                            convOp, inputTiles, weightTiles, config.outputs,
+                            outputs, true);
             // 5 tiles in rowwise direction, 2 in channelwise.
             REQUIRE(outputTiles.size() == 5 * 2);
             for (int r = 0; r < 5; r++) {
                 for (int c = 0; c < 2; c++) {
                     int idx = r * 2 + c;
                     auto& testDims = outputTiles[idx]->getShape().dims();
-                    if (r < 4)
-                        REQUIRE(testDims == std::vector<int>{ 1, 16, 32, 16 });
-                    else
-                        REQUIRE(testDims == std::vector<int>{ 1, 8, 32, 16 });
+                    if (r == 0 || r == 4) {
+                        // The first and the last row are padded at the top and
+                        // the bottom, respectively.
+                        REQUIRE(testDims == std::vector<int>{ 1, 14, 32, 16 });
+                    } else {
+                        // Inner rows are not padded.
+                        REQUIRE(testDims == std::vector<int>{ 1, 12, 32, 16 });
+                    }
                     verifyTensorWithFixedData(outputTiles[idx], c * 16);
                 }
             }
