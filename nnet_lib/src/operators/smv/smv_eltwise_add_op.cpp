@@ -52,9 +52,9 @@ void SmvEltwiseAddOp::tile() {
                      inputs0->getShape().storageSize());
     TensorShape tileShape(
             { 1, maxTileSize }, DataLayout::NC, SmvBackend::Alignment);
-    tiledTensors[0] = generateTiles(inputs0, tileShape, this);
-    tiledTensors[1] = generateTiles(inputs1, tileShape, this);
-    tiledTensors[2] = generateTiles(outputs, tileShape, this);
+    tiledTensors[0] = generateTiles(inputs0, tileShape, this, false);
+    tiledTensors[1] = generateTiles(inputs1, tileShape, this, false);
+    tiledTensors[2] = generateTiles(outputs, tileShape, this, false);
 }
 
 void SmvEltwiseAddOp::run() {
