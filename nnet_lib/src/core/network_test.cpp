@@ -106,4 +106,23 @@ TEST_CASE_METHOD(SmaugTest, "Network tests", "[network]") {
         verifyOutputs<float>(
                 convertFp16ToFp32Tensor(output, workspace()), refOutput);
     }
+
+    SECTION("ResNet50 network with ImageNet dataset.") {
+        // ResNet50 network with the SMV backend.
+        Network* network = buildNetwork(
+                modelPath + "imagenet-resnet/resnet_smv_topo.pbtxt",
+                modelPath + "imagenet-resnet/resnet_smv_params.pb");
+        Tensor* output = runNetwork(network, workspace());
+
+        // The same network with the reference backend. This is used for
+        // producing expected outputs.
+        Network* refNetwork = buildNetwork(
+                modelPath + "imagenet-resnet/resnet_ref_topo.pbtxt",
+                modelPath + "imagenet-resnet/resnet_ref_params.pb");
+        Tensor* refOutput = runNetwork(refNetwork, workspace());
+
+        // SMV outputs need to be converted into float32 before validations.
+        verifyOutputs<float>(
+                convertFp16ToFp32Tensor(output, workspace()), refOutput);
+    }
 }
