@@ -305,10 +305,38 @@ TEST_CASE_METHOD(SmvConvolutionOpTest,
 
 TEST_CASE_METHOD(SmvConvolutionOpTest, "Stride size tests", "[smvconv]") {
     SECTION("2x2 strides") {
-        doTest({ 1, 64, 64, 32 }, { 16, 3, 3, 32 }, ValidPadding, { 2, 2 });
+        SECTION("1x1 kernels") {
+            doTest({ 1, 56, 56, 256 },
+                   { 512, 1, 1, 256 },
+                   SamePadding,
+                   { 2, 2 });
+        }
+        SECTION("3x3 kernels") {
+            doTest({ 1, 64, 64, 32 }, { 16, 3, 3, 32 }, ValidPadding, { 2, 2 });
+        }
+        SECTION("5x5 kernels") {
+            doTest({ 1, 225, 225, 8 }, { 64, 5, 5, 8 }, SamePadding, { 2, 2 });
+        }
+        SECTION("7x7 kernels") {
+            doTest({ 1, 225, 225, 8 }, { 64, 7, 7, 8 }, SamePadding, { 2, 2 });
+        }
     }
 
     SECTION("3x3 strides") {
-        doTest({ 1, 64, 64, 32 }, { 16, 5, 5, 32 }, ValidPadding, { 3, 3 });
+        SECTION("1x1 kernels") {
+            doTest({ 1, 56, 56, 256 },
+                   { 512, 1, 1, 256 },
+                   SamePadding,
+                   { 3, 3 });
+        }
+        SECTION("3x3 kernels") {
+            doTest({ 1, 64, 64, 32 }, { 16, 3, 3, 32 }, ValidPadding, { 3, 3 });
+        }
+        SECTION("5x5 kernels") {
+            doTest({ 1, 225, 225, 8 }, { 64, 5, 5, 8 }, SamePadding, { 3, 3 });
+        }
+        SECTION("7x7 kernels") {
+            doTest({ 1, 225, 225, 8 }, { 64, 7, 7, 8 }, SamePadding, { 3, 3 });
+        }
     }
 }

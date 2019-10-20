@@ -130,23 +130,88 @@ void copyRawTensorData(Tensor* dest,
     }
 }
 
+namespace internal {
+// Compute the tile size in this dimension with padding accounted for. The goal
+// is to get the tile dimension size that doesn't have any elements unused,
+// given the padding, weight and stride sizes.
+//
+// Args:
+//   maxTileDim: Maximum size of the tile size in this dimension.
+//   padding: Padding in the dimension.
+//   weightDim: Weight size in this dimension.
+//   stride: Stride size in this dimension.
+// Returns:
+//   The tile size in this dimension.
+int computePaddedTileDim(int maxTileDim,
+                         int padding,
+                         int weightDim,
+                         int stride) {
+    // The number of strides we can take in this dimension.
+    int numStrides = (maxTileDim + padding - weightDim) / stride;
+    if (numStrides <= 0)
+        return maxTileDim;
+    int tileDim = weightDim + stride * numStrides;
+    return tileDim - padding;
+}
+}  // namespace internal
+
 TiledTensor generateTiledTensor(Tensor* tensor,
                                 const TensorShape& tileShape,
-                                std::vector<int> halos,
-                                Operator* op) {
-    assert(halos.size() == tileShape.ndims());
+                                Operator* op,
+                                int fieldRows,
+                                int fieldCols,
+                                int rowStride,
+                                int colStride,
+                                PaddingType paddingType) {
     const TensorShape& inputShape = tensor->getShape();
     const int ndims = inputShape.ndims();
-    std::vector<int> numBlocksInDim(ndims, 0);
+    DataLayout layout = inputShape.getLayout();
+    // Compute the tiling halos. These are the rows/columns that the subsequent
+    // tile will overlap with the previous tile.
+    std::vector<int> tilingHalos(ndims, 0);
+    int hIdx = layout == NHWC ? 1 : NCHW ? 2 : -1;
+    int wIdx = layout == NHWC ? 2 : NCHW ? 3 : -1;
+    // The tilingHalos could be negative if fieldRows < rowStride, but we
+    // actually want that. For example, fieldRows = 1, rowStride = 2, then what
+    // the next tile wants is not to "borrow" any rows from the previous tile,
+    // but skip one row and start from there. So, -1 actually gives us the
+    // skipping effect.
+    if (hIdx != -1 && fieldRows != 0)
+        tilingHalos[hIdx] = fieldRows - rowStride;
+    if (wIdx != -1 && fieldCols != 0)
+        tilingHalos[wIdx] = fieldCols - colStride;
+    // Compute the input paddings.
+    int totalRowPad = (paddingType == SamePadding) ? fieldRows - 1 : 0;
+    int totalColPad = (paddingType == SamePadding) ? fieldCols - 1 : 0;
+    int topPad = FRAC_CEIL(totalRowPad, 2);
+    int leftPad = FRAC_CEIL(totalColPad, 2);
+    // This contains tile shapes in each dimension.
+    std::vector<std::vector<int>> tilesInDim(ndims);
+    // Compute the tile shapes in each dimension.
     for (int i = 0; i < ndims; i++) {
         int remaining = inputShape[i];
         while (remaining > 0) {
-            numBlocksInDim[i]++;
-            remaining -= tileShape[i];
+            int tileDim = std::min(tileShape[i], remaining);
+            bool firstTileInDim = tilesInDim[i].size() == 0;
+            bool lastTileInDim = remaining <= tileShape[i];
+            // Adjust the tile dimension size if we are at the first tile
+            // because of the top/left paddings.
+            if (i == hIdx && firstTileInDim && !lastTileInDim) {
+                tileDim = internal::computePaddedTileDim(
+                        tileDim, topPad, fieldRows, rowStride);
+            } else if (i == wIdx && firstTileInDim && !lastTileInDim) {
+                tileDim = internal::computePaddedTileDim(
+                        tileDim, leftPad, fieldCols, colStride);
+            }
+            tilesInDim[i].push_back(tileDim);
+            remaining -= tileDim;
             if (remaining > 0)
-                remaining += halos[i];
+                remaining += tilingHalos[i];
         }
     }
+    std::vector<int> numBlocksInDim(ndims, 0);
+    for (int i = 0; i < ndims; i++)
+        numBlocksInDim[i] = tilesInDim[i].size();
     TiledTensor tiledTensor(
             TensorShape(numBlocksInDim, inputShape.getLayout()), tensor);
     if (tiledTensor.size() == 1) {
@@ -158,10 +223,8 @@ TiledTensor generateTiledTensor(Tensor* tensor,
         for (auto tileIndex = tiledTensor.startIndex(); !tileIndex.end();
              ++tileIndex) {
             std::vector<int> currentTileShape(ndims);
-            for (int i = 0; i < ndims; i++) {
-                currentTileShape[i] = std::min(
-                        inputShape[i] - currentOrigin[i], tileShape[i]);
-            }
+            for (int i = 0; i < ndims; i++)
+                currentTileShape[i] = tilesInDim[i][tileIndex.currentIndex(i)];
             TensorShape currentShape(currentTileShape,
                                      tileShape.getLayout(),
                                      tileShape.getAlignment());
@@ -175,7 +238,7 @@ TiledTensor generateTiledTensor(Tensor* tensor,
                 if (currentOrigin[i] >= inputShape[i]) {
                     currentOrigin[i] = 0;
                 } else {
-                    currentOrigin[i] -= halos[i];
+                    currentOrigin[i] -= tilingHalos[i];
                     break;
                 }
             }
@@ -186,15 +249,6 @@ TiledTensor generateTiledTensor(Tensor* tensor,
             << "    original tensor shape: " << tensor->getShape() << "\n"
             << "    tile shape: " << tileShape
             << ", number of tiles: " << tiledTensor.size() << "\n";
-    return tiledTensor;
-}
-
-TiledTensor generateTiledTensorAndCopyData(Tensor* tensor,
-                                           const TensorShape& tileShape,
-                                           std::vector<int> halos,
-                                           Operator* op) {
-    TiledTensor tiledTensor = generateTiledTensor(tensor, tileShape, halos, op);
-    tiledTensor.copyDataToAllTiles();
     return tiledTensor;
 }
 

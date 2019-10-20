@@ -134,14 +134,32 @@ void copyRawTensorData(
 // This generates a TiledTensor from a Tensor using the specified tile shape.
 TiledTensor generateTiledTensor(Tensor* tensor,
                                 const TensorShape& tileShape,
-                                std::vector<int> halos,
-                                Operator* op);
+                                Operator* op,
+                                int filedRows = 0,
+                                int filedCols = 0,
+                                int rowStride = 1,
+                                int colStride = 1,
+                                PaddingType paddingType = ValidPadding);
 
 // This generates the tiles and copies data to them from the original tensor.
-TiledTensor generateTiledTensorAndCopyData(Tensor* tensor,
-                                           const TensorShape& tileShape,
-                                           std::vector<int> halos,
-                                           Operator* op);
+TiledTensor generateTiledTensorAndCopyData(
+        Tensor* tensor,
+        const TensorShape& tileShape,
+        Operator* op,
+        int fieldRows = 0,
+        int fieldCols = 0,
+        int rowStride = 1,
+        int colStride = 1,
+        PaddingType paddingType = ValidPadding);
+
+// This generates the tiles and copies data to them from the original tensor.
+template <typename... Args>
+TiledTensor generateTiledTensorAndCopyData(Args&&... args) {
+    TiledTensor tiledTensor =
+            generateTiledTensor(std::forward<Args>(args)...);
+    tiledTensor.copyDataToAllTiles();
+    return tiledTensor;
+}
 
 // This will copy data from a tiled tensor into a single tensor. We name it as
 // "untile" because what it does reverses the tiling process.

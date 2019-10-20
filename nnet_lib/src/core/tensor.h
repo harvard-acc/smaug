@@ -138,6 +138,10 @@ class TensorIndexIterator {
     friend std::ostream& operator<<(std::ostream& os,
                                     const TensorIndexIterator& iter);
 
+    // This returns the current index of the iterator on the specified
+    // dimension.
+    int currentIndex(int dim) const { return state[dim]; }
+
    protected:
     template <typename Container>
     int getIndex(Container indices) const {

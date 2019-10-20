@@ -8,6 +8,19 @@
 
 using namespace smaug;
 
+TiledTensor generateInputTiles(SmvConvolutionOp* convOp,
+                               const TensorShape& tileShape) {
+    Tensor* inputs = convOp->getInput(0);
+    int weightRows = convOp->getWeightRows();
+    int weightCols = convOp->getWeightCols();
+    int rowStride = convOp->getRowStride();
+    int colStride = convOp->getColStride();
+    PaddingType paddingType = convOp->getPadding();
+    return generateTiledTensorAndCopyData(inputs, tileShape, convOp, weightRows,
+                                          weightCols, rowStride, colStride,
+                                          paddingType);
+}
+
 TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
     using namespace smaug::smv;
     using namespace smaug::smv::conv;
@@ -47,8 +60,7 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
-            TiledTensor inputTiles = generateTiledTensorAndCopyData(
-                    inputs, config.inputs, { 0, 2, 0, 0 }, convOp);
+            TiledTensor inputTiles = generateInputTiles(convOp, config.inputs);
             REQUIRE(inputTiles.size() == 3);
             for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
                 auto& testDims = inputTiles[i]->getShape().dims();
@@ -61,7 +73,7 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
 
             auto weights = convOp->getInput(1);
             TiledTensor weightTiles = generateTiledTensorAndCopyData(
-                    weights, config.weights, { 0, 0, 0, 0 }, convOp);
+                    weights, config.weights, convOp);
             auto outputs = convOp->getOutput(0);
             fillTensorWithFixedData(outputs);
             TiledTensor outputTiles =
@@ -100,8 +112,7 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
-            TiledTensor inputTiles = generateTiledTensorAndCopyData(
-                    inputs, config.inputs, { 0, 2, 0, 0 }, convOp);
+            TiledTensor inputTiles = generateInputTiles(convOp, config.inputs);
             REQUIRE(inputTiles.size() == 2);
             for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(inputTiles[i]->getShape().dims() ==
@@ -129,8 +140,8 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
 
             SECTION("Generated tiles have correct shape and data") {
                 fillTensorWithFixedData(inputs);
-                TiledTensor inputTiles = generateTiledTensorAndCopyData(
-                        inputs, config.inputs, { 0, 3, 0, 0 }, convOp);
+                TiledTensor inputTiles =
+                        generateInputTiles(convOp, config.inputs);
                 REQUIRE(inputTiles.size() == 18);
                 for (int i = 0; i < 3; i++) {
                     for (int j = 0; j < 6; j++) {
@@ -149,7 +160,7 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
                 auto weights = convOp->getInput(1);
                 fillTensorWithFixedData(weights);
                 TiledTensor weightTiles = generateTiledTensorAndCopyData(
-                        weights, config.weights, { 0, 0, 0, 0 }, convOp);
+                        weights, config.weights, convOp);
                 REQUIRE(weightTiles.size() == 6);
                 for (auto i = weightTiles.startIndex(); !i.end(); ++i) {
                     REQUIRE(weightTiles[i]->getShape().dims() ==
@@ -196,8 +207,8 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
 
             SECTION("Generated tiles have correct shape and data") {
                 fillTensorWithFixedData(inputs);
-                TiledTensor inputTiles = generateTiledTensorAndCopyData(
-                        inputs, config.inputs, { 0, 1, 0, 0 }, convOp);
+                TiledTensor inputTiles =
+                        generateInputTiles(convOp, config.inputs);
                 REQUIRE(inputTiles.size() == 54);
                 for (int i = 0; i < 9; i++) {
                     for (int j = 0; j < 6; j++) {
@@ -211,7 +222,7 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
                 auto weights = convOp->getInput(1);
                 fillTensorWithFixedData(weights);
                 TiledTensor weightTiles = generateTiledTensorAndCopyData(
-                        weights, config.weights, { 0, 0, 0, 0 }, convOp);
+                        weights, config.weights, convOp);
                 REQUIRE(weightTiles.size() == 6);
                 for (auto i = weightTiles.startIndex(); !i.end(); ++i) {
                     REQUIRE(weightTiles[i]->getShape().dims() ==
@@ -255,8 +266,8 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
 
             SECTION("Generated tiles have correct shape and data") {
                 fillTensorWithFixedData(inputs);
-                TiledTensor inputTiles = generateTiledTensorAndCopyData(
-                        inputs, config.inputs, { 0, 1, 0, 0 }, convOp);
+                TiledTensor inputTiles =
+                        generateInputTiles(convOp, config.inputs);
                 REQUIRE(inputTiles.size() == 258);
                 for (int i = 0; i < 43; i++) {
                     for (int j = 0; j < 6; j++) {
@@ -275,7 +286,7 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
                 auto weights = convOp->getInput(1);
                 fillTensorWithFixedData(weights);
                 TiledTensor weightTiles = generateTiledTensorAndCopyData(
-                        weights, config.weights, { 0, 0, 0, 0 }, convOp);
+                        weights, config.weights, convOp);
                 REQUIRE(weightTiles.size() == 6);
                 for (auto i = weightTiles.startIndex(); !i.end(); ++i) {
                     REQUIRE(weightTiles[i]->getShape().dims() ==
@@ -325,14 +336,13 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
         REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 8, 8, 8 });
 
         SECTION("Generated tiles have correct shape and data") {
-            TiledTensor inputTiles = generateTiledTensorAndCopyData(
-                    inputs, config.inputs, { 0, 2, 0, 0 }, convOp);
+            TiledTensor inputTiles = generateInputTiles(convOp, config.inputs);
             REQUIRE(inputTiles.size() == 1);
 
             auto weights = convOp->getInput(1);
             fillTensorWithFixedData(weights);
             TiledTensor weightTiles = generateTiledTensorAndCopyData(
-                    weights, config.weights, { 0, 0, 0, 0 }, convOp);
+                    weights, config.weights, convOp);
             REQUIRE(weightTiles.size() == 256 / 8);
             for (auto i = weightTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(weightTiles[i]->getShape().dims() ==
@@ -343,7 +353,7 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
             auto outputs = convOp->getOutput(0);
             fillTensorWithFixedData(outputs);
             TiledTensor outputTiles = generateTiledTensorAndCopyData(
-                    outputs, config.outputs, { 0, 2, 0, 0 }, convOp);
+                    outputs, config.outputs, convOp);
             REQUIRE(outputTiles.size() == 256 / 8);
             for (auto i = outputTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(outputTiles[i]->getShape().dims() ==
@@ -377,14 +387,13 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
         REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 8, 8, 56 });
 
         SECTION("Generated tiles have correct shape and data") {
-            TiledTensor inputTiles = generateTiledTensorAndCopyData(
-                    inputs, config.inputs, { 0, 2, 0, 0 }, convOp);
+            TiledTensor inputTiles = generateInputTiles(convOp, config.inputs);
             REQUIRE(inputTiles.size() == 1);
 
             auto weights = convOp->getInput(1);
             fillTensorWithFixedData(weights);
             TiledTensor weightTiles = generateTiledTensorAndCopyData(
-                    weights, config.weights, { 0, 0, 0, 0 }, convOp);
+                    weights, config.weights, convOp);
             // 256 output channels in groups of 56 means 4 groups of 56 and 1
             // group of 32 -> total of 5.
             // 256 input channels in groups of 32 -> 8 groups of 32.
@@ -406,7 +415,7 @@ TEST_CASE_METHOD(SmaugTest, "Basic tiling tests", "[smvtiling]") {
             auto outputs = convOp->getOutput(0);
             fillTensorWithFixedData(outputs);
             TiledTensor outputTiles = generateTiledTensorAndCopyData(
-                    outputs, config.outputs, { 0, 2, 0, 0 }, convOp);
+                    outputs, config.outputs, convOp);
             REQUIRE(outputTiles.size() == ceil(256.0 / 56));
             for (auto i = outputTiles.startIndex(); !i.end(); ++i) {
                 const std::vector<int>& tileDims =
@@ -449,7 +458,7 @@ TEST_CASE_METHOD(SmaugTest, "Kernel shape tests", "[smvtiling]") {
             auto weights = convOp->getInput(1);
             fillTensorWithFixedData(weights);
             TiledTensor weightTiles = generateTiledTensorAndCopyData(
-                    weights, config.weights, { 0, 0, 0, 0 }, convOp);
+                    weights, config.weights, convOp);
             REQUIRE(weightTiles.size() == 1);
             // Don't need to verify shape again.
             verifyTensorWithFixedData(weightTiles[0], 0);
@@ -457,7 +466,7 @@ TEST_CASE_METHOD(SmaugTest, "Kernel shape tests", "[smvtiling]") {
             auto outputs = convOp->getOutput(0);
             fillTensorWithFixedData(outputs);
             TiledTensor outputTiles = generateTiledTensorAndCopyData(
-                    outputs, config.outputs, { 0, 0, 0, 0 }, convOp);
+                    outputs, config.outputs, convOp);
             REQUIRE(outputTiles.size() == 128 / 16);
             for (auto i = outputTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(outputTiles[i]->getShape().dims() ==
@@ -483,8 +492,7 @@ TEST_CASE_METHOD(SmaugTest, "Kernel shape tests", "[smvtiling]") {
 
         SECTION("Inputs and outputs tiled DimNH, weights tiled DimN") {
             fillTensorWithFixedData(inputs);
-            TiledTensor inputTiles = generateTiledTensorAndCopyData(
-                    inputs, config.inputs, { 0, 1, 0, 0 }, convOp);
+            TiledTensor inputTiles = generateInputTiles(convOp, config.inputs);
             // Halo size 1: 0-1, 1-2, 2-3, ... 30-31, total 31 tiles.
             REQUIRE(inputTiles.size() == 31);
             for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
@@ -496,7 +504,7 @@ TEST_CASE_METHOD(SmaugTest, "Kernel shape tests", "[smvtiling]") {
             auto weights = convOp->getInput(1);
             fillTensorWithFixedData(weights);
             TiledTensor weightTiles = generateTiledTensorAndCopyData(
-                    weights, config.weights, { 0, 0, 0, 0 }, convOp);
+                    weights, config.weights, convOp);
             REQUIRE(weightTiles.size() == 8);
             for (int i = 0; i < weightTiles.size(); ++i)
                 verifyTensorWithFixedData(weightTiles[0], 0);
@@ -549,8 +557,7 @@ TEST_CASE_METHOD(SmaugTest, "Kernel shape tests", "[smvtiling]") {
 
         SECTION("Test if the halo region of 4 is handled") {
             fillTensorWithFixedData(inputs);
-            TiledTensor inputTiles = generateTiledTensorAndCopyData(
-                    inputs, config.inputs, { 0, 4, 0, 0 }, convOp);
+            TiledTensor inputTiles = generateInputTiles(convOp, config.inputs);
             // Halo size 2: 0-15, 12-27, 24-39, 36-51, 48-63
             REQUIRE(inputTiles.size() == 5);
             for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
@@ -562,7 +569,7 @@ TEST_CASE_METHOD(SmaugTest, "Kernel shape tests", "[smvtiling]") {
             auto weights = convOp->getInput(1);
             fillTensorWithFixedData(weights);
             TiledTensor weightTiles = generateTiledTensorAndCopyData(
-                    weights, config.weights, { 0, 0, 0, 0 }, convOp);
+                    weights, config.weights, convOp);
             REQUIRE(weightTiles.size() == 2);
             for (auto i = weightTiles.startIndex(); !i.end(); ++i)
                 verifyTensorWithFixedData(weightTiles[0], 0);
@@ -600,7 +607,58 @@ TEST_CASE_METHOD(SmaugTest, "Stride size tests", "[smvtiling]") {
     auto convOp = new SmvConvolutionOp("conv", workspace());
     convOp->setPadding(ValidPadding);
 
-    SECTION("2x2 strides") {
+    SECTION("2x2 strides, 1x1 kernels") {
+        // Inputs and outputs use DimNH, None for weights.
+        convOp->setPadding(SamePadding);
+        convOp->setStride(2, 2);
+        TensorShape inputShape(
+                { 1, 56, 56, 256 }, DataLayout::NHWC, SmvBackend::Alignment);
+        Tensor* inputs = new Tensor("inputs", inputShape);
+        workspace()->addTensor(inputs);
+        convOp->setInput(inputs, 0);
+        convOp->setWeightDims(1, 1, 512);
+        convOp->createAllTensors();
+        allocateAllTensors<float16>(convOp);
+        TilingConfig config = TilingOptimizer::computeBasicTileShapes(convOp);
+        REQUIRE(config.inputs.dims() == std::vector<int>{ 1, 1, 56, 256 });
+        REQUIRE(config.weights.dims() == std::vector<int>{ 64, 1, 1, 256 });
+        REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 1, 28, 64 });
+
+        SECTION("Generated tiles have correct shape and data") {
+            fillTensorWithFixedData(inputs);
+            TiledTensor inputTiles = generateInputTiles(convOp, config.inputs);
+            REQUIRE(inputTiles.size() == 28);
+            for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
+                auto& testDims = inputTiles[i]->getShape().dims();
+                // Since this is 1x1 kernel, all the tiles have the same
+                // dimensions.
+                REQUIRE(testDims == config.inputs.dims());
+                verifyTensorWithFixedData(inputTiles[i], 0);
+            }
+
+            auto weights = convOp->getInput(1);
+            fillTensorWithFixedData(weights);
+            TiledTensor weightTiles = generateTiledTensorAndCopyData(
+                    weights, config.weights, convOp);
+            REQUIRE(weightTiles.size() == 8);
+            verifyTensorWithFixedData(weightTiles[0], 0);
+
+            auto outputs = convOp->getOutput(0);
+            fillTensorWithFixedData(outputs);
+            TiledTensor outputTiles =
+                    TilingOptimizer::generateRowwiseOutputTiledTensor(
+                            convOp, inputTiles, weightTiles, config.outputs,
+                            outputs, true);
+            REQUIRE(outputTiles.size() == 28 * 8);
+            for (auto i = outputTiles.startIndex(); !i.end(); ++i) {
+                auto& testDims = outputTiles[i]->getShape().dims();
+                REQUIRE(testDims == config.outputs.dims());
+                verifyTensorWithFixedData(outputTiles[i], i % 8 * 64);
+            }
+        }
+    }
+
+    SECTION("2x2 strides, 3x3 kernels") {
         // Inputs and outputs use DimNH, None for weights.
         convOp->setStride(2, 2);
         TensorShape inputShape(
@@ -618,8 +676,7 @@ TEST_CASE_METHOD(SmaugTest, "Stride size tests", "[smvtiling]") {
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
-            TiledTensor inputTiles = generateTiledTensorAndCopyData(
-                    inputs, config.inputs, { 0, 1, 0, 0 }, convOp);
+            TiledTensor inputTiles = generateInputTiles(convOp, config.inputs);
             REQUIRE(inputTiles.size() == 11);
             for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
                 auto& testDims = inputTiles[i]->getShape().dims();
@@ -634,7 +691,7 @@ TEST_CASE_METHOD(SmaugTest, "Stride size tests", "[smvtiling]") {
             auto weights = convOp->getInput(1);
             fillTensorWithFixedData(weights);
             TiledTensor weightTiles = generateTiledTensorAndCopyData(
-                    weights, config.weights, { 0, 0, 0, 0 }, convOp);
+                    weights, config.weights, convOp);
             REQUIRE(weightTiles.size() == 1);
             verifyTensorWithFixedData(weightTiles[0], 0);
 
@@ -657,6 +714,86 @@ TEST_CASE_METHOD(SmaugTest, "Stride size tests", "[smvtiling]") {
         }
     }
 
+    SECTION("2x2 strides, 7x7 kernels") {
+        // Inputs and outputs use DimNH, None for weights.
+        convOp->setPadding(SamePadding);
+        convOp->setStride(2, 2);
+        TensorShape inputShape(
+                { 1, 225, 225, 3 }, DataLayout::NHWC, SmvBackend::Alignment);
+        Tensor* inputs = new Tensor("inputs", inputShape);
+        workspace()->addTensor(inputs);
+        convOp->setInput(inputs, 0);
+        convOp->setWeightDims(7, 7, 64);
+        convOp->createAllTensors();
+        allocateAllTensors<float16>(convOp);
+        TilingConfig config = TilingOptimizer::computeBasicTileShapes(convOp);
+        REQUIRE(config.inputs.dims() == std::vector<int>{ 1, 9, 225, 3 });
+        REQUIRE(config.weights.dims() == std::vector<int>{ 40, 7, 7, 3 });
+
+        SECTION("Generated tiles have correct shape and data") {
+            fillTensorWithFixedData(inputs);
+            TiledTensor inputTiles = generateInputTiles(convOp, config.inputs);
+            REQUIRE(inputTiles.size() == 56);
+            for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
+                auto& testDims = inputTiles[i]->getShape().dims();
+                if (i == 0) {
+                    // First tile has a different shape.
+                    REQUIRE(testDims == std::vector<int>{ 1, 8, 225, 3 });
+                } else if (i == 55) {
+                    // Last tile has a different shape.
+                    REQUIRE(testDims == std::vector<int>{ 1, 6, 225, 3 });
+                } else {
+                    REQUIRE(testDims == config.inputs.dims());
+                }
+                verifyTensorWithFixedData(inputTiles[i], 0);
+            }
+
+            auto weights = convOp->getInput(1);
+            fillTensorWithFixedData(weights);
+            TiledTensor weightTiles = generateTiledTensorAndCopyData(
+                    weights, config.weights, convOp);
+            REQUIRE(weightTiles.size() == 2);
+            REQUIRE(weightTiles[0]->getShape().dims() ==
+                    std::vector<int>{ 40, 7, 7, 3 });
+            REQUIRE(weightTiles[1]->getShape().dims() ==
+                    std::vector<int>{ 24, 7, 7, 3 });
+            verifyTensorWithFixedData(weightTiles[0], 0);
+            verifyTensorWithFixedData(weightTiles[1], 0);
+
+            auto outputs = convOp->getOutput(0);
+            fillTensorWithFixedData(outputs);
+            TiledTensor outputTiles =
+                    TilingOptimizer::generateRowwiseOutputTiledTensor(
+                            convOp, inputTiles, weightTiles, config.outputs,
+                            outputs, true);
+            REQUIRE(outputTiles.size() == 112);
+            for (auto i = outputTiles.startIndex(); !i.end(); ++i) {
+                auto& testDims = outputTiles[i]->getShape().dims();
+                if (i % 2 == 0) {
+                    // First channelwise tile (40 channels).
+                    if (i  == 0) {
+                        // First rowwise tile has a different shape (with bottom
+                        // padding, the last rowwise tile happens to have the
+                        // same number of rows as inner tiles).
+                        REQUIRE(testDims == std::vector<int>{ 1, 3, 113, 40 });
+                    } else {
+                        REQUIRE(testDims == std::vector<int>{ 1, 2, 113, 40 });
+                    }
+                    verifyTensorWithFixedData(outputTiles[i], 0);
+                } else {
+                    // Second channelwise tile (24 channels).
+                    if (i == 1) {
+                        // First rowwise tile has a different shape.
+                        REQUIRE(testDims == std::vector<int>{ 1, 3, 113, 24 });
+                    } else {
+                        REQUIRE(testDims == std::vector<int>{ 1, 2, 113, 24 });
+                    }
+                    verifyTensorWithFixedData(outputTiles[i], 40);
+                }
+            }
+        }
+    }
+
     SECTION("3x3 strides") {
         // Inputs and outputs use DimNH, None for weights.
         convOp->setStride(3, 3);
@@ -675,8 +812,7 @@ TEST_CASE_METHOD(SmaugTest, "Stride size tests", "[smvtiling]") {
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
-            TiledTensor inputTiles = generateTiledTensorAndCopyData(
-                    inputs, config.inputs, { 0, 2, 0, 0 }, convOp);
+            TiledTensor inputTiles = generateInputTiles(convOp, config.inputs);
             REQUIRE(inputTiles.size() == 11);
             for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
                 auto& testDims = inputTiles[i]->getShape().dims();
@@ -691,7 +827,7 @@ TEST_CASE_METHOD(SmaugTest, "Stride size tests", "[smvtiling]") {
             auto weights = convOp->getInput(1);
             fillTensorWithFixedData(weights);
             TiledTensor weightTiles = generateTiledTensorAndCopyData(
-                    weights, config.weights, { 0, 0, 0, 0 }, convOp);
+                    weights, config.weights, convOp);
             REQUIRE(weightTiles.size() == 1);
             verifyTensorWithFixedData(weightTiles[0], 0);
 
