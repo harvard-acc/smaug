@@ -18,6 +18,14 @@ void mapArrayToAccel(unsigned reqCode,
     }
 }
 
+void setArrayMemTypeIfSimulating(unsigned reqCode,
+                                 const char* arrayName,
+                                 MemoryType memType) {
+    if (runningInSimulation) {
+        setArrayMemoryType(reqCode, arrayName, memType);
+    }
+}
+
 }  // namespace smaug
 
 #ifdef __cplusplus

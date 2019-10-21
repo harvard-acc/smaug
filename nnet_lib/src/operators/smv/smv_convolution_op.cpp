@@ -44,9 +44,12 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
     std::vector<int> lastReadInputTileIdx(numAcceleratorsAvailable, -1);
     std::vector<int> lastReadWeightTileIdx(numAcceleratorsAvailable, -1);
     for (int i = 0; i < numAcceleratorsAvailable; i++) {
-        setArrayMemoryType(accelId + i, "host_inputs", getInputsMemType());
-        setArrayMemoryType(accelId + i, "host_weights", getWeightsMemType());
-        setArrayMemoryType(accelId + i, "host_results", getOutputsMemType());
+        setArrayMemTypeIfSimulating(
+                accelId + i, "host_inputs", getInputsMemType());
+        setArrayMemTypeIfSimulating(
+                accelId + i, "host_weights", getWeightsMemType());
+        setArrayMemTypeIfSimulating(
+                accelId + i, "host_results", getOutputsMemType());
     }
     int currAccelIdx = 0;
     for (int N = 0; N < inputIfmapTiles; N++) {

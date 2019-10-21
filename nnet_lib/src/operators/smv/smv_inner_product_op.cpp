@@ -38,11 +38,11 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
     auto weightIdx = weights.startIndex();
     auto outputIdx = outputs.startIndex();
     for (int i = 0; i < numAcceleratorsAvailable; i++) {
-        setArrayMemoryType(
+        setArrayMemTypeIfSimulating(
                 smv::kInnerProductHw + i, "host_a", getInputsMemType());
-        setArrayMemoryType(
+        setArrayMemTypeIfSimulating(
                 smv::kInnerProductHw + i, "host_b", getWeightsMemType());
-        setArrayMemoryType(
+        setArrayMemTypeIfSimulating(
                 smv::kInnerProductHw + i, "host_results", getOutputsMemType());
     }
     SmvAcceleratorPool accelPool(numAcceleratorsAvailable);

@@ -82,6 +82,11 @@ void mapArrayToAccel(unsigned reqCode,
                      const char* arrayName,
                      void* baseAddr,
                      size_t size);
+
+void setArrayMemTypeIfSimulating(unsigned reqCode,
+                                 const char* arrayName,
+                                 MemoryType memType);
+
 }  // namespace smaug
 #endif
 
