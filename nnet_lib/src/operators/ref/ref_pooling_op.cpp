@@ -23,6 +23,8 @@ void ref_max_pooling_nchw_treemax(float* input,
                                   int pool_row_stride,
                                   int pool_col_stride) {
     int total_pool_size = pool_row_size * pool_col_size;
+    int end_row = img_rows - pool_row_size + 1;
+    int end_col = img_cols - pool_col_size + 1;
     float elems[total_pool_size];
     int elem_idx;
 
@@ -35,10 +37,10 @@ void ref_max_pooling_nchw_treemax(float* input,
         for (int h = 0; h < img_chans; h++) {
             int oi = 0;
             maxpool_input_rows:
-            for (int i = 0; i < img_rows; i += pool_row_stride) {
+            for (int i = 0; i < end_row; i += pool_row_stride) {
                 int oj = 0;
                 maxpool_input_cols:
-                for (int j = 0; j < img_cols; j += pool_col_stride) {
+                for (int j = 0; j < end_col; j += pool_col_stride) {
                     elem_idx = 0;
                     maxpool_tree_outer:
                     // Iterate over the pooling field.
@@ -85,6 +87,8 @@ void ref_max_pooling_nhwc_treemax(float* input,
                                   int pool_row_stride,
                                   int pool_col_stride) {
     int total_pool_size = pool_row_size * pool_col_size;
+    int end_row = img_rows - pool_row_size + 1;
+    int end_col = img_cols - pool_col_size + 1;
     float elems[total_pool_size];
     int elem_idx;
 
@@ -97,10 +101,10 @@ void ref_max_pooling_nhwc_treemax(float* input,
         for (int h = 0; h < img_chans; h++) {
             int oi = 0;
             maxpool_input_rows:
-            for (int i = 0; i < img_rows; i += pool_row_stride) {
+            for (int i = 0; i < end_row; i += pool_row_stride) {
                 int oj = 0;
                 maxpool_input_cols:
-                for (int j = 0; j < img_cols; j += pool_col_stride) {
+                for (int j = 0; j < end_col; j += pool_col_stride) {
                     elem_idx = 0;
                     maxpool_tree_outer:
                     // Iterate over the pooling field.
@@ -146,6 +150,8 @@ void ref_max_pooling_nchw_itermax(float* input,
                                   int pool_col_size,
                                   int pool_row_stride,
                                   int pool_col_stride) {
+    int end_row = img_rows - pool_row_size + 1;
+    int end_col = img_cols - pool_col_size + 1;
     ARRAY_4D(float, _input, input, img_chans, img_rows, img_cols + img_pad);
     ARRAY_4D(float, _result, result, img_chans, res_rows, res_cols + res_pad);
 
@@ -155,10 +161,10 @@ void ref_max_pooling_nchw_itermax(float* input,
         for (int h = 0; h < img_chans; h++) {
             int oi = 0;
             maxpool_input_rows:
-            for (int i = 0; i < img_rows; i += pool_row_stride) {
+            for (int i = 0; i < end_row; i += pool_row_stride) {
                 int oj = 0;
                 maxpool_input_cols:
-                for (int j = 0; j < img_cols; j += pool_col_stride) {
+                for (int j = 0; j < end_col; j += pool_col_stride) {
                     float curr_max = -FLT_MAX;
                     maxpool_iter_outer:
                     for (int k = 0; k < pool_row_size; k++) {
@@ -193,6 +199,8 @@ void ref_max_pooling_nhwc_itermax(float* input,
                                   int pool_col_size,
                                   int pool_row_stride,
                                   int pool_col_stride) {
+    int end_row = img_rows - pool_row_size + 1;
+    int end_col = img_cols - pool_col_size + 1;
     ARRAY_4D(float, _input, input, img_rows, img_cols, img_chans + img_pad);
     ARRAY_4D(float, _result, result, res_rows, res_cols, img_chans + res_pad);
 
@@ -202,10 +210,10 @@ void ref_max_pooling_nhwc_itermax(float* input,
         for (int h = 0; h < img_chans; h++) {
             int oi = 0;
             maxpool_input_rows:
-            for (int i = 0; i < img_rows; i += pool_row_stride) {
+            for (int i = 0; i < end_row; i += pool_row_stride) {
                 int oj = 0;
                 maxpool_input_cols:
-                for (int j = 0; j < img_cols; j += pool_col_stride) {
+                for (int j = 0; j < end_col; j += pool_col_stride) {
                     float curr_max = -FLT_MAX;
                     maxpool_iter_outer:
                     for (int k = 0; k < pool_row_size; k++) {
@@ -240,6 +248,8 @@ void ref_avg_pooling_nchw(float* input,
                           int pool_col_size,
                           int pool_row_stride,
                           int pool_col_stride) {
+    int end_row = img_rows - pool_row_size + 1;
+    int end_col = img_cols - pool_col_size + 1;
     ARRAY_4D(float, _input, input, img_chans, img_rows, img_cols + img_pad);
     ARRAY_4D(float, _result, result, img_chans, res_rows, res_cols + res_pad);
     float recip_total_size = 1.0 / (pool_row_size * pool_col_size);
@@ -250,10 +260,10 @@ void ref_avg_pooling_nchw(float* input,
         for (int h = 0; h < img_chans; h++) {
             int oi = 0;
             maxpool_input_rows:
-            for (int i = 0; i < img_rows; i += pool_row_stride) {
+            for (int i = 0; i < end_row; i += pool_row_stride) {
                 int oj = 0;
                 maxpool_input_cols:
-                for (int j = 0; j < img_cols; j += pool_col_stride) {
+                for (int j = 0; j < end_col; j += pool_col_stride) {
                     float curr_sum = 0;
                     avgpool_iter_outer:
                     for (int k = 0; k < pool_row_size; k++) {
@@ -287,6 +297,8 @@ void ref_avg_pooling_nhwc(float* input,
                           int pool_col_size,
                           int pool_row_stride,
                           int pool_col_stride) {
+    int end_row = img_rows - pool_row_size + 1;
+    int end_col = img_cols - pool_col_size + 1;
     ARRAY_4D(float, _input, input, img_rows, img_cols, img_chans + img_pad);
     ARRAY_4D(float, _result, result, res_rows, res_cols, img_chans + res_pad);
     float recip_total_size = 1.0 / (pool_row_size * pool_col_size);
@@ -297,10 +309,10 @@ void ref_avg_pooling_nhwc(float* input,
         for (int h = 0; h < img_chans; h++) {
             int oi = 0;
             maxpool_input_rows:
-            for (int i = 0; i < img_rows; i += pool_row_stride) {
+            for (int i = 0; i < end_row; i += pool_row_stride) {
                 int oj = 0;
                 maxpool_input_cols:
-                for (int j = 0; j < img_cols; j += pool_col_stride) {
+                for (int j = 0; j < end_col; j += pool_col_stride) {
                     float curr_sum = 0;
                     avgpool_iter_outer:
                     for (int k = 0; k < pool_row_size; k++) {
