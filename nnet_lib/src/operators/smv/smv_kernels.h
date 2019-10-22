@@ -50,7 +50,8 @@ void smv_matrix_multiply_transpose_nc_vec_fxp(float16* host_a,
                                               bool read_inputs,
                                               bool send_results,
                                               activation_type act_function,
-                                              activation_param_t act_params);
+                                              activation_param_t act_params,
+                                              SamplingInfo* sampling);
 
 void smv_maxpooling_nhwc_vec_fxp(float16* host_inputs,
                                  float16* host_results,

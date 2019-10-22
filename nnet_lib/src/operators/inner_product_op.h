@@ -17,7 +17,8 @@ class InnerProductOp : public FusedActivationOp {
     InnerProductOp(const std::string& name, Workspace* workspace)
             : FusedActivationOp(name, OpType::InnerProduct, workspace),
               numOutputs(0), weightsTensorsCreated(false),
-              outputTensorsCreated(false), weightsName(name + "/weights") {
+              outputTensorsCreated(false), weightsName(name + "/weights"),
+              sampling({ NoSampling, 1 }) {
         inputs.resize(kNumInputs, nullptr);
         outputs.resize(kNumOutputs, nullptr);
     }
@@ -92,6 +93,11 @@ class InnerProductOp : public FusedActivationOp {
         return { inputs[Weights] };
     }
 
+    bool isSamplingSupported() const override { return true; }
+    void setSamplingInfo(const SamplingInfo& _sampling) override {
+        sampling = _sampling;
+    }
+
    public:
     enum { Inputs, Weights, kNumInputs };
     enum { Outputs, kNumOutputs };
@@ -101,6 +107,7 @@ class InnerProductOp : public FusedActivationOp {
     bool weightsTensorsCreated;
     bool outputTensorsCreated;
     std::string weightsName;
+    SamplingInfo sampling;
 };
 
 REGISTER_SPECIAL_OP(InnerProductOp, ReferenceBackend);

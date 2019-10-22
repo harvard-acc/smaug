@@ -67,7 +67,8 @@ void smv_matrix_multiply_transpose_nc_vec_fxp(float16* host_a,
                                               bool read_inputs,
                                               bool send_results,
                                               activation_type act_function,
-                                              activation_param_t act_params) {
+                                              activation_param_t act_params,
+                                              SamplingInfo* sampling) {
     int a_width = a_dims[1];
     int a_height = a_dims[0];
     int b_width = b_dims[1];
@@ -93,6 +94,18 @@ void smv_matrix_multiply_transpose_nc_vec_fxp(float16* host_a,
         host_load_fp16(a, host_a, a_size, 0, 0);
     host_load_fp16(b, host_b, b_size, 0, 0);
 
+    // We sample on the FC kernel only if the highest sampling level is used.
+    int b_col_sample = b_width_vec;
+    int b_col_total_iters = FRAC_CEIL(b_width_vec, NUM_MACC_INSTS);
+    int b_col_sample_iters = b_col_total_iters;
+    int sample_num = sampling->num_sample_iterations;
+    if (sampling->level >= VeryHigh) {
+        // Pipelined loops need at minimum 2 sampled iterations.
+        b_col_sample_iters = min2(b_col_sample_iters, max2(2, sample_num));
+        b_col_sample = b_col_sample_iters * NUM_MACC_INSTS;
+    }
+    setSamplingFactor("b_col", b_col_total_iters * 1.0 / b_col_sample_iters);
+
     a_act:
     for (int a_act = 0; a_act < a_height; a_act++) {
         b_row:
@@ -107,7 +120,7 @@ void smv_matrix_multiply_transpose_nc_vec_fxp(float16* host_a,
             }
 
             b_col:
-            for (int b_col = 0; b_col < b_width_vec; b_col += NUM_MACC_INSTS) {
+            for (int b_col = 0; b_col < b_col_sample; b_col += NUM_MACC_INSTS) {
                 // To work around an Aladdin dependence analysis bug where
                 // InsertElement operations on vector types can be
                 // serialized across unrolled loop iterations, we use a

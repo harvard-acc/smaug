@@ -124,7 +124,7 @@ void SmvInnerProductOp::runNWA(TiledTensor& inputs,
                         inputShape.getPadding(1), weightsShape.getPadding(1),
                         outputShape.getPadding(1), actStart, finishedNeurons,
                         accumulate, readInputs, sendOutputs, actInfo.function,
-                        actInfo.params);
+                        actInfo.params, &sampling);
                 accelPool.addFinishFlag(currAccelIdx, std::move(finishFlag));
 
                 actOffset += weightsTile->getShape()[1];
