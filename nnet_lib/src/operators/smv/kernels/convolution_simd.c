@@ -125,6 +125,10 @@ void smv_conv3d_nhwc_vec_fxp(float16* host_inputs,
     int chan_block_sample = num_chan_blocks + 1;
     int output_row_sample = end_row;
     int output_col_sample = end_col;
+    int output_row_total_iters = FRAC_CEIL(end_row, row_stride);
+    int output_col_total_iters = FRAC_CEIL(end_col, col_stride);
+    int output_row_sample_iters = output_row_total_iters;
+    int output_col_sample_iters = output_col_total_iters;
     int sample_num = sampling->num_sample_iterations;
     if (sampling->level >= Low)
         pe_block_sample = min2(pe_block_sample, sample_num);
@@ -135,9 +139,12 @@ void smv_conv3d_nhwc_vec_fxp(float16* host_inputs,
     if (sampling->level >= High)
         chan_block_sample = min2(chan_block_sample, sample_num);
     if (sampling->level >= VeryHigh) {
-        output_row_sample = min2(output_row_sample, sample_num);
+        output_row_sample_iters = min2(output_row_sample_iters, sample_num);
+        output_row_sample = output_row_sample_iters * row_stride;
         // Pipelined loops need at minimum 2 sampled iterations.
-        output_col_sample = min2(output_col_sample, max2(2, sample_num));
+        output_col_sample_iters =
+                min2(output_col_sample_iters, max2(2, sample_num));
+        output_col_sample = output_col_sample_iters * col_stride;
     }
     setSamplingFactor("ofmap_block_iteration",
                       (num_kernel_blocks + 1) * 1.0 / pe_block_sample);
@@ -145,8 +152,10 @@ void smv_conv3d_nhwc_vec_fxp(float16* host_inputs,
     setSamplingFactor("k_col", k_cols * 1.0 / kern_col_sample);
     setSamplingFactor(
             "pe_iteration", (num_chan_blocks + 1) * 1.0 / chan_block_sample);
-    setSamplingFactor("conv3d_row", end_row * 1.0 / output_row_sample);
-    setSamplingFactor("conv3d_col", end_col * 1.0 / output_col_sample);
+    setSamplingFactor("conv3d_row",
+                      output_row_total_iters * 1.0 / output_row_sample_iters);
+    setSamplingFactor("conv3d_col",
+                      output_col_total_iters * 1.0 / output_col_sample_iters);
 
     ofmap_block_iteration:
     for (int ofmap_iters = 0; ofmap_iters < pe_block_sample;
