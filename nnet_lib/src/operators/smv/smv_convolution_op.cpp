@@ -29,15 +29,10 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
     auto inputIdx = inputs.startIndex();
     auto weightIdx = weights.startIndex();
     auto outputIdx = outputs.startIndex();
-    // Padding sizes on the four boundaries of the input 2D feature map. Here we
-    // compute default padding sizes if no rowwise tiling is needed on the
-    // input. We handle rowwise tiling in the following loop nests.
-    int totalRowPad = (getPadding() == SamePadding) ? getWeightRows() - 1 : 0;
-    int totalColPad = (getPadding() == SamePadding) ? getWeightCols() - 1 : 0;
-    int topPad = FRAC_CEIL(totalRowPad, 2);
-    int bottomPad = totalRowPad - topPad;
-    int leftPad = FRAC_CEIL(totalColPad, 2);
-    int rightPad = totalColPad - leftPad;
+    int topPad = inputPadding[0];
+    int bottomPad = inputPadding[1];
+    int leftPad = inputPadding[2];
+    int rightPad = inputPadding[3];
     unsigned accelId = useSystolicArrayWhenAvailable ? smv::kSystolicArrayHw
                                                      : smv::kConvolutionHw;
     SmvAcceleratorPool accelPool(numAcceleratorsAvailable);

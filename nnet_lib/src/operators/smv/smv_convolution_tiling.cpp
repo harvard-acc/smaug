@@ -297,10 +297,11 @@ TiledTensor TilingOptimizer::generateRowwiseOutputTiledTensor(
     int weightCols = op->getWeightCols();
     bool samePadding = op->getPadding() == SamePadding;
     // For even-sized filtered, FRAC_CEIL is needed to correctly handle padding.
-    int topRowPad = samePadding ? FRAC_CEIL(weightRows - 1, 2) : 0;
-    int bottomRowPad = samePadding ? (weightRows - 1 - topRowPad) : 0;
-    int leftColPad = samePadding ? FRAC_CEIL(weightCols - 1, 2) : 0;
-    int rightColPad = samePadding ? (weightCols - 1 - leftColPad) : 0;
+    const std::vector<int>& inputPadding = op->getInputPadding();
+    int topRowPad = inputPadding[0];
+    int bottomRowPad = inputPadding[1];
+    int leftColPad = inputPadding[2];
+    int rightColPad = inputPadding[3];
     std::vector<int> numBlocksInDim{ inputShape[0], inputShape[1],
                                      inputShape[2], weightsShape[0] };
     // Due to stride > 1, there is a case where the last rowwise tile doesn't
