@@ -183,9 +183,10 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                         // to be sent back to the host.
                         bool sendResults = wC == weightChanTiles - 1;
 
+                        std::unique_ptr<volatile int> finishFlag;
                         if (useSystolicArrayWhenAvailable) {
                             // Invoke the systolic array if specified.
-                            invokeSystolicArrayKernel(
+                            finishFlag = invokeSystolicArrayKernel(
                                     accelId + currAccelIdx,
                                     inputTile->data<float16>(),
                                     weightsTile->data<float16>(),
@@ -199,25 +200,21 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                                     sendResults, &actInfo);
                         } else {
                             // Otherwise invoke the DLA-like kernel.
-                            std::unique_ptr<volatile int> finishFlag =
-                                    invokeKernelNoBlock(
-                                            currAccelIdx,
-                                            accelId + currAccelIdx,
-                                            smv_conv3d_nhwc_vec_fxp,
-                                            inputTile->data<float16>(),
-                                            weightsTile->data<float16>(),
-                                            outputTile->data<float16>(),
-                                            smv::spad0, smv::spad1, smv::spad2,
-                                            inputDims, weightsDims, outputDims,
-                                            inputShape.getPadding(3),
-                                            weightsShape.getPadding(3),
-                                            outputShape.getPadding(3),
-                                            inputHaloPad, getRowStride(),
-                                            getColStride(), ifmapStart,
-                                            kernStart, accumulate, readInputs,
-                                            readWeights, sendResults,
-                                            actInfo.function, actInfo.params,
-                                            &sampling);
+                            finishFlag = invokeKernelNoBlock(
+                                    currAccelIdx, accelId + currAccelIdx,
+                                    smv_conv3d_nhwc_vec_fxp,
+                                    inputTile->data<float16>(),
+                                    weightsTile->data<float16>(),
+                                    outputTile->data<float16>(), smv::spad0,
+                                    smv::spad1, smv::spad2, inputDims,
+                                    weightsDims, outputDims,
+                                    inputShape.getPadding(3),
+                                    weightsShape.getPadding(3),
+                                    outputShape.getPadding(3), inputHaloPad,
+                                    getRowStride(), getColStride(), ifmapStart,
+                                    kernStart, accumulate, readInputs,
+                                    readWeights, sendResults, actInfo.function,
+                                    actInfo.params, &sampling);
                             accelPool.addFinishFlag(
                                     currAccelIdx, std::move(finishFlag));
                         }
@@ -247,25 +244,26 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
     accelPool.joinAll();
 }
 
-void SmvConvolutionOp::invokeSystolicArrayKernel(unsigned accelId,
-                                                 float16* inputs,
-                                                 float16* weights,
-                                                 float16* outputs,
-                                                 int inputsDims[4],
-                                                 int weightsDims[4],
-                                                 int outputsDims[4],
-                                                 int inputsPad,
-                                                 int weightsPad,
-                                                 int outputPad,
-                                                 int inputHaloPad[4],
-                                                 int stride,
-                                                 int ifmapStart,
-                                                 int kernStart,
-                                                 bool accumulate,
-                                                 bool readInputs,
-                                                 bool readWeights,
-                                                 bool sendResults,
-                                                 ActivationInfo* actInfo) {
+std::unique_ptr<volatile int> SmvConvolutionOp::invokeSystolicArrayKernel(
+        unsigned accelId,
+        float16* inputs,
+        float16* weights,
+        float16* outputs,
+        int inputsDims[4],
+        int weightsDims[4],
+        int outputsDims[4],
+        int inputsPad,
+        int weightsPad,
+        int outputPad,
+        int inputHaloPad[4],
+        int stride,
+        int ifmapStart,
+        int kernStart,
+        bool accumulate,
+        bool readInputs,
+        bool readWeights,
+        bool sendResults,
+        ActivationInfo* actInfo) {
     // Note that if we are in trace mode, we should skip this gem5 accelerator.
 #ifndef TRACE_MODE
     assert(runningInSimulation && "The systolic array must be invoked in "
@@ -292,7 +290,10 @@ void SmvConvolutionOp::invokeSystolicArrayKernel(unsigned accelId,
     // activation type/params structures.
     memcpy(&params.act_type, &(actInfo->function), sizeof(activation_type));
     memcpy(&params.act_params, &(actInfo->params), sizeof(activation_param_t));
-    invokeSystolicArrayAndBlock(accelId, params);
+    return std::unique_ptr<volatile int>(
+            invokeSystolicArrayAndReturn(accelId, params));
+#else
+    return nullptr;
 #endif
 }
 
