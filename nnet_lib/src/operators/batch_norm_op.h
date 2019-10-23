@@ -29,7 +29,8 @@ class BatchNormOp : public FusedActivationOp {
     BatchNormOp(const std::string& name, Workspace* workspace)
             : FusedActivationOp(name, OpType::BatchNorm, workspace),
               meanName(name + "/mean"), varianceName(name + "/variance"),
-              gammaName(name + "/gamma"), betaName(name + "/beta") {
+              gammaName(name + "/gamma"), betaName(name + "/beta"),
+              sampling({ NoSampling, 1 }) {
         inputs.resize(kNumInputs, nullptr);
         outputs.resize(kNumOutputs, nullptr);
     }
@@ -105,11 +106,17 @@ class BatchNormOp : public FusedActivationOp {
         return { inputs[Mean], inputs[Variance], inputs[Gamma], inputs[Beta] };
     }
 
+    bool isSamplingSupported() const override { return true; }
+    void setSamplingInfo(const SamplingInfo& _sampling) override {
+        sampling = _sampling;
+    }
+
    protected:
     const std::string meanName;
     const std::string varianceName;
     const std::string gammaName;
     const std::string betaName;
+    SamplingInfo sampling;
 };
 
 REGISTER_SPECIAL_OP(BatchNormOp, ReferenceBackend);

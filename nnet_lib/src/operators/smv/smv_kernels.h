@@ -64,7 +64,8 @@ void smv_maxpooling_nhwc_vec_fxp(float16* host_inputs,
                                  int pool_cols,
                                  int row_stride,
                                  int col_stride,
-                                 int ofmap_start);
+                                 int ofmap_start,
+                                 SamplingInfo* sampling);
 
 void smv_avgpooling_nhwc_vec_fxp(float16* host_inputs,
                                  float16* host_results,
@@ -78,7 +79,8 @@ void smv_avgpooling_nhwc_vec_fxp(float16* host_inputs,
                                  int pool_cols,
                                  int row_stride,
                                  int col_stride,
-                                 int ofmap_start);
+                                 int ofmap_start,
+                                 SamplingInfo* sampling);
 
 void smv_batch_norm_post_fc_nc_vec_fxp(float16* host_inputs,
                                        float16* host_weights,
@@ -120,7 +122,8 @@ void smv_batch_norm_post_conv_nhwc_vec_fxp(float16* host_inpits,
                                            int weights_pad,
                                            int weights_start,
                                            activation_type act_function,
-                                           activation_param_t act_params);
+                                           activation_param_t act_params,
+                                           SamplingInfo* sampling);
 
 void smv_activation_fun_nc_vec_fxp(float16* host_inputs,
                                    float16* host_results,

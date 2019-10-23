@@ -74,7 +74,7 @@ void SmvPoolingOp::runNHC(TiledTensor& inputs, TiledTensor& outputs) {
                              inputShape.getPadding(3),
                              outputShape.getPadding(3), getPoolingSize().first,
                              getPoolingSize().second, getPoolingStride().first,
-                             getPoolingStride().second, ofmapStart);
+                             getPoolingStride().second, ofmapStart, &sampling);
 
                 ofmapOffset += inputTile->getShape()[3];
                 if (inputChanTiles == outputChanTiles) {

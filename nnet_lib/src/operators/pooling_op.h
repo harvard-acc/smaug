@@ -14,7 +14,8 @@ class PoolingOp : public Operator {
    public:
     PoolingOp(const std::string& name, OpType _opType, Workspace* workspace)
             : Operator(name, _opType, workspace), poolingRowSize(0),
-              poolingColSize(0), poolingRowStride(0), poolingColStride(0) {
+              poolingColSize(0), poolingRowStride(0), poolingColStride(0),
+              sampling({ NoSampling, 1 }) {
         inputs.resize(kNumInputs, nullptr);
         outputs.resize(kNumOutputs, nullptr);
     }
@@ -89,6 +90,11 @@ class PoolingOp : public Operator {
 
     void createAllTensors() override { createOutputTensors(); }
 
+    bool isSamplingSupported() const override { return true; }
+    void setSamplingInfo(const SamplingInfo& _sampling) override {
+        sampling = _sampling;
+    }
+
    protected:
     int calcOutputRows(int inputRows) const {
         return computeOutputDim(inputRows, poolingRowSize, poolingRowStride);
@@ -108,6 +114,7 @@ class PoolingOp : public Operator {
     int poolingColSize;
     int poolingRowStride;
     int poolingColStride;
+    SamplingInfo sampling;
 };
 
 template <typename Backend>

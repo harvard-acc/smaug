@@ -176,7 +176,8 @@ void smv_batch_norm_post_conv_nhwc_vec_fxp(float16* host_inputs,
                                            int weights_pad,
                                            int weights_start,
                                            activation_type act_function,
-                                           activation_param_t act_params) {
+                                           activation_param_t act_params,
+                                           SamplingInfo* sampling) {
     int inputs_nums = inputs_dims[0];
     int inputs_rows = inputs_dims[1];
     int inputs_cols = inputs_dims[2];
@@ -199,18 +200,36 @@ void smv_batch_norm_post_conv_nhwc_vec_fxp(float16* host_inputs,
     VEC_ARRAY_4D(v8fp_t, _results, results, inputs_rows, inputs_cols,
                  inputs_chans + inputs_pad);
 
+    // We sample on the bn kernel only if the highest sampling level is
+    // used.
+    int batch_sample = inputs_nums;
+    int chan_sample = inputs_chans_vec;
+    int row_sample = inputs_rows;
+    int col_sample = inputs_cols;
+    int sample_num = sampling->num_sample_iterations;
+    if (sampling->level >= VeryHigh) {
+        batch_sample = min2(batch_sample, sample_num);
+        chan_sample = min2(chan_sample, sample_num);
+        row_sample = min2(row_sample, sample_num);
+        col_sample = min2(col_sample, sample_num);
+    }
+    setSamplingFactor("bn_batch", inputs_nums * 1.0 / batch_sample);
+    setSamplingFactor("bn_chan", inputs_chans_vec * 1.0 / chan_sample);
+    setSamplingFactor("bn_row", inputs_rows * 1.0 / row_sample);
+    setSamplingFactor("bn_col", inputs_cols * 1.0 / col_sample);
+
     bn_batch:
-    for (int i = 0; i < inputs_nums; i++) {
+    for (int i = 0; i < batch_sample; i++) {
         bn_chan:
-        for (int h = 0; h < inputs_chans_vec; h++) {
+        for (int h = 0; h < chan_sample; h++) {
             v8fp_t mean = _weights[0][h + weights_start_vec];
             v8fp_t recip_sqrt_var = _weights[1][h + weights_start_vec];
             v8fp_t gamma = _weights[2][h + weights_start_vec];
             v8fp_t beta = _weights[3][h + weights_start_vec];
             bn_row:
-            for (int r = 0; r < inputs_rows; r++) {
+            for (int r = 0; r < row_sample; r++) {
                 bn_col:
-                for (int c = 0; c < inputs_cols; c++) {
+                for (int c = 0; c < col_sample; c++) {
                     _results[i][r][c][h] =
                             batch_norm_simd_op(_inputs[i][r][c][h],
                                                mean,
