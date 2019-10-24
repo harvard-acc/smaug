@@ -18,9 +18,11 @@ namespace smv {
 //   3) Dim-NC tiling. After tiling by N, tile channelwise. Do not tile in HW.
 //   4) Dim-NH tiling. After tiling by N, tile rowwise. Do not tile in WC.
 //   5) Dim-NW tiling. After tiling by N, tile columnwise. Do not tile in HC.
-//   6) Dim-NCH tiling. After tiling by N and channel dimensions, tile rowwise.
+//   6) Dim-NHW tiling. After tiling by N, tile rowwise and then columnwise. Do
+//      not tile in C.
+//   7) Dim-NCH tiling. After tiling by N and channel dimensions, tile rowwise.
 //      Do not tile in W.
-//   7) Dim-NCW tiling. After tiling by N and channel dimensions, tile
+//   8) Dim-NCW tiling. After tiling by N and channel dimensions, tile
 //      columnwise. Do not tile in H.
 //
 // Except Option 1, a minimum size for each dimension can be deduced from
@@ -56,6 +58,9 @@ TilingDims TilingOptimizerBase::findBestTilingDims(
         return TilingDims::DimNH;
     if (sizePerN * (minW * 1.0 / shape[wIdx]) <= maxTileSize)
         return TilingDims::DimNW;
+    if (sizePerN * (minH * 1.0 / shape[hIdx]) * (minW * 1.0 / shape[wIdx]) <=
+        maxTileSize)
+        return TilingDims::DimNHW;
     if (sizePerN * (minC * 1.0 / shape[cIdx]) * (minH * 1.0 / shape[hIdx]) <=
         maxTileSize)
         return TilingDims::DimNCH;

@@ -38,7 +38,9 @@ class SmvBatchNormOp : public BatchNormOp<SmvBackend> {
    // This is for post-FC batch norm.
    void runNA(TiledTensor& inputs, TiledTensor& weights, TiledTensor& outputs);
    // This is for post-Conv bath norm.
-   void runNWC(TiledTensor& inputs, TiledTensor& weights, TiledTensor& outputs);
+   void runNHWC(TiledTensor& inputs,
+                TiledTensor& weights,
+                TiledTensor& outputs);
 
    std::array<TiledTensor, 3> tiledTensors;
 };

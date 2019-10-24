@@ -94,15 +94,16 @@ void SmvBatchNormOp::runNA(TiledTensor& inputs,
 // The tile dispatcher for post-convolution batch norms. The tile iteration is
 // in the following order:
 // 1) N: batch-wise tiles in the inputs.
-// 2) W: column-wise tiles in the inputs.
-// 3) C: channel-wise tiles in the inputs.
-// TODO: Add row-wise tiling if we need it later.
-void SmvBatchNormOp::runNWC(TiledTensor& inputs,
-                            TiledTensor& weights,
-                            TiledTensor& outputs) {
+// 2) H: row-wise tiles in the inputs.
+// 3) W: column-wise tiles in the inputs.
+// 4) C: channel-wise tiles in the inputs.
+void SmvBatchNormOp::runNHWC(TiledTensor& inputs,
+                             TiledTensor& weights,
+                             TiledTensor& outputs) {
     // Ordinarily, we don't need to tile the weights.
     assert(weights.size() == 1);
     int inputNumTiles = inputs.getShape()[0];
+    int inputRowTiles = inputs.getShape()[1];
     int inputColTiles = inputs.getShape()[2];
     int inputChanTiles = inputs.getShape()[3];
     auto inputIdx = inputs.startIndex();
@@ -119,37 +120,40 @@ void SmvBatchNormOp::runNWC(TiledTensor& inputs,
     setArrayMemTypeIfSimulating(
             smv::kBatchNormHw, "host_results", getOutputsMemType());
     for (int N = 0; N < inputNumTiles; N++) {
-        for (int W = 0; W < inputColTiles; W++) {
-            // This keeps track of the channel offset of the inputs.
-            int ifmapOffset = 0;
-            for (int C = 0; C < inputChanTiles; C++) {
-                int inputTileIdx = inputIdx(N, 0, W, C);
-                int outputTileIdx = outputIdx(N, 0, W, C);
-                dout(1) << "Input: " << inputTileIdx << ", Weight: 0"
-                        << ", output: " << outputTileIdx << "\n";
-                Tensor* inputTile = inputs.getTileWithData(inputTileIdx);
-                Tensor* outputTile = outputs[outputTileIdx];
-                const TensorShape& inputShape = inputTile->getShape();
-                const TensorShape& outputShape = outputTile->getShape();
-                mapArrayToAccel(smv::kBatchNormHw, "host_inputs",
-                                inputTile->data<float16>(),
-                                inputShape.storageSize() * sizeof(float16));
-                mapArrayToAccel(smv::kBatchNormHw, "host_results",
-                                outputTile->data<float16>(),
-                                outputShape.storageSize() * sizeof(float16));
-                int inputDims[4] = { inputShape[0], inputShape[1],
-                                     inputShape[2], inputShape[3] };
+        for (int H = 0; H < inputRowTiles; H++) {
+            for (int W = 0; W < inputColTiles; W++) {
+                // This keeps track of the channel offset of the inputs.
+                int ifmapOffset = 0;
+                for (int C = 0; C < inputChanTiles; C++) {
+                    int inputTileIdx = inputIdx(N, H, W, C);
+                    int outputTileIdx = outputIdx(N, H, W, C);
+                    dout(1) << "Input: " << inputTileIdx << ", Weight: 0"
+                            << ", output: " << outputTileIdx << "\n";
+                    Tensor* inputTile = inputs.getTileWithData(inputTileIdx);
+                    Tensor* outputTile = outputs[outputTileIdx];
+                    const TensorShape& inputShape = inputTile->getShape();
+                    const TensorShape& outputShape = outputTile->getShape();
+                    mapArrayToAccel(smv::kBatchNormHw, "host_inputs",
+                                    inputTile->data<float16>(),
+                                    inputShape.storageSize() * sizeof(float16));
+                    mapArrayToAccel(
+                            smv::kBatchNormHw, "host_results",
+                            outputTile->data<float16>(),
+                            outputShape.storageSize() * sizeof(float16));
+                    int inputDims[4] = { inputShape[0], inputShape[1],
+                                         inputShape[2], inputShape[3] };
 
-                invokeKernel(smv::kBatchNormHw,
-                             smv_batch_norm_post_conv_nhwc_vec_fxp,
-                             inputTile->data<float16>(),
-                             weightTile->data<float16>(),
-                             outputTile->data<float16>(), smv::spad0,
-                             smv::spad1, smv::spad2, inputDims, weightShape[1],
-                             inputShape.getPadding(3),
-                             weightShape.getPadding(1), ifmapOffset,
-                             actInfo.function, actInfo.params, &sampling);
-                ifmapOffset += inputShape[3];
+                    invokeKernel(smv::kBatchNormHw,
+                                 smv_batch_norm_post_conv_nhwc_vec_fxp,
+                                 inputTile->data<float16>(),
+                                 weightTile->data<float16>(),
+                                 outputTile->data<float16>(), smv::spad0,
+                                 smv::spad1, smv::spad2, inputDims,
+                                 weightShape[1], inputShape.getPadding(3),
+                                 weightShape.getPadding(1), ifmapOffset,
+                                 actInfo.function, actInfo.params, &sampling);
+                    ifmapOffset += inputShape[3];
+                }
             }
         }
     }
@@ -190,7 +194,7 @@ void SmvBatchNormOp::run() {
     if (isPostConv) {
         assert(inputShape.getLayout() == DataLayout::NHWC);
         assert(outputShape.getLayout() == DataLayout::NHWC);
-        runNWC(tiledTensors[0], tiledTensors[1], tiledTensors[2]);
+        runNHWC(tiledTensors[0], tiledTensors[1], tiledTensors[2]);
     } else {
         assert(inputShape.getLayout() == DataLayout::NC);
         assert(outputShape.getLayout() == DataLayout::NC);

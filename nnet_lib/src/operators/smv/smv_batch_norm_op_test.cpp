@@ -83,8 +83,11 @@ TEST_CASE_METHOD(SmvBatchNormOpTest,
                  "[smvpool]") {
     SECTION("No tiling required") { doTest({ 1, 32, 32, 16 }); }
     SECTION("DimNC tiling") { doTest({ 1, 16, 16, 128 }); }
-    SECTION("DimNW tiling") { doTest({ 1, 64, 64, 32 }); }
-    SECTION("DimNCW tiling") { doTest({ 1, 128, 128, 64 }); }
+    SECTION("DimNH tiling") { doTest({ 1, 64, 64, 32 }); }
+    SECTION("DimNW tiling") { doTest({ 1, 64, 1024, 32 }); }
+    SECTION("DimNHW tiling") { doTest({ 1, 128, 128, 64 }); }
+    SECTION("DimNCH tiling") { doTest({ 1, 64, 64, 512 }); }
+    SECTION("DimNCW tiling") { doTest({ 1, 64, 512, 512 }); }
 }
 
 TEST_CASE_METHOD(SmvBatchNormOpTest, "SMV Post-FC Batch Norm", "[smvpool]") {
@@ -97,8 +100,11 @@ TEST_CASE_METHOD(SmvBatchNormOpTest,
                  "[smvpool]") {
     SECTION("No tiling required") { doFusionTest({ 1, 32, 32, 16 }); }
     SECTION("DimNC tiling") { doFusionTest({ 1, 16, 16, 128 }); }
-    SECTION("DimNW tiling") { doFusionTest({ 1, 64, 64, 32 }); }
-    SECTION("DimNCW tiling") { doFusionTest({ 1, 128, 128, 64 }); }
+    SECTION("DimNH tiling") { doFusionTest({ 1, 64, 64, 32 }); }
+    SECTION("DimNW tiling") { doFusionTest({ 1, 64, 1024, 32 }); }
+    SECTION("DimNHW tiling") { doFusionTest({ 1, 128, 128, 64 }); }
+    SECTION("DimNCH tiling") { doFusionTest({ 1, 64, 64, 512 }); }
+    SECTION("DimNCW tiling") { doFusionTest({ 1, 64, 512, 512 }); }
 }
 
 TEST_CASE_METHOD(SmvBatchNormOpTest,

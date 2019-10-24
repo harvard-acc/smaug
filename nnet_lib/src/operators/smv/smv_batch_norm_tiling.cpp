@@ -25,7 +25,7 @@ std::array<TilingDims, 2> TilingOptimizer::determineBestTilingDims(
         bestInputTilingDims = findBestTilingDims(
                 inputShape,
                 maxTileSize,
-                { 1, inputShape[1], kVectorSize, kVectorSize });
+                { 1, kVectorSize, kVectorSize, kVectorSize });
     } else {
         bestInputTilingDims =
                 findBestTilingDims(inputShape, maxTileSize, { 1, kVectorSize });
@@ -122,16 +122,18 @@ void TilingOptimizer::enumPostConvTilingConfigs(
         std::list<TilingConfig>& fullConfigs) {
     TilingDims inputTilingDims = strategies[0];
     TilingDims weightTilingDims = strategies[1];
-    // Supported tiling dims: DimN, DimNC, DimNW and DimNCW for inputs. None for
-    // weights for now. For a 32KB weights spad, it would mean the weights have
-    // more than 4096 channels if tiling is required.
+    // Supported tiling dims: DimN, DimNC, DimNH, DimNW, DimNHW, DimNCH and
+    // DimNCW for inputs. None for weights for now. For a 32KB weights spad, it
+    // would mean the weights have more than 4096 channels if tiling is
+    // required.
     // TODO: add other tiling dims for weights if we need that later.
     // Enumerate all input shapes that fit and then fill the
     // tiling configurations with weights and outputs. For all tiling strategy,
     // compute the total SRAM utilization. The highest one is the chosen one.
     assert(inputTilingDims == None || inputTilingDims == DimN ||
-           inputTilingDims == DimNC || inputTilingDims == DimNW ||
-           inputTilingDims == DimNCW);
+           inputTilingDims == DimNC || inputTilingDims == DimNH ||
+           inputTilingDims == DimNW || inputTilingDims == DimNHW ||
+           inputTilingDims == DimNCH || inputTilingDims == DimNCW);
     assert(weightTilingDims == None);
     std::vector<TensorShape> inputsConfigs;
     if (inputTilingDims == DimN) {
@@ -151,6 +153,15 @@ void TilingOptimizer::enumPostConvTilingConfigs(
                                   minShape,
                                   { 1, 1, 1, kVectorSize },
                                   inputsConfigs);
+    } else if (inputTilingDims == DimNH) {
+        std::vector<int> minShape = inputsShape.dims();
+        minShape[0] = 1;
+        minShape[1] = kVectorSize;
+        enum4DTensorTilingConfigs(inputsShape,
+                                  maxTileSize,
+                                  minShape,
+                                  { 1, kVectorSize, 1, 1 },
+                                  inputsConfigs);
     } else if (inputTilingDims == DimNW) {
         std::vector<int> minShape = inputsShape.dims();
         minShape[0] = 1;
@@ -159,6 +170,22 @@ void TilingOptimizer::enumPostConvTilingConfigs(
                                   maxTileSize,
                                   minShape,
                                   { 1, 1, kVectorSize, 1 },
+                                  inputsConfigs);
+    } else if (inputTilingDims == DimNHW) {
+        std::vector<int> minShape = { 1, kVectorSize, kVectorSize,
+                                      inputsShape[3] };
+        enum4DTensorTilingConfigs(inputsShape,
+                                  maxTileSize,
+                                  minShape,
+                                  { 1, kVectorSize, kVectorSize, 1 },
+                                  inputsConfigs);
+    } else if (inputTilingDims == DimNCH) {
+        std::vector<int> minShape = { 1, kVectorSize, inputsShape[2],
+                                      kVectorSize };
+        enum4DTensorTilingConfigs(inputsShape,
+                                  maxTileSize,
+                                  minShape,
+                                  { 1, kVectorSize, 1, kVectorSize },
                                   inputsConfigs);
     } else if (inputTilingDims == DimNCW) {
         std::vector<int> minShape = { 1, inputsShape[1], kVectorSize,

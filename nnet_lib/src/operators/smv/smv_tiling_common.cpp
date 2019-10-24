@@ -20,6 +20,9 @@ std::ostream& operator<<(std::ostream& os, const TilingDims& dims) {
       case DimNW:
           os << "DimNW";
           break;
+      case DimNHW:
+          os << "DimNHW";
+          break;
       case DimNCH:
           os << "DimNCH";
           break;
@@ -47,7 +50,7 @@ bool needsCwiseTiling(TilingDims dim) {
 
 // H means row for convolution.
 bool needsHwiseTiling(TilingDims dim) {
-    return (dim == DimNH) || (dim == DimNCH);
+    return (dim == DimNH) || (dim == DimNHW) || (dim == DimNCH);
 }
 
 }  // namespace smv
