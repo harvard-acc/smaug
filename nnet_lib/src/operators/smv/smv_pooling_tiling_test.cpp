@@ -193,10 +193,8 @@ TEST_CASE_METHOD(SmaugTest, "SMV Pooling tiling tests", "[smvtiling]") {
         }
     }
 
-    SECTION("DimNCH tiling") {
-        // In order to trigger DimNCH, we need big inputs.
-        // Inputs and outputs are tiled into 256 rowwise tiles, inputs are
-        // futher tiled into 2 channelwise tiles.
+    SECTION("DimNW tiling") {
+        // Inputs and outputs are tiled into 512 columnwise tiles.
         TensorShape inputShape(
                 { 1, 512, 1024, 16 }, DataLayout::NHWC, SmvBackend::Alignment);
         Tensor* inputs = new Tensor("inputs", inputShape);
@@ -205,28 +203,153 @@ TEST_CASE_METHOD(SmaugTest, "SMV Pooling tiling tests", "[smvtiling]") {
         poolOp->createAllTensors();
         allocateAllTensors<float16>(poolOp);
         TilingConfig config = TilingOptimizer::computeBasicTileShapes(poolOp);
-        REQUIRE(config.inputs.dims() == std::vector<int>{ 1, 2, 1024, 8 });
-        REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 1, 512, 16 });
+        REQUIRE(config.inputs.dims() == std::vector<int>{ 1, 512, 2, 16 });
+        REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 256, 1, 16 });
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
             TiledTensor inputTiles = generateInputTiles(poolOp, config.inputs);
-            REQUIRE(inputTiles.size() == 256 * 2);
+            REQUIRE(inputTiles.size() == 512);
             for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
                 auto& testDims = inputTiles[i]->getShape().dims();
                 REQUIRE(testDims == config.inputs.dims());
-                verifyTensorWithFixedData(inputTiles[i], (i % 2) * 8);
+                verifyTensorWithFixedData(inputTiles[i], 0);
             }
 
             auto outputs = poolOp->getOutput(0);
             fillTensorWithFixedData(outputs);
             TiledTensor outputTiles = generateTiledTensorAndCopyData(
                     outputs, config.outputs, poolOp);
-            REQUIRE(outputTiles.size() == 256);
+            REQUIRE(outputTiles.size() == 512);
             for (auto i = outputTiles.startIndex(); !i.end(); ++i) {
                 auto& testDims = outputTiles[i]->getShape().dims();
                 REQUIRE(testDims == config.outputs.dims());
                 verifyTensorWithFixedData(outputTiles[i], 0);
+            }
+        }
+    }
+
+    SECTION("DimNHW tiling") {
+        // Inputs and outputs are tiled into 256 rowwise tiles and 2 columnwise
+        // tiles.
+        TensorShape inputShape(
+                { 1, 512, 512, 32 }, DataLayout::NHWC, SmvBackend::Alignment);
+        Tensor* inputs = new Tensor("inputs", inputShape);
+        workspace()->addTensor(inputs);
+        poolOp->setInput(inputs, 0);
+        poolOp->createAllTensors();
+        allocateAllTensors<float16>(poolOp);
+        TilingConfig config = TilingOptimizer::computeBasicTileShapes(poolOp);
+        REQUIRE(config.inputs.dims() == std::vector<int>{ 1, 2, 256, 32 });
+        REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 1, 128, 32 });
+
+        SECTION("Generated tiles have correct shape and data") {
+            fillTensorWithFixedData(inputs);
+            TiledTensor inputTiles = generateInputTiles(poolOp, config.inputs);
+            REQUIRE(inputTiles.size() == 512);
+            for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
+                auto& testDims = inputTiles[i]->getShape().dims();
+                REQUIRE(testDims == config.inputs.dims());
+                verifyTensorWithFixedData(inputTiles[i], 0);
+            }
+
+            auto outputs = poolOp->getOutput(0);
+            fillTensorWithFixedData(outputs);
+            TiledTensor outputTiles = generateTiledTensorAndCopyData(
+                    outputs, config.outputs, poolOp);
+            REQUIRE(outputTiles.size() == 512);
+            for (auto i = outputTiles.startIndex(); !i.end(); ++i) {
+                auto& testDims = outputTiles[i]->getShape().dims();
+                REQUIRE(testDims == config.outputs.dims());
+                verifyTensorWithFixedData(outputTiles[i], 0);
+            }
+        }
+    }
+
+    SECTION("Channelwise tiling") {
+        // To trigger channelwise tiling, we need big pooling sizes.
+        // Realistically speaking, these pooling size are not used in real
+        // models, but for testing purpose, let's use them.
+        poolOp->setPoolingSize(16, 16);
+        poolOp->setPoolingStride(16, 16);
+
+        SECTION("DimNCH tiling") {
+            // Inputs and outputs are tiled into 2 rowwise tiles, and input are
+            // tiled into 16 channelwise tiles.
+            TensorShape inputShape({ 1, 64, 64, 128 },
+                                   DataLayout::NHWC,
+                                   SmvBackend::Alignment);
+            Tensor* inputs = new Tensor("inputs", inputShape);
+            workspace()->addTensor(inputs);
+            poolOp->setInput(inputs, 0);
+            poolOp->createAllTensors();
+            allocateAllTensors<float16>(poolOp);
+            TilingConfig config =
+                    TilingOptimizer::computeBasicTileShapes(poolOp);
+            REQUIRE(config.inputs.dims() == std::vector<int>{ 1, 32, 64, 8 });
+            REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 2, 4, 128 });
+
+            SECTION("Generated tiles have correct shape and data") {
+                fillTensorWithFixedData(inputs);
+                TiledTensor inputTiles =
+                        generateInputTiles(poolOp, config.inputs);
+                REQUIRE(inputTiles.size() == 32);
+                for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
+                    auto& testDims = inputTiles[i]->getShape().dims();
+                    REQUIRE(testDims == config.inputs.dims());
+                    verifyTensorWithFixedData(inputTiles[i], (i % 16) * 8);
+                }
+
+                auto outputs = poolOp->getOutput(0);
+                fillTensorWithFixedData(outputs);
+                TiledTensor outputTiles = generateTiledTensorAndCopyData(
+                        outputs, config.outputs, poolOp);
+                REQUIRE(outputTiles.size() == 2);
+                for (auto i = outputTiles.startIndex(); !i.end(); ++i) {
+                    auto& testDims = outputTiles[i]->getShape().dims();
+                    REQUIRE(testDims == config.outputs.dims());
+                    verifyTensorWithFixedData(outputTiles[i], 0);
+                }
+            }
+        }
+
+        SECTION("DimNCW tiling") {
+            // Inputs and outputs are tiled into 8 columnwise tiles, and input
+            // are tiled into 16 channelwise tiles.
+            TensorShape inputShape({ 1, 64, 256, 128 },
+                                   DataLayout::NHWC,
+                                   SmvBackend::Alignment);
+            Tensor* inputs = new Tensor("inputs", inputShape);
+            workspace()->addTensor(inputs);
+            poolOp->setInput(inputs, 0);
+            poolOp->createAllTensors();
+            allocateAllTensors<float16>(poolOp);
+            TilingConfig config =
+                    TilingOptimizer::computeBasicTileShapes(poolOp);
+            REQUIRE(config.inputs.dims() == std::vector<int>{ 1, 64, 32, 8 });
+            REQUIRE(config.outputs.dims() == std::vector<int>{ 1, 4, 2, 128 });
+
+            SECTION("Generated tiles have correct shape and data") {
+                fillTensorWithFixedData(inputs);
+                TiledTensor inputTiles =
+                        generateInputTiles(poolOp, config.inputs);
+                REQUIRE(inputTiles.size() == 128);
+                for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
+                    auto& testDims = inputTiles[i]->getShape().dims();
+                    REQUIRE(testDims == config.inputs.dims());
+                    verifyTensorWithFixedData(inputTiles[i], (i % 16) * 8);
+                }
+
+                auto outputs = poolOp->getOutput(0);
+                fillTensorWithFixedData(outputs);
+                TiledTensor outputTiles = generateTiledTensorAndCopyData(
+                        outputs, config.outputs, poolOp);
+                REQUIRE(outputTiles.size() == 8);
+                for (auto i = outputTiles.startIndex(); !i.end(); ++i) {
+                    auto& testDims = outputTiles[i]->getShape().dims();
+                    REQUIRE(testDims == config.outputs.dims());
+                    verifyTensorWithFixedData(outputTiles[i], 0);
+                }
             }
         }
     }

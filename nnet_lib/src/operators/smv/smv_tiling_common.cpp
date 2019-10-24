@@ -53,5 +53,10 @@ bool needsHwiseTiling(TilingDims dim) {
     return (dim == DimNH) || (dim == DimNHW) || (dim == DimNCH);
 }
 
+// W means column for convolution.
+bool needsWwiseTiling(TilingDims dim) {
+    return (dim == DimNW) || (dim == DimNHW) || (dim == DimNCW);
+}
+
 }  // namespace smv
 }  // namespace smaug

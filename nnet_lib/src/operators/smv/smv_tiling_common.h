@@ -46,6 +46,8 @@ bool needsCwiseTiling(TilingDims dim);
 
 bool needsHwiseTiling(TilingDims dim);
 
+bool needsWwiseTiling(TilingDims dim);
+
 }  // namespace smv
 }  // namespace smaug
 

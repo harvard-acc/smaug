@@ -28,22 +28,30 @@ std::array<TilingDims, 2> TilingOptimizer::determineBestTilingDims(
     TilingDims bestInputTilingDims = findBestTilingDims(
             inputs->getShape(),
             maxTileSize,
-            { 1, poolSize.first, inputs->getShape()[2], kVectorSize });
-    TilingDims bestOutputTilingDims =
-            findBestTilingDims(outputs->getShape(),
-                               maxTileSize,
-                               { 1, 1, outputs->getShape()[2], kVectorSize });
+            { 1, poolSize.first, poolSize.second, kVectorSize });
+    TilingDims bestOutputTilingDims = findBestTilingDims(
+            outputs->getShape(), maxTileSize, { 1, 1, 1, kVectorSize });
 
     // Apply some constraints to simplify tiling logic.
     //
-    // If inputs require rowwise tiling, then outputs also require rowwise
-    // tiling. Strictly speaking this is not necessarily required but it will
-    // greatly simplify memory management.
+    // If inputs require rowwise/columnwise tiling, then outputs also require
+    // rowwise/columnwise tiling. Strictly speaking this is not necessarily
+    // required but it will greatly simplify memory management.
     if (needsHwiseTiling(bestInputTilingDims)) {
         if (needsCwiseTiling(bestOutputTilingDims))
             bestOutputTilingDims = DimNCH;
+        else if (needsWwiseTiling(bestOutputTilingDims))
+            bestOutputTilingDims = DimNHW;
         else
             bestOutputTilingDims = DimNH;
+    }
+    if (needsWwiseTiling(bestInputTilingDims)) {
+        if (needsCwiseTiling(bestOutputTilingDims))
+            bestOutputTilingDims = DimNCW;
+        else if (needsHwiseTiling(bestOutputTilingDims))
+            bestOutputTilingDims = DimNHW;
+        else
+            bestOutputTilingDims = DimNW;
     }
 
     return { bestInputTilingDims, bestOutputTilingDims };
@@ -125,10 +133,32 @@ TilingConfig TilingOptimizer::computeBasicTileShapes(SmvPoolingOp* op) {
                                   minShape,
                                   { 1, poolStride.first, 1, 1 },
                                   inputConfigs);
+    } else if (inputTilingDims == DimNW) {
+        std::vector<int> minShape = inputsShape.dims();
+        minShape[0] = 1;
+        minShape[2] = poolSize.second;
+        enum4DTensorTilingConfigs(inputsShape,
+                                  maxTileSize,
+                                  minShape,
+                                  { 1, 1, poolStride.second, 1 },
+                                  inputConfigs);
+    } else if (inputTilingDims == DimNHW) {
+        std::vector<int> minShape = { 1, poolSize.first, poolSize.second,
+                                      inputsShape[3] };
+        std::vector<int> strides = { 1, poolStride.first, poolStride.second,
+                                     1 };
+        enum4DTensorTilingConfigs(
+                inputsShape, maxTileSize, minShape, strides, inputConfigs);
     } else if (inputTilingDims == DimNCH) {
         std::vector<int> minShape = { 1, poolSize.first, inputsShape[2],
                                       kVectorSize };
         std::vector<int> strides = { 1, poolStride.first, 1, kVectorSize };
+        enum4DTensorTilingConfigs(
+                inputsShape, maxTileSize, minShape, strides, inputConfigs);
+    } else if (inputTilingDims == DimNCW) {
+        std::vector<int> minShape = { 1, inputsShape[1], poolSize.second,
+                                      kVectorSize };
+        std::vector<int> strides = { 1, 1, poolStride.second, kVectorSize };
         enum4DTensorTilingConfigs(
                 inputsShape, maxTileSize, minShape, strides, inputConfigs);
     } else {
@@ -145,6 +175,9 @@ TilingConfig TilingOptimizer::computeBasicTileShapes(SmvPoolingOp* op) {
         config.outputs[0] = config.inputs[0];
         if (needsHwiseTiling(outputTilingDims)) {
             config.outputs[1] = op->calcOutputRows(config.inputs[1]);
+        }
+        if (needsWwiseTiling(outputTilingDims)) {
+            config.outputs[2] = op->calcOutputCols(config.inputs[2]);
         }
         // If inputs and outputs both need channelwise tiling, make the tiles
         // have the same number of channels.

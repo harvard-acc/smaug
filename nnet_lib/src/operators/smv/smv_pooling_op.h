@@ -31,7 +31,7 @@ class SmvPoolingOp : public PoolingOp<SmvBackend> {
     friend class smv::pool::TilingOptimizer;
 
    protected:
-    void runNHC(TiledTensor& inputs, TiledTensor& outputs);
+    void runNHWC(TiledTensor& inputs, TiledTensor& outputs);
 
     std::array<TiledTensor, 2> tiledTensors;
 };
