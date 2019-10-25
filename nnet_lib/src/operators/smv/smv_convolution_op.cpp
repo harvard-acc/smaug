@@ -215,9 +215,9 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
                                     kernStart, accumulate, readInputs,
                                     readWeights, sendResults, actInfo.function,
                                     actInfo.params, &sampling);
-                            accelPool.addFinishFlag(
-                                    currAccelIdx, std::move(finishFlag));
                         }
+                        accelPool.addFinishFlag(
+                                currAccelIdx, std::move(finishFlag));
 
                         ifmapOffset += weightsTile->getShape()[3];
                         if (inputChanTiles == weightChanTiles) {
