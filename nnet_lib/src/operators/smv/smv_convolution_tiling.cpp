@@ -98,8 +98,8 @@ TilingConfig TilingOptimizer::computeBasicTileShapes(SmvConvolutionOp* op) {
     TilingDims weightTilingDims = strategies[1];
     TilingDims outputTilingDims = strategies[2];
 
-    dout(2) << "Tiling dimensions chosen: \n"
-            << "  input: " << inputTilingDims
+    dout(2) << "  Tiling dimensions chosen:\n"
+            << "    input: " << inputTilingDims
             << ", weight: " << weightTilingDims
             << ", output: " << outputTilingDims << "\n";
 
@@ -261,14 +261,10 @@ TilingConfig TilingOptimizer::computeBasicTileShapes(SmvConvolutionOp* op) {
                 break;
         }
     }
-    dout(2) << "Number of possible tiling configs: " << fullConfigs.size()
+    dout(2) << "  Number of possible tiling configs: " << fullConfigs.size()
             << "\n";
-    for (auto& config: fullConfigs) {
-        dout(2) << "  inputs: " << config.inputs
-                << ", weights: " << config.weights
-                << ", outputs: " << config.outputs << "\n";
-    }
-    dout(2) << "==============\n";
+    for (auto& config : fullConfigs)
+        dout(2) << "    " << config << "\n";
     auto maxIt = std::max_element(
             fullConfigs.begin(),
             fullConfigs.end(),

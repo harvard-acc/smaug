@@ -1,4 +1,5 @@
 #include "operators/smv/smv_tiling_common.h"
+#include "core/tensor_utils.h"
 
 namespace smaug {
 namespace smv {
@@ -34,6 +35,14 @@ std::ostream& operator<<(std::ostream& os, const TilingDims& dims) {
           break;
   }
   return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const TilingConfig& config) {
+    os << "inputs: " << config.inputs;
+    if (config.weights.ndims() != 0)
+        os << ", weights: " << config.weights;
+    os << ", outputs: " << config.outputs;
+    return os;
 }
 
 // N means batch for inputs/outputs, whereas this can mean ofmap for convolution

@@ -39,6 +39,7 @@ struct TilingConfig {
 };
 
 std::ostream& operator<<(std::ostream& os, const TilingDims& dims);
+std::ostream& operator<<(std::ostream& os, const TilingConfig& config);
 
 bool needsNwiseTiling(TilingDims dim);
 
