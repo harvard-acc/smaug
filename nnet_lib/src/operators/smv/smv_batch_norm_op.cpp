@@ -3,6 +3,7 @@
 #include "operators/smv/smv_batch_norm_op.h"
 #include "operators/smv/smv_batch_norm_tiling.h"
 #include "operators/smv/smv_kernels.h"
+#include "operators/smv/smv_accel_pool.h"
 #include "utility/debug_stream.h"
 
 namespace smaug {
@@ -110,15 +111,19 @@ void SmvBatchNormOp::runNHWC(TiledTensor& inputs,
     auto outputIdx = outputs.startIndex();
     Tensor* weightTile = weights.getTileWithData(0);
     const TensorShape& weightShape = weightTile->getShape();
-    mapArrayToAccel(smv::kBatchNormHw, "host_weights",
-                    weightTile->data<float16>(),
-                    weightShape.storageSize() * sizeof(float16));
-    setArrayMemTypeIfSimulating(
-            smv::kBatchNormHw, "host_inputs", getInputsMemType());
-    setArrayMemTypeIfSimulating(
-            smv::kBatchNormHw, "host_weights", getWeightsMemType());
-    setArrayMemTypeIfSimulating(
-            smv::kBatchNormHw, "host_results", getOutputsMemType());
+    for (int i = 0; i < numAcceleratorsAvailable; i++) {
+        mapArrayToAccel(smv::kBatchNormHw + i, "host_weights",
+                        weightTile->data<float16>(),
+                        weightShape.storageSize() * sizeof(float16));
+        setArrayMemTypeIfSimulating(
+                smv::kBatchNormHw + i, "host_inputs", getInputsMemType());
+        setArrayMemTypeIfSimulating(
+                smv::kBatchNormHw + i, "host_weights", getWeightsMemType());
+        setArrayMemTypeIfSimulating(
+                smv::kBatchNormHw + i, "host_results", getOutputsMemType());
+    }
+    SmvAcceleratorPool accelPool(numAcceleratorsAvailable);
+    int currAccelIdx = 0;
     for (int N = 0; N < inputNumTiles; N++) {
         for (int H = 0; H < inputRowTiles; H++) {
             for (int W = 0; W < inputColTiles; W++) {
@@ -133,30 +138,39 @@ void SmvBatchNormOp::runNHWC(TiledTensor& inputs,
                     Tensor* outputTile = outputs[outputTileIdx];
                     const TensorShape& inputShape = inputTile->getShape();
                     const TensorShape& outputShape = outputTile->getShape();
-                    mapArrayToAccel(smv::kBatchNormHw, "host_inputs",
-                                    inputTile->data<float16>(),
+                    mapArrayToAccel(smv::kBatchNormHw + currAccelIdx,
+                                    "host_inputs", inputTile->data<float16>(),
                                     inputShape.storageSize() * sizeof(float16));
                     mapArrayToAccel(
-                            smv::kBatchNormHw, "host_results",
+                            smv::kBatchNormHw + currAccelIdx, "host_results",
                             outputTile->data<float16>(),
                             outputShape.storageSize() * sizeof(float16));
                     int inputDims[4] = { inputShape[0], inputShape[1],
                                          inputShape[2], inputShape[3] };
 
-                    invokeKernel(smv::kBatchNormHw,
-                                 smv_batch_norm_post_conv_nhwc_vec_fxp,
-                                 inputTile->data<float16>(),
-                                 weightTile->data<float16>(),
-                                 outputTile->data<float16>(), smv::spad0,
-                                 smv::spad1, smv::spad2, inputDims,
-                                 weightShape[1], inputShape.getPadding(3),
-                                 weightShape.getPadding(1), ifmapOffset,
-                                 actInfo.function, actInfo.params, &sampling);
+                    std::unique_ptr<volatile int> finishFlag =
+                            invokeKernelNoBlock(
+                                    currAccelIdx,
+                                    smv::kBatchNormHw + currAccelIdx,
+                                    smv_batch_norm_post_conv_nhwc_vec_fxp,
+                                    inputTile->data<float16>(),
+                                    weightTile->data<float16>(),
+                                    outputTile->data<float16>(), smv::spad0,
+                                    smv::spad1, smv::spad2, inputDims,
+                                    weightShape[1], inputShape.getPadding(3),
+                                    weightShape.getPadding(1), ifmapOffset,
+                                    actInfo.function, actInfo.params,
+                                    &sampling);
+                    accelPool.addFinishFlag(
+                            currAccelIdx, std::move(finishFlag));
                     ifmapOffset += inputShape[3];
+                    currAccelIdx =
+                            accelPool.getNextAvailableAccelerator(currAccelIdx);
                 }
             }
         }
     }
+    accelPool.joinAll();
 }
 
 void SmvBatchNormOp::tile() {
