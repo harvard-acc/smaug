@@ -69,13 +69,22 @@ void SmvEltwiseAddOp::run() {
     const TensorShape& outputsShape = outputs->getShape();
     assert(inputs0Shape == inputs1Shape && inputs0Shape == outputsShape);
 
-    if (getInputsMemType() == MemoryType::dma) {
-        tiledTensors[0].copyDataToAllTiles();
-        tiledTensors[1].copyDataToAllTiles();
+    {
+        auto stats = gem5::ScopedStats(
+                stats::kTensorPrepStart, stats::kTensorPrepEnd);
+        if (getInputsMemType() == MemoryType::dma) {
+            tiledTensors[0].copyDataToAllTiles();
+            tiledTensors[1].copyDataToAllTiles();
+        }
     }
 
     runX(tiledTensors[0], tiledTensors[1], tiledTensors[2]);
-    flattenTiledTensor(tiledTensors[2], outputs);
+
+    {
+        auto stats = gem5::ScopedStats(
+                stats::kTensorFinalStart, stats::kTensorFinalEnd);
+        flattenTiledTensor(tiledTensors[2], outputs);
+    }
 }
 
 }  // namespace smaug

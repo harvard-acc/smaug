@@ -200,10 +200,14 @@ void SmvBatchNormOp::run() {
 
     // If we are using DMA for data transfer, copy data to all the tiles before
     // we actually run any tiles.
-    if (getInputsMemType() == MemoryType::dma)
-        tiledTensors[0].copyDataToAllTiles();
-    if (getWeightsMemType() == MemoryType::dma)
-        tiledTensors[1].copyDataToAllTiles();
+    {
+        auto stats = gem5::ScopedStats(
+                stats::kTensorPrepStart, stats::kTensorPrepEnd);
+        if (getInputsMemType() == MemoryType::dma)
+            tiledTensors[0].copyDataToAllTiles();
+        if (getWeightsMemType() == MemoryType::dma)
+            tiledTensors[1].copyDataToAllTiles();
+    }
 
     if (isPostConv) {
         assert(inputShape.getLayout() == DataLayout::NHWC);
@@ -214,7 +218,12 @@ void SmvBatchNormOp::run() {
         assert(outputShape.getLayout() == DataLayout::NC);
         runNA(tiledTensors[0], tiledTensors[1], tiledTensors[2]);
     }
-    untileTiledTensor(tiledTensors[2], output);
+
+    {
+        auto stats = gem5::ScopedStats(
+                stats::kTensorFinalStart, stats::kTensorFinalEnd);
+        untileTiledTensor(tiledTensors[2], output);
+    }
 }
 
 }  // namespace smaug

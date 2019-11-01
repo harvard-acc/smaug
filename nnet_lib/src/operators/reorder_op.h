@@ -26,6 +26,8 @@ class ReorderOp : public Operator {
     void setTargetLayout(DataLayout layout) { targetLayout = layout; }
 
     void run() override {
+        auto stats = gem5::ScopedStats(
+                stats::kReorderingStart, stats::kReorderingEnd);
         Tensor* input = getInput(Inputs);
         Tensor* output = getOutput(Outputs);
         DataLayout srcLayout = input->getShape().getLayout();

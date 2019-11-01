@@ -38,4 +38,41 @@ int calc_padding(int value, unsigned alignment) {
     return (alignment - (value % alignment));
 }
 
+namespace gem5 {
+
+void switchCpu() {
+    if (runningInSimulation)
+        m5_switch_cpu();
+}
+
+void dumpStats(const char* msg, int period) {
+    if (runningInSimulation)
+        m5_dump_stats(0, period, msg);
+}
+
+void dumpResetStats(const char* msg, int period) {
+    if (runningInSimulation)
+        m5_dump_reset_stats(0, period, msg);
+}
+
+ScopedStats::ScopedStats(const char* _startLabel,
+                         const char* _endLabel,
+                         bool _resetStats)
+        : startLabel(_startLabel), endLabel(_endLabel),
+          resetStats(_resetStats) {
+    if (resetStats)
+        dumpResetStats(startLabel, 0);
+    else
+        dumpStats(startLabel, 0);
+}
+
+ScopedStats::~ScopedStats() {
+    if (resetStats)
+        dumpResetStats(endLabel, 0);
+    else
+        dumpStats(endLabel, 0);
+}
+
+}  // namespace gem5
+
 }  // namespace smaug

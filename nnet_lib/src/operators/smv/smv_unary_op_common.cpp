@@ -132,11 +132,20 @@ void run(UnaryOp<SmvBackend>* op) {
 
     // If we are using DMA for data transfer, copy data to all the tiles before
     // we actually run any tiles.
-    if (op->getInputsMemType() == MemoryType::dma)
-        tiledTensors[0].copyDataToAllTiles();
+    {
+        auto stats = gem5::ScopedStats(
+                stats::kTensorPrepStart, stats::kTensorPrepEnd);
+        if (op->getInputsMemType() == MemoryType::dma)
+            tiledTensors[0].copyDataToAllTiles();
+    }
 
     runX(op, tiledTensors[0], tiledTensors[1]);
-    flattenTiledTensor(tiledTensors[1], outputs);
+
+    {
+        auto stats = gem5::ScopedStats(
+                stats::kTensorFinalStart, stats::kTensorFinalEnd);
+        flattenTiledTensor(tiledTensors[1], outputs);
+    }
 }
 
 }  // namespace unary

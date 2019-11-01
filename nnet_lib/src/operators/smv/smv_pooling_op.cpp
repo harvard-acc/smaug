@@ -116,11 +116,20 @@ void SmvPoolingOp::run() {
 
     // If we are using DMA for data transfer, copy data to all the tiles before
     // we actually run any tiles.
-    if (getInputsMemType() == MemoryType::dma)
-        tiledTensors[0].copyDataToAllTiles();
+    {
+        auto stats = gem5::ScopedStats(
+                stats::kTensorPrepStart, stats::kTensorPrepEnd);
+        if (getInputsMemType() == MemoryType::dma)
+            tiledTensors[0].copyDataToAllTiles();
+    }
 
     runNHWC(tiledTensors[0], tiledTensors[1]);
-    untileTiledTensor(tiledTensors[1], output);
+
+    {
+        auto stats = gem5::ScopedStats(
+                stats::kTensorFinalStart, stats::kTensorFinalEnd);
+        untileTiledTensor(tiledTensors[1], output);
+    }
 }
 
 void SmvMaxPoolingOp::tile() { SmvPoolingOp::tile(); }

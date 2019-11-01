@@ -51,24 +51,37 @@ int calc_padding(int value, unsigned alignment);
 
 std::string dataLayoutToStr(DataLayout layout);
 
-#ifndef TRACE_MODE
-#define M5_SWITCH_CPU()                                                        \
-    if (runningInSimulation) {                                                 \
-        m5_switch_cpu();                                                       \
-    }
-#define M5_DUMP_STATS()                                                        \
-    if (runningInSimulation) {                                                 \
-        m5_dump_stats(0, 0);                                                   \
-    }
-#define M5_DUMP_RESET_STATS()                                                  \
-    if (runningInSimulation) {                                                 \
-        m5_dump_reset_stats(0, 0);                                             \
-    }
-#else
-#define M5_SWITCH_CPU()
-#define M5_DUMP_STATS()
-#define M5_DUMP_RESET_STATS()
-#endif
+namespace gem5 {
+
+void switchCpu();
+void dumpStats(const char* msg, int period = 0);
+void dumpResetStats(const char* msg, int period = 0);
+
+class ScopedStats {
+   public:
+    ScopedStats(const char* _startLabel,
+                const char* _endLabel,
+                bool _resetStats = true);
+    ~ScopedStats();
+
+   protected:
+    const char* startLabel;
+    const char* endLabel;
+    bool resetStats;
+};
+
+}  // namespace gem5
+
+namespace stats {
+constexpr const char* kNetworkStart = "Network start";
+constexpr const char* kNetworkEnd = "Network end";
+constexpr const char* kReorderingStart = "Reordering start";
+constexpr const char* kReorderingEnd = "Reordering end";
+constexpr const char* kTensorPrepStart = "Tensor preparation start";
+constexpr const char* kTensorPrepEnd = "Tensor preparation end";
+constexpr const char* kTensorFinalStart = "Tensor finalization start";
+constexpr const char* kTensorFinalEnd = "Tensor finalization end";
+}  // namespace stats
 
 }  // namespace smaug
 

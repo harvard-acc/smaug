@@ -28,22 +28,24 @@ Tensor* runNetwork(Network* network, Workspace* workspace) {
 
     // We have finished loading the model and building the network, as well as
     // the tiling of all the operators. Now we can stop fast forwarding.
-    M5_SWITCH_CPU();
+    gem5::switchCpu();
 
     std::cout << "======================================================\n";
     std::cout << "      Scheduling operators of the network...\n";
     std::cout << "======================================================\n";
     Tensor* output;
-    M5_DUMP_RESET_STATS();
-    for (auto v : vertices) {
-        Operator* op = get(boost::vertex_op, graph, v);
-        dout(0) << "Scheduling " << op->getName() << " ("
-                << OpType_Name(op->getOpType()) << ").\n";
-        op->run();
-        output = op->getOutput(0);
-        dout(2) << *output << "\n";
+    {
+        auto stats =
+                gem5::ScopedStats(stats::kNetworkStart, stats::kNetworkEnd);
+        for (auto v : vertices) {
+            Operator* op = get(boost::vertex_op, graph, v);
+            dout(0) << "Scheduling " << op->getName() << " ("
+                    << OpType_Name(op->getOpType()) << ").\n";
+            op->run();
+            output = op->getOutput(0);
+            dout(2) << *output << "\n";
+        }
     }
-    M5_DUMP_RESET_STATS();
     return output;
 }
 
