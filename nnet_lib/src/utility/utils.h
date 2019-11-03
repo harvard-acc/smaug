@@ -56,6 +56,9 @@ namespace gem5 {
 void switchCpu();
 void dumpStats(const char* msg, int period = 0);
 void dumpResetStats(const char* msg, int period = 0);
+void quiesce();
+void wakeCpu(int id);
+int getCpuId();
 
 class ScopedStats {
    public:

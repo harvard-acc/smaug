@@ -48,7 +48,8 @@ SRCS = src/operators/common.cpp \
        src/core/network.cpp \
        src/core/network_builder.cpp \
        src/utility/debug_stream.cpp \
-       src/utility/utils.cpp
+       src/utility/utils.cpp \
+       src/utility/thread_pool.cpp
 PROTO_SRCS = src/core/graph.proto \
              src/core/node.proto \
              src/core/tensor.proto \

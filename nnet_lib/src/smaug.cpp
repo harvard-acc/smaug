@@ -9,6 +9,7 @@
 #include "operators/common.h"
 #include "utility/debug_stream.h"
 #include "utility/utils.h"
+#include "utility/thread_pool.h"
 
 namespace po = boost::program_options;
 
@@ -25,6 +26,7 @@ int main(int argc, char* argv[]) {
     std::string samplingLevel = "no";
     sampling.num_sample_iterations = 1;
     numAcceleratorsAvailable = 1;
+    int numThreads = -1;
     useSystolicArrayWhenAvailable = false;
     po::options_description options(
             "SMAUG Usage:  ./smaug model_topo.pbtxt model_params.pb [options]");
@@ -60,6 +62,9 @@ int main(int argc, char* argv[]) {
           "simulation goes, if there are multiple accelerators available, "
           "SMAUG requires the accelerator IDs (configured in the gem5 "
           "configuration file) to be monotonically incremented by 1.")
+        ("num-threads",
+         po::value(&numThreads)->implicit_value(1),
+         "Number of threads in the thread pool.")
         ("use-systolic-array",
          po::value(&useSystolicArrayWhenAvailable)->implicit_value(true),
          "If the backend contains a systolic array, use it whenever possible.");
@@ -135,6 +140,11 @@ int main(int argc, char* argv[]) {
                      "by 1.\n";
     }
 
+    if (numThreads != -1) {
+        std::cout << "Using a thread pool, size: " << numThreads << ".\n";
+        threadPool = new ThreadPool(numThreads);
+    }
+
     Workspace* workspace = new Workspace();
     Network* network =
             buildNetwork(modelTopo, modelParams, sampling, workspace);
@@ -156,6 +166,9 @@ int main(int argc, char* argv[]) {
             outfile << "Final network output:\n" << *output << "\n";
         }
     }
+
+    if (threadPool)
+        delete threadPool;
 
     delete network;
     delete workspace;

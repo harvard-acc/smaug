@@ -8,6 +8,7 @@
 #include "core/tensor.h"
 #include "core/workspace.h"
 #include "utility/debug_stream.h"
+#include "utility/thread_pool.h"
 #include "core/types.pb.h"
 
 namespace smaug {
@@ -29,6 +30,13 @@ Tensor* runNetwork(Network* network, Workspace* workspace) {
     // We have finished loading the model and building the network, as well as
     // the tiling of all the operators. Now we can stop fast forwarding.
     gem5::switchCpu();
+
+    // The fast-forwarding mode uses simpler CPUs, which will be switched to
+    // OoO CPUs after it's done. Therefore, the initialization of the thread
+    // pool must be after the fast-forwarding, otherwise the CPU IDs will be
+    // incorrect.
+    if (threadPool)
+        threadPool->initThreadPool();
 
     std::cout << "======================================================\n";
     std::cout << "      Scheduling operators of the network...\n";

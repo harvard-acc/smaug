@@ -55,6 +55,20 @@ void dumpResetStats(const char* msg, int period) {
         m5_dump_reset_stats(0, period, msg);
 }
 
+void quiesce() {
+    if (runningInSimulation) {
+        m5_quiesce();
+    }
+}
+
+void wakeCpu(int id) {
+    if (runningInSimulation) {
+        m5_wake_cpu(id);
+    }
+}
+
+int getCpuId() { return runningInSimulation ? m5_get_cpuid() : 0; }
+
 ScopedStats::ScopedStats(const char* _startLabel,
                          const char* _endLabel,
                          bool _resetStats)
