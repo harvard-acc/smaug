@@ -252,35 +252,6 @@ TiledTensor generateTiledTensor(Tensor* tensor,
     return tiledTensor;
 }
 
-void untileTiledTensor(TiledTensor& tiledTensor, Tensor* destTensor) {
-    const TensorShape& tensorShape = destTensor->getShape();
-    int ndims = tensorShape.ndims();
-    if (tiledTensor[0] == destTensor) {
-        // No need to copy data if the tile is the dest tensor.
-        assert(tiledTensor.size() == 1);
-        return;
-    }
-    std::vector<int> currentOrigin(ndims, 0);
-    std::vector<int> srcOrigin(ndims, 0);
-    for (auto tileIndex = tiledTensor.startIndex(); !tileIndex.end();
-         ++tileIndex) {
-        Tensor* tile = tiledTensor[tileIndex];
-        const TensorShape& tileShape = tile->getShape();
-        copyTensorRegion(destTensor,
-                         tile,
-                         currentOrigin,
-                         srcOrigin,
-                         tileShape.dims());
-        for (int i = ndims - 1; i >= 0; i--) {
-            currentOrigin[i] += tileShape[i];
-            if (currentOrigin[i] >= tensorShape[i]) {
-                currentOrigin[i] = 0;
-            } else
-                break;
-        }
-    }
-}
-
 void flattenTiledTensor(TiledTensor& tiledTensor, Tensor* destTensor) {
     const TensorShape& tensorShape = destTensor->getShape();
     int ndims = tensorShape.ndims();

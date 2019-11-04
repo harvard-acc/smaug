@@ -31,6 +31,8 @@ Tensor* runNetwork(Network* network, Workspace* workspace) {
     // the tiling of all the operators. Now we can stop fast forwarding.
     gem5::switchCpu();
 
+    fastForwardMode = false;
+
     // The fast-forwarding mode uses simpler CPUs, which will be switched to
     // OoO CPUs after it's done. Therefore, the initialization of the thread
     // pool must be after the fast-forwarding, otherwise the CPU IDs will be

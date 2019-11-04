@@ -161,10 +161,6 @@ TiledTensor generateTiledTensorAndCopyData(Args&&... args) {
     return tiledTensor;
 }
 
-// This will copy data from a tiled tensor into a single tensor. We name it as
-// "untile" because what it does reverses the tiling process.
-void untileTiledTensor(TiledTensor& tiledTensor, Tensor* destTensor);
-
 // The difference between this and untileTiledTensor is:
 //  - untileTiledTensor copies tensors into specific regions of memory
 //    corresponding to their tile origins.

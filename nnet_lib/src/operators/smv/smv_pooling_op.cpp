@@ -128,7 +128,7 @@ void SmvPoolingOp::run() {
     {
         auto stats = gem5::ScopedStats(
                 stats::kTensorFinalStart, stats::kTensorFinalEnd);
-        untileTiledTensor(tiledTensors[1], output);
+        tiledTensors[1].untile();
     }
 }
 

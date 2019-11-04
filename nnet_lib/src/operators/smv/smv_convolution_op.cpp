@@ -333,7 +333,7 @@ void SmvConvolutionOp::run() {
     {
         auto stats = gem5::ScopedStats(
                 stats::kTensorFinalStart, stats::kTensorFinalEnd);
-        untileTiledTensor(tiledTensors[2], output);
+        tiledTensors[2].untile();
     }
 }
 

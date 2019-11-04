@@ -182,7 +182,7 @@ void SmvInnerProductOp::run() {
     {
         auto stats = gem5::ScopedStats(
                 stats::kTensorFinalStart, stats::kTensorFinalEnd);
-        untileTiledTensor(tiledTensors[2], outputs);
+        tiledTensors[2].untile();
     }
 }
 

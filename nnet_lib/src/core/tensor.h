@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <cmath>
 #include <initializer_list>
 #include <iostream>
 #include <memory>
@@ -420,13 +421,13 @@ class Tensor : public TensorBase {
 class TiledTensor : public TensorBase {
   public:
    TiledTensor(Tensor* _origTensor = nullptr, bool _useRawTensor = false)
-           : TensorBase(), origTensor(_origTensor),
-             useRawTensor(_useRawTensor) {}
+           : TensorBase(), origTensor(_origTensor), useRawTensor(_useRawTensor),
+             dataFilled(false) {}
    TiledTensor(const TensorShape& shape,
                Tensor* _origTensor = nullptr,
                bool _useRawTensor = false)
            : TensorBase("", shape), origTensor(_origTensor),
-             useRawTensor(_useRawTensor) {
+             useRawTensor(_useRawTensor), dataFilled(false) {
        tiles.resize(shape.size());
    }
 
@@ -461,6 +462,12 @@ class TiledTensor : public TensorBase {
    // Copy data (if needed) to all the tiles from the original tensor.
    void copyDataToAllTiles();
 
+   // This will copy data from the tiled tensor into the original tensor. We
+   // name it as "untile" because what it does reverses the tiling process.
+   void untile();
+
+   static void* tileCopyWorker(void* _args);
+
   protected:
    struct Tile {
        Tensor* tensor;
@@ -474,14 +481,44 @@ class TiledTensor : public TensorBase {
        Tile() : tensor(nullptr), origin(), hasOrigin(false), hasData(false) {}
    };
 
+   // Scatter copies data from the tensor to the tiles, gather copies data from
+   // the tiles to the tensor.
+   enum TileDataOperation { Scatter, Gather };
+
+   struct CopyTilesArgs {
+       TiledTensor* tiledTensor;
+       int start;
+       int numTiles;
+       TileDataOperation op;
+
+       CopyTilesArgs(TiledTensor* _tiledTensor,
+                     int _start,
+                     int _numTiles,
+                     TileDataOperation _op)
+               : tiledTensor(_tiledTensor), start(_start), numTiles(_numTiles),
+                 op(_op) {}
+   };
+
+   Tile* getTile(int index) { return &tiles[index]; }
+
    // Copy data (if needed) to this tile from the original tensor.
    void copyDataToTile(Tile* tile);
+
+   // Copy data from this tile to the original tensor.
+   void gatherDataFromTile(Tile* tile);
+
+   // Split the work (data filling or gathering) and run them on multiple
+   // threads.
+   void parallelCopyTileData(TileDataOperation op);
 
    // True if we need to use the copyRawTensorData() for copying data.
    bool useRawTensor;
 
    // The original tensor that gets tiled into this TiledTensor.
    Tensor* origTensor;
+
+   // True if all the tiles have data filled.
+   bool dataFilled;
 
    std::vector<Tile> tiles;
 };

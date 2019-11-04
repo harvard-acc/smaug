@@ -2,6 +2,7 @@
 
 namespace smaug {
 bool runningInSimulation;
+bool fastForwardMode = true;
 int numAcceleratorsAvailable;
 ThreadPool* threadPool = nullptr;
 bool useSystolicArrayWhenAvailable;
