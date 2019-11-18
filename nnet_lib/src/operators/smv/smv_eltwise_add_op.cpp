@@ -72,10 +72,8 @@ void SmvEltwiseAddOp::run() {
     {
         auto stats = gem5::ScopedStats(
                 stats::kTensorPrepStart, stats::kTensorPrepEnd);
-        if (getInputsMemType() == MemoryType::dma) {
-            tiledTensors[0].copyDataToAllTiles();
-            tiledTensors[1].copyDataToAllTiles();
-        }
+        tiledTensors[0].copyDataToAllTiles();
+        tiledTensors[1].copyDataToAllTiles();
     }
 
     runX(tiledTensors[0], tiledTensors[1], tiledTensors[2]);

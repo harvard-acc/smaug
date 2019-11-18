@@ -114,13 +114,10 @@ void SmvPoolingOp::run() {
     assert(inputShape.getLayout() == DataLayout::NHWC);
     assert(outputShape.getLayout() == DataLayout::NHWC);
 
-    // If we are using DMA for data transfer, copy data to all the tiles before
-    // we actually run any tiles.
     {
         auto stats = gem5::ScopedStats(
                 stats::kTensorPrepStart, stats::kTensorPrepEnd);
-        if (getInputsMemType() == MemoryType::dma)
-            tiledTensors[0].copyDataToAllTiles();
+        tiledTensors[0].copyDataToAllTiles();
     }
 
     runNHWC(tiledTensors[0], tiledTensors[1]);

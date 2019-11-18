@@ -317,15 +317,11 @@ void SmvConvolutionOp::run() {
     assert(outputShape.getLayout() == DataLayout::NHWC);
     dout(2) << *kernels << "\n";
 
-    // If we are using DMA for data transfer, copy data to all the tiles before
-    // we actually run any tiles.
     {
         auto stats = gem5::ScopedStats(
                 stats::kTensorPrepStart, stats::kTensorPrepEnd);
-        if (getInputsMemType() == MemoryType::dma)
-            tiledTensors[0].copyDataToAllTiles();
-        if (getWeightsMemType() == MemoryType::dma)
-            tiledTensors[1].copyDataToAllTiles();
+        tiledTensors[0].copyDataToAllTiles();
+        tiledTensors[1].copyDataToAllTiles();
     }
 
     runNHWC(tiledTensors[0], tiledTensors[1], tiledTensors[2]);
