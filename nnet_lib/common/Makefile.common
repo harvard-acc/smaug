@@ -85,6 +85,7 @@ PY_TESTS = src/python/tensor_test.py \
 
 
 
+GEM5_ALADDIN_HOME = $(ALADDIN_HOME)/../../
 GEM5_DMA_SRC = gem5/dma_interface.c gem5/dma_interface.h
 GEM5_SYS_SRCS = gem5/aladdin_sys_connection.cpp gem5/aladdin_sys_connection.h \
                 gem5/aladdin_sys_constants.cpp gem5/aladdin_sys_constants.h \
@@ -101,7 +102,8 @@ CFLAGS = -O3 -g
 CXXFLAGS = -std=c++11 $(CFLAGS) -Wno-deprecated-declarations
 INCLUDES = -I$(BUILD_DIR) \
            -I$(BUILD_DIR)/gem5 \
-           -I$(ALADDIN_HOME)/../../include \
+           -I$(ALADDIN_HOME)/gem5 \
+           -I$(GEM5_ALADDIN_HOME)/include \
            -I$(BOOST_ROOT)/include \
            -Isrc/third_party/Catch2/single_include \
            -Isrc/third_party/FP16/include
