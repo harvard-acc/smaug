@@ -23,8 +23,7 @@ void SmvAcceleratorPool::join(int accelIdx) {
     while (!finishFlags[accelIdx].empty()) {
         std::unique_ptr<volatile int> finishFlag =
                 std::move(finishFlags[accelIdx].front());
-        while (*finishFlag == NOT_COMPLETED)
-            ;
+        waitForAccelerator(finishFlag.get());
         finishFlags[accelIdx].pop_front();
     }
     dout(1) << "Accelerator " << accelIdx << " finished.\n";
