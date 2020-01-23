@@ -40,6 +40,7 @@ int calc_padding(int value, unsigned alignment) {
 
 namespace gem5 {
 
+#ifndef TRACE_MODE
 void switchCpu() {
     if (runningInSimulation)
         m5_switch_cpu();
@@ -68,6 +69,19 @@ void wakeCpu(int id) {
 }
 
 int getCpuId() { return runningInSimulation ? m5_get_cpuid() : 0; }
+#else
+void switchCpu() {}
+
+void dumpStats(const char* msg, int period) {}
+
+void dumpResetStats(const char* msg, int period) {}
+
+void quiesce() {}
+
+void wakeCpu(int id) {}
+
+int getCpuId() { return 0; }
+#endif
 
 ScopedStats::ScopedStats(const char* _startLabel,
                          const char* _endLabel,
