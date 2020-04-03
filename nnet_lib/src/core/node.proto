@@ -15,6 +15,10 @@ message PoolParams {
   repeated int32 pool_size = 2;
 }
 
+message ConcatParams {
+  int32 concat_axis = 1;
+}
+
 message LreluParams {
   float slope = 1;
 }
@@ -42,6 +46,7 @@ message Params {
   oneof value {
     ConvParams conv_params = 1;
     PoolParams pool_params = 2;
+    ConcatParams concat_params = 4;
   }
   ActivationParams act_params = 3;
 }

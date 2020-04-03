@@ -372,3 +372,29 @@ def mul(tensor_a, tensor_b, name=None):
       input_tensors=[tensor_a, tensor_b],
       output_tensor_dims=tensor_a.shape.dims,
       output_tensor_layout=tensor_a.shape.layout)
+
+def concat(input_tensors, axis=0, name=None):
+  """Concatenate tensors into one.
+
+  Args:
+    input_tensors: Input tensor to be concatenated.
+    axis: The dimension along which to concatenate.
+    name: Name of the operator.
+
+  Returns:
+    A concatenated tensor.
+  """
+  dims = np.delete(input_tensors[0].shape.dims, axis)
+  if not all([np.array_equal(np.delete(x.shape.dims, axis), dims)
+              for x in input_tensors]):
+    raise ValueError(
+        "Tensors must have the same shape, except in axis %d along which to "
+        "concatenate." % axis)
+  output_tensor_dims = list(input_tensors[0].shape.dims)
+  output_tensor_dims[axis] = sum(x.shape.dims[axis] for x in input_tensors)
+  params = Params()
+  params.concat_params.concat_axis = axis
+  return add_node(
+      name=name, op=Concat, input_tensors=input_tensors,
+      output_tensor_dims=output_tensor_dims,
+      output_tensor_layout=input_tensors[0].shape.layout, params=params)

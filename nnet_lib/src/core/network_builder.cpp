@@ -26,6 +26,7 @@
 #include "operators/pooling_op.h"
 #include "operators/relu_op.h"
 #include "operators/reorder_op.h"
+#include "operators/concat_op.h"
 #include "operators/sigmoid_op.h"
 #include "operators/softmax_op.h"
 #include "operators/tanh_op.h"
@@ -176,6 +177,11 @@ static void createAndAddOperator(const NodeProto& node,
             op = Backend::createReorderOp(name, workspace);
             op->setTargetLayout(node.output_tensors(0).shape().layout());
         }
+        network->addOperator(op, inputs);
+    } else if (type == OpType::Concat) {
+        auto op = Backend::createConcatOp(name, workspace);
+        op->setNumInputs(node.input_tensors_size());
+        op->setConcatAxis(node.params().concat_params().concat_axis());
         network->addOperator(op, inputs);
     } else if (type == OpType::BatchNorm) {
         auto op = Backend::createBatchNormOp(name, workspace);

@@ -97,4 +97,5 @@ default_op_names = {
     InnerProduct: "mat_mul",
     EltwiseAdd: "add",
     EltwiseMul: "mul",
+    Concat: "mul",
 }

@@ -10,6 +10,7 @@
 #include "operators/pooling_op.h"
 #include "operators/relu_op.h"
 #include "operators/reorder_op.h"
+#include "operators/concat_op.h"
 #include "operators/sigmoid_op.h"
 #include "operators/softmax_op.h"
 #include "operators/tanh_op.h"
@@ -49,6 +50,7 @@ DEF_CREATE_OP(AvgPoolingOp, ReferenceBackend)
 DEF_CREATE_OP(InnerProductOp, ReferenceBackend)
 DEF_CREATE_OP(SoftmaxOp, ReferenceBackend)
 DEF_CREATE_OP(ReorderOp, ReferenceBackend)
+DEF_CREATE_OP(ConcatOp, ReferenceBackend)
 DEF_CREATE_OP(FlattenOp, ReferenceBackend)
 DEF_CREATE_OP(BatchNormOp, ReferenceBackend)
 DEF_CREATE_OP(EltwiseAddOp, ReferenceBackend)
@@ -77,6 +79,7 @@ DEF_CREATE_OP(DataOp, SmvBackend)
 DEF_CREATE_OP(DepthwiseConvolutionOp, SmvBackend)
 DEF_CREATE_OP(SoftmaxOp, SmvBackend)
 DEF_CREATE_OP(ReorderOp, SmvBackend)
+DEF_CREATE_OP(ConcatOp, SmvBackend)
 DEF_CREATE_OP(FlattenOp, SmvBackend)
 
 namespace ref {
