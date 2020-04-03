@@ -361,3 +361,14 @@ def add(tensor_a, tensor_b, name=None):
       input_tensors=[tensor_a, tensor_b],
       output_tensor_dims=tensor_a.shape.dims,
       output_tensor_layout=tensor_a.shape.layout)
+
+def mul(tensor_a, tensor_b, name=None):
+  if tensor_a.shape.dims != tensor_b.shape.dims:
+    raise ValueError(
+        "Elementwise multiplication must have the same shape for the inputs!")
+  return add_node(
+      name=name,
+      op=EltwiseMul,
+      input_tensors=[tensor_a, tensor_b],
+      output_tensor_dims=tensor_a.shape.dims,
+      output_tensor_layout=tensor_a.shape.layout)

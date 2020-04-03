@@ -11,6 +11,7 @@ SRCS = src/operators/common.cpp \
        src/operators/reorder_op_impl.cpp \
        src/operators/ref/ref_batch_norm_op.cpp \
        src/operators/ref/ref_eltwise_add_op.cpp \
+       src/operators/ref/ref_eltwise_mul_op.cpp \
        src/operators/ref/ref_convolution_op.cpp \
        src/operators/ref/ref_depthwise_convolution_op.cpp \
        src/operators/ref/ref_inner_product_op.cpp \
@@ -38,7 +39,9 @@ SRCS = src/operators/common.cpp \
        src/operators/smv/smv_unary_op_common.cpp \
        src/operators/smv/kernels/activation_functions_simd.c \
        src/operators/smv/smv_eltwise_add_op.cpp \
+       src/operators/smv/smv_eltwise_mul_op.cpp \
        src/operators/smv/kernels/eltwise_add.c \
+       src/operators/smv/kernels/eltwise_mul.c \
        src/operators/smv/kernels/load_store_fp16_data.c \
        src/operators/smv/smv_accel_pool.cpp \
        src/core/backend.cpp \
@@ -77,7 +80,7 @@ TESTS = src/core/tensor_test.cpp \
         src/operators/smv/smv_batch_norm_op_test.cpp \
         src/operators/smv/smv_unary_tiling_test.cpp \
         src/operators/smv/smv_unary_op_test.cpp \
-        src/operators/smv/smv_eltwise_add_op_test.cpp \
+        src/operators/smv/smv_eltwise_ops_test.cpp \
         src/operators/smv/kernels/load_store_fp16_data_test.cpp
 PY_TESTS = src/python/tensor_test.py \
            src/python/ops_test.py \

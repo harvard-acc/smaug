@@ -3,6 +3,7 @@
 #include "core/tensor.h"
 #include "core/smaug_test.h"
 #include "operators/eltwise_add_op.h"
+#include "operators/eltwise_mul_op.h"
 #include "operators/relu_op.h"
 #include "operators/elu_op.h"
 #include "operators/sigmoid_op.h"
@@ -32,6 +33,24 @@ TEST_CASE_METHOD(SmaugTest, "Reference eltwise operators", "[refop]") {
         std::vector<float> expectedValues{ -3, -5, -7, 9,  11, 13, 15,
                                            17, 19, 1,  -1, 1,  -1 };
         auto outputsTensor = addOp->getOutput(0);
+        verifyOutputs(outputsTensor, expectedValues);
+    }
+
+    SECTION("Element-wise mul operator") {
+        auto mulOp = new EltwiseMulOp<ReferenceBackend>("mul", workspace());
+        Tensor* input1 = new Tensor("input1", inputShape);
+        input1->allocateStorage<float>();
+        input1->fillData<float>(
+                { -2, -3, -4, 5, 6, 7, 8, 9, 10, 11, -12, 13, -14 });
+        workspace()->addTensor(input1);
+        mulOp->setInput(input0, 0);
+        mulOp->setInput(input1, 1);
+        mulOp->createAllTensors();
+        allocateAllTensors<float>(mulOp);
+        mulOp->run();
+        std::vector<float> expectedValues{ 2, 6, 12, 20, 30, 42, 56,
+                                           72, 90, -110, -132, -156, -182 };
+        auto outputsTensor = mulOp->getOutput(0);
         verifyOutputs(outputsTensor, expectedValues);
     }
 

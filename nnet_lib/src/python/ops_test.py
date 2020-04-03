@@ -128,6 +128,7 @@ class OperatorTest:
       out = convolution(
           out, filter_tensor2, stride=[1, 1], padding="same", name="conv2")
       out = add(x, out, "add")
+      out = mul(x, out, "mul")
 
     self.test_graph = graph
     self.backend = backend
@@ -513,6 +514,21 @@ class ResidualGraphTest(OperatorTest):
                      node.input_tensors[0].shape.layout)
     self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
 
+  def test_mul_op(self):
+    node = self.get_node(self.test_graph.graph, "mul")
+    self.assertEqual(node.op, EltwiseMul)
+    self.assertEqual(len(node.input_tensors), 2)
+    self.assertEqual(len(node.output_tensors), 1)
+    # Output tensor
+    self.assertEqual(node.output_tensors[0].name, "mul")
+    self.assertEqual(node.output_tensors[0].data_type, self.expected_dtype)
+    self.assertEqualDims(node.output_tensors[0].shape.dims,
+                         node.output_tensors[0].shape.layout, [1, 64, 28, 28],
+                         NCHW)
+    self.assertEqual(node.output_tensors[0].shape.layout,
+                     node.input_tensors[0].shape.layout)
+    self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
+
 class SMVSequentialGraphTest(smaug_test.SmaugTest, SequentialGraphTest):
   """Test the sequential graph on the SMV backend."""
 
@@ -685,6 +701,11 @@ class SMVResidualGraphTest(smaug_test.SmaugTest, ResidualGraphTest):
     node = self.get_node(self.test_graph.graph, "add")
     self.assertEqual(node.parents[0], "conv0")
     self.assertEqual(node.parents[1], "conv2")
+    self.assertEqual(node.children[0], "mul")
+    # mul (EltwiseMul).
+    node = self.get_node(self.test_graph.graph, "mul")
+    self.assertEqual(node.parents[0], "conv0")
+    self.assertEqual(node.parents[1], "add")
     self.assertEqual(len(node.children), 0)
 
 class RefResidualGraphTest(smaug_test.SmaugTest, ResidualGraphTest):
@@ -726,6 +747,11 @@ class RefResidualGraphTest(smaug_test.SmaugTest, ResidualGraphTest):
     node = self.get_node(self.test_graph.graph, "add")
     self.assertEqual(node.parents[0], "conv0")
     self.assertEqual(node.parents[1], "conv2")
+    self.assertEqual(node.children[0], "mul")
+    # mul (EltwiseMul).
+    node = self.get_node(self.test_graph.graph, "mul")
+    self.assertEqual(node.parents[0], "conv0")
+    self.assertEqual(node.parents[1], "add")
     self.assertEqual(len(node.children), 0)
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@
 #include "operators/data_op.h"
 #include "operators/depthwise_convolution_op.h"
 #include "operators/eltwise_add_op.h"
+#include "operators/eltwise_mul_op.h"
 #include "operators/elu_op.h"
 #include "operators/inner_product_op.h"
 #include "operators/pooling_op.h"
@@ -21,6 +22,7 @@
 #include "operators/smv/smv_tanh_op.h"
 #include "operators/smv/smv_sigmoid_op.h"
 #include "operators/smv/smv_eltwise_add_op.h"
+#include "operators/smv/smv_eltwise_mul_op.h"
 
 namespace smaug {
 
@@ -50,6 +52,7 @@ DEF_CREATE_OP(ReorderOp, ReferenceBackend)
 DEF_CREATE_OP(FlattenOp, ReferenceBackend)
 DEF_CREATE_OP(BatchNormOp, ReferenceBackend)
 DEF_CREATE_OP(EltwiseAddOp, ReferenceBackend)
+DEF_CREATE_OP(EltwiseMulOp, ReferenceBackend)
 DEF_CREATE_OP(ReluOp, ReferenceBackend)
 DEF_CREATE_OP(SigmoidOp, ReferenceBackend)
 DEF_CREATE_OP(EluOp, ReferenceBackend)
@@ -69,6 +72,7 @@ DEF_CREATE_SMV_OP(TanhOp)
 DEF_CREATE_SMV_OP(HardTanhOp)
 DEF_CREATE_SMV_OP(SigmoidOp)
 DEF_CREATE_SMV_OP(EltwiseAddOp)
+DEF_CREATE_SMV_OP(EltwiseMulOp)
 DEF_CREATE_OP(DataOp, SmvBackend)
 DEF_CREATE_OP(DepthwiseConvolutionOp, SmvBackend)
 DEF_CREATE_OP(SoftmaxOp, SmvBackend)

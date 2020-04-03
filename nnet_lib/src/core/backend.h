@@ -31,6 +31,7 @@ template <typename Backend> class ReorderOp;
 template <typename Backend> class FlattenOp;
 template <typename Backend> class BatchNormOp;
 template <typename Backend> class EltwiseAddOp;
+template <typename Backend> class EltwiseMulOp;
 template <typename Backend> class ReluOp;
 template <typename Backend> class SigmoidOp;
 template <typename Backend> class EluOp;
@@ -70,6 +71,7 @@ class ReferenceBackend {
     DECL_CREATE_OP(FlattenOp);
     DECL_CREATE_OP(BatchNormOp);
     DECL_CREATE_OP(EltwiseAddOp);
+    DECL_CREATE_OP(EltwiseMulOp);
     DECL_CREATE_OP(ReluOp);
     DECL_CREATE_OP(SigmoidOp);
     DECL_CREATE_OP(EluOp);
@@ -108,6 +110,7 @@ class SmvTanhOp;
 class SmvHardTanhOp;
 class SmvSigmoidOp;
 class SmvEltwiseAddOp;
+class SmvEltwiseMulOp;
 class SmvBackend {
 
 #define DECL_CREATE_OP(OpType)                                                 \
@@ -154,6 +157,7 @@ class SmvBackend {
     DECL_CREATE_SMV_OP(HardTanhOp);
     DECL_CREATE_SMV_OP(SigmoidOp);
     DECL_CREATE_SMV_OP(EltwiseAddOp);
+    DECL_CREATE_SMV_OP(EltwiseMulOp);
     DECL_CREATE_OP(DataOp);
     DECL_CREATE_OP(DepthwiseConvolutionOp);
     DECL_CREATE_OP(SoftmaxOp);

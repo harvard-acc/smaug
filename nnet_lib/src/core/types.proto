@@ -49,6 +49,7 @@ enum OpType {
   Softmax = 15;
   EltwiseAdd = 16;
   Reorder = 17;
+  EltwiseMul = 18;
 }
 
 enum PaddingType {

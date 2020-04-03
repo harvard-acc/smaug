@@ -20,6 +20,7 @@
 #include "operators/data_op.h"
 #include "operators/depthwise_convolution_op.h"
 #include "operators/eltwise_add_op.h"
+#include "operators/eltwise_mul_op.h"
 #include "operators/elu_op.h"
 #include "operators/inner_product_op.h"
 #include "operators/pooling_op.h"
@@ -37,6 +38,7 @@
 #include "operators/smv/smv_tanh_op.h"
 #include "operators/smv/smv_sigmoid_op.h"
 #include "operators/smv/smv_eltwise_add_op.h"
+#include "operators/smv/smv_eltwise_mul_op.h"
 #include "utility/utils.h"
 #include "utility/debug_stream.h"
 
@@ -181,6 +183,9 @@ static void createAndAddOperator(const NodeProto& node,
         network->addOperator(op, inputs);
     } else if (type == OpType::EltwiseAdd) {
         auto op = Backend::createEltwiseAddOp(name, workspace);
+        network->addOperator(op, inputs);
+    } else if (type == OpType::EltwiseMul) {
+        auto op = Backend::createEltwiseMulOp(name, workspace);
         network->addOperator(op, inputs);
     } else if (type == OpType::ReLU) {
         auto op = Backend::createReluOp(name, workspace);

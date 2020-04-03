@@ -53,7 +53,8 @@ backend_layouts = {
         HardTanh: OperatorLayouts([X], X),
         Sigmoid: OperatorLayouts([X], X),
         Softmax: OperatorLayouts([X], X),
-        EltwiseAdd: OperatorLayouts([X], X)
+        EltwiseAdd: OperatorLayouts([X], X),
+        EltwiseMul: OperatorLayouts([X], X),
     },
     "SMV": {
         Convolution3d: OperatorLayouts([NHWC, NHWC], NHWC),
@@ -71,7 +72,8 @@ backend_layouts = {
         HardTanh: OperatorLayouts([X], X),
         Sigmoid: OperatorLayouts([X], X),
         Softmax: OperatorLayouts([X], X),
-        EltwiseAdd: OperatorLayouts([X], X)
+        EltwiseAdd: OperatorLayouts([X], X),
+        EltwiseMul: OperatorLayouts([X], X),
     }
 }
 
@@ -94,4 +96,5 @@ default_op_names = {
     Reorder: "reorder",
     InnerProduct: "mat_mul",
     EltwiseAdd: "add",
+    EltwiseMul: "mul",
 }
