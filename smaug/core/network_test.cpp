@@ -125,4 +125,23 @@ TEST_CASE_METHOD(SmaugTest, "Network tests", "[network]") {
         verifyOutputs<float>(
                 convertFp16ToFp32Tensor(output, workspace()), refOutput);
     }
+
+    SECTION("Simple 2-layer LSTM network.") {
+        // LSTM network with the SMV backend.
+        Network* network = buildNetwork(
+                modelPath + "lstm/lstm_smv_topo.pbtxt",
+                modelPath + "lstm/lstm_smv_params.pb");
+        Tensor* output = runNetwork(network, workspace());
+
+        // The same network with the reference backend. This is used for
+        // producing expected outputs.
+        Network* refNetwork = buildNetwork(
+                modelPath + "lstm/lstm_ref_topo.pbtxt",
+                modelPath + "lstm/lstm_ref_params.pb");
+        Tensor* refOutput = runNetwork(refNetwork, workspace());
+
+        // SMV outputs need to be converted into float32 before validations.
+        verifyOutputs<float>(
+                convertFp16ToFp32Tensor(output, workspace()), refOutput);
+    }
 }

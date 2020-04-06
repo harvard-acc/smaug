@@ -4,8 +4,11 @@ Currently it contains:
   1) A global active graph
   2) Alignment information for various backends.
   3) Input/output layouts for operators of various backends.
-  4) Supported activation functions.
+  4) Supported data types of backends.
+  5) Supported activation functions.
 """
+
+import numpy as np
 
 from smaug.core.types_pb2 import *
 from smaug.python.datatypes import LayoutSet,OperatorLayouts
@@ -75,6 +78,8 @@ backend_layouts = {
         EltwiseMul: OperatorLayouts([X], X),
     }
 }
+
+backend_datatype = {"SMV": np.float16, "Reference": np.float32}
 
 supported_activations = [
     ReLU, LReLU, ELU, SELU, Tanh, HardTanh, Sigmoid, Softmax
