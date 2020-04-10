@@ -27,6 +27,7 @@
 #include "operators/relu_op.h"
 #include "operators/reorder_op.h"
 #include "operators/concat_op.h"
+#include "operators/split_op.h"
 #include "operators/sigmoid_op.h"
 #include "operators/softmax_op.h"
 #include "operators/tanh_op.h"
@@ -182,6 +183,15 @@ static void createAndAddOperator(const NodeProto& node,
         auto op = Backend::createConcatOp(name, workspace);
         op->setNumInputs(node.input_tensors_size());
         op->setConcatAxis(node.params().concat_params().concat_axis());
+        network->addOperator(op, inputs);
+    } else if (type == OpType::Split) {
+        auto op = Backend::createSplitOp(name, workspace);
+        int axis = node.params().split_params().split_axis();
+        std::vector<int> splits;
+        for (const auto& tensor : node.output_tensors())
+            splits.push_back(tensor.shape().dims(axis));
+        op->setSplits(splits);
+        op->setSplitAxis(axis);
         network->addOperator(op, inputs);
     } else if (type == OpType::BatchNorm) {
         auto op = Backend::createBatchNormOp(name, workspace);

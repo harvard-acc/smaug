@@ -1,4 +1,5 @@
 import numpy as np
+from warnings import warn
 from types_pb2 import *
 from node_pb2 import *
 from global_vars import *
@@ -31,7 +32,7 @@ def check_and_add_layout_transform(name, op, input_tensors):
   return input_tensors
 
 def add_node(
-    op, input_tensors, output_tensor_dims, output_tensor_layout=NCHW,
+    op, input_tensors, output_tensors_dims, output_tensor_layout=NCHW,
     output_tensor_dtype=None, output_tensor_dformat=Uncompressed, name=None,
     params=None):
   if get_graph() == None:
@@ -48,24 +49,22 @@ def add_node(
     if input_tensors[i].source == None and op != Data:
       input_tensors[i] = get_graph().add_node(
           op=Data, input_tensors=[input_tensors[i]],
-          output_tensor_dims=input_tensors[i].shape.dims,
+          output_tensors_dims=[input_tensors[i].shape.dims],
           output_tensor_layout=input_tensors[i].shape.layout,
           output_tensor_dtype=output_tensor_dtype,
-          output_tensor_dformat=output_tensor_dformat)
+          output_tensor_dformat=output_tensor_dformat)[0]
   return get_graph().add_node(
       name=name, op=op, input_tensors=input_tensors,
-      output_tensor_dims=output_tensor_dims,
+      output_tensors_dims=output_tensors_dims,
       output_tensor_layout=output_tensor_layout,
       output_tensor_dtype=output_tensor_dtype,
       output_tensor_dformat=output_tensor_dformat, params=params)
 
 def input_data(input_tensor, name=None):
   return add_node(
-      name=name,
-      op=Data,
-      input_tensors=[input_tensor],
-      output_tensor_dims=input_tensor.shape.dims,
-      output_tensor_layout=input_tensor.shape.layout)
+      name=name, op=Data, input_tensors=[input_tensor],
+      output_tensors_dims=[input_tensor.shape.dims],
+      output_tensor_layout=input_tensor.shape.layout)[0]
 
 def to_padding_type(padding):
   if padding == "same":
@@ -148,82 +147,61 @@ def convolution(
     set_activation_params(activation, params.act_params, activation_params)
 
   return add_node(
-      name=name,
-      op=Convolution3d,
-      input_tensors=[input_tensor, filter_tensor],
-      output_tensor_dims=output_tensor_dims,
-      output_tensor_layout=output_layout,
-      params=params)
+      name=name, op=Convolution3d, input_tensors=[input_tensor, filter_tensor],
+      output_tensors_dims=[output_tensor_dims],
+      output_tensor_layout=output_layout, params=params)[0]
 
 def relu(input_tensor, name=None):
   return add_node(
-      name=name,
-      op=ReLU,
-      input_tensors=[input_tensor],
-      output_tensor_dims=input_tensor.shape.dims,
-      output_tensor_layout=input_tensor.shape.layout)
+      name=name, op=ReLU, input_tensors=[input_tensor],
+      output_tensors_dims=[input_tensor.shape.dims],
+      output_tensor_layout=input_tensor.shape.layout)[0]
 
 def lrelu(input_tensor, slope=0.2, name=None):
   params = Params()
   params.act_params.lrelu_params.slope = slope
   return add_node(
-      name=name,
-      op=LReLU,
-      input_tensors=[input_tensor],
-      output_tensor_dims=input_tensor.shape.dims,
-      output_tensor_layout=input_tensor.shape.layout,
-      params=params)
+      name=name, op=LReLU, input_tensors=[input_tensor],
+      output_tensors_dims=[input_tensor.shape.dims],
+      output_tensor_layout=input_tensor.shape.layout, params=params)[0]
 
 def elu(input_tensor, alpha=0.1, name=None):
   params = Params()
   params.act_params.elu_params.alpha = alpha
   return add_node(
-      name=name,
-      op=ELU,
-      input_tensors=[input_tensor],
-      output_tensor_dims=input_tensor.shape.dims,
-      output_tensor_layout=input_tensor.shape.layout,
-      params=params)
+      name=name, op=ELU, input_tensors=[input_tensor],
+      output_tensors_dims=[input_tensor.shape.dims],
+      output_tensor_layout=input_tensor.shape.layout, params=params)[0]
 
 def selu(input_tensor, alpha=1.6733, lambda_param=1.0507, name=None):
   params = Params()
   params.act_params.elu_params.alpha = alpha
   params.act_params.elu_params.lambda_param = lambda_param
   return add_node(
-      name=name,
-      op=SELU,
-      input_tensors=[input_tensor],
-      output_tensor_dims=input_tensor.shape.dims,
-      output_tensor_layout=input_tensor.shape.layout,
-      params=params)
+      name=name, op=SELU, input_tensors=[input_tensor],
+      output_tensors_dims=[input_tensor.shape.dims],
+      output_tensor_layout=input_tensor.shape.layout, params=params)[0]
 
 def tanh(input_tensor, name=None):
   return add_node(
-      name=name,
-      op=Tanh,
-      input_tensors=[input_tensor],
-      output_tensor_dims=input_tensor.shape.dims,
-      output_tensor_layout=input_tensor.shape.layout)
+      name=name, op=Tanh, input_tensors=[input_tensor],
+      output_tensors_dims=[input_tensor.shape.dims],
+      output_tensor_layout=input_tensor.shape.layout)[0]
 
 def hard_tanh(input_tensor, min=-1, max=1, name=None):
   params = Params()
   params.act_params.hard_tanh_params.min = min
   params.act_params.hard_tanh_params.max = max
   return add_node(
-      name=name,
-      op=HardTanh,
-      input_tensors=[input_tensor],
-      output_tensor_dims=input_tensor.shape.dims,
-      output_tensor_layout=input_tensor.shape.layout,
-      params=params)
+      name=name, op=HardTanh, input_tensors=[input_tensor],
+      output_tensors_dims=[input_tensor.shape.dims],
+      output_tensor_layout=input_tensor.shape.layout, params=params)[0]
 
 def sigmoid(input_tensor, name=None):
   return add_node(
-      name=name,
-      op=Sigmoid,
-      input_tensors=[input_tensor],
-      output_tensor_dims=input_tensor.shape.dims,
-      output_tensor_layout=input_tensor.shape.layout)
+      name=name, op=Sigmoid, input_tensors=[input_tensor],
+      output_tensors_dims=[input_tensor.shape.dims],
+      output_tensor_layout=input_tensor.shape.layout)[0]
 
 def batch_norm(
     input_tensor, mean_tensor, var_tensor, gamma_tensor, beta_tensor,
@@ -250,14 +228,10 @@ def batch_norm(
     params.act_params.activation = activation
     set_activation_params(activation, params.act_params, activation_params)
   return add_node(
-      name=name,
-      op=BatchNorm,
-      input_tensors=[
+      name=name, op=BatchNorm, input_tensors=[
           input_tensor, mean_tensor, var_tensor, gamma_tensor, beta_tensor
-      ],
-      output_tensor_dims=input_tensor.shape.dims,
-      output_tensor_layout=output_layout,
-      params=params)
+      ], output_tensors_dims=[input_tensor.shape.dims],
+      output_tensor_layout=output_layout, params=params)[0]
 
 def max_pool(input_tensor, pool_size, stride, name=None):
   def compute_output_dim(input_dim, pool_size, stride):
@@ -287,12 +261,9 @@ def max_pool(input_tensor, pool_size, stride, name=None):
   params.pool_params.stride.extend(stride)
   params.pool_params.pool_size.extend(pool_size)
   return add_node(
-      name=name,
-      op=MaxPooling,
-      input_tensors=[input_tensor],
-      output_tensor_dims=output_tensor_dims,
-      output_tensor_layout=output_layout,
-      params=params)
+      name=name, op=MaxPooling, input_tensors=[input_tensor],
+      output_tensors_dims=[output_tensor_dims],
+      output_tensor_layout=output_layout, params=params)[0]
 
 def reorder(input_tensor, target_layout, name=None):
   src_layout = input_tensor.shape.layout
@@ -315,11 +286,9 @@ def reorder(input_tensor, target_layout, name=None):
     output_tensor_dims = [src_dims[1], src_dims[0]]
 
   return add_node(
-      name=name,
-      op=Reorder,
-      input_tensors=[input_tensor],
-      output_tensor_dims=output_tensor_dims,
-      output_tensor_layout=target_layout)
+      name=name, op=Reorder, input_tensors=[input_tensor],
+      output_tensors_dims=[output_tensor_dims],
+      output_tensor_layout=target_layout)[0]
 
 def flatten(input_tensor, name=None):
   assert (len(input_tensor.shape.dims) == 4)
@@ -345,33 +314,26 @@ def mat_mul(
     params.act_params.activation = activation
     set_activation_params(activation, params.act_params, activation_params)
   return add_node(
-      name=name,
-      op=InnerProduct,
-      input_tensors=[input_tensor, weight_tensor],
-      output_tensor_dims=output_tensor_dims,
-      output_tensor_layout=NC,
-      params=params)
+      name=name, op=InnerProduct, input_tensors=[input_tensor, weight_tensor],
+      output_tensors_dims=[output_tensor_dims], output_tensor_layout=NC,
+      params=params)[0]
 
 def add(tensor_a, tensor_b, name=None):
   assert (tensor_a.shape.dims == tensor_b.shape.dims
           ), "Elementwise add must have the same shape for the input tensors."
   return add_node(
-      name=name,
-      op=EltwiseAdd,
-      input_tensors=[tensor_a, tensor_b],
-      output_tensor_dims=tensor_a.shape.dims,
-      output_tensor_layout=tensor_a.shape.layout)
+      name=name, op=EltwiseAdd, input_tensors=[tensor_a, tensor_b],
+      output_tensors_dims=[tensor_a.shape.dims],
+      output_tensor_layout=tensor_a.shape.layout)[0]
 
 def mul(tensor_a, tensor_b, name=None):
   if tensor_a.shape.dims != tensor_b.shape.dims:
     raise ValueError(
         "Elementwise multiplication must have the same shape for the inputs!")
   return add_node(
-      name=name,
-      op=EltwiseMul,
-      input_tensors=[tensor_a, tensor_b],
-      output_tensor_dims=tensor_a.shape.dims,
-      output_tensor_layout=tensor_a.shape.layout)
+      name=name, op=EltwiseMul, input_tensors=[tensor_a, tensor_b],
+      output_tensors_dims=[tensor_a.shape.dims],
+      output_tensor_layout=tensor_a.shape.layout)[0]
 
 def concat(input_tensors, axis=0, name=None):
   """Concatenate tensors into one.
@@ -396,5 +358,50 @@ def concat(input_tensors, axis=0, name=None):
   params.concat_params.concat_axis = axis
   return add_node(
       name=name, op=Concat, input_tensors=input_tensors,
-      output_tensor_dims=output_tensor_dims,
-      output_tensor_layout=input_tensors[0].shape.layout, params=params)
+      output_tensors_dims=[output_tensor_dims],
+      output_tensor_layout=input_tensors[0].shape.layout, params=params)[0]
+
+def split(input_tensor, num_or_size_splits, axis=0, name=None):
+  """Split a tensor into sub tensors.
+
+  Args:
+    input_tensor: Input tensor.
+    num_or_size_splits: Either an integer indicating the number of splits along
+      axis or a 1D list containing the sizes of each output tensor along axis.
+      If an integer, then it must evenly divide input_tensor.shape.dims[axis];
+      otherwise the sum of sizes along the split axis must match that of the
+      value.
+    axis: The dimension to split.
+    name: Name of the operator.
+
+  Returns:
+    A list of sub tensors.
+  """
+  splits = num_or_size_splits
+  dim = input_tensor.shape.dims[axis]
+  if not isinstance(num_or_size_splits, list):
+    if dim % num_or_size_splits != 0:
+      raise ValueError(
+          "The size (%d) of the axis along which to split must divide the "
+          "splits (%d)!" % (dim, num_or_size_splits))
+    splits = [dim / num_or_size_splits] * num_or_size_splits
+  if sum(splits) != input_tensor.shape.dims[axis]:
+    raise ValueError(
+        "the sum (%d) of sizes along the split axis must match that of the "
+        "input (%d)!" % (sum(splits), input_tensor.shape.dims[axis]))
+  if splits == [1]:
+    warn(
+        "Number of splits is 1 for the split operator, thus this operator is "
+        "optimized out.")
+    return [input_tensor]
+  output_tensors_dims = []
+  for s in splits:
+    dims = list(input_tensor.shape.dims)
+    dims[axis] = s
+    output_tensors_dims.append(dims)
+  params = Params()
+  params.split_params.split_axis = axis
+  return add_node(
+      name=name, op=Split, input_tensors=[input_tensor],
+      output_tensors_dims=output_tensors_dims,
+      output_tensor_layout=input_tensor.shape.layout, params=params)

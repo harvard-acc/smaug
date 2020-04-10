@@ -19,6 +19,10 @@ message ConcatParams {
   int32 concat_axis = 1;
 }
 
+message SplitParams {
+  int32 split_axis = 1;
+}
+
 message LreluParams {
   float slope = 1;
 }
@@ -47,6 +51,7 @@ message Params {
     ConvParams conv_params = 1;
     PoolParams pool_params = 2;
     ConcatParams concat_params = 4;
+    SplitParams split_params = 5;
   }
   ActivationParams act_params = 3;
 }

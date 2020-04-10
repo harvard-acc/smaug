@@ -98,4 +98,5 @@ default_op_names = {
     EltwiseAdd: "add",
     EltwiseMul: "mul",
     Concat: "mul",
+    Split: "split",
 }

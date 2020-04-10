@@ -29,6 +29,7 @@ template <typename Backend> class InnerProductOp;
 template <typename Backend> class SoftmaxOp;
 template <typename Backend> class ReorderOp;
 template <typename Backend> class ConcatOp;
+template <typename Backend> class SplitOp;
 template <typename Backend> class FlattenOp;
 template <typename Backend> class BatchNormOp;
 template <typename Backend> class EltwiseAddOp;
@@ -70,6 +71,7 @@ class ReferenceBackend {
     DECL_CREATE_OP(SoftmaxOp);
     DECL_CREATE_OP(ReorderOp);
     DECL_CREATE_OP(ConcatOp);
+    DECL_CREATE_OP(SplitOp);
     DECL_CREATE_OP(FlattenOp);
     DECL_CREATE_OP(BatchNormOp);
     DECL_CREATE_OP(EltwiseAddOp);
@@ -165,6 +167,7 @@ class SmvBackend {
     DECL_CREATE_OP(SoftmaxOp);
     DECL_CREATE_OP(ReorderOp);
     DECL_CREATE_OP(ConcatOp);
+    DECL_CREATE_OP(SplitOp);
     DECL_CREATE_OP(FlattenOp);
 
 #undef DECL_SMV_OP

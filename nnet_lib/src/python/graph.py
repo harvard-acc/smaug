@@ -36,7 +36,7 @@ class Graph:
   def add_node(self,
                op,
                input_tensors,
-               output_tensor_dims,
+               output_tensors_dims,
                output_tensor_layout=NCHW,
                output_tensor_dtype=Float32,
                output_tensor_dformat=Uncompressed,
@@ -47,7 +47,7 @@ class Graph:
     Args:
       op: Operator type.
       input_tensors: A list of input tensors of the node.
-      output_tensor_dims: Dimensionality of the output tensor.
+      output_tensors_dims: A list of dims of the output tensors.
       output_tensor_layout: Layout of the output tensor.
       output_tensor_dtype: Data type of the output tensor.
       output_tensor_dformat: Storage format of the output tensor.
@@ -79,18 +79,18 @@ class Graph:
 
     # Create the output tensor (with the node as its source), and add it to the
     # node.
-    output_tensor = Tensor(
-        dims=output_tensor_dims,
-        name=node.name,
-        data_layout=output_tensor_layout,
-        data_type=output_tensor_dtype,
-        data_format=output_tensor_dformat,
-        source=node,
-        alignment=self.alignment)
-    output_tensor_proto = node.output_tensors.add()
-    output_tensor.to_tensor_proto(output_tensor_proto, self.tensor_data_array)
+    output_tensors = []
+    for i,d in enumerate(output_tensors_dims):
+      output_tensor = Tensor(
+          dims=d, name="%s/output%d" % (node.name, i),
+          data_layout=output_tensor_layout, data_type=output_tensor_dtype,
+          data_format=output_tensor_dformat, source=node,
+          alignment=self.alignment)
+      output_tensor_proto = node.output_tensors.add()
+      output_tensor.to_tensor_proto(output_tensor_proto, self.tensor_data_array)
+      output_tensors.append(output_tensor)
 
-    return output_tensor
+    return output_tensors
 
   def _create_unique_name(self, op, name=None):
     """ Create a unique name for the node.

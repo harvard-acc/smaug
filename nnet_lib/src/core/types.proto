@@ -51,6 +51,7 @@ enum OpType {
   Reorder = 17;
   EltwiseMul = 18;
   Concat = 19;
+  Split = 20;
 }
 
 enum PaddingType {
