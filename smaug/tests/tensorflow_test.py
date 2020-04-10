@@ -16,6 +16,7 @@ class TensorflowTest(unittest.TestCase):
     self.graph_name = "test_graph"
     self.backend = "SMV"
     self.binary = os.environ["SMAUG_HOME"] + "/build/bin/smaug"
+    self.dtype = backend_datatype[self.backend]
 
   def tearDown(self):
     """ Delete temporary files and outputs. """

@@ -90,7 +90,8 @@ TESTS = smaug/core/tensor_test.cpp \
 PY_TESTS = smaug/python/tensor_test.py \
            smaug/python/ops_test.py \
            smaug/python/activation_functions_test.py \
-           smaug/tests/recurrent_test.py
+           smaug/tests/recurrent_test.py \
+           smaug/tests/attention_test.py
 
 
 
