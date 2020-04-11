@@ -81,6 +81,8 @@ class OperatorTest:
       out = mat_mul(out, weight_tensor0, name="fc0")
       out = relu(out, "fc0_relu")
       out = mat_mul(out, weight_tensor1, name="fc1")
+      out = expand_dims(out, 1, "expand_dims")
+      out = squeeze(out, 1, "squeeze")
       out = reshape(out, [2, 5], NC, "reshape")
 
     self.test_graph = graph
@@ -351,6 +353,30 @@ class SequentialGraphTest(OperatorTest):
                          node.output_tensors[0].shape.layout, [1, 10], NC)
     self.assertEqual(node.output_tensors[0].shape.layout,
                      expected_output_layout)
+    self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
+
+  def test_expand_dims_op(self):
+    node = self.get_node(self.test_graph.graph, "expand_dims")
+    self.assertEqual(node.op, Reshape)
+    self.assertEqual(len(node.input_tensors), 1)
+    self.assertEqual(len(node.output_tensors), 1)
+    # Output tensor
+    self.assertEqual(node.output_tensors[0].name, "expand_dims/output0")
+    self.assertEqual(node.output_tensors[0].data_type, self.expected_dtype)
+    self.assertEqual(node.output_tensors[0].shape.dims, [1, 1, 10])
+    self.assertEqual(node.output_tensors[0].shape.layout, NTC)
+    self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
+
+  def test_squeeze_op(self):
+    node = self.get_node(self.test_graph.graph, "squeeze")
+    self.assertEqual(node.op, Reshape)
+    self.assertEqual(len(node.input_tensors), 1)
+    self.assertEqual(len(node.output_tensors), 1)
+    # Output tensor
+    self.assertEqual(node.output_tensors[0].name, "squeeze/output0")
+    self.assertEqual(node.output_tensors[0].data_type, self.expected_dtype)
+    self.assertEqual(node.output_tensors[0].shape.dims, [1, 10])
+    self.assertEqual(node.output_tensors[0].shape.layout, NC)
     self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
 
   def test_reshape_op(self):
@@ -664,10 +690,18 @@ class SMVSequentialGraphTest(smaug_test.SmaugTest, SequentialGraphTest):
     # fc1 (FC).
     node = self.get_node(self.test_graph.graph, "fc1")
     self.assertEqual(node.parents[0], "fc0_relu")
+    self.assertEqual(node.children[0], "expand_dims")
+    # expand_dims (Reshape).
+    node = self.get_node(self.test_graph.graph, "expand_dims")
+    self.assertEqual(node.parents[0], "fc1")
+    self.assertEqual(node.children[0], "squeeze")
+    # squeeze (Reshape).
+    node = self.get_node(self.test_graph.graph, "squeeze")
+    self.assertEqual(node.parents[0], "expand_dims")
     self.assertEqual(node.children[0], "reshape")
     # reshape (Reshape).
     node = self.get_node(self.test_graph.graph, "reshape")
-    self.assertEqual(node.parents[0], "fc1")
+    self.assertEqual(node.parents[0], "squeeze")
     self.assertEqual(len(node.children), 0)
 
 class RefSequentialGraphTest(smaug_test.SmaugTest, SequentialGraphTest):
@@ -733,10 +767,18 @@ class RefSequentialGraphTest(smaug_test.SmaugTest, SequentialGraphTest):
     # fc1 (FC)
     node = self.get_node(self.test_graph.graph, "fc1")
     self.assertEqual(node.parents, ["fc0_relu", "reorder_1"])
+    self.assertEqual(node.children[0], "expand_dims")
+    # expand_dims (Reshape).
+    node = self.get_node(self.test_graph.graph, "expand_dims")
+    self.assertEqual(node.parents[0], "fc1")
+    self.assertEqual(node.children[0], "squeeze")
+    # squeeze (Reshape).
+    node = self.get_node(self.test_graph.graph, "squeeze")
+    self.assertEqual(node.parents[0], "expand_dims")
     self.assertEqual(node.children[0], "reshape")
     # reshape (Reshape)
     node = self.get_node(self.test_graph.graph, "reshape")
-    self.assertEqual(node.parents[0], "fc1")
+    self.assertEqual(node.parents[0], "squeeze")
     self.assertEqual(len(node.children), 0)
 
 class SMVResidualGraphTest(smaug_test.SmaugTest, ResidualGraphTest):

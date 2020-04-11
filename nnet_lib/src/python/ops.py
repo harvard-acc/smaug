@@ -430,3 +430,37 @@ def reshape(input_tensor, shape, layout, name=None):
   return add_node(
       name=name, op=Reshape, input_tensors=[input_tensor],
       output_tensors_dims=[shape], output_tensor_layout=layout)[0]
+
+def expand_dims(input_tensor, axis=0, name=None):
+  """Expand a tensor with an additional dimension.
+
+  Args:
+    input_tensor: Input tensor.
+    axis: Dimension to expand the shape of input tensor.
+    name: Name used for naming the operator.
+
+  Returns:
+    A tensor with an additional dimension inserted at index axis.
+  """
+  if not (input_tensor.shape.layout == NC and (axis == 1 or axis == 2)):
+    raise ValueError("Currently we only support expanding NC layout.")
+  output_tensor_dims = np.insert(input_tensor.shape.dims, axis, 1)
+  output_tensor_layout = NCT if axis == 2 else NTC
+  return reshape(input_tensor, output_tensor_dims, output_tensor_layout, name)
+
+def squeeze(input_tensor, axis, name=None):
+  """Eliminate a dimension of size 1 from a tensor.
+
+  Args:
+    input_tensor: Input tensor.
+    axis: Dimension to be removed from the input tensor.
+    name: Named used for naming the operator.
+
+  Returns:
+    A tensor with a dimension removed at index axis.
+  """
+  if input_tensor.shape.layout not in [NTC, NCT]:
+    raise ValueError("Currently we only support squeezing NCT and NTC to NC.")
+  output_tensor_dims = np.delete(input_tensor.shape.dims, axis)
+  output_tensor_layout = NC
+  return reshape(input_tensor, output_tensor_dims, output_tensor_layout, name)
