@@ -55,6 +55,7 @@ enum OpType {
   Concat = 19;
   Split = 20;
   Reshape = 21;
+  Repeat = 22;
 }
 
 enum PaddingType {

@@ -464,3 +464,25 @@ def squeeze(input_tensor, axis, name=None):
   output_tensor_dims = np.delete(input_tensor.shape.dims, axis)
   output_tensor_layout = NC
   return reshape(input_tensor, output_tensor_dims, output_tensor_layout, name)
+
+def repeat(input_tensor, multiples, name=None):
+  """Construct a tensor by repeating a given tensor.
+
+  Args:
+    input_tensor: Input tensor.
+    multiples: A list that represents the number of multiples in each dimension
+      of the input tensor.
+    name: Name of the operator.
+
+  Returns:
+    A repeated version of the input tensor.
+  """
+  if len(input_tensor.shape.dims) != len(multiples):
+    raise ValueError(
+        "The multiples of the repeat operator must have the same number of "
+        "dims as the input tensor.")
+  output_tensor_dims = np.multiply(input_tensor.shape.dims, multiples)
+  return add_node(
+      name=name, op=Repeat, input_tensors=[input_tensor],
+      output_tensors_dims=[output_tensor_dims],
+      output_tensor_layout=input_tensor.shape.layout)[0]

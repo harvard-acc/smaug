@@ -100,4 +100,5 @@ default_op_names = {
     Concat: "mul",
     Split: "split",
     Reshape: "reshape",
+    Repeat: "repeat",
 }

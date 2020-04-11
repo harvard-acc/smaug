@@ -84,6 +84,7 @@ class OperatorTest:
       out = expand_dims(out, 1, "expand_dims")
       out = squeeze(out, 1, "squeeze")
       out = reshape(out, [2, 5], NC, "reshape")
+      out = repeat(out, [4, 2], "repeat")
 
     self.test_graph = graph
     self.backend = backend
@@ -388,6 +389,18 @@ class SequentialGraphTest(OperatorTest):
     self.assertEqual(node.output_tensors[0].name, "reshape/output0")
     self.assertEqual(node.output_tensors[0].data_type, self.expected_dtype)
     self.assertEqual(node.output_tensors[0].shape.dims, [2, 5])
+    self.assertEqual(node.output_tensors[0].shape.layout, NC)
+    self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
+
+  def test_repeat_op(self):
+    node = self.get_node(self.test_graph.graph, "repeat")
+    self.assertEqual(node.op, Repeat)
+    self.assertEqual(len(node.input_tensors), 1)
+    self.assertEqual(len(node.output_tensors), 1)
+    # Output tensor
+    self.assertEqual(node.output_tensors[0].name, "repeat/output0")
+    self.assertEqual(node.output_tensors[0].data_type, self.expected_dtype)
+    self.assertEqual(node.output_tensors[0].shape.dims, [8, 10])
     self.assertEqual(node.output_tensors[0].shape.layout, NC)
     self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
 
@@ -702,6 +715,10 @@ class SMVSequentialGraphTest(smaug_test.SmaugTest, SequentialGraphTest):
     # reshape (Reshape).
     node = self.get_node(self.test_graph.graph, "reshape")
     self.assertEqual(node.parents[0], "squeeze")
+    self.assertEqual(node.children[0], "repeat")
+    # repeat (Repeat).
+    node = self.get_node(self.test_graph.graph, "repeat")
+    self.assertEqual(node.parents[0], "reshape")
     self.assertEqual(len(node.children), 0)
 
 class RefSequentialGraphTest(smaug_test.SmaugTest, SequentialGraphTest):
@@ -779,6 +796,10 @@ class RefSequentialGraphTest(smaug_test.SmaugTest, SequentialGraphTest):
     # reshape (Reshape)
     node = self.get_node(self.test_graph.graph, "reshape")
     self.assertEqual(node.parents[0], "squeeze")
+    self.assertEqual(node.children[0], "repeat")
+    # repeat (Repeat)
+    node = self.get_node(self.test_graph.graph, "repeat")
+    self.assertEqual(node.parents[0], "reshape")
     self.assertEqual(len(node.children), 0)
 
 class SMVResidualGraphTest(smaug_test.SmaugTest, ResidualGraphTest):

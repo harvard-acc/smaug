@@ -29,6 +29,7 @@
 #include "operators/concat_op.h"
 #include "operators/split_op.h"
 #include "operators/reshape_op.h"
+#include "operators/repeat_op.h"
 #include "operators/sigmoid_op.h"
 #include "operators/softmax_op.h"
 #include "operators/tanh_op.h"
@@ -202,6 +203,15 @@ static void createAndAddOperator(const NodeProto& node,
                 shapeProto.dims().begin(), shapeProto.dims().end());
         DataLayout layout = shapeProto.layout();
         op->setShape(shape, layout);
+        network->addOperator(op, inputs);
+    } else if (type == OpType::Repeat) {
+        auto op = Backend::createRepeatOp(name, workspace);
+        const TensorShapeProto& inputShape = node.input_tensors(0).shape();
+        const TensorShapeProto& outputShape = node.output_tensors(0).shape();
+        std::vector<int> multiples;
+        for (int i = 0; i < inputShape.dims_size(); i++)
+            multiples.push_back(outputShape.dims(i) / inputShape.dims(i));
+        op->setMultiples(multiples);
         network->addOperator(op, inputs);
     } else if (type == OpType::BatchNorm) {
         auto op = Backend::createBatchNormOp(name, workspace);

@@ -73,6 +73,7 @@ TESTS = src/core/tensor_test.cpp \
         src/operators/concat_op_test.cpp \
         src/operators/split_op_test.cpp \
         src/operators/reshape_op_test.cpp \
+        src/operators/repeat_op_test.cpp \
         src/operators/smv/smv_convolution_tiling_test.cpp \
         src/operators/smv/smv_convolution_op_test.cpp \
         src/operators/smv/smv_inner_product_tiling_test.cpp \
