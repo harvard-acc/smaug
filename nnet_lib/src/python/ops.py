@@ -485,3 +485,41 @@ def repeat(input_tensor, multiples, name="repeat"):
       name=name, op=Repeat, input_tensors=[input_tensor],
       output_tensors_dims=[output_tensor_dims],
       output_tensor_layout=input_tensor.shape.layout)[0]
+
+def stack(input_tensor, multiple, axis, name="stack"):
+  """Expand and repeat the specified dimension of a tensor.
+
+  Args:
+    input_tensor: Input tensor.
+    multiple: Number of repeats in the expanded dimension.
+    axis: Dimension on which to batch.
+    name: Name used for naming operators.
+
+  Returns:
+    A tensor with a new dimension.
+  """
+  output = expand_dims(input_tensor, axis, name=name + ":expand_dims")
+  multiples = np.ones(len(output.shape.dims), dtype=np.int32)
+  multiples[axis] = multiple
+  output = repeat(output, multiples, name=name + ":repeat")
+  return output
+
+def unstack(input_tensor, axis, name="unstack"):
+  """Unpack the specified dimension of a tensor.
+
+  The size = 1 dimension gets squeezed out.
+
+  Args:
+    input_tensor: Input tensor.
+    axis: Dimension on which to unpack.
+    name: Name used for naming operators.
+
+  Returns:
+    A list of tensors with the given dimension unpacked.
+  """
+  split_tensors = split(
+      input_tensor, input_tensor.shape.dims[axis], axis, name=name + ":split")
+  outputs = []
+  for i,tensor in enumerate(split_tensors):
+    outputs.append(squeeze(tensor, axis, name=name + ":squeeze"))
+  return outputs

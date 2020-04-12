@@ -85,6 +85,8 @@ class OperatorTest:
       out = squeeze(out, 1, "squeeze")
       out = reshape(out, [2, 5], NC, "reshape")
       out = repeat(out, [4, 2], "repeat")
+      out = stack(out, 4, 1, "stack")
+      out0, out1, out2, out3 = unstack(out, 1, "unstack")
 
     self.test_graph = graph
     self.backend = backend
@@ -404,6 +406,27 @@ class SequentialGraphTest(OperatorTest):
     self.assertEqual(node.output_tensors[0].shape.layout, NC)
     self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
 
+  def test_stack_op(self):
+    # stack op is implemented using expand_dims and repeat. Here we only test
+    # the output.
+    node = self.get_node(self.test_graph.graph, "stack:repeat")
+    self.assertEqual(node.output_tensors[0].data_type, self.expected_dtype)
+    self.assertEqual(node.output_tensors[0].shape.dims, [8, 4, 10])
+    self.assertEqual(node.output_tensors[0].shape.layout, NTC)
+    self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
+
+  def test_unstack_op(self):
+    # unstack op is implemented using split and squeeze. Here we only test
+    # the output.
+    for i in range(4):
+      node = self.get_node(
+          self.test_graph.graph,
+          "unstack:squeeze" + ("_%d" % i if i > 0 else ""))
+      self.assertEqual(node.output_tensors[0].data_type, self.expected_dtype)
+      self.assertEqual(node.output_tensors[0].shape.dims, [8, 10])
+      self.assertEqual(node.output_tensors[0].shape.layout, NC)
+      self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
+
 class ResidualGraphTest(OperatorTest):
   """Common tests for the residual graph."""
 
@@ -719,7 +742,25 @@ class SMVSequentialGraphTest(smaug_test.SmaugTest, SequentialGraphTest):
     # repeat (Repeat).
     node = self.get_node(self.test_graph.graph, "repeat")
     self.assertEqual(node.parents[0], "reshape")
-    self.assertEqual(len(node.children), 0)
+    self.assertEqual(node.children[0], "stack:expand_dims")
+    # stack (Reshape + Repeat).
+    node = self.get_node(self.test_graph.graph, "stack:expand_dims")
+    self.assertEqual(node.parents[0], "repeat")
+    self.assertEqual(node.children[0], "stack:repeat")
+    node = self.get_node(self.test_graph.graph, "stack:repeat")
+    self.assertEqual(node.parents[0], "stack:expand_dims")
+    self.assertEqual(node.children[0], "unstack:split")
+    # unstack (Split + Squeeze).
+    node = self.get_node(self.test_graph.graph, "unstack:split")
+    self.assertEqual(node.parents[0], "stack:repeat")
+    self.assertEqual(len(node.children), 4)
+    for i, child in enumerate(node.children):
+      child_name = "unstack:squeeze" + ("_%d" % i if i > 0 else "")
+      self.assertEqual(child, child_name)
+      child_node = self.get_node(self.test_graph.graph, child_name)
+      self.assertEqual(child_node.parents[0], "unstack:split")
+      self.assertEqual(child_node.src_tensors_indices, [i])
+      self.assertEqual(len(child_node.children), 0)
 
 class RefSequentialGraphTest(smaug_test.SmaugTest, SequentialGraphTest):
   """Test the sequential graph on the reference backend.
@@ -800,7 +841,25 @@ class RefSequentialGraphTest(smaug_test.SmaugTest, SequentialGraphTest):
     # repeat (Repeat)
     node = self.get_node(self.test_graph.graph, "repeat")
     self.assertEqual(node.parents[0], "reshape")
-    self.assertEqual(len(node.children), 0)
+    self.assertEqual(node.children[0], "stack:expand_dims")
+    # stack (Reshape + Repeat).
+    node = self.get_node(self.test_graph.graph, "stack:expand_dims")
+    self.assertEqual(node.parents[0], "repeat")
+    self.assertEqual(node.children[0], "stack:repeat")
+    node = self.get_node(self.test_graph.graph, "stack:repeat")
+    self.assertEqual(node.parents[0], "stack:expand_dims")
+    self.assertEqual(node.children[0], "unstack:split")
+    # unstack (Split + Squeeze).
+    node = self.get_node(self.test_graph.graph, "unstack:split")
+    self.assertEqual(node.parents[0], "stack:repeat")
+    self.assertEqual(len(node.children), 4)
+    for i, child in enumerate(node.children):
+      child_name = "unstack:squeeze" + ("_%d" % i if i > 0 else "")
+      self.assertEqual(child, child_name)
+      child_node = self.get_node(self.test_graph.graph, child_name)
+      self.assertEqual(child_node.parents[0], "unstack:split")
+      self.assertEqual(child_node.src_tensors_indices, [i])
+      self.assertEqual(len(child_node.children), 0)
 
 class SMVResidualGraphTest(smaug_test.SmaugTest, ResidualGraphTest):
   """Test the residual graph on the SMV backend."""
