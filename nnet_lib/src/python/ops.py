@@ -413,3 +413,20 @@ def split(input_tensor, num_or_size_splits, axis=0, name=None):
       name=name, op=Split, input_tensors=[input_tensor],
       output_tensors_dims=output_tensors_dims,
       output_tensor_layout=input_tensor.shape.layout, params=params)
+
+def reshape(input_tensor, shape, layout, name=None):
+  """ Reshape the given tensor in the same order.
+
+  Args:
+    input_tensor: Input tensor.
+    shape: New shape.
+    layout: New layout.
+    name: Name of the operator.
+
+  Returns:
+    Tensor with the new shape.
+  """
+  assert np.prod(input_tensor.shape.dims) == np.prod(shape)
+  return add_node(
+      name=name, op=Reshape, input_tensors=[input_tensor],
+      output_tensors_dims=[shape], output_tensor_layout=layout)[0]

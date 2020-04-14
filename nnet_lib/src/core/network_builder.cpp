@@ -28,6 +28,7 @@
 #include "operators/reorder_op.h"
 #include "operators/concat_op.h"
 #include "operators/split_op.h"
+#include "operators/reshape_op.h"
 #include "operators/sigmoid_op.h"
 #include "operators/softmax_op.h"
 #include "operators/tanh_op.h"
@@ -193,6 +194,14 @@ static void createAndAddOperator(const NodeProto& node,
             splits.push_back(tensor.shape().dims(axis));
         op->setSplits(splits);
         op->setSplitAxis(axis);
+        network->addOperator(op, inputs);
+    } else if (type == OpType::Reshape) {
+        auto op = Backend::createReshapeOp(name, workspace);
+        const TensorShapeProto& shapeProto = node.output_tensors(0).shape();
+        std::vector<int> shape(
+                shapeProto.dims().begin(), shapeProto.dims().end());
+        DataLayout layout = shapeProto.layout();
+        op->setShape(shape, layout);
         network->addOperator(op, inputs);
     } else if (type == OpType::BatchNorm) {
         auto op = Backend::createBatchNormOp(name, workspace);

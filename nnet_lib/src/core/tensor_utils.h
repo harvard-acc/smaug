@@ -105,9 +105,6 @@ void copyTensorRegion(Tensor* dest,
     }
 }
 
-// The difference between this and the above one is that this copies data
-// linearly from the tensor to another tensor, whereas the copy in the above one
-// is dimension specific.
 template <typename DType>
 void copyRawTensorData(Tensor* dest,
                        Tensor* src,
@@ -120,16 +117,49 @@ void copyRawTensorData(Tensor* dest,
             &destPtr[destOffset], &srcPtr[srcOffset], copySize * sizeof(DType));
 }
 
+template <typename DType>
+void copyTensorData(Tensor* dest,
+                    Tensor* src,
+                    std::vector<int> destOrigin,
+                    std::vector<int> srcOrigin,
+                    int copySize) {
+    TensorIndexIterator destIdx = dest->startIndex();
+    TensorIndexIterator srcIdx = src->startIndex();
+    destIdx += destOrigin;
+    srcIdx += srcOrigin;
+    DType* destPtr = dest->template data<DType>();
+    DType* srcPtr = src->template data<DType>();
+    for (; !srcIdx.end(); ++srcIdx, ++destIdx)
+        destPtr[destIdx] = srcPtr[srcIdx];
+}
+
 }  // namespace internal
 
+// Copy a region of data from one tensor to another.
+//
+// For example:
+//   tensor A: 4x4, tensor B: 3x3
+//   To copy upper left 2x2 block of tensor A to the lower left 2x2 block of
+//   tensor B:
+//      copyTensorRegion(tensorB, tensorA, {1,1}, {0,0}, {2,2});
 void copyTensorRegion(Tensor* dest,
                       Tensor* src,
                       std::vector<int> destOrigin,
                       std::vector<int> srcOrigin,
                       std::vector<int> regionSize);
 
+// Copy data from one tensor to another.
+void copyTensorData(Tensor* dest,
+                    Tensor* src,
+                    std::vector<int> destOffset,
+                    std::vector<int> srcOffset,
+                    int copySize);
+
+// Copy the raw data linearly from the tensor to another without taking
+// dimensions and paddings into account.
 void copyRawTensorData(
         Tensor* dest, Tensor* src, int destOffset, int srcOffset, int copySize);
+
 
 // This generates a TiledTensor from a Tensor using the specified tile shape.
 TiledTensor generateTiledTensor(Tensor* tensor,

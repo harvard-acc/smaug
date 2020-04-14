@@ -57,13 +57,6 @@ std::ostream& operator<<(std::ostream& os, const Tensor& tensor) {
     return os;
 }
 
-// Copy a block of a tensor to another tensor.
-//
-// For example:
-//   tensor A: 4x4, tensor B: 3x3
-//   To copy upper left 2x2 block of tensor A to the lower left 2x2 block of
-//   tensor B:
-//      copyTensorRegion(tensorB, tensorA, {1,1}, {0,0}, {2,2});
 void copyTensorRegion(Tensor* dest,
                       Tensor* src,
                       std::vector<int> destOrigin,
@@ -97,7 +90,38 @@ void copyTensorRegion(Tensor* dest,
     }
 }
 
-// Copy a block of a tensor to another tensor.
+void copyTensorData(Tensor* dest,
+                    Tensor* src,
+                    std::vector<int> destOrigin,
+                    std::vector<int> srcOrigin,
+                    int copySize) {
+    assert(dest->getDataType() == src->getDataType());
+    switch (dest->getDataType()) {
+        case Float16:
+            internal::copyTensorData<uint16_t>(
+                    dest, src, destOrigin, srcOrigin, copySize);
+            break;
+        case Float32:
+            internal::copyTensorData<float>(
+                    dest, src, destOrigin, srcOrigin, copySize);
+            break;
+        case Float64:
+            internal::copyTensorData<double>(
+                    dest, src, destOrigin, srcOrigin, copySize);
+            break;
+        case Int32:
+            internal::copyTensorData<int>(
+                    dest, src, destOrigin, srcOrigin, copySize);
+            break;
+        case Int64:
+            internal::copyTensorData<int64_t>(
+                    dest, src, destOrigin, srcOrigin, copySize);
+            break;
+        default:
+            assert(false && "Unknown data type!");
+    }
+}
+
 void copyRawTensorData(Tensor* dest,
                        Tensor* src,
                        int destOffset,
