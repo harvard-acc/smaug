@@ -75,6 +75,30 @@ void flatten(Tensor* input, Tensor* output) {
     }
 }
 
+void transpose3D(Tensor* input, Tensor* output) {
+    DataType datatype = input->getDataType();
+    assert(input->ndims() == 3 && output->ndims() == 3);
+    switch (datatype) {
+        case Float16:
+            transpose3DImpl<float16>(input, output);
+            return;
+        case Float32:
+            transpose3DImpl<float>(input, output);
+            return;
+        case Float64:
+            transpose3DImpl<double>(input, output);
+            return;
+        case Int32:
+            transpose3DImpl<int>(input, output);
+            return;
+        case Int64:
+            transpose3DImpl<int64_t>(input, output);
+            return;
+        default:
+            assert(false && "Unknown data format!");
+    }
+}
+
 void transpose2D(Tensor* input, Tensor* output) {
     DataType datatype = input->getDataType();
     assert(input->ndims() == 2 && output->ndims() == 2);

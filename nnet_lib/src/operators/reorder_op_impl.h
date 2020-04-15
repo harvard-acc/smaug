@@ -72,6 +72,22 @@ void flattenImpl(Tensor* input, Tensor* output) {
 }
 
 template <typename DType>
+void transpose3DImpl(Tensor* input, Tensor* output) {
+    TensorIndexIterator inputIdx = input->startIndex();
+    TensorIndexIterator outputIdx = output->startIndex();
+    const TensorShape& inputShape = input->getShape();
+    auto inputData = input->template data<DType>();
+    auto outputData = output->template data<DType>();
+    for (int i = 0; i < inputShape[0]; i++) {
+        for (int j = 0; j < inputShape[1]; j++) {
+            for (int k = 0; k < inputShape[2]; k++) {
+                outputData[outputIdx(i, k, j)] = inputData[inputIdx(i, j, k)];
+            }
+        }
+    }
+}
+
+template <typename DType>
 void transpose2DImpl(Tensor* input, Tensor* output) {
     TensorIndexIterator inputIdx = input->startIndex();
     TensorIndexIterator outputIdx = output->startIndex();
@@ -90,6 +106,8 @@ void convertNchwToNhwc(Tensor* input, Tensor* output);
 void convertNhwcToNchw(Tensor* input, Tensor* output);
 
 void flatten(Tensor* input, Tensor* output);
+
+void transpose3D(Tensor* input, Tensor* output);
 
 void transpose2D(Tensor* input, Tensor* output);
 

@@ -280,10 +280,18 @@ def reorder(input_tensor, target_layout, name=None):
       output_tensor_dims = [src_dims[0], np.prod(src_dims[1:])]
     else:
       output_tensor_dims = [src_dims[0], src_dims[3], src_dims[1], src_dims[2]]
+  elif (src_layout == NTC
+        and target_layout == NCT) or (src_layout == NCT
+                                      and target_layout == NTC):
+    output_tensor_dims = [src_dims[0], src_dims[2], src_dims[1]]
   elif (src_layout == NC and target_layout == CN) or (src_layout == CN
                                                       and target_layout == NC):
     # 2D tensor transposition.
     output_tensor_dims = [src_dims[1], src_dims[0]]
+  else:
+    raise ValueError(
+        "Unsupported reordering %s->%s!" %
+        (DataLayout.Name(src_layout), DataLayout.Name(target_layout)))
 
   return add_node(
       name=name, op=Reorder, input_tensors=[input_tensor],

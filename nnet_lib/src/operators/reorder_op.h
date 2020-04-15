@@ -43,6 +43,15 @@ class ReorderOp : public Operator {
             } else if (output->getShape().ndims() == 2) {
                 flatten(input, output);
             }
+        } else if (input->getShape().ndims() == 3) {
+            // NTC->NCT or NCT->NTC.
+            assert(srcLayout == DataLayout::NCT &&
+                           targetLayout == DataLayout::NTC ||
+                   srcLayout == DataLayout::NTC &&
+                           targetLayout == DataLayout::NCT &&
+                           "Only NCT->NTC or NCT->NTC is supported for 3D "
+                           "reorderings!");
+            transpose3D(input, output);
         } else if (input->getShape().ndims() == 2) {
             if (srcLayout == targetLayout) {
                 return;
@@ -96,6 +105,11 @@ class ReorderOp : public Operator {
             // Transpose a 2D tensor.
             return TensorShape({ inputShape[1], inputShape[0] }, targetLayout,
                                Backend::Alignment);
+        } else if (targetLayout == DataLayout::NCT ||
+                   targetLayout == DataLayout::NTC) {
+            // Transpose a 3D tensor.
+            return TensorShape({ inputShape[0], inputShape[2], inputShape[1] },
+                               targetLayout, Backend::Alignment);
         } else if (targetLayout == DataLayout::NCHW) {
             return TensorShape({ inputShape[0], inputShape[3], inputShape[1],
                                  inputShape[2] },
