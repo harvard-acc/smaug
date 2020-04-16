@@ -66,20 +66,21 @@ class OperatorTest:
       bn_beta_tensor = Tensor(
           data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np_dtype))
 
-      out = input_data("input", input_tensor)
+      out = input_data(input_tensor, "input")
       out = convolution(
-          "conv0", out, filter_tensor0, stride=[1, 1], padding="same")
-      out = relu("conv0_relu", out)
-      out = batch_norm("bn", out, bn_mean_tensor, bn_var_tensor,
-                       bn_gamma_tensor, bn_beta_tensor)
+          out, filter_tensor0, stride=[1, 1], padding="same", name="conv0")
+      out = relu(out, "conv0_relu")
+      out = batch_norm(
+          out, bn_mean_tensor, bn_var_tensor, bn_gamma_tensor, bn_beta_tensor,
+          name="bn")
       out = convolution(
-          "conv1", out, filter_tensor1, stride=[1, 1], padding="same")
-      out = relu("conv1_relu", out)
-      out = max_pool("pool", out, pool_size=[2, 2], stride=[2, 2])
-      out = flatten("flatten", out)
-      out = mat_mul("fc0", out, weight_tensor0)
-      out = relu("fc0_relu", out)
-      out = mat_mul("fc1", out, weight_tensor1)
+          out, filter_tensor1, stride=[1, 1], padding="same", name="conv1")
+      out = relu(out, "conv1_relu")
+      out = max_pool(out, pool_size=[2, 2], stride=[2, 2], name="pool")
+      out = flatten(out, "flatten")
+      out = mat_mul(out, weight_tensor0, name="fc0")
+      out = relu(out, "fc0_relu")
+      out = mat_mul(out, weight_tensor1, name="fc1")
 
     self.test_graph = graph
     self.backend = backend
@@ -115,17 +116,18 @@ class OperatorTest:
       bn_beta_tensor = Tensor(
           data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np_dtype))
 
-      act = input_data("input", input_tensor)
+      act = input_data(input_tensor, "input")
       x = convolution(
-          "conv0", act, filter_tensor0, stride=[1, 1], padding="same")
+          act, filter_tensor0, stride=[1, 1], padding="same", name="conv0")
       out = convolution(
-          "conv1", act, filter_tensor1, stride=[1, 1], padding="same")
-      out = batch_norm("bn", out, bn_mean_tensor, bn_var_tensor,
-                       bn_gamma_tensor, bn_beta_tensor)
-      out = relu("relu", out)
+          act, filter_tensor1, stride=[1, 1], padding="same", name="conv1")
+      out = batch_norm(
+          out, bn_mean_tensor, bn_var_tensor, bn_gamma_tensor, bn_beta_tensor,
+          name="bn")
+      out = relu(out, "relu")
       out = convolution(
-          "conv2", out, filter_tensor2, stride=[1, 1], padding="same")
-      out = add("add", x, out)
+          out, filter_tensor2, stride=[1, 1], padding="same", name="conv2")
+      out = add(x, out, "add")
 
     self.test_graph = graph
     self.backend = backend
@@ -251,22 +253,18 @@ class SequentialGraphTest(OperatorTest):
     self.assertEqual(len(node.input_tensors), 5)
     self.assertEqual(len(node.output_tensors), 1)
     # Weight tensors
-    self.assertEqual(node.input_tensors[1].name, "bn/mean")
     self.assertEqual(node.input_tensors[1].data_type, self.expected_dtype)
     self.assertEqual(node.input_tensors[1].shape.dims, [1, 64])
     self.assertEqual(node.input_tensors[1].shape.layout, NC)
     self.assertEqual(node.input_tensors[1].shape.alignment, self.alignment)
-    self.assertEqual(node.input_tensors[2].name, "bn/var")
     self.assertEqual(node.input_tensors[2].data_type, self.expected_dtype)
     self.assertEqual(node.input_tensors[2].shape.dims, [1, 64])
     self.assertEqual(node.input_tensors[2].shape.layout, NC)
     self.assertEqual(node.input_tensors[2].shape.alignment, self.alignment)
-    self.assertEqual(node.input_tensors[3].name, "bn/gamma")
     self.assertEqual(node.input_tensors[3].data_type, self.expected_dtype)
     self.assertEqual(node.input_tensors[3].shape.dims, [1, 64])
     self.assertEqual(node.input_tensors[3].shape.layout, NC)
     self.assertEqual(node.input_tensors[3].shape.alignment, self.alignment)
-    self.assertEqual(node.input_tensors[4].name, "bn/beta")
     self.assertEqual(node.input_tensors[4].data_type, self.expected_dtype)
     self.assertEqual(node.input_tensors[4].shape.dims, [1, 64])
     self.assertEqual(node.input_tensors[4].shape.layout, NC)
@@ -474,22 +472,18 @@ class ResidualGraphTest(OperatorTest):
     self.assertEqual(len(node.input_tensors), 5)
     self.assertEqual(len(node.output_tensors), 1)
     # Weight tensors
-    self.assertEqual(node.input_tensors[1].name, "bn/mean")
     self.assertEqual(node.input_tensors[1].data_type, self.expected_dtype)
     self.assertEqual(node.input_tensors[1].shape.dims, [1, 64])
     self.assertEqual(node.input_tensors[1].shape.layout, NC)
     self.assertEqual(node.input_tensors[1].shape.alignment, self.alignment)
-    self.assertEqual(node.input_tensors[2].name, "bn/var")
     self.assertEqual(node.input_tensors[2].data_type, self.expected_dtype)
     self.assertEqual(node.input_tensors[2].shape.dims, [1, 64])
     self.assertEqual(node.input_tensors[2].shape.layout, NC)
     self.assertEqual(node.input_tensors[2].shape.alignment, self.alignment)
-    self.assertEqual(node.input_tensors[3].name, "bn/gamma")
     self.assertEqual(node.input_tensors[3].data_type, self.expected_dtype)
     self.assertEqual(node.input_tensors[3].shape.dims, [1, 64])
     self.assertEqual(node.input_tensors[3].shape.layout, NC)
     self.assertEqual(node.input_tensors[3].shape.alignment, self.alignment)
-    self.assertEqual(node.input_tensors[4].name, "bn/beta")
     self.assertEqual(node.input_tensors[4].data_type, self.expected_dtype)
     self.assertEqual(node.input_tensors[4].shape.dims, [1, 64])
     self.assertEqual(node.input_tensors[4].shape.layout, NC)
@@ -535,14 +529,14 @@ class SMVSequentialGraphTest(smaug_test.SmaugTest, SequentialGraphTest):
     # input (Data).
     node = self.get_node(self.test_graph.graph, "input")
     self.assertEqual(len(node.parents), 0)
-    self.assertEqual(node.children[0], "input->conv0")
+    self.assertEqual(node.children[0], "reorder_0")
     # Reorder input from NCHW to NHWC.
-    node = self.get_node(self.test_graph.graph, "input->conv0")
+    node = self.get_node(self.test_graph.graph, "reorder_0")
     self.assertEqual(node.parents[0], "input")
     self.assertEqual(node.children[0], "conv0")
     # conv0 (Convolution).
     node = self.get_node(self.test_graph.graph, "conv0")
-    self.assertEqual(node.parents[0], "input->conv0")
+    self.assertEqual(node.parents[0], "reorder_0")
     self.assertEqual(node.children[0], "conv0_relu")
     # conv0_relu (ReLU).
     node = self.get_node(self.test_graph.graph, "conv0_relu")
@@ -627,27 +621,25 @@ class RefSequentialGraphTest(smaug_test.SmaugTest, SequentialGraphTest):
     node = self.get_node(self.test_graph.graph, "flatten")
     self.assertEqual(node.parents[0], "pool")
     self.assertEqual(node.children[0], "fc0")
-    # Transpose fc0/weights
-    node = self.get_node(self.test_graph.graph, "fc0/weights->fc0")
-    self.assertEqual(node.parents[0], "fc0/weights")
+    # Transpose fc0 weights
+    node = self.get_node(self.test_graph.graph, "reorder_0")
     self.assertEqual(node.children[0], "fc0")
     # fc0 (FC)
     node = self.get_node(self.test_graph.graph, "fc0")
     self.assertEqual(node.parents[0], "flatten")
-    self.assertEqual(node.parents[1], "fc0/weights->fc0")
+    self.assertEqual(node.parents[1], "reorder_0")
     self.assertEqual(node.children[0], "fc0_relu")
     # fc0_relu (ReLU)
     node = self.get_node(self.test_graph.graph, "fc0_relu")
     self.assertEqual(node.parents[0], "fc0")
     self.assertEqual(node.children[0], "fc1")
     # Transpose fc1/weights
-    node = self.get_node(self.test_graph.graph, "fc1/weights->fc1")
-    self.assertEqual(node.parents[0], "fc1/weights")
+    node = self.get_node(self.test_graph.graph, "reorder_1")
     self.assertEqual(node.children[0], "fc1")
     # fc1 (FC)
     node = self.get_node(self.test_graph.graph, "fc1")
     self.assertEqual(node.parents[0], "fc0_relu")
-    self.assertEqual(node.parents[1], "fc1/weights->fc1")
+    self.assertEqual(node.parents[1], "reorder_1")
     self.assertEqual(len(node.children), 0)
 
 class SMVResidualGraphTest(smaug_test.SmaugTest, ResidualGraphTest):
@@ -663,19 +655,19 @@ class SMVResidualGraphTest(smaug_test.SmaugTest, ResidualGraphTest):
     # input (Data).
     node = self.get_node(self.test_graph.graph, "input")
     self.assertEqual(len(node.parents), 0)
-    self.assertEqual(node.children[0], "input->conv0")
+    self.assertEqual(node.children[0], "reorder_0")
     # Reorder input from NCHW to NHWC.
-    node = self.get_node(self.test_graph.graph, "input->conv0")
+    node = self.get_node(self.test_graph.graph, "reorder_0")
     self.assertEqual(node.parents[0], "input")
     self.assertEqual(node.children[0], "conv0")
     self.assertEqual(node.children[1], "conv1")
     # conv0 (Convolution).
     node = self.get_node(self.test_graph.graph, "conv0")
-    self.assertEqual(node.parents[0], "input->conv0")
+    self.assertEqual(node.parents[0], "reorder_0")
     self.assertEqual(node.children[0], "add")
     # conv1 (Convolution).
     node = self.get_node(self.test_graph.graph, "conv1")
-    self.assertEqual(node.parents[0], "input->conv0")
+    self.assertEqual(node.parents[0], "reorder_0")
     self.assertEqual(node.children[0], "bn")
     # bn (BN).
     node = self.get_node(self.test_graph.graph, "bn")

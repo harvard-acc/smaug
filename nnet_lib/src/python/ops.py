@@ -27,18 +27,13 @@ def check_and_add_layout_transform(name, op, input_tensors):
     expected_layoutset = backend_layouts[backend][op].input_layoutsets[i]
     input_layout = input_tensors[i].shape.layout
     if not expected_layoutset.contains(input_layout):
-      input_tensors[i] = reorder("%s->%s" % (input_tensors[i].name, name),
-                                 input_tensors[i], expected_layoutset.layouts)
+      input_tensors[i] = reorder(input_tensors[i], expected_layoutset.layouts)
   return input_tensors
 
-def add_node(name,
-             op,
-             input_tensors,
-             output_tensor_dims,
-             output_tensor_layout=NCHW,
-             output_tensor_dtype=None,
-             output_tensor_dformat=Uncompressed,
-             params=None):
+def add_node(
+    op, input_tensors, output_tensor_dims, output_tensor_layout=NCHW,
+    output_tensor_dtype=None, output_tensor_dformat=Uncompressed, name=None,
+    params=None):
   if get_graph() == None:
     assert False, "No available active graph!"
   if output_tensor_dtype == None:
@@ -52,19 +47,19 @@ def add_node(name,
   for i in range(len(input_tensors)):
     if input_tensors[i].source == None and op != Data:
       input_tensors[i] = get_graph().add_node(
-          name=input_tensors[i].name,
-          op=Data,
-          input_tensors=[input_tensors[i]],
+          op=Data, input_tensors=[input_tensors[i]],
           output_tensor_dims=input_tensors[i].shape.dims,
           output_tensor_layout=input_tensors[i].shape.layout,
           output_tensor_dtype=output_tensor_dtype,
           output_tensor_dformat=output_tensor_dformat)
-  return get_graph().add_node(name, op, input_tensors, output_tensor_dims,
-                              output_tensor_layout, output_tensor_dtype,
-                              output_tensor_dformat, params)
+  return get_graph().add_node(
+      name=name, op=op, input_tensors=input_tensors,
+      output_tensor_dims=output_tensor_dims,
+      output_tensor_layout=output_tensor_layout,
+      output_tensor_dtype=output_tensor_dtype,
+      output_tensor_dformat=output_tensor_dformat, params=params)
 
-def input_data(name, input_tensor):
-  input_tensor.name = name
+def input_data(input_tensor, name=None):
   return add_node(
       name=name,
       op=Data,
@@ -109,20 +104,14 @@ def set_activation_params(activation, act_params_proto, act_params):
       act_params_proto.hard_tanh_params.min = -1
       act_params_proto.hard_tanh_params.max = 1
 
-def convolution(name,
-                input_tensor,
-                filter_tensor,
-                stride,
-                padding,
-                activation=None,
-                activation_params=None):
+def convolution(
+    input_tensor, filter_tensor, stride, padding, activation=None,
+    activation_params=None, name=None):
   def compute_output_dim(input_dim, weight_dim, stride, padding):
     pad = 0
     if to_padding_type(padding) == SamePadding:
       pad = weight_dim - 1
     return (input_dim - weight_dim + pad) / stride + 1
-
-  filter_tensor.name = name + "/kernels"
 
   input_tensor, filter_tensor = check_and_add_layout_transform(
       name=name, op=Convolution3d, input_tensors=[input_tensor, filter_tensor])
@@ -166,7 +155,7 @@ def convolution(name,
       output_tensor_layout=output_layout,
       params=params)
 
-def relu(name, input_tensor):
+def relu(input_tensor, name=None):
   return add_node(
       name=name,
       op=ReLU,
@@ -174,7 +163,7 @@ def relu(name, input_tensor):
       output_tensor_dims=input_tensor.shape.dims,
       output_tensor_layout=input_tensor.shape.layout)
 
-def lrelu(name, input_tensor, slope=0.2):
+def lrelu(input_tensor, slope=0.2, name=None):
   params = Params()
   params.act_params.lrelu_params.slope = slope
   return add_node(
@@ -185,7 +174,7 @@ def lrelu(name, input_tensor, slope=0.2):
       output_tensor_layout=input_tensor.shape.layout,
       params=params)
 
-def elu(name, input_tensor, alpha=0.1):
+def elu(input_tensor, alpha=0.1, name=None):
   params = Params()
   params.act_params.elu_params.alpha = alpha
   return add_node(
@@ -196,7 +185,7 @@ def elu(name, input_tensor, alpha=0.1):
       output_tensor_layout=input_tensor.shape.layout,
       params=params)
 
-def selu(name, input_tensor, alpha=1.6733, lambda_param=1.0507):
+def selu(input_tensor, alpha=1.6733, lambda_param=1.0507, name=None):
   params = Params()
   params.act_params.elu_params.alpha = alpha
   params.act_params.elu_params.lambda_param = lambda_param
@@ -208,7 +197,7 @@ def selu(name, input_tensor, alpha=1.6733, lambda_param=1.0507):
       output_tensor_layout=input_tensor.shape.layout,
       params=params)
 
-def tanh(name, input_tensor):
+def tanh(input_tensor, name=None):
   return add_node(
       name=name,
       op=Tanh,
@@ -216,7 +205,7 @@ def tanh(name, input_tensor):
       output_tensor_dims=input_tensor.shape.dims,
       output_tensor_layout=input_tensor.shape.layout)
 
-def hard_tanh(name, input_tensor, min=-1, max=1):
+def hard_tanh(input_tensor, min=-1, max=1, name=None):
   params = Params()
   params.act_params.hard_tanh_params.min = min
   params.act_params.hard_tanh_params.max = max
@@ -228,7 +217,7 @@ def hard_tanh(name, input_tensor, min=-1, max=1):
       output_tensor_layout=input_tensor.shape.layout,
       params=params)
 
-def sigmoid(name, input_tensor):
+def sigmoid(input_tensor, name=None):
   return add_node(
       name=name,
       op=Sigmoid,
@@ -236,14 +225,9 @@ def sigmoid(name, input_tensor):
       output_tensor_dims=input_tensor.shape.dims,
       output_tensor_layout=input_tensor.shape.layout)
 
-def batch_norm(name,
-               input_tensor,
-               mean_tensor,
-               var_tensor,
-               gamma_tensor,
-               beta_tensor,
-               activation=None,
-               activation_params=None):
+def batch_norm(
+    input_tensor, mean_tensor, var_tensor, gamma_tensor, beta_tensor,
+    activation=None, activation_params=None, name=None):
   assert (len(mean_tensor.shape.dims) == 2 and len(var_tensor.shape.dims) == 2
           and len(gamma_tensor.shape.dims) == 2
           and len(beta_tensor.shape.dims) == 2)
@@ -259,10 +243,6 @@ def batch_norm(name,
     input_tensor = check_and_add_layout_transform(
         name=name, op=BatchNorm, input_tensors=[input_tensor])[0]
 
-  mean_tensor.name = name + "/mean"
-  var_tensor.name = name + "/var"
-  gamma_tensor.name = name + "/gamma"
-  beta_tensor.name = name + "/beta"
   output_layout = UnknownLayout
   output_layout = NC if post_fc else input_tensor.shape.layout
   params = Params()
@@ -279,7 +259,7 @@ def batch_norm(name,
       output_tensor_layout=output_layout,
       params=params)
 
-def max_pool(name, input_tensor, pool_size, stride):
+def max_pool(input_tensor, pool_size, stride, name=None):
   def compute_output_dim(input_dim, pool_size, stride):
     return (input_dim - pool_size) / stride + 1
 
@@ -314,7 +294,7 @@ def max_pool(name, input_tensor, pool_size, stride):
       output_tensor_layout=output_layout,
       params=params)
 
-def reorder(name, input_tensor, target_layout):
+def reorder(input_tensor, target_layout, name=None):
   src_layout = input_tensor.shape.layout
   src_dims = input_tensor.shape.dims
   if src_layout == NCHW:
@@ -341,17 +321,13 @@ def reorder(name, input_tensor, target_layout):
       output_tensor_dims=output_tensor_dims,
       output_tensor_layout=target_layout)
 
-def flatten(name, input_tensor):
+def flatten(input_tensor, name=None):
   assert (len(input_tensor.shape.dims) == 4)
   return reorder(name=name, input_tensor=input_tensor, target_layout=NC)
 
-def mat_mul(name,
-            input_tensor,
-            weight_tensor,
-            activation=None,
-            activation_params=None):
-  weight_tensor.name = name + "/weights"
-
+def mat_mul(
+    input_tensor, weight_tensor, activation=None, activation_params=None,
+    name=None):
   input_tensor, weight_tensor = check_and_add_layout_transform(
       name=name, op=InnerProduct, input_tensors=[input_tensor, weight_tensor])
 
@@ -376,7 +352,7 @@ def mat_mul(name,
       output_tensor_layout=NC,
       params=params)
 
-def add(name, tensor_a, tensor_b):
+def add(tensor_a, tensor_b, name=None):
   assert (tensor_a.shape.dims == tensor_b.shape.dims
           ), "Elementwise add must have the same shape for the input tensors."
   return add_node(

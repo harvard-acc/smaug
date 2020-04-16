@@ -5,6 +5,7 @@ Currently it contains:
   2) Alignment information for various backends.
   3) Input/output layouts for operators of various backends.
   4) Supported activation functions.
+  5) Default names for operators.
 """
 
 from types_pb2 import *
@@ -77,3 +78,20 @@ backend_layouts = {
 supported_activations = [
     ReLU, LReLU, ELU, SELU, Tanh, HardTanh, Sigmoid, Softmax
 ]
+
+default_op_names = {
+    Data: "data",
+    Convolution3d: "conv",
+    ReLU: "relu",
+    LReLU: "lrelu",
+    ELU: "elu",
+    SELU: "selu",
+    Tanh: "tanh",
+    HardTanh: "hard_tanh",
+    Sigmoid: "sigmoid",
+    BatchNorm: "batch_norm",
+    MaxPooling: "max_pool",
+    Reorder: "reorder",
+    InnerProduct: "mat_mul",
+    EltwiseAdd: "add",
+}

@@ -33,14 +33,14 @@ class ActivationFunctionTest(smaug_test.SmaugTest):
     with Graph("test_graph", "SMV") as test_graph:
       tensor_data = np.random.rand(*self.tensor_shape).astype(np.float16)
       input_tensor = Tensor(data_layout=NHWC, tensor_data=tensor_data)
-      act = input_data("input", input_tensor)
-      act = relu("relu", act)
-      act = lrelu("lrelu", act, slope=0.5)
-      act = elu("elu", act, alpha=0.2)
-      act = selu("selu", act, alpha=0.4, lambda_param=0.8)
-      act = tanh("tanh", act)
-      act = hard_tanh("hard_tanh", act, min=-1.5, max=1.5)
-      act = sigmoid("sigmoid", act)
+      act = input_data(input_tensor, "input")
+      act = relu(act, "relu")
+      act = lrelu(act, slope=0.5, name="lrelu")
+      act = elu(act, alpha=0.2, name="elu")
+      act = selu(act, alpha=0.4, lambda_param=0.8, name="selu")
+      act = tanh(act, "tanh")
+      act = hard_tanh(act, min=-1.5, max=1.5, name="hard_tanh")
+      act = sigmoid(act, "sigmoid")
     # ReLU
     self.do_basic_test(test_graph, "relu", ReLU, "lrelu")
     # LReLU
@@ -82,26 +82,35 @@ class ActivationFunctionTest(smaug_test.SmaugTest):
           data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np.float16))
       bn_beta_tensor = Tensor(
           data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np.float16))
-      act = input_data("input", input_tensor)
-      act = convolution("conv_none", act, filter_tensor, stride=[1, 1],
-                        padding="same", activation=None)
-      act = convolution("conv_relu", act, filter_tensor, stride=[1, 1],
-                        padding="same", activation=ReLU)
-      act = convolution("conv_lrelu", act, filter_tensor, stride=[1, 1],
-                        padding="same", activation=LReLU)
-      act = convolution("conv_elu", act, filter_tensor, stride=[1, 1],
-                        padding="same", activation=ELU)
-      act = convolution("conv_selu", act, filter_tensor, stride=[1, 1],
-                        padding="same", activation=SELU)
-      act = convolution("conv_tanh", act, filter_tensor, stride=[1, 1],
-                        padding="same", activation=Tanh)
-      act = convolution("conv_hard_tanh", act, filter_tensor, stride=[1, 1],
-                        padding="same", activation=HardTanh)
-      act = convolution("conv_sigmoid", act, filter_tensor, stride=[1, 1],
-                        padding="same", activation=Sigmoid)
-      act = batch_norm("bn_relu", act, bn_mean_tensor, bn_var_tensor,
-                       bn_gamma_tensor, bn_beta_tensor, activation=ReLU)
-      act = mat_mul("fc_relu", act, weight_tensor, activation=ReLU)
+      act = input_data(input_tensor, "input")
+      act = convolution(
+          act, filter_tensor, stride=[1, 1], padding="same", activation=None,
+          name="conv_none")
+      act = convolution(
+          act, filter_tensor, stride=[1, 1], padding="same", activation=ReLU,
+          name="conv_relu")
+      act = convolution(
+          act, filter_tensor, stride=[1, 1], padding="same", activation=LReLU,
+          name="conv_lrelu")
+      act = convolution(
+          act, filter_tensor, stride=[1, 1], padding="same", activation=ELU,
+          name="conv_elu")
+      act = convolution(
+          act, filter_tensor, stride=[1, 1], padding="same", activation=SELU,
+          name="conv_selu")
+      act = convolution(
+          act, filter_tensor, stride=[1, 1], padding="same", activation=Tanh,
+          name="conv_tanh")
+      act = convolution(
+          act, filter_tensor, stride=[1, 1], padding="same",
+          activation=HardTanh, name="conv_hard_tanh")
+      act = convolution(
+          act, filter_tensor, stride=[1, 1], padding="same", activation=Sigmoid,
+          name="conv_sigmoid")
+      act = batch_norm(
+          act, bn_mean_tensor, bn_var_tensor, bn_gamma_tensor, bn_beta_tensor,
+          activation=ReLU, name="bn_relu")
+      act = mat_mul(act, weight_tensor, activation=ReLU, name="fc_relu")
     # None
     node = self.get_node(test_graph.graph, "conv_none")
     self.assertEqual(node.params.act_params.activation, UnknownOp)
