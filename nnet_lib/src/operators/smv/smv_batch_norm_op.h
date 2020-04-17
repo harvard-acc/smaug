@@ -22,17 +22,6 @@ class SmvBatchNormOp : public BatchNormOp<SmvBackend> {
     using BatchNormOp<SmvBackend>::BatchNormOp;
     void tile() override;
     void run() override;
-    DataLayoutSet getInputDataLayouts() const override {
-        if (inputs[Inputs]->ndims() == 4)
-            return DataLayoutSet(DataLayout::NHWC);
-        else
-            return DataLayoutSet(DataLayout::NC);
-    }
-    DataLayoutSet getOutputDataLayouts() const override {
-        if (inputs[Inputs]->ndims() == 4)
-            return DataLayoutSet(DataLayout::NHWC);
-        return DataLayoutSet(DataLayout::NC);
-    }
 
   protected:
    // This is for post-FC batch norm.

@@ -87,14 +87,6 @@ class BatchNormOp : public FusedActivationOp {
         createOutputTensors();
     }
 
-    DataLayoutSet getInputDataLayouts() const override {
-        return DataLayoutSet(DataLayout::UnknownLayout);
-    }
-
-    DataLayoutSet getOutputDataLayouts() const override {
-        return DataLayoutSet(DataLayout::UnknownLayout);
-    }
-
     void printSummary(std::ostream& out) const override {
       const TensorShape& weightsShape = inputs.at(Mean)->getShape();
       const TensorShape& outputShape = outputs.at(Outputs)->getShape();

@@ -113,13 +113,6 @@ class ConvolutionOp : public FusedActivationOp {
 
     int getNumOfmaps() const { return numOfmaps; }
 
-    DataLayoutSet getInputDataLayouts() const override {
-        return DataLayoutSet(DataLayout::NCHW);
-    }
-    DataLayoutSet getOutputDataLayouts() const override {
-        return DataLayoutSet(DataLayout::NCHW);
-    }
-
     void run() override {}
 
     void printSummary(std::ostream& out) const override {

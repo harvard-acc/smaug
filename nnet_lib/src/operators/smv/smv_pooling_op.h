@@ -20,12 +20,6 @@ class TilingOptimizer;
 class SmvPoolingOp : public PoolingOp<SmvBackend> {
    public:
     using PoolingOp<SmvBackend>::PoolingOp;
-    DataLayoutSet getInputDataLayouts() const override {
-        return DataLayoutSet(DataLayout::NHWC);
-    }
-    DataLayoutSet getOutputDataLayouts() const override {
-        return DataLayoutSet(DataLayout::NHWC);
-    }
     void tile() override;
     void run() override;
     friend class smv::pool::TilingOptimizer;

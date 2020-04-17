@@ -23,12 +23,6 @@ class SmvConvolutionOp : public ConvolutionOp<SmvBackend> {
     using ConvolutionOp<SmvBackend>::ConvolutionOp;
     void tile() override;
     void run() override;
-    DataLayoutSet getInputDataLayouts() const override {
-        return DataLayoutSet(DataLayout::NHWC);
-    }
-    DataLayoutSet getOutputDataLayouts() const override {
-        return DataLayoutSet(DataLayout::NHWC);
-    }
     friend class smv::conv::TilingOptimizer;
 
   protected:

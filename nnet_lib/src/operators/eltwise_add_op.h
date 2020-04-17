@@ -21,12 +21,6 @@ class EltwiseAddOp : public Operator {
     TensorShape inferOutputShape() const {
         return getInput(Input0)->getShape();
     }
-    DataLayoutSet getInputDataLayouts() const override {
-        return DataLayoutSet(DataLayout::X);
-    }
-    DataLayoutSet getOutputDataLayouts() const override {
-        return DataLayoutSet(DataLayout::X);
-    }
     void createOutputTensors() {
         TensorShape shape = inferOutputShape();
         Tensor* output = new Tensor(name, shape);

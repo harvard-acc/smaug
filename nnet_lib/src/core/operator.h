@@ -35,13 +35,6 @@ class Operator {
     virtual bool isSamplingSupported() const { return false; }
     virtual void setSamplingInfo(const SamplingInfo& sampling) {}
 
-    virtual DataLayoutSet getInputDataLayouts() const {
-        return DataLayoutSet(DataLayout::UnknownLayout);
-    }
-    virtual DataLayoutSet getOutputDataLayouts() const {
-        return DataLayoutSet(DataLayout::UnknownLayout);
-    }
-
     void setInput(TensorBase* op, int index) {
         inputs[index] = op;
     }

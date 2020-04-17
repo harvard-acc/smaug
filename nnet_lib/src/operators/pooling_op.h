@@ -42,13 +42,6 @@ class PoolingOp : public Operator {
                 poolingColStride > 0 && Operator::validate());
     }
 
-    DataLayoutSet getInputDataLayouts() const override {
-        return DataLayoutSet(DataLayout::NCHW);
-    }
-    DataLayoutSet getOutputDataLayouts() const override {
-        return DataLayoutSet(DataLayout::NCHW);
-    }
-
     int getNumOfmaps() const {
         Tensor* input = getInput(0);
         assert(input && "Unable to find input for pooling layer!");

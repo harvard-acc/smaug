@@ -49,13 +49,6 @@ class InnerProductOp : public FusedActivationOp {
         return TensorShape(outputDims, outLayout, Backend::Alignment);
     }
 
-    DataLayoutSet getInputDataLayouts() const override{
-        return DataLayoutSet(DataLayout::NC);
-    }
-    DataLayoutSet getOutputDataLayouts() const override {
-        return DataLayoutSet(DataLayout::NC);
-    }
-
     void createWeightsTensors() {
         if (inputs.at(Weights))
             return;

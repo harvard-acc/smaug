@@ -27,12 +27,6 @@ class DataOp : public Operator {
     bool validate() override { return data != NULL && Operator::validate(); }
     void createAllTensors() override {}
 
-    DataLayoutSet getInputDataLayouts() const override {
-        return DataLayoutSet(data->getShape().getLayout());
-    }
-    DataLayoutSet getOutputDataLayouts() const override {
-        return getInputDataLayouts();
-    }
     void printSummary(std::ostream& out) const override {
         const TensorShape& shape = data->getShape();
         out << name << " (Data)\t\t\t" << shape << "\n";

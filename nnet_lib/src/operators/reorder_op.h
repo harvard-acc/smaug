@@ -119,14 +119,6 @@ class ReorderOp : public Operator {
     void createAllTensors() override {
         createOutputTensors();
     }
-    DataLayoutSet getInputDataLayouts() const override {
-        // TODO: Use the input tensor.
-        return DataLayoutSet(getInput(Inputs)->getShape().getLayout());
-        // return DataLayoutSet(DataLayout::UnknownLayout);
-    }
-    DataLayoutSet getOutputDataLayouts() const override {
-        return DataLayoutSet(targetLayout);
-    }
     void printSummary(std::ostream& out) const override {
         const TensorShape& shape = outputs.at(Outputs)->getShape();
         out << name << " (Reorder)\t\t" << shape << "\n";

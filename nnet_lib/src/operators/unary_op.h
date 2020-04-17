@@ -21,12 +21,6 @@ class UnaryOp : public Operator {
     bool validate() override { return Operator::validate(); }
     virtual std::string opTypeName() const = 0;
 
-    DataLayoutSet getInputDataLayouts() const override {
-        return DataLayoutSet(DataLayout::X);
-    }
-    DataLayoutSet getOutputDataLayouts() const override {
-        return DataLayoutSet(DataLayout::X);
-    }
     void createAllTensors() override {
         createOutputTensors();
     }
