@@ -13,7 +13,6 @@ class Tensor:
                data_format=Uncompressed,
                tensor_data=None,
                source=None,
-               target=None,
                alignment=None):
     self.shape = TensorShapeProto()
     self.tensor_data = tensor_data
@@ -29,7 +28,6 @@ class Tensor:
     self.name = name
     self.data_format = data_format
     self.source = source
-    self.target = target
     if alignment != None:
       self.shape.alignment = alignment
     elif get_graph() == None:
