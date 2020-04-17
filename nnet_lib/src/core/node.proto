@@ -57,12 +57,25 @@ message Params {
 }
 
 message NodeProto {
+  // Unique node name in the form of "scopes:name". Scopes are optional.
   string name = 1;
   OpType op = 2;
+  // Parents and children of this node.
   repeated string parents = 3;
   repeated string children = 4;
-  repeated TensorProto input_tensors = 5;
-  repeated TensorProto output_tensors = 6;
+  // The size of src_tensors_indices must be the same as `parents`. For each
+  // parent node parents[i], src_tensors_indices[i] indicates the index of its
+  // output tensor that becomes the input tensor of this node. Note that if a
+  // parent has multiple output tensors connected to this node, we would have to
+  // specify that one operator multiple times in the parents field, with
+  // different src_tensors_indices.
+  repeated int32 src_tensors_indices = 5;
+  // In theory, we could specify the above node-to-node connection information
+  // in TensorProto, but the current proto design seems easier for the C++
+  // side which was built to construct the operators first and then create
+  // tensors.
+  repeated TensorProto input_tensors = 6;
+  repeated TensorProto output_tensors = 7;
   // Parameters
-  Params params = 7;
+  Params params = 8;
 }

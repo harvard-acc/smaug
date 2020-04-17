@@ -51,8 +51,9 @@ class Graph:
       output_tensor_layout: Layout of the output tensor.
       output_tensor_dtype: Data type of the output tensor.
       output_tensor_dformat: Storage format of the output tensor.
-      name: Name of the node. If specified, and the name is used, a KeyError
-        will be raised. Otherwise, the default name will be used.
+      name: Name of the node. If specified, and the name is already used by
+        another node, a KeyError will be raised. Otherwise, the default name
+        will be used.
       params: The parameters of the node.
 
     Returns:
@@ -72,8 +73,10 @@ class Graph:
       if tensor.name == None:
         tensor.name = node.name + "/input%d" % i
       if tensor.source is not None:
-        node.parents.append(tensor.source.name)
-        tensor.source.children.append(node.name)
+        node.parents.append(tensor.source[0].name)
+        node.src_tensors_indices.append(tensor.source[1])
+        if node.name not in tensor.source[0].children:
+          tensor.source[0].children.append(node.name)
       input_tensor_proto = node.input_tensors.add()
       tensor.to_tensor_proto(input_tensor_proto, self.tensor_data_array)
 
@@ -84,7 +87,7 @@ class Graph:
       output_tensor = Tensor(
           dims=d, name="%s/output%d" % (node.name, i),
           data_layout=output_tensor_layout, data_type=output_tensor_dtype,
-          data_format=output_tensor_dformat, source=node,
+          data_format=output_tensor_dformat, source=(node, i),
           alignment=self.alignment)
       output_tensor_proto = node.output_tensors.add()
       output_tensor.to_tensor_proto(output_tensor_proto, self.tensor_data_array)
@@ -170,8 +173,10 @@ class Graph:
               # This is to preserve the ordering in the parents field. The
               # network builder in C++ relies on the ordering to correctly
               # set the input tensors of operators.
-              idx = list(grandchild.parents).index(child.name)
-              grandchild.parents[idx] = merges_into_reorder_op.name
+              parent_idx = list(grandchild.parents).index(child.name)
+              output_idx = grandchild.src_tensors_indices[parent_idx]
+              grandchild.parents[parent_idx] = merges_into_reorder_op.name
+              grandchild.src_tensors_indices[parent_idx] = output_idx
               merges_into_reorder_op.children.append(grandchild_name)
           else:
             target_layouts.append(layout)

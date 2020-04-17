@@ -6,6 +6,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <utility>
 
 #include "core/typedefs.h"
 #include "core/operator.h"
@@ -41,9 +42,9 @@ class Network {
             delete op.second;
     }
 
-    void addOperator(
-            Operator* op,
-            const std::vector<Operator*> parentOps = std::vector<Operator*>());
+    void addOperator(Operator* op,
+                     const std::vector<Operator::IndexedOutput>& parentOps =
+                             std::vector<Operator::IndexedOutput>());
     void insertOperatorBetween(Operator* newOp,
                                Operator* sourceOp,
                                const std::vector<Operator*>& targetOps);

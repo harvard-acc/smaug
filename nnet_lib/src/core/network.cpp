@@ -9,13 +9,13 @@
 
 using namespace smaug;
 
-void Network::addOperator(Operator* op,
-                          const std::vector<Operator*> parentOps) {
+void Network::addOperator(
+        Operator* op, const std::vector<Operator::IndexedOutput>& parentOps) {
     Vertex v = add_vertex(VertexProperty(op), graph);
     op->setVertex(v);
     for (int i = 0; i < parentOps.size(); i++) {
-        Operator* inputOp = parentOps[i];
-        op->setInput(inputOp->getOutput(0), i);
+        Operator* inputOp = parentOps[i].op;
+        op->setInput(inputOp->getOutput(parentOps[i].idx), i);
         Vertex sourceVertex = inputOp->getVertex();
         add_edge(sourceVertex, v, graph);
     }

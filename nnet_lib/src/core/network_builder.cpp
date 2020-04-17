@@ -100,10 +100,11 @@ static void createAndAddOperator(const NodeProto& node,
     dout(0) << "Adding " << name << " (" << OpType_Name(type) << ").\n";
 
     // Find all the input operators for this operator.
-    std::vector<Operator*> inputs;
+    std::vector<Operator::IndexedOutput> inputs;
     for (int i = 0; i < node.parents_size(); i++) {
         std::string input_name = node.parents(i);
-        inputs.push_back(network->getOperator(input_name));
+        int tensor_idx = node.src_tensors_indices(i);
+        inputs.push_back({ network->getOperator(input_name), tensor_idx });
     }
 
     if (type == OpType::Data) {
