@@ -114,8 +114,7 @@ static void createAndAddOperator(const NodeProto& node,
         }
         auto inputTensor = workspace->addTensor(
                 new Tensor(node.input_tensors(0), tensorData));
-        auto inputTensorOp =
-                Backend::createDataOp(inputTensor->getName(), workspace);
+        auto inputTensorOp = Backend::createDataOp(name, workspace);
         inputTensorOp->setData(inputTensor);
         network->addOperator(inputTensorOp);
     } else if (type == OpType::Convolution3d ||
