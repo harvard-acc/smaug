@@ -75,10 +75,10 @@ void smv_matrix_multiply_transpose_nc_vec_fxp(float16* host_a,
     int b_height = b_dims[0];
     int results_width = results_dims[1];
     int results_height = results_dims[0];
-    ASSERT(b_width % VECTOR_SIZE == 0 &&
+    ASSERT((b_width + b_pad) % VECTOR_SIZE == 0 &&
            "Width of b must be a multiple of VECTOR_SIZE!");
-    int a_width_vec = a_width / VECTOR_SIZE;
-    int b_width_vec = b_width / VECTOR_SIZE;
+    int a_width_vec = (a_width + a_pad) / VECTOR_SIZE;
+    int b_width_vec = (b_width + b_pad) / VECTOR_SIZE;
     int a_size = a_height * (a_width + a_pad);
     int b_size = b_height * (b_width + b_pad);
     int results_size = results_height * (results_width + results_pad);
