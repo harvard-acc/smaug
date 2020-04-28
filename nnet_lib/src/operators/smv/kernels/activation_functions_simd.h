@@ -185,7 +185,7 @@ static inline void activation_fun_vec(float* inputs,
     } else if (function == SIGMOID) {
         sigmoid_vec(_inputs, _results, inputs_size);
     } else if (function == SOFTMAX) {
-        assert(false && "Softmax SIMD not added yet!");
+        assert(false && "Softmax SIMD shouldn't be called from here!");
     }
 }
 

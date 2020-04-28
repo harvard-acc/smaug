@@ -202,6 +202,14 @@ def sigmoid(input_tensor, name="sigmoid"):
       output_tensors_dims=[input_tensor.shape.dims],
       output_tensor_layout=input_tensor.shape.layout)[0]
 
+def softmax(input_tensor, name=None):
+  input_tensor = check_and_add_layout_transform(
+      name=name, op=Softmax, input_tensors=[input_tensor])[0]
+  return add_node(
+      name=name, op=Softmax, input_tensors=[input_tensor],
+      output_tensors_dims=[input_tensor.shape.dims],
+      output_tensor_layout=input_tensor.shape.layout)[0]
+
 def batch_norm(
     input_tensor, mean_tensor, var_tensor, gamma_tensor, beta_tensor,
     activation=None, activation_params=None, name="batch_norm"):

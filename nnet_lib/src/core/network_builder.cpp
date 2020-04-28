@@ -41,6 +41,7 @@
 #include "operators/smv/smv_elu_op.h"
 #include "operators/smv/smv_tanh_op.h"
 #include "operators/smv/smv_sigmoid_op.h"
+#include "operators/smv/smv_softmax_op.h"
 #include "operators/smv/smv_eltwise_add_op.h"
 #include "operators/smv/smv_eltwise_mul_op.h"
 #include "utility/utils.h"
@@ -239,6 +240,9 @@ static void createAndAddOperator(const NodeProto& node,
         network->addOperator(op, inputs);
     } else if (type == OpType::Sigmoid) {
         auto op = Backend::createSigmoidOp(name, workspace);
+        network->addOperator(op, inputs);
+    } else if (type == OpType::Softmax) {
+        auto op = Backend::createSoftmaxOp(name, workspace);
         network->addOperator(op, inputs);
     } else if (type == OpType::Tanh) {
         auto op = Backend::createTanhOp(name, workspace);

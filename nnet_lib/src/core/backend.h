@@ -117,6 +117,7 @@ class SmvSeluOp;
 class SmvTanhOp;
 class SmvHardTanhOp;
 class SmvSigmoidOp;
+class SmvSoftmaxOp;
 class SmvEltwiseAddOp;
 class SmvEltwiseMulOp;
 class SmvBackend {
@@ -164,11 +165,11 @@ class SmvBackend {
     DECL_CREATE_SMV_OP(TanhOp);
     DECL_CREATE_SMV_OP(HardTanhOp);
     DECL_CREATE_SMV_OP(SigmoidOp);
+    DECL_CREATE_SMV_OP(SoftmaxOp);
     DECL_CREATE_SMV_OP(EltwiseAddOp);
     DECL_CREATE_SMV_OP(EltwiseMulOp);
     DECL_CREATE_OP(DataOp);
     DECL_CREATE_OP(DepthwiseConvolutionOp);
-    DECL_CREATE_OP(SoftmaxOp);
     DECL_CREATE_OP(ReorderOp);
     DECL_CREATE_OP(ConcatOp);
     DECL_CREATE_OP(SplitOp);

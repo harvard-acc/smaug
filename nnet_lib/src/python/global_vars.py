@@ -51,7 +51,7 @@ backend_layouts = {
         Tanh: OperatorLayouts([X], X),
         HardTanh: OperatorLayouts([X], X),
         Sigmoid: OperatorLayouts([X], X),
-        Softmax: OperatorLayouts([X], X),
+        Softmax: OperatorLayouts([NC], NC),
         EltwiseAdd: OperatorLayouts([X], X),
         EltwiseMul: OperatorLayouts([X], X),
     },
@@ -70,7 +70,7 @@ backend_layouts = {
         Tanh: OperatorLayouts([X], X),
         HardTanh: OperatorLayouts([X], X),
         Sigmoid: OperatorLayouts([X], X),
-        Softmax: OperatorLayouts([X], X),
+        Softmax: OperatorLayouts([NC], NC),
         EltwiseAdd: OperatorLayouts([X], X),
         EltwiseMul: OperatorLayouts([X], X),
     }

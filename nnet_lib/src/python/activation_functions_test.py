@@ -14,13 +14,16 @@ class ActivationFunctionTest(smaug_test.SmaugTest):
     super(ActivationFunctionTest, self).__init__(*args, **kwargs)
     self.tensor_shape = [2, 32, 32, 32]
 
-  def do_basic_test(self, test_graph, node_name, op_type, child_name=None):
+  def do_basic_test(
+      self, test_graph, node_name, op_type, child_name=None, tensor_shape=None):
     node = self.get_node(test_graph.graph, node_name)
+    if tensor_shape == None:
+      tensor_shape = self.tensor_shape
     self.assertEqual(node.op, op_type)
     self.assertEqual(len(node.input_tensors), 1)
     self.assertEqual(len(node.output_tensors), 1)
     self.assertEqual(node.output_tensors[0].data_type, Float16)
-    self.assertEqual(node.output_tensors[0].shape.dims, self.tensor_shape)
+    self.assertEqual(node.output_tensors[0].shape.dims, tensor_shape)
     self.assertEqual(node.output_tensors[0].shape.layout,
                      node.input_tensors[0].shape.layout)
     self.assertEqual(node.output_tensors[0].shape.alignment, 8)
@@ -41,6 +44,9 @@ class ActivationFunctionTest(smaug_test.SmaugTest):
       act = tanh(act, "tanh")
       act = hard_tanh(act, min=-1.5, max=1.5, name="hard_tanh")
       act = sigmoid(act, "sigmoid")
+      # Softmax expects NC format, so reorder NHWC to NC.
+      act = reorder(act, target_layout=NC, name="reorder")
+      act = softmax(act, "softmax")
     # ReLU
     self.do_basic_test(test_graph, "relu", ReLU, "lrelu")
     # LReLU
@@ -60,7 +66,9 @@ class ActivationFunctionTest(smaug_test.SmaugTest):
     self.assertAlmostEqual(node.params.act_params.hard_tanh_params.min, -1.5)
     self.assertAlmostEqual(node.params.act_params.hard_tanh_params.max, 1.5)
     # Sigmoid
-    self.do_basic_test(test_graph, "sigmoid", Sigmoid)
+    self.do_basic_test(test_graph, "sigmoid", Sigmoid, "reorder")
+    # Softmax
+    self.do_basic_test(test_graph, "softmax", Softmax, tensor_shape=[2, 32768])
 
   def test_fusing_activation_functions(self):
     """Test activation function when they are fused with other operators."""
@@ -107,6 +115,9 @@ class ActivationFunctionTest(smaug_test.SmaugTest):
       act = convolution(
           act, filter_tensor, stride=[1, 1], padding="same", activation=Sigmoid,
           name="conv_sigmoid")
+      act = convolution(
+          act, filter_tensor, stride=[1, 1], padding="same", activation=Softmax,
+          name="conv_softmax")
       act = batch_norm(
           act, bn_mean_tensor, bn_var_tensor, bn_gamma_tensor, bn_beta_tensor,
           activation=ReLU, name="bn_relu")
@@ -142,6 +153,9 @@ class ActivationFunctionTest(smaug_test.SmaugTest):
     # Sigmoid
     node = self.get_node(test_graph.graph, "conv_sigmoid")
     self.assertEqual(node.params.act_params.activation, Sigmoid)
+    # Softmax
+    node = self.get_node(test_graph.graph, "conv_softmax")
+    self.assertEqual(node.params.act_params.activation, Softmax)
     # Fusion with inner products and batch norms.
     node = self.get_node(test_graph.graph, "bn_relu")
     self.assertEqual(node.params.act_params.activation, ReLU)

@@ -36,6 +36,7 @@ SRCS = src/operators/common.cpp \
        src/operators/smv/smv_batch_norm_op.cpp \
        src/operators/smv/smv_batch_norm_tiling.cpp \
        src/operators/smv/kernels/batch_norm.c \
+       src/operators/smv/smv_softmax_op.cpp \
        src/operators/smv/smv_unary_op_common.cpp \
        src/operators/smv/kernels/activation_functions_simd.c \
        src/operators/smv/smv_eltwise_add_op.cpp \

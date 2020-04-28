@@ -43,7 +43,7 @@ std::pair<activation_type, activation_param_t> getActivationParams(
     } else if (opType == OpType::Sigmoid) {
         function = activation_type::SIGMOID;
     } else if (opType == OpType::Softmax) {
-        function = activation_type::SOFTMAX;
+        assert(false && "Softmax should call its own run() implementation!");
     }
     return { function, params };
 }

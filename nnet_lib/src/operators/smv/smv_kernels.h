@@ -134,6 +134,14 @@ void smv_activation_fun_nc_vec_fxp(float16* host_inputs,
                                    activation_type function,
                                    activation_param_t params);
 
+void smv_softmax_nc_vec_fxp(float16* host_inputs,
+                            float16* host_results,
+                            float* inputs,
+                            float* results,
+                            int input_num,
+                            int input_size,
+                            int input_pad);
+
 void smv_eltwise_add_nc_vec_fxp(float16* host_inputs0,
                                 float16* host_inputs1,
                                 float16* host_results,

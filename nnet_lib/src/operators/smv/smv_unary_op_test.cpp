@@ -7,6 +7,7 @@
 #include "operators/smv/smv_elu_op.h"
 #include "operators/smv/smv_tanh_op.h"
 #include "operators/smv/smv_sigmoid_op.h"
+#include "operators/smv/smv_softmax_op.h"
 
 using namespace smaug;
 
@@ -53,6 +54,9 @@ class SmvUnaryOpTest : public SmaugTest {
         } else if (opType == OpType::Sigmoid) {
             refUnaryOp =
                     new SigmoidOp<ReferenceBackend>("ref_sigmoid", workspace());
+        } else if (opType == OpType::Softmax) {
+            refUnaryOp =
+                    new SoftmaxOp<ReferenceBackend>("ref_softmax", workspace());
         }
         refUnaryOp->setInput(input32, 0);
         refUnaryOp->createAllTensors();
@@ -82,6 +86,8 @@ class SmvUnaryOpTest : public SmaugTest {
             unaryOp = new SmvSeluOp("tanh", workspace());
         } else if (opType == OpType::Sigmoid) {
             unaryOp = new SmvSigmoidOp("sigmoid", workspace());
+        } else if (opType == OpType::Softmax) {
+            unaryOp = new SmvSoftmaxOp("softmax", workspace());
         }
         DataLayout layout = dims.size() == 4 ? NHWC : NC;
         TensorShape inputShape(dims, layout, SmvBackend::Alignment);
@@ -136,6 +142,7 @@ TEST_CASE_METHOD(SmvUnaryOpTest, "SMV Tiled 2D Activations", "[smvunary]") {
         doTest(OpType::SELU, { 1, 1024 });
         doTest(OpType::Tanh, { 1, 1024 });
         doTest(OpType::Sigmoid, { 1, 1024 });
+        doTest(OpType::Softmax, { 1, 1024 });
     }
     SECTION("Tiling needed, last tile has the same shape") {
         doTest(OpType::ReLU, { 2, 16384 });
@@ -144,6 +151,8 @@ TEST_CASE_METHOD(SmvUnaryOpTest, "SMV Tiled 2D Activations", "[smvunary]") {
         doTest(OpType::SELU, { 2, 16384 });
         doTest(OpType::Tanh, { 2, 16384 });
         doTest(OpType::Sigmoid, { 2, 16384 });
+        // The 8 inputs will be tiled into 4 tiles of 2 inputs each.
+        doTest(OpType::Softmax, { 8, 8192 });
     }
     SECTION("Tiling needed, last tile has the same shape") {
         doTest(OpType::ReLU, { 2, 12288 });
@@ -152,6 +161,9 @@ TEST_CASE_METHOD(SmvUnaryOpTest, "SMV Tiled 2D Activations", "[smvunary]") {
         doTest(OpType::SELU, { 2, 12288 });
         doTest(OpType::Tanh, { 2, 12288 });
         doTest(OpType::Sigmoid, { 2, 12288 });
+        // The 9 inputs will be tiled into 3 tiles, which have 4, 4 and 1 inputs
+        // respectively.
+        doTest(OpType::Softmax, { 9, 4096 });
     }
 }
 
