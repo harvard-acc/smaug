@@ -91,6 +91,7 @@ class SmvUnaryOpTest : public SmaugTest {
         unaryOp->setInput(inputs, 0);
         createAndFillTensorsWithData<float16>(
                 unaryOp, fillTensorWithRandomData);
+        unaryOp->tile();
         unaryOp->run();
         auto outputs = unaryOp->getOutput(0);
         auto refOutputs = getReferenceOutput(unaryOp);

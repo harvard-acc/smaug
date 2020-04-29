@@ -12,7 +12,7 @@ class SmvSigmoidOp : public SigmoidOp<SmvBackend> {
    public:
     using SigmoidOp<SmvBackend>::SigmoidOp;
     void tile() override { tiledTensors = smv::unary::doTiling(this, false); }
-    void run() override { smv::unary::run(this); }
+    void run() override { smv::unary::run(this, tiledTensors); }
 
    protected:
     std::array<TiledTensor, 2> tiledTensors;

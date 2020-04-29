@@ -125,10 +125,9 @@ std::array<TiledTensor, 2> doTiling(UnaryOp<SmvBackend>* op, bool copyData) {
     return { tiledInputs, tiledOutputs };
 }
 
-void run(UnaryOp<SmvBackend>* op) {
+void run(UnaryOp<SmvBackend>* op, std::array<TiledTensor, 2>& tiledTensors) {
     auto inputs = op->getInput(UnaryOp<SmvBackend>::Inputs);
     auto outputs = op->getOutput(UnaryOp<SmvBackend>::Outputs);
-    std::array<TiledTensor, 2> tiledTensors = doTiling(op);
 
     {
         auto stats = gem5::ScopedStats(

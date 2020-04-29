@@ -12,7 +12,7 @@ class SmvReluOp : public ReluOp<SmvBackend> {
    public:
     using ReluOp<SmvBackend>::ReluOp;
     void tile() override { tiledTensors = smv::unary::doTiling(this, false); }
-    void run() override { smv::unary::run(this); };
+    void run() override { smv::unary::run(this, tiledTensors); };
 
    protected:
     std::array<TiledTensor, 2> tiledTensors;
