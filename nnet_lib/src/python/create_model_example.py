@@ -39,14 +39,13 @@ def create_residual_model():
     bn_beta_tensor = Tensor(
         data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np.float16))
 
-    act = input_data("input", input_tensor)
-    x = convolution("conv0", act, filter_tensor0, stride=[1, 1], padding="same")
-    out = convolution(
-        "conv1", act, filter_tensor1, stride=[1, 1], padding="same")
-    out = batch_norm("bn0", out, bn_mean_tensor, bn_var_tensor, bn_gamma_tensor,
-                     bn_beta_tensor, activation=ReLU)
-    out = convolution(
-        "conv2", out, filter_tensor2, stride=[1, 1], padding="same")
+    act = input_data(input_tensor)
+    x = convolution(act, filter_tensor0, stride=[1, 1], padding="same")
+    out = convolution(act, filter_tensor1, stride=[1, 1], padding="same")
+    out = batch_norm(
+        out, bn_mean_tensor, bn_var_tensor, bn_gamma_tensor, bn_beta_tensor,
+        activation=ReLU)
+    out = convolution(out, filter_tensor2, stride=[1, 1], padding="same")
     out = add("add", x, out)
 
     return graph
@@ -75,27 +74,17 @@ def create_sequential_model():
     bn_beta_tensor = Tensor(
         data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np.float32))
 
-    out = input_data("input", input_tensor)
+    out = input_data(input_tensor)
     out = convolution(
-        "conv0",
-        out,
-        filter_tensor0,
-        stride=[1, 1],
-        padding="same",
-        activation=ReLU)
-    out = batch_norm("bn0", out, bn_mean_tensor, bn_var_tensor, bn_gamma_tensor,
-                     bn_beta_tensor)
+        out, filter_tensor0, stride=[1, 1], padding="same", activation=ReLU)
+    out = batch_norm(
+        out, bn_mean_tensor, bn_var_tensor, bn_gamma_tensor, bn_beta_tensor)
     out = convolution(
-        "conv1",
-        out,
-        filter_tensor1,
-        stride=[1, 1],
-        padding="same",
-        activation=ReLU)
-    out = max_pool("pool1", out, pool_size=[2, 2], stride=[2, 2])
-    out = flatten("flatten0", out)
-    out = mat_mul("fc2", out, weight_tensor0, activation=ReLU)
-    out = mat_mul("fc3", out, weight_tensor1)
+        out, filter_tensor1, stride=[1, 1], padding="same", activation=ReLU)
+    out = max_pool(out, pool_size=[2, 2], stride=[2, 2])
+    out = flatten(out)
+    out = mat_mul(out, weight_tensor0, activation=ReLU)
+    out = mat_mul(out, weight_tensor1)
 
     return graph
 

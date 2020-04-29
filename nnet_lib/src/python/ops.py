@@ -32,9 +32,8 @@ def check_and_add_layout_transform(name, op, input_tensors):
   return input_tensors
 
 def add_node(
-    op, input_tensors, output_tensors_dims, output_tensor_layout=NCHW,
-    output_tensor_dtype=None, output_tensor_dformat=Uncompressed, name=None,
-    params=None):
+    name, op, input_tensors, output_tensors_dims, output_tensor_layout=NCHW,
+    output_tensor_dtype=None, output_tensor_dformat=Uncompressed, params=None):
   if get_graph() == None:
     assert False, "No available active graph!"
   if output_tensor_dtype == None:
@@ -48,7 +47,7 @@ def add_node(
   for i in range(len(input_tensors)):
     if input_tensors[i].source == None and op != Data:
       input_tensors[i] = get_graph().add_node(
-          op=Data, input_tensors=[input_tensors[i]],
+          name="data", op=Data, input_tensors=[input_tensors[i]],
           output_tensors_dims=[input_tensors[i].shape.dims],
           output_tensor_layout=input_tensors[i].shape.layout,
           output_tensor_dtype=output_tensor_dtype,
@@ -60,7 +59,7 @@ def add_node(
       output_tensor_dtype=output_tensor_dtype,
       output_tensor_dformat=output_tensor_dformat, params=params)
 
-def input_data(input_tensor, name=None):
+def input_data(input_tensor, name="data"):
   return add_node(
       name=name, op=Data, input_tensors=[input_tensor],
       output_tensors_dims=[input_tensor.shape.dims],
@@ -105,7 +104,7 @@ def set_activation_params(activation, act_params_proto, act_params):
 
 def convolution(
     input_tensor, filter_tensor, stride, padding, activation=None,
-    activation_params=None, name=None):
+    activation_params=None, name="conv"):
   def compute_output_dim(input_dim, weight_dim, stride, padding):
     pad = 0
     if to_padding_type(padding) == SamePadding:
@@ -151,13 +150,13 @@ def convolution(
       output_tensors_dims=[output_tensor_dims],
       output_tensor_layout=output_layout, params=params)[0]
 
-def relu(input_tensor, name=None):
+def relu(input_tensor, name="relu"):
   return add_node(
       name=name, op=ReLU, input_tensors=[input_tensor],
       output_tensors_dims=[input_tensor.shape.dims],
       output_tensor_layout=input_tensor.shape.layout)[0]
 
-def lrelu(input_tensor, slope=0.2, name=None):
+def lrelu(input_tensor, slope=0.2, name="lrelu"):
   params = Params()
   params.act_params.lrelu_params.slope = slope
   return add_node(
@@ -165,7 +164,7 @@ def lrelu(input_tensor, slope=0.2, name=None):
       output_tensors_dims=[input_tensor.shape.dims],
       output_tensor_layout=input_tensor.shape.layout, params=params)[0]
 
-def elu(input_tensor, alpha=0.1, name=None):
+def elu(input_tensor, alpha=0.1, name="relu"):
   params = Params()
   params.act_params.elu_params.alpha = alpha
   return add_node(
@@ -173,7 +172,7 @@ def elu(input_tensor, alpha=0.1, name=None):
       output_tensors_dims=[input_tensor.shape.dims],
       output_tensor_layout=input_tensor.shape.layout, params=params)[0]
 
-def selu(input_tensor, alpha=1.6733, lambda_param=1.0507, name=None):
+def selu(input_tensor, alpha=1.6733, lambda_param=1.0507, name="selu"):
   params = Params()
   params.act_params.elu_params.alpha = alpha
   params.act_params.elu_params.lambda_param = lambda_param
@@ -182,13 +181,13 @@ def selu(input_tensor, alpha=1.6733, lambda_param=1.0507, name=None):
       output_tensors_dims=[input_tensor.shape.dims],
       output_tensor_layout=input_tensor.shape.layout, params=params)[0]
 
-def tanh(input_tensor, name=None):
+def tanh(input_tensor, name="tanh"):
   return add_node(
       name=name, op=Tanh, input_tensors=[input_tensor],
       output_tensors_dims=[input_tensor.shape.dims],
       output_tensor_layout=input_tensor.shape.layout)[0]
 
-def hard_tanh(input_tensor, min=-1, max=1, name=None):
+def hard_tanh(input_tensor, min=-1, max=1, name="hard_tanh"):
   params = Params()
   params.act_params.hard_tanh_params.min = min
   params.act_params.hard_tanh_params.max = max
@@ -197,7 +196,7 @@ def hard_tanh(input_tensor, min=-1, max=1, name=None):
       output_tensors_dims=[input_tensor.shape.dims],
       output_tensor_layout=input_tensor.shape.layout, params=params)[0]
 
-def sigmoid(input_tensor, name=None):
+def sigmoid(input_tensor, name="sigmoid"):
   return add_node(
       name=name, op=Sigmoid, input_tensors=[input_tensor],
       output_tensors_dims=[input_tensor.shape.dims],
@@ -205,7 +204,7 @@ def sigmoid(input_tensor, name=None):
 
 def batch_norm(
     input_tensor, mean_tensor, var_tensor, gamma_tensor, beta_tensor,
-    activation=None, activation_params=None, name=None):
+    activation=None, activation_params=None, name="batch_norm"):
   assert (len(mean_tensor.shape.dims) == 2 and len(var_tensor.shape.dims) == 2
           and len(gamma_tensor.shape.dims) == 2
           and len(beta_tensor.shape.dims) == 2)
@@ -233,7 +232,7 @@ def batch_norm(
       ], output_tensors_dims=[input_tensor.shape.dims],
       output_tensor_layout=output_layout, params=params)[0]
 
-def max_pool(input_tensor, pool_size, stride, name=None):
+def max_pool(input_tensor, pool_size, stride, name="max_pool"):
   def compute_output_dim(input_dim, pool_size, stride):
     return (input_dim - pool_size) / stride + 1
 
@@ -265,7 +264,7 @@ def max_pool(input_tensor, pool_size, stride, name=None):
       output_tensors_dims=[output_tensor_dims],
       output_tensor_layout=output_layout, params=params)[0]
 
-def reorder(input_tensor, target_layout, name=None):
+def reorder(input_tensor, target_layout, name="reorder"):
   src_layout = input_tensor.shape.layout
   src_dims = input_tensor.shape.dims
   if src_layout == NCHW:
@@ -298,13 +297,13 @@ def reorder(input_tensor, target_layout, name=None):
       output_tensors_dims=[output_tensor_dims],
       output_tensor_layout=target_layout)[0]
 
-def flatten(input_tensor, name=None):
+def flatten(input_tensor, name="flatten"):
   assert (len(input_tensor.shape.dims) == 4)
   return reorder(name=name, input_tensor=input_tensor, target_layout=NC)
 
 def mat_mul(
     input_tensor, weight_tensor, activation=None, activation_params=None,
-    name=None):
+    name="mat_mul"):
   input_tensor, weight_tensor = check_and_add_layout_transform(
       name=name, op=InnerProduct, input_tensors=[input_tensor, weight_tensor])
 
@@ -326,7 +325,7 @@ def mat_mul(
       output_tensors_dims=[output_tensor_dims], output_tensor_layout=NC,
       params=params)[0]
 
-def add(tensor_a, tensor_b, name=None):
+def add(tensor_a, tensor_b, name="add"):
   assert (tensor_a.shape.dims == tensor_b.shape.dims
           ), "Elementwise add must have the same shape for the input tensors."
   return add_node(
@@ -334,7 +333,7 @@ def add(tensor_a, tensor_b, name=None):
       output_tensors_dims=[tensor_a.shape.dims],
       output_tensor_layout=tensor_a.shape.layout)[0]
 
-def mul(tensor_a, tensor_b, name=None):
+def mul(tensor_a, tensor_b, name="mul"):
   if tensor_a.shape.dims != tensor_b.shape.dims:
     raise ValueError(
         "Elementwise multiplication must have the same shape for the inputs!")
@@ -343,7 +342,7 @@ def mul(tensor_a, tensor_b, name=None):
       output_tensors_dims=[tensor_a.shape.dims],
       output_tensor_layout=tensor_a.shape.layout)[0]
 
-def concat(input_tensors, axis=0, name=None):
+def concat(input_tensors, axis=0, name="concat"):
   """Concatenate tensors into one.
 
   Args:
@@ -369,7 +368,7 @@ def concat(input_tensors, axis=0, name=None):
       output_tensors_dims=[output_tensor_dims],
       output_tensor_layout=input_tensors[0].shape.layout, params=params)[0]
 
-def split(input_tensor, num_or_size_splits, axis=0, name=None):
+def split(input_tensor, num_or_size_splits, axis=0, name="split"):
   """Split a tensor into sub tensors.
 
   Args:
@@ -414,7 +413,7 @@ def split(input_tensor, num_or_size_splits, axis=0, name=None):
       output_tensors_dims=output_tensors_dims,
       output_tensor_layout=input_tensor.shape.layout, params=params)
 
-def reshape(input_tensor, shape, layout, name=None):
+def reshape(input_tensor, shape, layout, name="reshape"):
   """ Reshape the given tensor in the same order.
 
   Args:
@@ -431,7 +430,7 @@ def reshape(input_tensor, shape, layout, name=None):
       name=name, op=Reshape, input_tensors=[input_tensor],
       output_tensors_dims=[shape], output_tensor_layout=layout)[0]
 
-def expand_dims(input_tensor, axis=0, name=None):
+def expand_dims(input_tensor, axis=0, name="expand_dims"):
   """Expand a tensor with an additional dimension.
 
   Args:
@@ -448,7 +447,7 @@ def expand_dims(input_tensor, axis=0, name=None):
   output_tensor_layout = NCT if axis == 2 else NTC
   return reshape(input_tensor, output_tensor_dims, output_tensor_layout, name)
 
-def squeeze(input_tensor, axis, name=None):
+def squeeze(input_tensor, axis, name="squeeze"):
   """Eliminate a dimension of size 1 from a tensor.
 
   Args:
@@ -465,7 +464,7 @@ def squeeze(input_tensor, axis, name=None):
   output_tensor_layout = NC
   return reshape(input_tensor, output_tensor_dims, output_tensor_layout, name)
 
-def repeat(input_tensor, multiples, name=None):
+def repeat(input_tensor, multiples, name="repeat"):
   """Construct a tensor by repeating a given tensor.
 
   Args:

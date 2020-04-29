@@ -659,14 +659,14 @@ class SMVSequentialGraphTest(smaug_test.SmaugTest, SequentialGraphTest):
     # input (Data).
     node = self.get_node(self.test_graph.graph, "input")
     self.assertEqual(len(node.parents), 0)
-    self.assertEqual(node.children[0], "reorder_0")
+    self.assertEqual(node.children[0], "reorder")
     # Reorder input from NCHW to NHWC.
-    node = self.get_node(self.test_graph.graph, "reorder_0")
+    node = self.get_node(self.test_graph.graph, "reorder")
     self.assertEqual(node.parents[0], "input")
     self.assertEqual(node.children[0], "conv0")
     # conv0 (Convolution).
     node = self.get_node(self.test_graph.graph, "conv0")
-    self.assertEqual(node.parents[0], "reorder_0")
+    self.assertEqual(node.parents[0], "reorder")
     self.assertEqual(node.children[0], "conv0_relu")
     # conv0_relu (ReLU).
     node = self.get_node(self.test_graph.graph, "conv0_relu")
@@ -768,11 +768,11 @@ class RefSequentialGraphTest(smaug_test.SmaugTest, SequentialGraphTest):
     self.assertEqual(node.parents[0], "pool")
     self.assertEqual(node.children[0], "fc0")
     # Transpose fc0 weights
-    node = self.get_node(self.test_graph.graph, "reorder_0")
+    node = self.get_node(self.test_graph.graph, "reorder")
     self.assertEqual(node.children[0], "fc0")
     # fc0 (FC)
     node = self.get_node(self.test_graph.graph, "fc0")
-    self.assertEqual(node.parents, ["flatten", "reorder_0"])
+    self.assertEqual(node.parents, ["flatten", "reorder"])
     self.assertEqual(node.children[0], "fc0_relu")
     # fc0_relu (ReLU)
     node = self.get_node(self.test_graph.graph, "fc0_relu")
@@ -815,18 +815,18 @@ class SMVResidualGraphTest(smaug_test.SmaugTest, ResidualGraphTest):
     # input (Data).
     node = self.get_node(self.test_graph.graph, "input")
     self.assertEqual(len(node.parents), 0)
-    self.assertEqual(node.children[0], "reorder_0")
+    self.assertEqual(node.children[0], "reorder")
     # Reorder input from NCHW to NHWC.
-    node = self.get_node(self.test_graph.graph, "reorder_0")
+    node = self.get_node(self.test_graph.graph, "reorder")
     self.assertEqual(node.parents[0], "input")
     self.assertEqual(node.children, ["conv0", "conv1"])
     # conv0 (Convolution).
     node = self.get_node(self.test_graph.graph, "conv0")
-    self.assertEqual(node.parents[0], "reorder_0")
+    self.assertEqual(node.parents[0], "reorder")
     self.assertEqual(node.children[0], "add")
     # conv1 (Convolution).
     node = self.get_node(self.test_graph.graph, "conv1")
-    self.assertEqual(node.parents[0], "reorder_0")
+    self.assertEqual(node.parents[0], "reorder")
     self.assertEqual(node.children[0], "bn")
     # bn (BN).
     node = self.get_node(self.test_graph.graph, "bn")

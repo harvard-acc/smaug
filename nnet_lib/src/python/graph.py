@@ -34,33 +34,32 @@ class Graph:
     clear_graph()
 
   def add_node(self,
+               name,
                op,
                input_tensors,
                output_tensors_dims,
                output_tensor_layout=NCHW,
                output_tensor_dtype=Float32,
                output_tensor_dformat=Uncompressed,
-               name=None,
                params=None):
     """Create a node and add it to graph.
 
     Args:
+      name: Name of the node. If the name is already used by another node, a
+        "_N" suffix will be added.
       op: Operator type.
       input_tensors: A list of input tensors of the node.
       output_tensors_dims: A list of dims of the output tensors.
       output_tensor_layout: Layout of the output tensor.
       output_tensor_dtype: Data type of the output tensor.
       output_tensor_dformat: Storage format of the output tensor.
-      name: Name of the node. If specified, and the name is already used by
-        another node, a KeyError will be raised. Otherwise, the default name
-        will be used.
       params: The parameters of the node.
 
     Returns:
       The output tensor of the added node.
     """
     node = self.graph.nodes.add()
-    node.name = self._create_unique_name(op, name)
+    node.name = self._create_unique_name(name)
     node.op = op
 
     # Add the parameters to the node.
@@ -95,25 +94,17 @@ class Graph:
 
     return output_tensors
 
-  def _create_unique_name(self, op, name=None):
+  def _create_unique_name(self, name):
     """ Create a unique name for the node.
 
     Args:
-      op: Operator type.
-      name: The node's name (optional).
+      name: The node's name.
     """
-    if name != None:
-      if name in self.node_names:
-        raise KeyError(
-            "The given name of the operator %s must be unique!" % name)
+    if name not in self.node_names:
       self.node_names[name] = 0
       return name
     else:
-      name = default_op_names[op]
-      if name not in self.node_names:
-        self.node_names[name] = 0
-      else:
-        self.node_names[name] += 1
+      self.node_names[name] += 1
       return name + "_%d" % self.node_names[name]
 
   def disable_layout_transform(self):
