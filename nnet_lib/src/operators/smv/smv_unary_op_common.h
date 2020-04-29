@@ -22,8 +22,6 @@ TiledTensor generateTiles(Tensor* tensor,
 std::array<TiledTensor, 2> doTiling(UnaryOp<SmvBackend>* op,
                                     bool copyData = true);
 
-void untileTiles(TiledTensor& tiledTensor, Tensor* destTensor);
-
 void run(UnaryOp<SmvBackend>* op);
 
 }  // namespace unary
