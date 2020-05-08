@@ -109,7 +109,7 @@ def convolution(
     pad = 0
     if to_padding_type(padding) == SamePadding:
       pad = weight_dim - 1
-    return (input_dim - weight_dim + pad) / stride + 1
+    return (input_dim - weight_dim + pad) // stride + 1
 
   input_tensor, filter_tensor = check_and_add_layout_transform(
       name=name, op=Convolution3d, input_tensors=[input_tensor, filter_tensor])
@@ -242,7 +242,7 @@ def batch_norm(
 
 def max_pool(input_tensor, pool_size, stride, name="max_pool"):
   def compute_output_dim(input_dim, pool_size, stride):
-    return (input_dim - pool_size) / stride + 1
+    return (input_dim - pool_size) // stride + 1
 
   input_tensor = check_and_add_layout_transform(
       name=name, op=MaxPooling, input_tensors=[input_tensor])[0]
@@ -399,7 +399,7 @@ def split(input_tensor, num_or_size_splits, axis=0, name="split"):
       raise ValueError(
           "The size (%d) of the axis along which to split must divide the "
           "splits (%d)!" % (dim, num_or_size_splits))
-    splits = [dim / num_or_size_splits] * num_or_size_splits
+    splits = [dim // num_or_size_splits] * num_or_size_splits
   if sum(splits) != input_tensor.shape.dims[axis]:
     raise ValueError(
         "the sum (%d) of sizes along the split axis must match that of the "

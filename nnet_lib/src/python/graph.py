@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 from collections import namedtuple
 from google.protobuf import text_format
 from graph_pb2 import *
@@ -139,7 +141,7 @@ class Graph:
 
     # We keep track of the indices of the nodes that are to be removed.
     to_remove_nodes = set()
-    for name in nodes_by_name.iterkeys():
+    for name in nodes_by_name:
       parent = nodes_by_name[name].node
       target_layouts = []
       reorder_ops = []
@@ -209,29 +211,29 @@ class Graph:
     node's name, operator type, input/output operators and
     input/output tensors.
     """
-    print "================================================================="
-    print "      Summary of the network: %s (%s)" % (self.graph.name,
-                                                     self.graph.backend)
-    print "================================================================="
-    print "Host memory access policy: %s." % HostMemoryAccessPolicy.Name(
-        self.graph.mem_policy)
-    print "-----------------------------------------------------------------"
+    print("=================================================================")
+    print("      Summary of the network: %s (%s)" % (self.graph.name,
+                                                     self.graph.backend))
+    print("=================================================================")
+    print("Host memory access policy: %s." % HostMemoryAccessPolicy.Name(
+        self.graph.mem_policy))
+    print("-----------------------------------------------------------------")
     for node in self.graph.nodes:
-      print "Name: %s (%s)" % (node.name, OpType.Name(node.op))
-      print "Parents:",
+      print("Name: %s (%s)" % (node.name, OpType.Name(node.op)))
+      print("Parents:", end = '')
       for i in node.parents:
-        print i,
-      print "\nChildren:",
+        print(i, end = '')
+      print("\nChildren:", end = '')
       for o in node.children:
-        print o,
-      print "\nInput tensors:"
+        print(o, end = '')
+      print("\nInput tensors:")
       for t in node.input_tensors:
-        print " ", t.name, DataType.Name(
-            t.data_type), t.shape.dims, DataLayout.Name(
-                t.shape.layout), "alignment(%d)" % t.shape.alignment
-      print "Output tensors:"
+        print(" ", t.name, DataType.Name(t.data_type), t.shape.dims,
+              DataLayout.Name(t.shape.layout),
+              "alignment(%d)" % t.shape.alignment)
+      print("Output tensors:")
       for t in node.output_tensors:
-        print " ", t.name, DataType.Name(
-            t.data_type), t.shape.dims, DataLayout.Name(
-                t.shape.layout), "alignment(%d)" % t.shape.alignment
-      print "-----------------------------------------------------------------"
+        print(" ", t.name, DataType.Name(t.data_type), t.shape.dims,
+              DataLayout.Name(t.shape.layout),
+              "alignment(%d)" % t.shape.alignment)
+      print("-----------------------------------------------------------------")

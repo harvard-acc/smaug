@@ -37,7 +37,7 @@ class Tensor:
 
     # Do data padding if this Tensor contains data.
     if self.tensor_data is not None:
-      pad_width = [(0, 0) for i in xrange(len(self.shape.dims) - 1)]
+      pad_width = [(0, 0) for i in range(len(self.shape.dims) - 1)]
       pad_width.append((0, self.calc_padding(self.shape.dims[-1])))
       self.tensor_data = np.pad(self.tensor_data, pad_width, 'constant')
 
