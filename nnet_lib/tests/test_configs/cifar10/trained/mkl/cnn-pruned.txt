@@ -1,1 +1,0 @@
-../../../../../../models/cifar10/trained/mkl/cnn-pruned.txt

@@ -1,1 +1,0 @@
-../../../../../../models/mnist/trained/smv/minerva_pruned_csr.txt

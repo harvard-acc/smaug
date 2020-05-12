@@ -1,1 +1,0 @@
-../../../../../../models/mnist/trained/monolithic/minerva_dense.txt

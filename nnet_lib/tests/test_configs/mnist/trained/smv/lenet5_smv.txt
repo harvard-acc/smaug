@@ -1,1 +1,0 @@
-../../../../../../models/mnist/trained/smv/lenet5_smv.txt
