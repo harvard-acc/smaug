@@ -11,9 +11,9 @@
 
 #include <google/protobuf/repeated_field.h>
 
-#include "core/datatypes.h"
-#include "core/tensor.pb.h"
-#include "utility/utils.h"
+#include "smaug/core/datatypes.h"
+#include "smaug/core/tensor.pb.h"
+#include "smaug/utility/utils.h"
 
 namespace smaug {
 

@@ -1,5 +1,5 @@
-#include "core/tensor.h"
-#include "core/tensor_utils.h"
+#include "smaug/core/tensor.h"
+#include "smaug/core/tensor_utils.h"
 
 namespace smaug {
 

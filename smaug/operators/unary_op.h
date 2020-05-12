@@ -3,9 +3,9 @@
 
 #include <string>
 
-#include "core/operator.h"
-#include "core/tensor_utils.h"
-#include "core/workspace.h"
+#include "smaug/core/operator.h"
+#include "smaug/core/tensor_utils.h"
+#include "smaug/core/workspace.h"
 
 namespace smaug {
 

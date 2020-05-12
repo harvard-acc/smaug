@@ -1,8 +1,8 @@
-#include "core/backend.h"
-#include "operators/common.h"
-#include "operators/inner_product_op.h"
-#include "operators/ref/ref_activation_fun_op.h"
-#include "utility/debug_stream.h"
+#include "smaug/core/backend.h"
+#include "smaug/operators/common.h"
+#include "smaug/operators/inner_product_op.h"
+#include "smaug/operators/ref/ref_activation_fun_op.h"
+#include "smaug/utility/debug_stream.h"
 
 #ifdef __cplusplus
 extern "C" {

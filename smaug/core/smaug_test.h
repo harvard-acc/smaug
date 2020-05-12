@@ -1,9 +1,9 @@
 #include "catch.hpp"
-#include "core/network.h"
-#include "core/network_builder.h"
-#include "core/backend.h"
-#include "core/tensor.h"
-#include "core/workspace.h"
+#include "smaug/core/network.h"
+#include "smaug/core/network_builder.h"
+#include "smaug/core/backend.h"
+#include "smaug/core/tensor.h"
+#include "smaug/core/workspace.h"
 
 namespace smaug {
 

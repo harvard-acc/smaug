@@ -1,8 +1,8 @@
 #include <cmath>
 
-#include "core/backend.h"
-#include "operators/common.h"
-#include "operators/softmax_op.h"
+#include "smaug/core/backend.h"
+#include "smaug/operators/common.h"
+#include "smaug/operators/softmax_op.h"
 
 #ifdef __cplusplus
 extern "C" {

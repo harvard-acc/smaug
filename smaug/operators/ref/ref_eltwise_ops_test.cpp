@@ -1,13 +1,13 @@
 #include "catch.hpp"
-#include "core/backend.h"
-#include "core/tensor.h"
-#include "core/smaug_test.h"
-#include "operators/eltwise_add_op.h"
-#include "operators/eltwise_mul_op.h"
-#include "operators/relu_op.h"
-#include "operators/elu_op.h"
-#include "operators/sigmoid_op.h"
-#include "operators/tanh_op.h"
+#include "smaug/core/backend.h"
+#include "smaug/core/tensor.h"
+#include "smaug/core/smaug_test.h"
+#include "smaug/operators/eltwise_add_op.h"
+#include "smaug/operators/eltwise_mul_op.h"
+#include "smaug/operators/relu_op.h"
+#include "smaug/operators/elu_op.h"
+#include "smaug/operators/sigmoid_op.h"
+#include "smaug/operators/tanh_op.h"
 
 using namespace smaug;
 

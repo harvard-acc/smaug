@@ -1,8 +1,9 @@
 import numpy as np
-from tensor_pb2 import *
-from types_pb2 import *
-from global_vars import *
-from datatypes import *
+
+from smaug.core.tensor_pb2 import *
+from smaug.core.types_pb2 import *
+from smaug.python.global_vars import *
+from smaug.python.datatypes import *
 
 class Tensor:
   def __init__(self,

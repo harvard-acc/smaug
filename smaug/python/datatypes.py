@@ -1,5 +1,6 @@
 import numpy as np
-from types_pb2 import *
+
+from smaug.core.types_pb2 import *
 
 np_to_smaug_type = {
     np.float16: Float16,

@@ -1,7 +1,7 @@
 #ifndef _OPERATORS_SMV_KERNELS_H_
 #define _OPERATORS_SMV_KERNELS_H_
 
-#include "operators/common.h"
+#include "smaug/operators/common.h"
 
 #ifdef __cplusplus
 extern "C" {

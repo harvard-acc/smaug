@@ -1,12 +1,12 @@
-#include "core/backend.h"
-#include "operators/common.h"
-#include "operators/smv/smv_unary_op_common.h"
-#include "operators/smv/smv_relu_op.h"
-#include "operators/smv/smv_elu_op.h"
-#include "operators/smv/smv_tanh_op.h"
-#include "operators/smv/smv_sigmoid_op.h"
-#include "operators/smv/smv_kernels.h"
-#include "utility/debug_stream.h"
+#include "smaug/core/backend.h"
+#include "smaug/operators/common.h"
+#include "smaug/operators/smv/smv_unary_op_common.h"
+#include "smaug/operators/smv/smv_relu_op.h"
+#include "smaug/operators/smv/smv_elu_op.h"
+#include "smaug/operators/smv/smv_tanh_op.h"
+#include "smaug/operators/smv/smv_sigmoid_op.h"
+#include "smaug/operators/smv/smv_kernels.h"
+#include "smaug/utility/debug_stream.h"
 
 namespace smaug {
 namespace smv {

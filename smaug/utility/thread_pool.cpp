@@ -1,6 +1,6 @@
-#include "utility/thread_pool.h"
-#include "utility/utils.h"
-#include "core/globals.h"
+#include "smaug/utility/thread_pool.h"
+#include "smaug/utility/utils.h"
+#include "smaug/core/globals.h"
 
 
 namespace smaug {

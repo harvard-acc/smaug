@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package smaug;
 
-import "types.proto";
+import "smaug/core/types.proto";
 
 message TensorShapeProto {
   repeated int32 dims = 1;

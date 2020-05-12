@@ -1,6 +1,6 @@
 #include "fp16.h"
-#include "core/datatypes.h"
-#include "core/smaug_test.h"
+#include "smaug/core/datatypes.h"
+#include "smaug/core/smaug_test.h"
 
 namespace smaug {
 

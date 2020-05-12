@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "core/datatypes.h"
+#include "smaug/core/datatypes.h"
 #include "gem5/m5ops.h"
 
 namespace smaug {

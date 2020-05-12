@@ -3,11 +3,12 @@
 """Tests for activation functions."""
 
 import unittest
-import smaug_test
-from graph import *
-from tensor import *
-from ops import *
-from types_pb2 import *
+
+from smaug.python import smaug_test
+from smaug.python.graph import Graph
+from smaug.python.tensor import Tensor
+from smaug.python.ops import *
+from smaug.core.types_pb2 import *
 
 class ActivationFunctionTest(smaug_test.SmaugTest):
   def __init__(self, *args, **kwargs):

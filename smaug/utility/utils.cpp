@@ -1,8 +1,8 @@
 #include <cassert>
 
-#include "core/datatypes.h"
-#include "operators/common.h"
-#include "utility/utils.h"
+#include "smaug/core/datatypes.h"
+#include "smaug/operators/common.h"
+#include "smaug/utility/utils.h"
 
 namespace smaug {
 

@@ -1,10 +1,10 @@
 #include "catch.hpp"
-#include "core/backend.h"
-#include "core/tensor.h"
-#include "core/smaug_test.h"
-#include "operators/smv/smv_test_common.h"
-#include "operators/smv/smv_convolution_op.h"
-#include "operators/smv/smv_convolution_tiling.h"
+#include "smaug/core/backend.h"
+#include "smaug/core/tensor.h"
+#include "smaug/core/smaug_test.h"
+#include "smaug/operators/smv/smv_test_common.h"
+#include "smaug/operators/smv/smv_convolution_op.h"
+#include "smaug/operators/smv/smv_convolution_tiling.h"
 
 using namespace smaug;
 

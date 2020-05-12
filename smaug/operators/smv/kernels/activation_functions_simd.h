@@ -4,8 +4,8 @@
 #include "assert.h"
 #include "stdio.h"
 
-#include "operators/common.h"
-#include "params.h"
+#include "smaug/operators/common.h"
+#include "smaug/operators/smv/kernels/params.h"
 
 #ifdef __cplusplus
 extern "C" {

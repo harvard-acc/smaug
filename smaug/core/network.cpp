@@ -2,10 +2,10 @@
 #include <set>
 #include <vector>
 
-#include "core/datatypes.h"
-#include "core/typedefs.h"
-#include "core/network.h"
-#include "utility/utils.h"
+#include "smaug/core/datatypes.h"
+#include "smaug/core/typedefs.h"
+#include "smaug/core/network.h"
+#include "smaug/utility/utils.h"
 
 using namespace smaug;
 

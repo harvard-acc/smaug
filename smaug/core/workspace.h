@@ -4,8 +4,8 @@
 #include <map>
 #include <string>
 
-#include "core/tensor.h"
-#include "core/operator.h"
+#include "smaug/core/tensor.h"
+#include "smaug/core/operator.h"
 
 namespace smaug {
 

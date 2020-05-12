@@ -1,9 +1,9 @@
 #ifndef _OPERATORS_SMV_SMV_INNER_PRODUCT_OP_H_
 #define _OPERATORS_SMV_SMV_INNER_PRODUCT_OP_H_
 
-#include "core/backend.h"
-#include "operators/common.h"
-#include "operators/inner_product_op.h"
+#include "smaug/core/backend.h"
+#include "smaug/operators/common.h"
+#include "smaug/operators/inner_product_op.h"
 
 namespace smaug {
 

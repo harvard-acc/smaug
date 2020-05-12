@@ -1,5 +1,5 @@
-#include "operators/smv/smv_tiling_common.h"
-#include "core/tensor_utils.h"
+#include "smaug/operators/smv/smv_tiling_common.h"
+#include "smaug/core/tensor_utils.h"
 
 namespace smaug {
 namespace smv {

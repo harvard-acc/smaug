@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package smaug;
 
-import "node.proto";
-import "types.proto";
+import "smaug/core/node.proto";
+import "smaug/core/types.proto";
 
 message GraphProto {
   string name = 1;

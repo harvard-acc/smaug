@@ -1,10 +1,10 @@
 #include <algorithm>
 
-#include "core/backend.h"
-#include "operators/common.h"
-#include "operators/smv/smv_inner_product_op.h"
-#include "operators/smv/smv_inner_product_tiling.h"
-#include "utility/debug_stream.h"
+#include "smaug/core/backend.h"
+#include "smaug/operators/common.h"
+#include "smaug/operators/smv/smv_inner_product_op.h"
+#include "smaug/operators/smv/smv_inner_product_tiling.h"
+#include "smaug/utility/debug_stream.h"
 
 namespace smaug {
 namespace smv {

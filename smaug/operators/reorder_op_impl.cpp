@@ -1,5 +1,5 @@
-#include "core/tensor.h"
-#include "operators/reorder_op_impl.h"
+#include "smaug/core/tensor.h"
+#include "smaug/operators/reorder_op_impl.h"
 
 namespace smaug {
 

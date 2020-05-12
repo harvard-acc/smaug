@@ -1,4 +1,4 @@
-#include "core/globals.h"
+#include "smaug/core/globals.h"
 
 namespace smaug {
 bool runningInSimulation;

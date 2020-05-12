@@ -3,8 +3,8 @@
 
 #include <string>
 
-#include "core/backend.h"
-#include "operators/unary_op.h"
+#include "smaug/core/backend.h"
+#include "smaug/operators/unary_op.h"
 
 namespace smaug {
 

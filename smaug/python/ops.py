@@ -1,9 +1,10 @@
 import numpy as np
 from warnings import warn
-from types_pb2 import *
-from node_pb2 import *
-from global_vars import *
-from tensor import *
+
+from smaug.core.types_pb2 import *
+from smaug.core.node_pb2 import *
+from smaug.python.global_vars import *
+from smaug.python.tensor import Tensor
 
 def check_and_add_layout_transform(name, op, input_tensors):
   """ Check and perform layout transformation for the input tensors.

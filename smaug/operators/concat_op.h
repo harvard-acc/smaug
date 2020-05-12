@@ -1,9 +1,9 @@
 #ifndef _OPERATORS_CONCAT_OP_H_
 #define _OPERATORS_CONCAT_OP_H_
 
-#include "core/backend.h"
-#include "core/operator.h"
-#include "core/tensor_utils.h"
+#include "smaug/core/backend.h"
+#include "smaug/core/operator.h"
+#include "smaug/core/tensor_utils.h"
 
 namespace smaug {
 

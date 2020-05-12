@@ -1,4 +1,4 @@
-#include "core/tensor.h"
+#include "smaug/core/tensor.h"
 
 namespace smaug {
 

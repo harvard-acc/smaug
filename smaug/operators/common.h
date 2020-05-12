@@ -3,13 +3,13 @@
 
 #include <stdint.h>
 
-#include "sampling_interface.h"
+#include "gem5/sampling_interface.h"
 
 #ifdef DMA_MODE
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include "dma_interface.h"
+#include "gem5/dma_interface.h"
 #ifdef __cplusplus
 }
 #endif
@@ -30,7 +30,7 @@ extern "C" {
 #include <string>
 #include <utility>
 #include <memory>
-#include "core/globals.h"
+#include "smaug/core/globals.h"
 #include "tracer/trace_logger_aladdin.h"
 
 namespace smaug {

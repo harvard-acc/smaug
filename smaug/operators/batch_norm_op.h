@@ -1,13 +1,13 @@
 #ifndef _OPERATORS_BATCH_NORM_OP_H_
 #define _OPERATORS_BATCH_NORM_OP_H_
 
-#include "core/backend.h"
-#include "core/operator.h"
-#include "core/tensor.h"
-#include "core/tensor_utils.h"
-#include "core/workspace.h"
-#include "operators/common.h"
-#include "operators/fused_activation_op.h"
+#include "smaug/core/backend.h"
+#include "smaug/core/operator.h"
+#include "smaug/core/tensor.h"
+#include "smaug/core/tensor_utils.h"
+#include "smaug/core/workspace.h"
+#include "smaug/operators/common.h"
+#include "smaug/operators/fused_activation_op.h"
 
 namespace smaug {
 

@@ -7,8 +7,8 @@ Currently it contains:
   4) Supported activation functions.
 """
 
-from types_pb2 import *
-from datatypes import LayoutSet,OperatorLayouts
+from smaug.core.types_pb2 import *
+from smaug.python.datatypes import LayoutSet,OperatorLayouts
 
 # This keeps track of the current active graph. Currently we only support
 # one active graph, we can change that if later we need multiple graphs.

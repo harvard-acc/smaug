@@ -1,5 +1,5 @@
-#include "core/globals.h"
-#include "operators/common.h"
+#include "smaug/core/globals.h"
+#include "smaug/operators/common.h"
 
 namespace smaug {
 

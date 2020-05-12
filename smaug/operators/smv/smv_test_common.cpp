@@ -1,8 +1,8 @@
 #include <random>
 
 #include "catch.hpp"
-#include "core/smaug_test.h"
-#include "operators/smv/smv_test_common.h"
+#include "smaug/core/smaug_test.h"
+#include "smaug/operators/smv/smv_test_common.h"
 
 namespace smaug {
 

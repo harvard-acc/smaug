@@ -5,7 +5,7 @@
 #include "stdio.h"
 #include "math.h"
 
-#include "operators/common.h"
+#include "smaug/operators/common.h"
 
 #ifdef __cplusplus
 extern "C" {

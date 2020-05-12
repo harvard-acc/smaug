@@ -1,7 +1,7 @@
 #ifndef _OPERATORS_DEPTHWISE_CONVOLUTION_OP_H_
 #define _OPERATORS_DEPTHWISE_CONVOLUTION_OP_H_
 
-#include "operators/convolution_op.h"
+#include "smaug/operators/convolution_op.h"
 
 namespace smaug {
 

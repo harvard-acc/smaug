@@ -1,8 +1,8 @@
-#include "core/backend.h"
-#include "core/tensor_utils.h"
-#include "operators/common.h"
-#include "operators/smv/smv_tiling_base.h"
-#include "utility/debug_stream.h"
+#include "smaug/core/backend.h"
+#include "smaug/core/tensor_utils.h"
+#include "smaug/operators/common.h"
+#include "smaug/operators/smv/smv_tiling_base.h"
+#include "smaug/utility/debug_stream.h"
 
 namespace smaug {
 namespace smv {

@@ -3,11 +3,13 @@
 """Tests for python/ops.py."""
 
 import unittest
-import smaug_test
-from graph import *
-from tensor import *
-from ops import *
-from types_pb2 import *
+
+from smaug.python import smaug_test
+from smaug.python.graph import Graph
+from smaug.python.tensor import Tensor
+from smaug.python.ops import *
+from smaug.python.datatypes import *
+from smaug.core.types_pb2 import *
 
 test_backend_dtypes = {"Reference": np.float32, "SMV": np.float16}
 

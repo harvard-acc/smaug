@@ -2,14 +2,14 @@
 #include <string>
 #include <vector>
 
-#include "core/backend.h"
-#include "core/operator.h"
-#include "core/network.h"
-#include "core/tensor.h"
-#include "core/workspace.h"
-#include "utility/debug_stream.h"
-#include "utility/thread_pool.h"
-#include "core/types.pb.h"
+#include "smaug/core/backend.h"
+#include "smaug/core/operator.h"
+#include "smaug/core/network.h"
+#include "smaug/core/tensor.h"
+#include "smaug/core/workspace.h"
+#include "smaug/utility/debug_stream.h"
+#include "smaug/utility/thread_pool.h"
+#include "smaug/core/types.pb.h"
 
 namespace smaug {
 

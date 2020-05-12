@@ -1,6 +1,6 @@
-#include "operators/smv/smv_softmax_op.h"
-#include "operators/smv/smv_kernels.h"
-#include "utility/debug_stream.h"
+#include "smaug/operators/smv/smv_softmax_op.h"
+#include "smaug/operators/smv/smv_kernels.h"
+#include "smaug/utility/debug_stream.h"
 
 namespace smaug {
 

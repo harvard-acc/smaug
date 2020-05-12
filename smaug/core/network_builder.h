@@ -3,8 +3,8 @@
 
 #include <string>
 
-#include "core/workspace.h"
-#include "operators/common.h"
+#include "smaug/core/workspace.h"
+#include "smaug/operators/common.h"
 
 namespace smaug {
 Network* buildNetwork(const std::string& modelTopoFile,

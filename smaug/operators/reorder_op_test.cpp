@@ -1,8 +1,8 @@
 #include "catch.hpp"
-#include "core/backend.h"
-#include "core/tensor.h"
-#include "core/smaug_test.h"
-#include "operators/reorder_op.h"
+#include "smaug/core/backend.h"
+#include "smaug/core/tensor.h"
+#include "smaug/core/smaug_test.h"
+#include "smaug/operators/reorder_op.h"
 
 using namespace smaug;
 

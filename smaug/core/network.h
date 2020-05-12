@@ -8,10 +8,10 @@
 #include <vector>
 #include <utility>
 
-#include "core/typedefs.h"
-#include "core/operator.h"
-#include "core/workspace.h"
-#include "operators/common.h"
+#include "smaug/core/typedefs.h"
+#include "smaug/core/operator.h"
+#include "smaug/core/workspace.h"
+#include "smaug/operators/common.h"
 
 namespace smaug {
 

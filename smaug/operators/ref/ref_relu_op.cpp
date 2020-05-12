@@ -1,7 +1,7 @@
-#include "core/backend.h"
-#include "operators/common.h"
-#include "operators/relu_op.h"
-#include "operators/ref/ref_activation_fun_op.h"
+#include "smaug/core/backend.h"
+#include "smaug/operators/common.h"
+#include "smaug/operators/relu_op.h"
+#include "smaug/operators/ref/ref_activation_fun_op.h"
 
 namespace smaug {
 

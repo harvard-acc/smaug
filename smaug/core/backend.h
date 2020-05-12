@@ -3,8 +3,8 @@
 
 #include <string>
 
-#include "core/datatypes.h"
-#include "utility/utils.h"
+#include "smaug/core/datatypes.h"
+#include "smaug/utility/utils.h"
 
 // These are compile-time switches that selectively build a copy of SMAUG with
 // a particular backend.

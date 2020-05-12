@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <float.h>
 
-#include "operators/common.h"
-#include "params.h"
-#include "load_store_fp16_data.h"
+#include "smaug/operators/common.h"
+#include "smaug/operators/smv/kernels/params.h"
+#include "smaug/operators/smv/kernels/load_store_fp16_data.h"
 
 #ifdef __cplusplus
 extern "C" {

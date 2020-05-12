@@ -1,10 +1,10 @@
 #include <iostream>
 
 #include "fp16.h"
-#include "core/workspace.h"
-#include "core/tensor.h"
-#include "core/tensor_utils.h"
-#include "utility/debug_stream.h"
+#include "smaug/core/workspace.h"
+#include "smaug/core/tensor.h"
+#include "smaug/core/tensor_utils.h"
+#include "smaug/utility/debug_stream.h"
 
 namespace smaug {
 

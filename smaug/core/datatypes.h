@@ -3,7 +3,7 @@
 
 #include <cstdint>
 #include <vector>
-#include "types.pb.h"
+#include "smaug/core/types.pb.h"
 
 namespace smaug {
 

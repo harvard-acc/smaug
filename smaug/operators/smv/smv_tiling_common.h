@@ -1,7 +1,7 @@
 #ifndef _OPERATORS_SMV_TILING_COMMON_H_
 #define _OPERATORS_SMV_TILING_COMMON_H_
 
-#include "core/tensor.h"
+#include "smaug/core/tensor.h"
 
 namespace smaug {
 namespace smv {

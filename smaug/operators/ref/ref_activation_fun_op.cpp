@@ -1,5 +1,5 @@
-#include "operators/common.h"
-#include "operators/ref/ref_activation_fun_op.h"
+#include "smaug/operators/common.h"
+#include "smaug/operators/ref/ref_activation_fun_op.h"
 
 #ifdef __cplusplus
 extern "C" {

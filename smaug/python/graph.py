@@ -2,10 +2,12 @@ from __future__ import print_function
 
 from collections import namedtuple
 from google.protobuf import text_format
-from graph_pb2 import *
-from types_pb2 import *
-from global_vars import *
-from tensor import *
+
+from smaug.core.graph_pb2 import *
+from smaug.core.types_pb2 import *
+from smaug.core.tensor_pb2 import *
+from smaug.python.global_vars import *
+from smaug.python.tensor import Tensor
 
 class Graph:
   def __init__(self, name="DefaultGraph", backend="Reference",

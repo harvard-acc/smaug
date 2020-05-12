@@ -1,8 +1,8 @@
 #include <string>
 
-#include "operators/common.h"
-#include "operators/smv/smv_accel_pool.h"
-#include "utility/debug_stream.h"
+#include "smaug/operators/common.h"
+#include "smaug/operators/smv/smv_accel_pool.h"
+#include "smaug/utility/debug_stream.h"
 
 namespace smaug {
 

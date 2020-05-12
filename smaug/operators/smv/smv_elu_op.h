@@ -1,10 +1,10 @@
 #ifndef _OPERATORS_SMV_SMV_ELU_OP_H_
 #define _OPERATORS_SMV_SMV_ELU_OP_H_
 
-#include "core/backend.h"
-#include "operators/common.h"
-#include "operators/elu_op.h"
-#include "operators/smv/smv_unary_op_common.h"
+#include "smaug/core/backend.h"
+#include "smaug/operators/common.h"
+#include "smaug/operators/elu_op.h"
+#include "smaug/operators/smv/smv_unary_op_common.h"
 
 namespace smaug {
 

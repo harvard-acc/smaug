@@ -5,10 +5,10 @@
 #include <vector>
 #include <map>
 
-#include "core/typedefs.h"
-#include "core/tensor.h"
-#include "core/types.pb.h"
-#include "operators/common.h"
+#include "smaug/core/typedefs.h"
+#include "smaug/core/tensor.h"
+#include "smaug/core/types.pb.h"
+#include "smaug/operators/common.h"
 
 #define REGISTER_SPECIAL_OP(Operator, Backend)                                 \
     template <>                                                                \

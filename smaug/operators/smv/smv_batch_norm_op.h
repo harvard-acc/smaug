@@ -1,9 +1,9 @@
 #ifndef _OPERATORS_SMV_SMV_BATCH_NORM_OP_H_
 #define _OPERATORS_SMV_SMV_BATCH_NORM_OP_H_
 
-#include "core/backend.h"
-#include "operators/common.h"
-#include "operators/batch_norm_op.h"
+#include "smaug/core/backend.h"
+#include "smaug/operators/common.h"
+#include "smaug/operators/batch_norm_op.h"
 
 namespace smaug {
 

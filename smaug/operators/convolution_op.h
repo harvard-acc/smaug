@@ -3,13 +3,13 @@
 
 #include <string>
 
-#include "core/backend.h"
-#include "core/operator.h"
-#include "core/workspace.h"
-#include "core/tensor_utils.h"
-#include "core/types.pb.h"
-#include "operators/common.h"
-#include "operators/fused_activation_op.h"
+#include "smaug/core/backend.h"
+#include "smaug/core/operator.h"
+#include "smaug/core/workspace.h"
+#include "smaug/core/tensor_utils.h"
+#include "smaug/core/types.pb.h"
+#include "smaug/operators/common.h"
+#include "smaug/operators/fused_activation_op.h"
 
 namespace smaug {
 

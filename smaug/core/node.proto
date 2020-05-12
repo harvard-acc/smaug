@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package smaug;
 
-import "tensor.proto";
-import "types.proto";
+import "smaug/core/tensor.proto";
+import "smaug/core/types.proto";
 
 message ConvParams {
   PaddingType padding = 1;

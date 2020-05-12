@@ -1,6 +1,6 @@
 #include "catch.hpp"
-#include "core/smaug_test.h"
-#include "load_store_fp16_data.h"
+#include "smaug/core/smaug_test.h"
+#include "smaug/operators/smv/kernels/load_store_fp16_data.h"
 
 using namespace smaug;
 

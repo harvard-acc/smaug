@@ -1,5 +1,5 @@
 #include <cassert>
-#include "debug_stream.h"
+#include "smaug/utility/debug_stream.h"
 
 namespace smaug {
 
