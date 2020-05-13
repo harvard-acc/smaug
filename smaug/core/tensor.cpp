@@ -5,6 +5,58 @@
 
 namespace smaug {
 
+TensorShapeProto* TensorShape::asTensorShapeProto() {
+    TensorShapeProto* shapeProto = new TensorShapeProto();
+    *shapeProto->mutable_dims() = { dims_.begin(), dims_.end() };
+    shapeProto->set_layout(layout);
+    shapeProto->set_alignment(alignment);
+    return shapeProto;
+}
+
+TensorProto* Tensor::asTensorProto() {
+    TensorProto* tensorProto = new TensorProto();
+    tensorProto->set_name(name);
+    tensorProto->set_data_type(dataType);
+    tensorProto->set_allocated_shape(shape.asTensorShapeProto());
+    tensorProto->set_data_format(dataFormat);
+    // Copy the tensor data into the proto.
+    TensorData* protoData = new TensorData();
+    void* rawPtr = tensorData.get();
+    switch (dataType) {
+        case Float16:
+            // Add 1 to cover the case when the storage size is odd.
+            protoData->mutable_half_data()->Resize(
+                    (shape.storageSize() + 1) / 2, 0);
+            memcpy(protoData->mutable_half_data()->mutable_data(), rawPtr,
+                   shape.storageSize() * sizeof(float16));
+            break;
+        case Float32:
+            protoData->mutable_float_data()->Resize(shape.storageSize(), 0);
+            memcpy(protoData->mutable_float_data()->mutable_data(), rawPtr,
+                   shape.storageSize() * sizeof(float));
+            break;
+        case Float64:
+            protoData->mutable_double_data()->Resize(shape.storageSize(), 0);
+            memcpy(protoData->mutable_double_data()->mutable_data(), rawPtr,
+                   shape.storageSize() * sizeof(double));
+            break;
+        case Int32:
+            protoData->mutable_int_data()->Resize(shape.storageSize(), 0);
+            memcpy(protoData->mutable_int_data()->mutable_data(), rawPtr,
+                   shape.storageSize() * sizeof(int));
+            break;
+        case Int64:
+            protoData->mutable_int64_data()->Resize(shape.storageSize(), 0);
+            memcpy(protoData->mutable_int64_data()->mutable_data(), rawPtr,
+                   shape.storageSize() * sizeof(int64_t));
+            break;
+        default:
+            assert(false && "Unknown data type!");
+    }
+    tensorProto->set_allocated_data(protoData);
+    return tensorProto;
+}
+
 Tensor* TiledTensor::getTileWithData(int index) {
     Tile* tile = &tiles[index];
     copyDataToTile(tile);

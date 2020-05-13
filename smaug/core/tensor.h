@@ -62,6 +62,9 @@ class TensorShape {
     int getAlignment() const { return alignment; }
     int getPadding(int index) const { return padding_[index]; }
 
+    // Return a TensorShapeProto that serializes this TensorShape.
+    TensorShapeProto* asTensorShapeProto();
+
    protected:
     int getIndex(int index) const {
         if (index >= 0) return index;
@@ -393,6 +396,9 @@ class Tensor : public TensorBase {
                 assert(false && "Unknown data type!");
         }
     }
+
+    // Return a TensorProto that serializes this Tensor.
+    TensorProto* asTensorProto();
 
     template <typename T>
     T* const data() const {

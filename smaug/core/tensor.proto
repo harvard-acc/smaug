@@ -15,6 +15,12 @@ message TensorProto {
   DataType data_type = 2;
   TensorShapeProto shape = 3;
   DataStorageFormat data_format = 4;
+  // When we create a graph in Python, this field is not set and instead, all
+  // tensor data is stored in a TensorDataArray so that we can dump the topology
+  // and parameters in two separate proto buffers. It gets set only from
+  // Tensor::asTensorProto, where an intermediate tensor is required to be
+  // materialized for a one-off use case.
+  TensorData data = 5;
 }
 
 message TensorData {

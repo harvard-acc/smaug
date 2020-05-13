@@ -1,3 +1,4 @@
+#include <fstream>
 #include <string>
 
 #include <boost/program_options.hpp>
@@ -43,8 +44,9 @@ int main(int argc, char* argv[]) {
          "Run the network in gem5 simulation.")
         ("print-last-output,p",
          po::value(&lastOutputFile)->implicit_value("stdout"),
-         "Dump the output of the last layer to this file. If specified with no "
-         "argument, it is printed to stdout.")
+         "Dump the output of the last layer to this file. If specified with "
+         "'proto', the output tensor is serialized to a output.pb file. By "
+         "default, it is printed to stdout.")
         ("sample-level",
           po::value(&samplingLevel)->implicit_value("no"),
          "Set the sampling level. By default, SMAUG doesn't do any sampling. "
@@ -161,6 +163,18 @@ int main(int argc, char* argv[]) {
     if (!lastOutputFile.empty()) {
         if (lastOutputFile == "stdout") {
             std::cout << "Final network output:\n" << *output << "\n";
+        } else if (lastOutputFile == "proto") {
+            // Serialize the output tensor into a proto buffer.
+            std::fstream outfile("output.pb", std::ios::out | std::ios::trunc |
+                                                      std::ios::binary);
+            TensorProto* tensorProto = output->asTensorProto();
+            if (!tensorProto->SerializeToOstream(&outfile)) {
+                std::cerr << "Failed to serialize the output tensor and write "
+                             "it to the given C++ ostream! Did you run out of "
+                             "disk space?\n";
+                return 1;
+            }
+            delete tensorProto;
         } else {
             std::ofstream outfile(lastOutputFile);
             outfile << "Final network output:\n" << *output << "\n";
