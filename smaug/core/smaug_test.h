@@ -104,7 +104,7 @@ class SmaugTest {
         const char* baseDir = std::getenv("SMAUG_HOME");
         if (baseDir == NULL)
             assert(false && "SMAUG_HOME is not set.");
-        return std::string(baseDir) + "/nnet_lib/src/" + relPath;
+        return std::string(baseDir) + '/' + relPath;
     }
 
     Network* network_;

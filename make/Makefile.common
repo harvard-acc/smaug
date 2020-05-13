@@ -1,0 +1,153 @@
+.PHONY: src-symlinks
+
+# SMAUG_HOME is needed for unit tests to find the test inputs.
+ifeq (${SMAUG_HOME},)
+$(error SMAUG_HOME is not set!)
+endif
+
+EXEC = smaug
+MAIN = smaug/smaug.cpp
+SRCS = smaug/operators/common.cpp \
+       smaug/operators/reorder_op_impl.cpp \
+       smaug/operators/ref/ref_batch_norm_op.cpp \
+       smaug/operators/ref/ref_eltwise_add_op.cpp \
+       smaug/operators/ref/ref_eltwise_mul_op.cpp \
+       smaug/operators/ref/ref_convolution_op.cpp \
+       smaug/operators/ref/ref_depthwise_convolution_op.cpp \
+       smaug/operators/ref/ref_inner_product_op.cpp \
+       smaug/operators/ref/ref_pooling_op.cpp \
+       smaug/operators/ref/ref_relu_op.cpp \
+       smaug/operators/ref/ref_elu_op.cpp \
+       smaug/operators/ref/ref_sigmoid_op.cpp \
+       smaug/operators/ref/ref_softmax_op.cpp \
+       smaug/operators/ref/ref_tanh_op.cpp \
+       smaug/operators/ref/ref_activation_fun_op.cpp \
+       smaug/operators/smv/smv_tiling_common.cpp \
+       smaug/operators/smv/smv_tiling_base.cpp \
+       smaug/operators/smv/smv_convolution_op.cpp \
+       smaug/operators/smv/smv_convolution_tiling.cpp \
+       smaug/operators/smv/kernels/convolution_simd.c \
+       smaug/operators/smv/smv_inner_product_op.cpp \
+       smaug/operators/smv/smv_inner_product_tiling.cpp \
+       smaug/operators/smv/kernels/matrix_multiply.c \
+       smaug/operators/smv/smv_pooling_op.cpp \
+       smaug/operators/smv/smv_pooling_tiling.cpp \
+       smaug/operators/smv/kernels/pooling.c \
+       smaug/operators/smv/smv_batch_norm_op.cpp \
+       smaug/operators/smv/smv_batch_norm_tiling.cpp \
+       smaug/operators/smv/kernels/batch_norm.c \
+       smaug/operators/smv/smv_softmax_op.cpp \
+       smaug/operators/smv/smv_unary_op_common.cpp \
+       smaug/operators/smv/kernels/activation_functions_simd.c \
+       smaug/operators/smv/smv_eltwise_add_op.cpp \
+       smaug/operators/smv/smv_eltwise_mul_op.cpp \
+       smaug/operators/smv/kernels/eltwise_add.c \
+       smaug/operators/smv/kernels/eltwise_mul.c \
+       smaug/operators/smv/kernels/load_store_fp16_data.c \
+       smaug/operators/smv/smv_accel_pool.cpp \
+       smaug/core/backend.cpp \
+       smaug/core/globals.cpp \
+       smaug/core/tensor.cpp \
+       smaug/core/tensor_utils.cpp \
+       smaug/core/network.cpp \
+       smaug/core/network_builder.cpp \
+       smaug/utility/debug_stream.cpp \
+       smaug/utility/utils.cpp \
+       smaug/utility/thread_pool.cpp
+PROTO_SRCS = smaug/core/graph.proto \
+             smaug/core/node.proto \
+             smaug/core/tensor.proto \
+             smaug/core/types.proto
+
+TESTS_COMMON = smaug/core/smaug_test.cpp \
+               smaug/operators/smv/smv_test_common.cpp
+TESTS = smaug/core/tensor_test.cpp \
+        smaug/core/network_test.cpp \
+        smaug/operators/ref/ref_convolution_op_test.cpp \
+        smaug/operators/ref/ref_batch_norm_op_test.cpp \
+        smaug/operators/ref/ref_depthwise_convolution_op_test.cpp \
+        smaug/operators/ref/ref_eltwise_ops_test.cpp \
+        smaug/operators/ref/ref_inner_product_op_test.cpp \
+        smaug/operators/ref/ref_pooling_op_test.cpp \
+        smaug/operators/ref/ref_softmax_op_test.cpp \
+        smaug/operators/reorder_op_test.cpp \
+        smaug/operators/concat_op_test.cpp \
+        smaug/operators/split_op_test.cpp \
+        smaug/operators/reshape_op_test.cpp \
+        smaug/operators/repeat_op_test.cpp \
+        smaug/operators/smv/smv_convolution_tiling_test.cpp \
+        smaug/operators/smv/smv_convolution_op_test.cpp \
+        smaug/operators/smv/smv_inner_product_tiling_test.cpp \
+        smaug/operators/smv/smv_inner_product_op_test.cpp \
+        smaug/operators/smv/smv_pooling_tiling_test.cpp \
+        smaug/operators/smv/smv_pooling_op_test.cpp \
+        smaug/operators/smv/smv_batch_norm_tiling_test.cpp \
+        smaug/operators/smv/smv_batch_norm_op_test.cpp \
+        smaug/operators/smv/smv_unary_tiling_test.cpp \
+        smaug/operators/smv/smv_unary_op_test.cpp \
+        smaug/operators/smv/smv_eltwise_ops_test.cpp \
+        smaug/operators/smv/kernels/load_store_fp16_data_test.cpp
+PY_TESTS = smaug/python/tensor_test.py \
+           smaug/python/ops_test.py \
+           smaug/python/activation_functions_test.py
+
+
+
+GEM5_ALADDIN_HOME = $(ALADDIN_HOME)/../../
+GEM5_DMA_SRC = gem5/dma_interface.c gem5/dma_interface.h
+GEM5_SYS_SRCS = gem5/aladdin_sys_connection.cpp gem5/aladdin_sys_connection.h \
+                gem5/aladdin_sys_constants.cpp gem5/aladdin_sys_constants.h \
+                gem5/sampling_interface.c gem5/sampling_interface.h \
+                gem5/gem5_harness.h \
+                ../systolic_array/systolic_array_connection.cpp \
+                ../systolic_array/systolic_array_connection.h \
+                ../systolic_array/systolic_array_params.h
+GEM5_UTIL_SRCS = ../../util/m5/m5op_x86.S
+GEM5_SRCS = $(GEM5_DMA_SRC) $(GEM5_SYS_SRCS) $(GEM5_UTIL_SRCS)
+
+LFLAGS = -L$(BOOST_ROOT)/lib -lm -lrt -lboost_graph -lboost_program_options -lprotobuf -lpthread
+CFLAGS = -O3 -g
+CXXFLAGS = -std=c++11 $(CFLAGS) -Wno-deprecated-declarations
+INCLUDES = -I$(BUILD_DIR) \
+           -I$(BUILD_DIR)/gem5 \
+           -I$(ALADDIN_HOME)/gem5 \
+           -I$(GEM5_ALADDIN_HOME)/include \
+           -I$(BOOST_ROOT)/include \
+           -Ithird_party/Catch2/single_include \
+           -Ithird_party/FP16/include
+
+BMARK_SPECIFIC_CFLAGS = -DDMA_INTERFACE_V3
+
+export WORKLOAD=$(shell paste -sd "," $(CURRENT_DIR)/kernel_functions.txt)
+
+#####################################
+####      COMMON BUILD SETUP     ####
+#####################################
+
+COMMON_DIR := $(CURRENT_DIR)
+CURRENT_DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+BUILD_DIR = build
+PYTHON_DIR = $(CURRENT_DIR)/../smaug/python
+
+PROTO_PY_SRCS = $(patsubst smaug/core/%.proto, $(PYTHON_DIR)/%_pb2.py, $(PROTO_SRCS))
+PROTO_CPP_SRCS = $(patsubst %.proto, %.pb.cpp, $(PROTO_SRCS))
+BUILD_PROTO_CPP_SRCS = $(patsubst smaug/%, $(BUILD_DIR)/%, $(PROTO_CPP_SRCS))
+BUILD_GEM5_SRCS = $(filter-out %.h, $(patsubst %, $(BUILD_DIR)/gem5/%, $(notdir $(GEM5_SRCS))))
+
+# Create a build directory that just has symlinks to all the source files, so
+# we can build everything seemingly "alongside" the source.
+src-symlinks:
+	@if [ -d $(BUILD_DIR) ]; then find -L $(BUILD_DIR) -type l -print -delete 2>&1 > /dev/null; fi
+	@mkdir -p $(BUILD_DIR)/gem5
+	@cp -asf $(CURRENT_DIR)/../smaug/* $(BUILD_DIR)/
+	@mkdir -p $(BUILD_DIR)/tracer
+	@cp -asf $(TRACER_HOME)/profile-func/trace_logger_aladdin.h $(BUILD_DIR)/tracer
+	@$(foreach f, $(GEM5_SRCS), cp -asf $(ALADDIN_HOME)/$(f) $(BUILD_DIR)/gem5/$(notdir $(f));)
+
+%.pb.cpp: %.proto
+	$(PROTOC) -I=$(dir $^) --cpp_out=$(dir $^) $^
+	mv $(basename $^).pb.cc $@
+
+$(PYTHON_DIR)/%_pb2.py: $(BUILD_DIR)/core/%.proto
+	mkdir -p $(PYTHON_DIR)
+	$(PROTOC) -I=$(dir $^) --python_out=$(PYTHON_DIR) $^

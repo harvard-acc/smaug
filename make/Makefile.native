@@ -1,6 +1,6 @@
 # Make rules for native host-side execution.
 
-include common/Makefile.common
+include make/Makefile.common
 
 .PHONY: all tests clean run-tests
 
@@ -17,17 +17,17 @@ CFLAGS += -DDMA_MODE $(BMARK_SPECIFIC_CFLAGS) $(GEM5_SIMD_CFLAGS)
 ######################################
 
 # Create object files for each cpp/c file.
-BUILD_SRCS = $(patsubst src/%, $(BUILD_DIR)/%, $(SRCS))
+BUILD_SRCS = $(patsubst smaug/%, $(BUILD_DIR)/%, $(SRCS))
 BUILD_SRCS += $(BUILD_PROTO_CPP_SRCS) $(BUILD_GEM5_SRCS)
 BUILD_SRCS_OBJS := $(patsubst %.cpp, %.o, $(BUILD_SRCS))
 BUILD_SRCS_OBJS := $(patsubst %.c, %.o, $(BUILD_SRCS_OBJS))
 BUILD_SRCS_OBJS := $(patsubst %.S, %.o, $(BUILD_SRCS_OBJS))
 
-BUILD_TESTS_COMMON = $(patsubst src/%, $(BUILD_DIR)/%, $(TESTS_COMMON))
-BUILD_TESTS = $(patsubst src/%, $(BUILD_DIR)/%, $(TESTS))
-BUILD_PY_TESTS = $(patsubst src/%, $(BUILD_DIR)/%, $(PY_TESTS))
+BUILD_TESTS_COMMON = $(patsubst smaug/%, $(BUILD_DIR)/%, $(TESTS_COMMON))
+BUILD_TESTS = $(patsubst smaug/%, $(BUILD_DIR)/%, $(TESTS))
+BUILD_PY_TESTS = $(patsubst smaug/%, $(BUILD_DIR)/%, $(PY_TESTS))
 
-BUILD_MAIN_SRC = $(patsubst src/%, $(BUILD_DIR)/%, $(MAIN))
+BUILD_MAIN_SRC = $(patsubst smaug/%, $(BUILD_DIR)/%, $(MAIN))
 BUILD_MAIN_OBJ = $(patsubst %.cpp, %.o, $(BUILD_MAIN_SRC))
 
 all: src-symlinks $(BUILD_PROTO_CPP_SRCS) $(PROTO_PY_SRCS) $(BUILD_DIR)/$(EXEC)
