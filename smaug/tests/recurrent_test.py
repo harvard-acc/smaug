@@ -12,28 +12,63 @@ from smaug.python.tensor import Tensor
 from smaug.python.recurrent import LSTM, BidirectionalLSTM
 from smaug.core.types_pb2 import *
 
+def createSmaugWeights(tf_lstm):
+  """ Extract weights from TF layer and convert them into SMAUG tensors. """
+  weights = tf_lstm.get_weights()
+  weights_tensors = []
+  for w in weights:
+    weights_tensors.append(Tensor(data_layout=NC, tensor_data=np.transpose(w)))
+  return weights_tensors
+
 class LSTMTest(TensorflowTest):
-  def runTest(self):
+  def test_lstm_cell(self):
     # Build and run an LSTM layer in TF.
     tf.keras.backend.set_floatx(backend_datatype[self.backend].__name__)
-    inputs = tf.random.normal([1, 8, 32], dtype=backend_datatype[self.backend])
+    inputs = tf.random.normal([2, 4, 32], dtype=backend_datatype[self.backend])
     tf_lstm = tf.keras.layers.LSTM(32, use_bias=False, unit_forget_bias=False)
     tf_output = tf_lstm(inputs)
 
     # Build the model in SMAUG using the tensors from the TF model.
-    w, u = tf_lstm.get_weights()
-    input_tensor = Tensor(data_layout=NTC, tensor_data=inputs.numpy())
-    w_tensor = Tensor(data_layout=NC, tensor_data=np.transpose(w))
-    u_tensor = Tensor(data_layout=NC, tensor_data=np.transpose(u))
+    inputs_tensor = Tensor(data_layout=NTC, tensor_data=inputs.numpy())
+    w, u = createSmaugWeights(tf_lstm)
     with Graph(name=self.graph_name, backend=self.backend) as graph:
-      inputs = input_data(input_tensor)
-      sg_lstm = LSTM([w_tensor, u_tensor])
-      sg_lstm(input_tensor=inputs)
+      inputs = input_data(inputs_tensor)
+      sg_lstm = LSTM([w, u])
+      sg_lstm(inputs)
 
     self.runAndValidate(graph, tf_output)
 
-class BidirectionalLSTMTest(TensorflowTest):
-  def runTest(self):
+  def test_multilayered_lstm(self):
+    # Build and run an LSTM layer in TF.
+    tf.keras.backend.set_floatx(backend_datatype[self.backend].__name__)
+    inputs = tf.random.normal([4, 8, 16], dtype=backend_datatype[self.backend])
+
+    model = tf.keras.models.Sequential()
+    tf_lstm0 = tf.keras.layers.LSTM(
+        32, return_sequences=True, use_bias=False, unit_forget_bias=False)
+    # We let TF's LSTM only return the last timestep result, because the SMAUG's
+    # C++ runtime returns that.
+    tf_lstm1 = tf.keras.layers.LSTM(
+        32, return_sequences=False, use_bias=False, unit_forget_bias=False)
+    model.add(tf_lstm0)
+    model.add(tf_lstm1)
+    model.compile()
+    tf_output = model.predict(inputs)
+
+    # Build the model in SMAUG using the tensors from the TF model.
+    inputs_tensor = Tensor(data_layout=NTC, tensor_data=inputs.numpy())
+    w0, u0 = createSmaugWeights(tf_lstm0)
+    w1, u1 = createSmaugWeights(tf_lstm1)
+    with Graph(name=self.graph_name, backend=self.backend) as graph:
+      inputs = input_data(inputs_tensor)
+      sg_lstm0 = LSTM([w0, u0])
+      sg_lstm1 = LSTM([w1, u1])
+      sg_outputs, state = sg_lstm0(inputs)
+      sg_outputs, state = sg_lstm1(sg_outputs)
+
+    self.runAndValidate(graph, tf_output)
+
+  def test_bidirectional_lstm(self):
     # Build and run an BidirectionalLSTM layer in TF.
     tf.keras.backend.set_floatx(backend_datatype[self.backend].__name__)
     inputs = tf.random.normal([1, 8, 32], dtype=backend_datatype[self.backend])
@@ -42,17 +77,12 @@ class BidirectionalLSTMTest(TensorflowTest):
     tf_output = tf_bilstm(inputs)
 
     # Build the model in SMAUG using the tensors from the TF model.
-    fwd_w, fwd_u, bwd_w, bwd_u = tf_bilstm.get_weights()
     input_tensor = Tensor(data_layout=NTC, tensor_data=inputs.numpy())
-    fwd_w_tensor = Tensor(data_layout=NC, tensor_data=np.transpose(fwd_w))
-    fwd_u_tensor = Tensor(data_layout=NC, tensor_data=np.transpose(fwd_u))
-    bwd_w_tensor = Tensor(data_layout=NC, tensor_data=np.transpose(bwd_w))
-    bwd_u_tensor = Tensor(data_layout=NC, tensor_data=np.transpose(bwd_u))
+    fwd_w, fwd_u, bwd_w, bwd_u = createSmaugWeights(tf_bilstm)
     with Graph(name=self.graph_name, backend=self.backend) as graph:
       inputs = input_data(input_tensor)
-      sg_bilstm = BidirectionalLSTM([fwd_w_tensor, fwd_u_tensor],
-                                    [bwd_w_tensor, bwd_u_tensor])
-      sg_bilstm(input_tensor=inputs)
+      sg_bilstm = BidirectionalLSTM([fwd_w, fwd_u], [bwd_w, bwd_u])
+      sg_bilstm(inputs)
 
     self.runAndValidate(graph, tf_output)
 
