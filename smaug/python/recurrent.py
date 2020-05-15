@@ -1,23 +1,26 @@
 import numpy as np
 
+from smaug.python import ops
 from smaug.python.ops import *
 
 class LSTM:
-  def __init__(
-      self, weight_tensors, activation=Tanh,
-      activation_params=None, name="lstm"):
+  def __init__(self,
+               weight_tensors,
+               activation=Tanh,
+               activation_params=dict(),
+               name="lstm"):
     """ An LSTM layer.
 
     Args:
       weight_tensors: A list of four weights.
       activation: Activation function used in LSTM.
-      activation_params: Parameterize the activation function.
+      activation_params: kwargs for the activation function.
     """
     assert len(weight_tensors) == 2
     self.name = name + ":"
     self.kernel, self.recurrent_kernel = weight_tensors
     self.prepare_states()
-    self.activation=activation
+    self.activation = ops.activation(activation)
     self.activation_params = activation_params
 
   def prepare_states(self):
@@ -100,18 +103,27 @@ class LSTM:
     f = sigmoid(zf, name=name_pfx + "sigmoid_f")
     c = add(
         mul(f, self.c, name=name_pfx + "mul_f"),
-        mul(i, tanh(zc), name=name_pfx + "mul_i"),
+        mul(i,
+            self.activation(
+                zc, **self.activation_params, name=name_pfx + "act0"),
+            name=name_pfx + "mul_i"),
         name=name_pfx + "add_c")
     o = sigmoid(zo, name=name_pfx + "sigmoid_o")
-    h = mul(o, tanh(c, name=name_pfx + "tanh"), name=name_pfx + "mul_h")
+    h = mul(
+        o,
+        self.activation(c, **self.activation_params, name=name_pfx + "act1"),
+        name=name_pfx + "mul_h")
     self.c = c
     self.h = h
     return self.h, self.c
 
 class BidirectionalLSTM:
-  def __init__(
-      self, fwd_weight_tensors, bwd_weight_tensors, activation=Tanh,
-      activation_params=None, name="bidi_lstm"):
+  def __init__(self,
+               fwd_weight_tensors,
+               bwd_weight_tensors,
+               activation=Tanh,
+               activation_params=dict(),
+               name="bidir_lstm"):
     """ A bidirectional LSTM layer.
 
     Args:

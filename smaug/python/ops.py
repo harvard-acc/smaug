@@ -151,6 +151,32 @@ def convolution(
       output_tensors_dims=[output_tensor_dims],
       output_tensor_layout=output_layout, params=params)[0]
 
+def activation(op_type):
+  """Return an activation function functor.
+
+  Args:
+    op_type: OpType of the activation function.
+  """
+  if op_type == ReLU:
+    return relu
+  elif op_type == LReLU:
+    return lrelu
+  elif op_type == ELU:
+    return elu
+  elif op_type == SELU:
+    return selu
+  elif op_type == Tanh:
+    return tanh
+  elif op_type == HardTanh:
+    return hard_tanh
+  elif op_type == Sigmoid:
+    return sigmoid
+  elif op_type == Softmax:
+    return softmax
+  else:
+    raise ValueError("The given OpType %s is not an activation function." %
+                     OpType.Name(op_type))
+
 def relu(input_tensor, name="relu"):
   return add_node(
       name=name, op=ReLU, input_tensors=[input_tensor],
