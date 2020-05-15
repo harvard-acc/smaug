@@ -334,18 +334,109 @@ def mat_mul(
       output_tensors_dims=[output_tensor_dims], output_tensor_layout=NC,
       params=params)[0]
 
+def _broadcast_inputs(tensor_a, tensor_b, name="broadcast_inputs"):
+  """Broadcast inputs to have a compatible shape.
+
+  This uses NumPy's broadcasting rules to make inputs of different shapes have a
+  compatible shape during arithmetic operations. On each axis, the smaller
+  dimension (of size 1) is broadcast across the larger dimension so that they
+  have compatible shapes. Broadcasting provides a means of vectorizing
+  operations.
+
+  Args:
+    tensor_a, tensor_b: Two input tensors.
+    name: Name prefix for the operators used in this function.
+
+  Returns:
+    Two new tensors with the same shape.
+
+  Examples:
+
+  ```python
+  a = np.random.rand(2, 8).astype(np.float16)
+  b = np.random.rand(2, 1).astype(np.float16)
+  tensor_a = Tensor(data_layout=NC, tensor_data=a)
+  tensor_b = Tensor(data_layout=NC, tensor_data=b)
+  # The elementwise add operator calls _broadcast_inputs() so that tensor_b is
+  # broadcast in axis 1, making both inputs shaped [2, 8].
+  output = add(tensor_a, tensor_b)
+  ```
+
+  ```python
+  a = np.random.rand(2, 16, 1, 8).astype(np.float16)
+  b = np.random.rand(2, 1, 8, 8).astype(np.float16)
+  tensor_a = Tensor(data_layout=NHWC, tensor_data=a)
+  tensor_b = Tensor(data_layout=NHWC, tensor_data=b)
+  # The elementwise mul operator calls _broadcast_inputs() so that both inputs
+  # will be shaped [2, 16, 8, 8].
+  output = mul(tensor_a, tensor_b)
+  ```
+  """
+  if len(tensor_a.shape.dims) != len(tensor_b.shape.dims):
+    raise ValueError(
+        "Cannot broadcast: tensor_a has % dimensions but tensor_b has %." %
+        (len(tensor_a.shape.dims), len(tensor_b.shape.dims)))
+  multiples_a = np.ones(len(tensor_a.shape.dims), dtype=np.int32)
+  multiples_b = np.ones(len(tensor_a.shape.dims), dtype=np.int32)
+  # Loop over the matching dimensions of the two inputs.
+  for i, (a_dim, b_dim) in enumerate(
+      zip(tensor_a.shape.dims, tensor_b.shape.dims)):
+    if a_dim == b_dim:
+      continue
+    elif a_dim == 1:
+      # tensor_a will be broadcast along this dimension.
+      multiples_a[i] = b_dim
+    elif b_dim == 1:
+      # tensor_b will be broadcast along this dimension.
+      multiples_b[i] = a_dim
+    else:
+      raise ValueError(
+          "tensor_a shape %s and tensor_b shape %s are incompatible for "
+          "broadcasting)" % (str(tensor_a.shape.dims), str(
+              tensor_b.shape.dims)))
+  if not np.all(multiples_a == 1):
+    tensor_a = repeat(tensor_a, multiples_a, name=name + ":repeat_a")
+  if not np.all(multiples_b == 1):
+    tensor_b = repeat(tensor_b, multiples_b, name=name + ":repeat_b")
+  return tensor_a, tensor_b
+
 def add(tensor_a, tensor_b, name="add"):
-  assert (tensor_a.shape.dims == tensor_b.shape.dims
-          ), "Elementwise add must have the same shape for the input tensors."
+  """Elementwise addition.
+
+  If the inputs have different shapes, broadcasting is used to to make the
+  shapes compatible.
+
+  Args:
+    tensor_a: First input tensor.
+    tensor_b: Second input tensor.
+    name: Name of the operator.
+
+  Returns:
+    A tensor with the same shape as the inputs (or broadcast inputs).
+  """
+  if tensor_a.shape.dims != tensor_b.shape.dims:
+    tensor_a, tensor_b = _broadcast_inputs(tensor_a, tensor_b, name)
   return add_node(
       name=name, op=EltwiseAdd, input_tensors=[tensor_a, tensor_b],
       output_tensors_dims=[tensor_a.shape.dims],
       output_tensor_layout=tensor_a.shape.layout)[0]
 
 def mul(tensor_a, tensor_b, name="mul"):
+  """Elementwise multiplication.
+
+  If the inputs have different shapes, broadcasting is used to to make the
+  shapes compatible.
+
+  Args:
+    tensor_a: First input tensor.
+    tensor_b: Second input tensor.
+    name: Name of the operator.
+
+  Returns:
+    A tensor with the same shape as the inputs (or broadcast inputs).
+  """
   if tensor_a.shape.dims != tensor_b.shape.dims:
-    raise ValueError(
-        "Elementwise multiplication must have the same shape for the inputs!")
+    tensor_a, tensor_b = _broadcast_inputs(tensor_a, tensor_b, name)
   return add_node(
       name=name, op=EltwiseMul, input_tensors=[tensor_a, tensor_b],
       output_tensors_dims=[tensor_a.shape.dims],
