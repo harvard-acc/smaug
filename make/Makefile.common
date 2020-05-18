@@ -88,8 +88,8 @@ TESTS = smaug/core/tensor_test.cpp \
         smaug/operators/smv/smv_eltwise_ops_test.cpp \
         smaug/operators/smv/kernels/load_store_fp16_data_test.cpp
 PY_TESTS = smaug/python/tensor_test.py \
-           smaug/python/ops_test.py \
-           smaug/python/activation_functions_test.py \
+           smaug/python/ops/ops_test.py \
+           smaug/python/ops/activation_ops_test.py \
            smaug/tests/recurrent_test.py \
            smaug/tests/attention_test.py
 

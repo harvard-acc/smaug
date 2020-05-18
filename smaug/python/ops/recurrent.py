@@ -1,7 +1,10 @@
 import numpy as np
 
 from smaug.python import ops
-from smaug.python.ops import *
+from smaug.python.ops.nn_ops import *
+from smaug.python.ops.math_ops import *
+from smaug.python.ops.array_ops import *
+from smaug.python.ops.activation_ops import *
 
 class LSTM:
   def __init__(self,
@@ -20,7 +23,7 @@ class LSTM:
     self.name = name + ":"
     self.kernel, self.recurrent_kernel = weight_tensors
     self.prepare_states()
-    self.activation = ops.activation(activation)
+    self.activation = ops.activation_ops.activation(activation)
     self.activation_params = activation_params
 
   def prepare_states(self):

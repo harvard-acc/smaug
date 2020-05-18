@@ -1,4 +1,7 @@
-from smaug.python.ops import *
+from smaug.python.ops.nn_ops import *
+from smaug.python.ops.math_ops import *
+from smaug.python.ops.array_ops import *
+from smaug.python.ops.activation_ops import *
 
 class AttentionBase:
   def __init__(self, memory, w_encoder, w_decoder, name="attention"):

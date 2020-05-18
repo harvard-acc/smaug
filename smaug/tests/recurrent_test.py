@@ -5,11 +5,11 @@ import tensorflow as tf
 import numpy as np
 
 from smaug.tests.tensorflow_test import TensorflowTest
-from smaug.python.ops import *
 from smaug.python.global_vars import *
 from smaug.python.graph import Graph
 from smaug.python.tensor import Tensor
-from smaug.python.recurrent import LSTM, BidirectionalLSTM
+from smaug.python.ops.data_op import *
+from smaug.python.ops.recurrent import LSTM, BidirectionalLSTM
 from smaug.core.types_pb2 import *
 
 def createSmaugWeights(tf_lstm):
