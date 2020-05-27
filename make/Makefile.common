@@ -51,6 +51,7 @@ SRCS = smaug/operators/common.cpp \
        smaug/core/tensor_utils.cpp \
        smaug/core/network.cpp \
        smaug/core/network_builder.cpp \
+       smaug/core/scheduler.cpp \
        smaug/utility/debug_stream.cpp \
        smaug/utility/utils.cpp \
        smaug/utility/thread_pool.cpp

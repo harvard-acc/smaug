@@ -1,8 +1,29 @@
 #include "fp16.h"
 #include "smaug/core/datatypes.h"
+#include "smaug/core/network_builder.h"
+#include "smaug/core/scheduler.h"
 #include "smaug/core/smaug_test.h"
 
 namespace smaug {
+
+Network* SmaugTest::buildNetwork(const std::string& modelTopo,
+                                 const std::string& modelParams) {
+    if (network_ != nullptr)
+        delete network_;
+    SamplingInfo sampling = { NoSampling, 1 };
+    network_ = smaug::buildNetwork(resolvePath(modelTopo),
+                                   resolvePath(modelParams),
+                                   sampling,
+                                   workspace_);
+    return network_;
+}
+
+Tensor* SmaugTest::buildAndRunNetwork(const std::string& modelTopo,
+                                      const std::string& modelParams) {
+    buildNetwork(modelTopo, modelParams);
+    Scheduler scheduler(network_, workspace_);
+    return scheduler.runNetwork();
+}
 
 // We can't directly compare with float16 values, so convert to float32.
 template <>

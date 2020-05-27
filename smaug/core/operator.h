@@ -21,7 +21,8 @@ class Workspace;
 class Operator {
    public:
     Operator(const std::string& _name, OpType _opType, Workspace* _workspace)
-            : name(_name), opType(_opType), workspace(_workspace) {}
+            : name(_name), opType(_opType), workspace(_workspace),
+              numPendingInputs(-1) {}
     virtual ~Operator() {}
 
     // This indicates the index of an output tensor of an operator. This is used
@@ -49,6 +50,9 @@ class Operator {
     void setOutput(TensorBase* op, int index) {
         outputs[index] = op;
     }
+    void setNumPendingInputs(int num) { numPendingInputs = num; }
+    int getNumPendingInputs() const { return numPendingInputs; }
+    void decrNumPendingInputs() { numPendingInputs--; }
     const std::string& getName() const { return name; }
     Vertex getVertex() const { return vertex; }
     void setVertex(Vertex v) { vertex = v; }
@@ -100,6 +104,7 @@ class Operator {
     OpType opType;
     Vertex vertex;
     Workspace* workspace;
+    int numPendingInputs;
     // Host memory access types for different data.
     MemoryType inputsMemType;
     MemoryType weightsMemType;

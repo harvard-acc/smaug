@@ -1,6 +1,5 @@
 #include "catch.hpp"
 #include "smaug/core/network.h"
-#include "smaug/core/network_builder.h"
 #include "smaug/core/backend.h"
 #include "smaug/core/tensor.h"
 #include "smaug/core/workspace.h"
@@ -85,16 +84,9 @@ class SmaugTest {
     }
 
     Network* buildNetwork(const std::string& modelTopo,
-                          const std::string& modelParams) {
-        if (network_ != nullptr)
-            delete network_;
-        SamplingInfo sampling = { NoSampling, 1 };
-        network_ = smaug::buildNetwork(resolvePath(modelTopo),
-                                       resolvePath(modelParams),
-                                       sampling,
-                                       workspace_);
-        return network_;
-    }
+                          const std::string& modelParams);
+    Tensor* buildAndRunNetwork(const std::string& modelTopo,
+                               const std::string& modelParams);
 
     Network* network() const { return network_; }
     Workspace* workspace() const { return workspace_; }

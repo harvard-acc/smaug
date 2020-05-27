@@ -1,7 +1,6 @@
 #include "catch.hpp"
 #include "smaug/core/backend.h"
 #include "smaug/core/tensor.h"
-#include "smaug/core/scheduler.h"
 #include "smaug/core/smaug_test.h"
 #include "smaug/operators/reorder_op.h"
 
@@ -11,17 +10,15 @@ TEST_CASE_METHOD(SmaugTest, "Network tests", "[network]") {
     std::string modelPath = "experiments/models/";
     SECTION("Minerva network. 4 layers of FCs.") {
         // Minerva network with the SMV backend.
-        Network* network =
-                buildNetwork(modelPath + "minerva/minerva_smv_topo.pbtxt",
-                             modelPath + "minerva/minerva_smv_params.pb");
-        Tensor* output = runNetwork(network, workspace());
+        Tensor* output =
+                buildAndRunNetwork(modelPath + "minerva/minerva_smv_topo.pbtxt",
+                                   modelPath + "minerva/minerva_smv_params.pb");
 
         // The same network with the reference backend. This is used for
         // producing expected outputs.
-        Network* refNetwork =
-                buildNetwork(modelPath + "minerva/minerva_ref_topo.pbtxt",
-                             modelPath + "minerva/minerva_ref_params.pb");
-        Tensor* refOutput = runNetwork(refNetwork, workspace());
+        Tensor* refOutput =
+                buildAndRunNetwork(modelPath + "minerva/minerva_ref_topo.pbtxt",
+                                   modelPath + "minerva/minerva_ref_params.pb");
 
         // SMV outputs need to be converted into float32 before validations.
         verifyOutputs<float>(
@@ -31,17 +28,15 @@ TEST_CASE_METHOD(SmaugTest, "Network tests", "[network]") {
     SECTION("LeNet5 network. 2 layers of Convs, 1 layout of Pool and 2 layers "
             "of FCs.") {
         // LeNet5 network with the SMV backend.
-        Network* network =
-                buildNetwork(modelPath + "lenet5/lenet5_smv_topo.pbtxt",
-                             modelPath + "lenet5/lenet5_smv_params.pb");
-        Tensor* output = runNetwork(network, workspace());
+        Tensor* output =
+                buildAndRunNetwork(modelPath + "lenet5/lenet5_smv_topo.pbtxt",
+                                   modelPath + "lenet5/lenet5_smv_params.pb");
 
         // The same network with the reference backend. This is used for
         // producing expected outputs.
-        Network* refNetwork =
-                buildNetwork(modelPath + "lenet5/lenet5_ref_topo.pbtxt",
-                             modelPath + "lenet5/lenet5_ref_params.pb");
-        Tensor* refOutput = runNetwork(refNetwork, workspace());
+        Tensor* refOutput =
+                buildAndRunNetwork(modelPath + "lenet5/lenet5_ref_topo.pbtxt",
+                                   modelPath + "lenet5/lenet5_ref_params.pb");
 
         // SMV outputs need to be converted into float32 before validations.
         verifyOutputs<float>(
@@ -51,17 +46,15 @@ TEST_CASE_METHOD(SmaugTest, "Network tests", "[network]") {
     SECTION("ELU network. 11 layers of convolutions and 5 layers of "
             "poolings.") {
         // ELU network with the SMV backend.
-        Network* network =
-                buildNetwork(modelPath + "cifar100-elu/elu_smv_topo.pbtxt",
-                             modelPath + "cifar100-elu/elu_smv_params.pb");
-        Tensor* output = runNetwork(network, workspace());
+        Tensor* output = buildAndRunNetwork(
+                modelPath + "cifar100-elu/elu_smv_topo.pbtxt",
+                modelPath + "cifar100-elu/elu_smv_params.pb");
 
         // The same network with the reference backend. This is used for
         // producing expected outputs.
-        Network* refNetwork =
-                buildNetwork(modelPath + "cifar100-elu/elu_ref_topo.pbtxt",
-                             modelPath + "cifar100-elu/elu_ref_params.pb");
-        Tensor* refOutput = runNetwork(refNetwork, workspace());
+        Tensor* refOutput = buildAndRunNetwork(
+                modelPath + "cifar100-elu/elu_ref_topo.pbtxt",
+                modelPath + "cifar100-elu/elu_ref_params.pb");
 
         // SMV outputs need to be converted into float32 before validations.
         verifyOutputs<float>(
@@ -70,17 +63,15 @@ TEST_CASE_METHOD(SmaugTest, "Network tests", "[network]") {
 
     SECTION("CIFAR-10 VGG network. 10 Convs, 4 Pools and 2 FCs.") {
         // VGG network with the SMV backend.
-        Network* network =
-                buildNetwork(modelPath + "cifar10-vgg/vgg_smv_topo.pbtxt",
-                             modelPath + "cifar10-vgg/vgg_smv_params.pb");
-        Tensor* output = runNetwork(network, workspace());
+        Tensor* output =
+                buildAndRunNetwork(modelPath + "cifar10-vgg/vgg_smv_topo.pbtxt",
+                                   modelPath + "cifar10-vgg/vgg_smv_params.pb");
 
         // The same network with the reference backend. This is used for
         // producing expected outputs.
-        Network* refNetwork =
-                buildNetwork(modelPath + "cifar10-vgg/vgg_ref_topo.pbtxt",
-                             modelPath + "cifar10-vgg/vgg_ref_params.pb");
-        Tensor* refOutput = runNetwork(refNetwork, workspace());
+        Tensor* refOutput =
+                buildAndRunNetwork(modelPath + "cifar10-vgg/vgg_ref_topo.pbtxt",
+                                   modelPath + "cifar10-vgg/vgg_ref_params.pb");
 
         // SMV outputs need to be converted into float32 before validations.
         verifyOutputs<float>(
@@ -90,17 +81,15 @@ TEST_CASE_METHOD(SmaugTest, "Network tests", "[network]") {
     SECTION("ELU large network. 19 layers of convolutions and 5 layers of "
             "poolings.") {
         // ELU network with the SMV backend.
-        Network* network = buildNetwork(
+        Tensor* output = buildAndRunNetwork(
                 modelPath + "cifar100-large-elu/large_elu_smv_topo.pbtxt",
                 modelPath + "cifar100-large-elu/large_elu_smv_params.pb");
-        Tensor* output = runNetwork(network, workspace());
 
         // The same network with the reference backend. This is used for
         // producing expected outputs.
-        Network* refNetwork = buildNetwork(
+        Tensor* refOutput = buildAndRunNetwork(
                 modelPath + "cifar100-large-elu/large_elu_ref_topo.pbtxt",
                 modelPath + "cifar100-large-elu/large_elu_ref_params.pb");
-        Tensor* refOutput = runNetwork(refNetwork, workspace());
 
         // SMV outputs need to be converted into float32 before validations.
         verifyOutputs<float>(
@@ -109,17 +98,15 @@ TEST_CASE_METHOD(SmaugTest, "Network tests", "[network]") {
 
     SECTION("ResNet50 network with ImageNet dataset.") {
         // ResNet50 network with the SMV backend.
-        Network* network = buildNetwork(
+        Tensor* output = buildAndRunNetwork(
                 modelPath + "imagenet-resnet/resnet_smv_topo.pbtxt",
                 modelPath + "imagenet-resnet/resnet_smv_params.pb");
-        Tensor* output = runNetwork(network, workspace());
 
         // The same network with the reference backend. This is used for
         // producing expected outputs.
-        Network* refNetwork = buildNetwork(
+        Tensor* refOutput = buildAndRunNetwork(
                 modelPath + "imagenet-resnet/resnet_ref_topo.pbtxt",
                 modelPath + "imagenet-resnet/resnet_ref_params.pb");
-        Tensor* refOutput = runNetwork(refNetwork, workspace());
 
         // SMV outputs need to be converted into float32 before validations.
         verifyOutputs<float>(
@@ -128,17 +115,15 @@ TEST_CASE_METHOD(SmaugTest, "Network tests", "[network]") {
 
     SECTION("Simple 2-layer LSTM network.") {
         // LSTM network with the SMV backend.
-        Network* network = buildNetwork(
-                modelPath + "lstm/lstm_smv_topo.pbtxt",
-                modelPath + "lstm/lstm_smv_params.pb");
-        Tensor* output = runNetwork(network, workspace());
+        Tensor* output =
+                buildAndRunNetwork(modelPath + "lstm/lstm_smv_topo.pbtxt",
+                                   modelPath + "lstm/lstm_smv_params.pb");
 
         // The same network with the reference backend. This is used for
         // producing expected outputs.
-        Network* refNetwork = buildNetwork(
-                modelPath + "lstm/lstm_ref_topo.pbtxt",
-                modelPath + "lstm/lstm_ref_params.pb");
-        Tensor* refOutput = runNetwork(refNetwork, workspace());
+        Tensor* refOutput =
+                buildAndRunNetwork(modelPath + "lstm/lstm_ref_topo.pbtxt",
+                                   modelPath + "lstm/lstm_ref_params.pb");
 
         // SMV outputs need to be converted into float32 before validations.
         verifyOutputs<float>(

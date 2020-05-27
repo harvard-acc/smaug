@@ -158,7 +158,8 @@ int main(int argc, char* argv[]) {
     if (!network->validate())
         return -1;
 
-    Tensor* output = runNetwork(network, workspace);
+    Scheduler scheduler(network, workspace);
+    Tensor* output = scheduler.runNetwork();
 
     if (!lastOutputFile.empty()) {
         if (lastOutputFile == "stdout") {

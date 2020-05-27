@@ -4,6 +4,7 @@
 #include <string>
 
 #include "smaug/core/workspace.h"
+#include "smaug/core/network.h"
 #include "smaug/operators/common.h"
 
 namespace smaug {

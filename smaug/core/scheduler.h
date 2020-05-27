@@ -1,62 +1,30 @@
-#include <iostream>
-#include <string>
-#include <vector>
+#include <list>
 
-#include "smaug/core/backend.h"
-#include "smaug/core/operator.h"
 #include "smaug/core/network.h"
-#include "smaug/core/tensor.h"
 #include "smaug/core/workspace.h"
-#include "smaug/utility/debug_stream.h"
-#include "smaug/utility/thread_pool.h"
-#include "smaug/core/types.pb.h"
+#include "smaug/core/operator.h"
 
 namespace smaug {
 
-Tensor* runNetwork(Network* network, Workspace* workspace) {
-    const Graph& graph = network->getGraph();
-    std::list<Vertex> vertices;
-    boost::topological_sort(graph, std::front_inserter(vertices));
-    std::cout << "======================================================\n";
-    std::cout << "      Tiling operators of the network...\n";
-    std::cout << "======================================================\n";
-    for (auto v : vertices) {
-        Operator* op = get(boost::vertex_op, graph, v);
-        dout(0) << "Tiling " << op->getName() << " ("
-                << OpType_Name(op->getOpType()) << ").\n";
-        op->tile();
-    }
+class Scheduler {
+   public:
+    Scheduler(Network* _network, Workspace* _workspace)
+            : network(_network), workspace(_workspace) {}
+    virtual ~Scheduler(){};
+    // Schedules every operator in the network.
+    Tensor* runNetwork();
 
-    // We have finished loading the model and building the network, as well as
-    // the tiling of all the operators. Now we can stop fast forwarding.
-    gem5::switchCpu();
+   protected:
+    // Schedules the operators in the ready queue. This may add new operators to
+    // the readu queue by calling updateChildren().
+    Tensor* scheduleReady();
+    // After an operator is scheduled, this activates its children to be
+    // scheduled if they become ready.
+    void updateChildren(Operator* op);
 
-    fastForwardMode = false;
-
-    // The fast-forwarding mode uses simpler CPUs, which will be switched to
-    // OoO CPUs after it's done. Therefore, the initialization of the thread
-    // pool must be after the fast-forwarding, otherwise the CPU IDs will be
-    // incorrect.
-    if (threadPool)
-        threadPool->initThreadPool();
-
-    std::cout << "======================================================\n";
-    std::cout << "      Scheduling operators of the network...\n";
-    std::cout << "======================================================\n";
-    Tensor* output;
-    {
-        auto stats =
-                gem5::ScopedStats(stats::kNetworkStart, stats::kNetworkEnd);
-        for (auto v : vertices) {
-            Operator* op = get(boost::vertex_op, graph, v);
-            dout(0) << "Scheduling " << op->getName() << " ("
-                    << OpType_Name(op->getOpType()) << ").\n";
-            op->run();
-            output = op->getOutput(0);
-            dout(2) << *output << "\n";
-        }
-    }
-    return output;
-}
+    Network* network;
+    Workspace* workspace;
+    std::list<Operator*> readyQueue;
+};
 
 }  // namespace smaug

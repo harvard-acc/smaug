@@ -48,6 +48,7 @@ class Network {
     void insertOperatorBetween(Operator* newOp,
                                Operator* sourceOp,
                                const std::vector<Operator*>& targetOps);
+    const OperatorMap& getOperators() const { return operators; }
     Operator* getOperator(const std::string& name) {
         return operators.at(name);
     }
