@@ -51,6 +51,9 @@ std::ostream& operator<<(std::ostream& os, const Tensor& tensor) {
         case Int64:
             writeTensorToOstream<int64_t>(os, tensor);
             break;
+        case Bool:
+            writeTensorToOstream<bool>(os, tensor);
+            break;
         default:
             assert(false && "Unknown data type!");
     }
@@ -85,6 +88,10 @@ void copyTensorRegion(Tensor* dest,
             internal::copyTensorRegion<int64_t>(
                     dest, src, destOrigin, srcOrigin, regionSize);
             break;
+        case Bool:
+            internal::copyTensorRegion<bool>(
+                    dest, src, destOrigin, srcOrigin, regionSize);
+            break;
         default:
             assert(false && "Unknown data type!");
     }
@@ -117,6 +124,10 @@ void copyTensorData(Tensor* dest,
             internal::copyTensorData<int64_t>(
                     dest, src, destOrigin, srcOrigin, copySize);
             break;
+        case Bool:
+            internal::copyTensorData<bool>(
+                    dest, src, destOrigin, srcOrigin, copySize);
+            break;
         default:
             assert(false && "Unknown data type!");
     }
@@ -147,6 +158,10 @@ void copyRawTensorData(Tensor* dest,
             break;
         case Int64:
             internal::copyRawTensorData<int64_t>(
+                    dest, src, destOffset, srcOffset, copySize);
+            break;
+        case Bool:
+            internal::copyRawTensorData<bool>(
                     dest, src, destOffset, srcOffset, copySize);
             break;
         default:

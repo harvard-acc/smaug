@@ -50,6 +50,11 @@ TensorProto* Tensor::asTensorProto() {
             memcpy(protoData->mutable_int64_data()->mutable_data(), rawPtr,
                    shape.storageSize() * sizeof(int64_t));
             break;
+        case Bool:
+            protoData->mutable_bool_data()->Resize(shape.storageSize(), 0);
+            memcpy(protoData->mutable_bool_data()->mutable_data(), rawPtr,
+                   shape.storageSize() * sizeof(bool));
+            break;
         default:
             assert(false && "Unknown data type!");
     }

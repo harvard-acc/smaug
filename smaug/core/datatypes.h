@@ -74,6 +74,10 @@ template <>
 struct ToDataType<uint64_t> {
     static const DataType dataType = Int64;
 };
+template <>
+struct ToDataType<bool> {
+    static const DataType dataType = Bool;
+};
 
 template <enum DataType>
 struct FromDataType {};
@@ -97,6 +101,10 @@ struct FromDataType<Float32> {
 template<>
 struct FromDataType<Float64> {
     typedef double type;
+};
+template<>
+struct FromDataType<Bool> {
+    typedef bool type;
 };
 
 }  // namespace smaug

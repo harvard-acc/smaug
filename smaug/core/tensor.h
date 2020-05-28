@@ -249,13 +249,17 @@ class TensorBase {
     int getDataTypeSize() const {
         switch (dataType) {
             case Float16:
-                return 2;
+                return sizeof(float16);
             case Int32:
+                return sizeof(int32_t);
             case Float32:
-                return 4;
+                return sizeof(float);
             case Int64:
+                return sizeof(int64_t);
             case Float64:
-                return 8;
+                return sizeof(double);
+            case Bool:
+                return sizeof(bool);
             default:
                 assert(false && "UnknownDataType has no size!");
         }
@@ -294,6 +298,8 @@ class Tensor : public TensorBase {
                 break;
             case Int64:
                 fillData<int64_t>(tensorData.int64_data());
+            case Bool:
+                fillData<bool>(tensorData.bool_data());
             default:
                 assert(false && "Unknown data format!");
         }
@@ -391,6 +397,9 @@ class Tensor : public TensorBase {
                 return;
             case Int64:
                 allocateStorage<int64_t>();
+                return;
+            case Bool:
+                allocateStorage<bool>();
                 return;
             default:
                 assert(false && "Unknown data type!");

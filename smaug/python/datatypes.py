@@ -7,7 +7,8 @@ np_to_smaug_type = {
     np.float32: Float32,
     np.float64: Float64,
     np.int32: Int32,
-    np.int64: Int64
+    np.int64: Int64,
+    bool: Bool,
 }
 
 class LayoutSet:

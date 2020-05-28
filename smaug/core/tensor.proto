@@ -44,6 +44,9 @@ message TensorData {
 
   // Int64
   repeated int64 int64_data = 6 [packed = true];
+
+  // Bool
+  repeated bool bool_data = 7 [packed = true];
 }
 
 // The tensor data is stored separately from the TensorProto. Each TensorData

@@ -107,3 +107,5 @@ class Tensor:
         tensor_data_proto.int_data.extend(data_list)
       elif self.data_type == Int64:
         tensor_data_proto.int64_data.extend(data_list)
+      elif self.data_type == Bool:
+        tensor_data_proto.bool_data.extend(data_list)
