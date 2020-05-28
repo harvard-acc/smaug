@@ -12,6 +12,8 @@ SRCS = smaug/operators/common.cpp \
        smaug/operators/ref/ref_batch_norm_op.cpp \
        smaug/operators/ref/ref_eltwise_add_op.cpp \
        smaug/operators/ref/ref_eltwise_mul_op.cpp \
+       smaug/operators/ref/ref_less_op.cpp \
+       smaug/operators/ref/ref_greater_op.cpp \
        smaug/operators/ref/ref_convolution_op.cpp \
        smaug/operators/ref/ref_depthwise_convolution_op.cpp \
        smaug/operators/ref/ref_inner_product_op.cpp \
@@ -41,8 +43,11 @@ SRCS = smaug/operators/common.cpp \
        smaug/operators/smv/kernels/activation_functions_simd.c \
        smaug/operators/smv/smv_eltwise_add_op.cpp \
        smaug/operators/smv/smv_eltwise_mul_op.cpp \
+       smaug/operators/smv/smv_less_op.cpp \
+       smaug/operators/smv/smv_greater_op.cpp \
        smaug/operators/smv/kernels/eltwise_add.c \
        smaug/operators/smv/kernels/eltwise_mul.c \
+       smaug/operators/smv/kernels/compare.c \
        smaug/operators/smv/kernels/load_store_fp16_data.c \
        smaug/operators/smv/smv_accel_pool.cpp \
        smaug/core/backend.cpp \

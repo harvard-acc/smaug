@@ -5,6 +5,8 @@
 #include "smaug/operators/depthwise_convolution_op.h"
 #include "smaug/operators/eltwise_add_op.h"
 #include "smaug/operators/eltwise_mul_op.h"
+#include "smaug/operators/less_op.h"
+#include "smaug/operators/greater_op.h"
 #include "smaug/operators/elu_op.h"
 #include "smaug/operators/inner_product_op.h"
 #include "smaug/operators/pooling_op.h"
@@ -28,6 +30,8 @@
 #include "smaug/operators/smv/smv_softmax_op.h"
 #include "smaug/operators/smv/smv_eltwise_add_op.h"
 #include "smaug/operators/smv/smv_eltwise_mul_op.h"
+#include "smaug/operators/smv/smv_less_op.h"
+#include "smaug/operators/smv/smv_greater_op.h"
 
 namespace smaug {
 
@@ -62,6 +66,10 @@ DEF_CREATE_OP(FlattenOp, ReferenceBackend)
 DEF_CREATE_OP(BatchNormOp, ReferenceBackend)
 DEF_CREATE_OP(EltwiseAddOp, ReferenceBackend)
 DEF_CREATE_OP(EltwiseMulOp, ReferenceBackend)
+DEF_CREATE_OP(LessOp, ReferenceBackend)
+DEF_CREATE_OP(LessEqualOp, ReferenceBackend)
+DEF_CREATE_OP(GreaterOp, ReferenceBackend)
+DEF_CREATE_OP(GreaterEqualOp, ReferenceBackend)
 DEF_CREATE_OP(ReluOp, ReferenceBackend)
 DEF_CREATE_OP(SigmoidOp, ReferenceBackend)
 DEF_CREATE_OP(EluOp, ReferenceBackend)
@@ -91,6 +99,10 @@ DEF_CREATE_OP(SplitOp, SmvBackend)
 DEF_CREATE_OP(ReshapeOp, SmvBackend)
 DEF_CREATE_OP(RepeatOp, SmvBackend)
 DEF_CREATE_OP(FlattenOp, SmvBackend)
+DEF_CREATE_OP(LessOp, SmvBackend)
+DEF_CREATE_OP(LessEqualOp, SmvBackend)
+DEF_CREATE_OP(GreaterOp, SmvBackend)
+DEF_CREATE_OP(GreaterEqualOp, SmvBackend)
 
 namespace ref {
 const unsigned kConvolutionHw = 0x0001;

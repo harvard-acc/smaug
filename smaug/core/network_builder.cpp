@@ -21,6 +21,8 @@
 #include "smaug/operators/depthwise_convolution_op.h"
 #include "smaug/operators/eltwise_add_op.h"
 #include "smaug/operators/eltwise_mul_op.h"
+#include "smaug/operators/less_op.h"
+#include "smaug/operators/greater_op.h"
 #include "smaug/operators/elu_op.h"
 #include "smaug/operators/inner_product_op.h"
 #include "smaug/operators/pooling_op.h"
@@ -44,6 +46,8 @@
 #include "smaug/operators/smv/smv_softmax_op.h"
 #include "smaug/operators/smv/smv_eltwise_add_op.h"
 #include "smaug/operators/smv/smv_eltwise_mul_op.h"
+#include "smaug/operators/smv/smv_less_op.h"
+#include "smaug/operators/smv/smv_greater_op.h"
 #include "smaug/utility/utils.h"
 #include "smaug/utility/debug_stream.h"
 
@@ -224,6 +228,18 @@ static void createAndAddOperator(const NodeProto& node,
     } else if (type == OpType::EltwiseMul) {
         auto op = Backend::createEltwiseMulOp(name, workspace);
         network->addOperator(op, inputs);
+    } else if (type == OpType::Less) {
+        auto op = Backend::createLessOp(name, workspace);
+        network->addOperator(op, inputs);
+    } else if (type == OpType::LessEqual) {
+        auto op = Backend::createLessEqualOp(name, workspace);
+        network->addOperator(op, inputs);
+    } else if (type == OpType::Greater) {
+        auto op = Backend::createGreaterOp(name, workspace);
+        network->addOperator(op, inputs);
+    } else if (type == OpType::GreaterEqual) {
+        auto op = Backend::createGreaterEqualOp(name, workspace);
+        network->addOperator(op, inputs);
     } else if (type == OpType::ReLU) {
         auto op = Backend::createReluOp(name, workspace);
         network->addOperator(op, inputs);
@@ -282,9 +298,10 @@ static void createAndAddOperator(const NodeProto& node,
     // Allocate storage for the output tensors of the newly added operator. We
     // have filled data for all the parameterizable input tensors from the model
     // file, now we only need to allocate storage for the output tensors.
-    DataType dataType = node.input_tensors(0).data_type();
-    for (auto output : op->getOutputs()) {
-        Tensor* tensor = dynamic_cast<Tensor*>(output);
+    const std::vector<TensorBase*>& outputs = op->getOutputs();
+    for (int i = 0; i < outputs.size(); i++) {
+        Tensor* tensor = dynamic_cast<Tensor*>(outputs[i]);
+        DataType dataType = node.output_tensors(i).data_type();
         tensor->allocateStorage(dataType);
     }
 }

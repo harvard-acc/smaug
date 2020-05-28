@@ -57,6 +57,10 @@ enum OpType {
   Split = 20;
   Reshape = 21;
   Repeat = 22;
+  Less = 23;
+  LessEqual = 24;
+  Greater = 25;
+  GreaterEqual = 26;
 }
 
 enum PaddingType {

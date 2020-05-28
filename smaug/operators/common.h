@@ -209,6 +209,10 @@ typedef sfx_t v8sfx_t
 typedef sfx_t v4sfx_t
         __attribute__((__vector_size__(VECTOR_SIZE / 2 * sizeof(sfx_t))));
 
+// 8 packed 8-bit bool values.
+typedef uint8_t v8bl_t
+        __attribute__((__vector_size__(VECTOR_SIZE * sizeof(uint8_t))));
+
 // Use these convenience macros to cast a raw pointer into a multidimensional
 // variable-length array, which lets us use [] notation inside of the ugly
 // sub2ind syntax!

@@ -157,6 +157,38 @@ void smv_eltwise_mul_nc_vec_fxp(float16* host_inputs0,
                                 float* inputs1,
                                 float* results,
                                 int inputs_size);
+
+void smv_less_nc_vec_fxp(float16* host_inputs0,
+                         float16* host_inputs1,
+                         bool* host_results,
+                         float* inputs0,
+                         float* inputs1,
+                         bool* results,
+                         int inputs_size);
+
+void smv_less_equal_nc_vec_fxp(float16* host_inputs0,
+                               float16* host_inputs1,
+                               bool* host_results,
+                               float* inputs0,
+                               float* inputs1,
+                               bool* results,
+                               int inputs_size);
+
+void smv_greater_nc_vec_fxp(float16* host_inputs0,
+                            float16* host_inputs1,
+                            bool* host_results,
+                            float* inputs0,
+                            float* inputs1,
+                            bool* results,
+                            int inputs_size);
+
+void smv_greater_equal_nc_vec_fxp(float16* host_inputs0,
+                                  float16* host_inputs1,
+                                  bool* host_results,
+                                  float* inputs0,
+                                  float* inputs1,
+                                  bool* results,
+                                  int inputs_size);
 #ifdef __cplusplus
 }
 #endif

@@ -16,6 +16,11 @@ ref_avg_pooling_nhwc
 ref_conv2d_nchw_valid_padding
 ref_conv2d_nchw_same_padding
 ref_eltwise_add
+ref_eltwise_mul
+ref_less
+ref_less_equal
+ref_greater
+ref_greater_equal
 ref_relu
 ref_leaky_relu
 ref_elu
@@ -35,3 +40,7 @@ smv_activation_fun_nc_vec_fxp
 smv_softmax_nc_vec_fxp
 smv_eltwise_add_nc_vec_fxp
 smv_eltwise_mul_nc_vec_fxp
+smv_less_nc_vec_fxp
+smv_less_equal_nc_vec_fxp
+smv_greater_nc_vec_fxp
+smv_greater_equal_nc_vec_fxp

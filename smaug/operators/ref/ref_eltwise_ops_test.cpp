@@ -4,6 +4,8 @@
 #include "smaug/core/smaug_test.h"
 #include "smaug/operators/eltwise_add_op.h"
 #include "smaug/operators/eltwise_mul_op.h"
+#include "smaug/operators/less_op.h"
+#include "smaug/operators/greater_op.h"
 #include "smaug/operators/relu_op.h"
 #include "smaug/operators/elu_op.h"
 #include "smaug/operators/sigmoid_op.h"
@@ -51,6 +53,89 @@ TEST_CASE_METHOD(SmaugTest, "Reference eltwise operators", "[refop]") {
         std::vector<float> expectedValues{ 2, 6, 12, 20, 30, 42, 56,
                                            72, 90, -110, -132, -156, -182 };
         auto outputsTensor = mulOp->getOutput(0);
+        verifyOutputs(outputsTensor, expectedValues);
+    }
+
+    SECTION("Less operator") {
+        TensorShape inputShape({ 1, 4 }, DataLayout::NC);
+        auto lessOp = new LessOp<ReferenceBackend>("less", workspace());
+        Tensor* input0 = new Tensor("input0", inputShape);
+        input0->allocateStorage<float>();
+        input0->fillData<float>({ -2, 3, -4, 5 });
+        Tensor* input1 = new Tensor("input1", inputShape);
+        input1->allocateStorage<float>();
+        input1->fillData<float>({ -2, 7, -8, 9 });
+        workspace()->addTensor(input1);
+        lessOp->setInput(input0, 0);
+        lessOp->setInput(input1, 1);
+        lessOp->createAllTensors();
+        lessOp->getOutput(0)->allocateStorage<bool>();
+        lessOp->run();
+        std::vector<bool> expectedValues{ false, true, false, true };
+        auto outputsTensor = lessOp->getOutput(0);
+        verifyOutputs(outputsTensor, expectedValues);
+    }
+
+    SECTION("LessEqual operator") {
+        TensorShape inputShape({ 1, 4 }, DataLayout::NC);
+        auto lessEqualOp =
+                new LessEqualOp<ReferenceBackend>("lessEqual", workspace());
+        Tensor* input0 = new Tensor("input0", inputShape);
+        input0->allocateStorage<float>();
+        input0->fillData<float>({ -2, 3, -4, 5 });
+        Tensor* input1 = new Tensor("input1", inputShape);
+        input1->allocateStorage<float>();
+        input1->fillData<float>({ -2, 7, -8, 9 });
+        workspace()->addTensor(input1);
+        lessEqualOp->setInput(input0, 0);
+        lessEqualOp->setInput(input1, 1);
+        lessEqualOp->createAllTensors();
+        lessEqualOp->getOutput(0)->allocateStorage<bool>();
+        lessEqualOp->run();
+        std::vector<bool> expectedValues{ true, true, false, true };
+        auto outputsTensor = lessEqualOp->getOutput(0);
+        verifyOutputs(outputsTensor, expectedValues);
+    }
+
+    SECTION("Greater operator") {
+        TensorShape inputShape({ 1, 4 }, DataLayout::NC);
+        auto greaterOp =
+                new GreaterOp<ReferenceBackend>("greater", workspace());
+        Tensor* input0 = new Tensor("input0", inputShape);
+        input0->allocateStorage<float>();
+        input0->fillData<float>({ -2, 3, -4, 5 });
+        Tensor* input1 = new Tensor("input1", inputShape);
+        input1->allocateStorage<float>();
+        input1->fillData<float>({ -2, 7, -8, 9 });
+        workspace()->addTensor(input1);
+        greaterOp->setInput(input0, 0);
+        greaterOp->setInput(input1, 1);
+        greaterOp->createAllTensors();
+        greaterOp->getOutput(0)->allocateStorage<bool>();
+        greaterOp->run();
+        std::vector<bool> expectedValues{ false, false, true, false };
+        auto outputsTensor = greaterOp->getOutput(0);
+        verifyOutputs(outputsTensor, expectedValues);
+    }
+
+    SECTION("GreaterEqual operator") {
+        TensorShape inputShape({ 1, 4 }, DataLayout::NC);
+        auto greaterEqualOp = new GreaterEqualOp<ReferenceBackend>(
+                "greaterEqual", workspace());
+        Tensor* input0 = new Tensor("input0", inputShape);
+        input0->allocateStorage<float>();
+        input0->fillData<float>({ -2, 3, -4, 5 });
+        Tensor* input1 = new Tensor("input1", inputShape);
+        input1->allocateStorage<float>();
+        input1->fillData<float>({ -2, 7, -8, 9 });
+        workspace()->addTensor(input1);
+        greaterEqualOp->setInput(input0, 0);
+        greaterEqualOp->setInput(input1, 1);
+        greaterEqualOp->createAllTensors();
+        greaterEqualOp->getOutput(0)->allocateStorage<bool>();
+        greaterEqualOp->run();
+        std::vector<bool> expectedValues{ true, false, true, false };
+        auto outputsTensor = greaterEqualOp->getOutput(0);
         verifyOutputs(outputsTensor, expectedValues);
     }
 

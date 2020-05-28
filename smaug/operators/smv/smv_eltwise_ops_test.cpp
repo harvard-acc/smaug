@@ -4,6 +4,8 @@
 #include "smaug/core/tensor.h"
 #include "smaug/operators/smv/smv_eltwise_add_op.h"
 #include "smaug/operators/smv/smv_eltwise_mul_op.h"
+#include "smaug/operators/smv/smv_less_op.h"
+#include "smaug/operators/smv/smv_greater_op.h"
 #include "smaug/operators/smv/smv_test_common.h"
 
 using namespace smaug;
@@ -15,34 +17,84 @@ class SmvEltwiseOpsTest : public SmaugTest {
     using SmaugTest::SmaugTest;
 
     // A reference operator is used to get the 'correct' output.
-    Tensor* getReferenceOutput(Operator* eltOp, const std::string& opType) {
+    Tensor* getReferenceOutput(Operator* eltOp, OpType opType) {
         auto inputs0 = eltOp->getInput(0);
         auto inputs1 = eltOp->getInput(1);
         auto inputs0Fp32 = convertFp16ToFp32Tensor(inputs0, workspace());
         auto inputs1Fp32 = convertFp16ToFp32Tensor(inputs1, workspace());
 
         Operator* refEltOp;
-        if (opType == "add") {
-            refEltOp = new EltwiseAddOp<ReferenceBackend>(
-                    "ref_eltwise_add", workspace());
-        } else if (opType == "mul") {
-            refEltOp = new EltwiseMulOp<ReferenceBackend>(
-                    "ref_eltwise_mul", workspace());
+        bool boolOutput = true;
+        switch(opType) {
+          case EltwiseAdd:
+              refEltOp = new EltwiseAddOp<ReferenceBackend>(
+                      "ref_eltwise_add", workspace());
+              boolOutput = false;
+              break;
+          case EltwiseMul:
+              refEltOp = new EltwiseMulOp<ReferenceBackend>(
+                      "ref_eltwise_mul", workspace());
+              boolOutput = false;
+              break;
+          case Less:
+              refEltOp = new LessOp<ReferenceBackend>("ref_less", workspace());
+              break;
+          case LessEqual:
+              refEltOp = new LessEqualOp<ReferenceBackend>(
+                      "ref_less_equal", workspace());
+              break;
+          case Greater:
+              refEltOp = new GreaterOp<ReferenceBackend>(
+                      "ref_greater", workspace());
+              break;
+          case GreaterEqual:
+              refEltOp = new GreaterEqualOp<ReferenceBackend>(
+                      "ref_greater_equal", workspace());
+              break;
+          default:
+              assert(false && "Unexpected OpType!");
         }
         refEltOp->setInput(inputs0Fp32, 0);
         refEltOp->setInput(inputs1Fp32, 1);
         refEltOp->createAllTensors();
-        refEltOp->getOutput(0)->allocateStorage<float>();
+        if (boolOutput)
+            refEltOp->getOutput(0)->allocateStorage<bool>();
+        else
+            refEltOp->getOutput(0)->allocateStorage<float>();
         refEltOp->run();
-        return convertFp32ToFp16Tensor(refEltOp->getOutput(0), workspace());
+        if (boolOutput)
+            return refEltOp->getOutput(0);
+        else
+            return convertFp32ToFp16Tensor(refEltOp->getOutput(0), workspace());
     }
 
-    void doSingleTest(const std::vector<int>& dims, const std::string& opType) {
+    void doSingleTest(const std::vector<int>& dims, OpType opType) {
         Operator* eltOp;
-        if (opType == "add")
-            eltOp = new SmvEltwiseAddOp("eltwise_add", workspace());
-        else if (opType == "mul")
-            eltOp = new SmvEltwiseMulOp("eltwise_mul", workspace());
+        bool boolOutput = true;
+        switch (opType) {
+            case EltwiseAdd:
+                eltOp = new SmvEltwiseAddOp("eltwise_add", workspace());
+                boolOutput = false;
+                break;
+            case EltwiseMul:
+                eltOp = new SmvEltwiseMulOp("eltwise_mul", workspace());
+                boolOutput = false;
+                break;
+            case Less:
+                eltOp = new SmvLessOp("less", workspace());
+                break;
+            case LessEqual:
+                eltOp = new SmvLessEqualOp("less_equal", workspace());
+                break;
+            case Greater:
+                eltOp = new SmvGreaterOp("greater", workspace());
+                break;
+            case GreaterEqual:
+                eltOp = new SmvGreaterEqualOp("greater_equal", workspace());
+                break;
+            default:
+                assert(false && "Unexpected OpType!");
+        }
         DataLayout layout = dims.size() == 4 ? NHWC : NC;
         TensorShape inputShape(dims, layout, SmvBackend::Alignment);
         Tensor* inputs0 = new Tensor("input0", inputShape);
@@ -53,17 +105,32 @@ class SmvEltwiseOpsTest : public SmaugTest {
         workspace()->addTensor(inputs1);
         eltOp->setInput(inputs0, 0);
         eltOp->setInput(inputs1, 1);
-        createAndFillTensorsWithData<float16>(eltOp, fillTensorWithRandomData);
+        eltOp->createAllTensors();
+        if (boolOutput)
+            eltOp->getOutput(0)->allocateStorage<bool>();
+        else
+            eltOp->getOutput(0)->allocateStorage<float16>();
+        for (auto input : eltOp->getInputs()) {
+            Tensor* tensor = dynamic_cast<Tensor*>(input);
+            fillTensorWithRandomData(tensor);
+        }
         eltOp->tile();
         eltOp->run();
         auto outputs = eltOp->getOutput(0);
         auto refOutputs = getReferenceOutput(eltOp, opType);
-        verifyOutputs<float16>(outputs, refOutputs);
+        if (boolOutput)
+            verifyOutputs<bool>(outputs, refOutputs);
+        else
+            verifyOutputs<float16>(outputs, refOutputs);
     }
 
     void doTest(const std::vector<int>& dims) {
-        doSingleTest(dims, "add");
-        doSingleTest(dims, "mul");
+        doSingleTest(dims, EltwiseAdd);
+        doSingleTest(dims, EltwiseMul);
+        doSingleTest(dims, Less);
+        doSingleTest(dims, LessEqual);
+        doSingleTest(dims, Greater);
+        doSingleTest(dims, GreaterEqual);
     }
 };
 
