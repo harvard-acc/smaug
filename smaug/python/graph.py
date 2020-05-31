@@ -224,10 +224,10 @@ class Graph:
       print("Name: %s (%s)" % (node.name, OpType.Name(node.op)))
       print("Parents:", end = '')
       for i in node.parents:
-        print(i, end = '')
+        print(i, end = ' ')
       print("\nChildren:", end = '')
       for o in node.children:
-        print(o, end = '')
+        print(o, end = ' ')
       print("\nInput tensors:")
       for t in node.input_tensors:
         print(" ", t.name, DataType.Name(t.data_type), t.shape.dims,
