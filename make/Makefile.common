@@ -1,4 +1,4 @@
-.PHONY: src-symlinks
+.PHONY: src-symlinks protos
 
 # SMAUG_HOME is needed for unit tests to find the test inputs.
 ifeq (${SMAUG_HOME},)
@@ -113,6 +113,10 @@ GEM5_SYS_SRCS = gem5/aladdin_sys_connection.cpp gem5/aladdin_sys_connection.h \
 GEM5_UTIL_SRCS = ../../util/m5/m5op_x86.S
 GEM5_SRCS = $(GEM5_DMA_SRC) $(GEM5_SYS_SRCS) $(GEM5_UTIL_SRCS)
 
+BUILD_SRCS = $(patsubst %, $(BUILD_DIR)/%, $(SRCS))
+BUILD_GEM5_SRCS = $(filter-out %.h, $(patsubst %, $(BUILD_DIR)/gem5/%, $(notdir $(GEM5_SRCS))))
+BUILD_SRCS += $(BUILD_PROTO_CPP_SRCS) $(BUILD_GEM5_SRCS)
+
 LFLAGS = -L$(BOOST_ROOT)/lib -lm -lrt -lboost_graph -lboost_program_options -lprotobuf -lpthread
 CFLAGS = -O3 -g
 CXXFLAGS = -std=c++11 $(CFLAGS) -Wno-deprecated-declarations
@@ -138,7 +142,6 @@ BUILD_DIR = build
 PROTO_PY_SRCS = $(patsubst %.proto, %_pb2.py, $(PROTO_SRCS))
 PROTO_CPP_SRCS = $(patsubst %.proto, %.pb.cpp, $(PROTO_SRCS))
 BUILD_PROTO_CPP_SRCS = $(patsubst %, $(BUILD_DIR)/%, $(PROTO_CPP_SRCS))
-BUILD_GEM5_SRCS = $(filter-out %.h, $(patsubst %, $(BUILD_DIR)/gem5/%, $(notdir $(GEM5_SRCS))))
 
 # Create a build directory that just has symlinks to all the source files, so
 # we can build everything seemingly "alongside" the source.
@@ -150,6 +153,8 @@ src-symlinks:
 	@cp -asf $(TRACER_HOME)/profile-func/trace_logger_aladdin.h $(BUILD_DIR)/tracer
 	@$(foreach f, $(GEM5_SRCS), cp -asf $(ALADDIN_HOME)/$(f) $(BUILD_DIR)/gem5/$(notdir $(f));)
 	@mkdir -p $(BUILD_DIR)/bin
+
+protos: $(BUILD_PROTO_CPP_SRCS) $(PROTO_PY_SRCS)
 
 $(BUILD_DIR)/%.pb.cpp: %.proto
 	$(PROTOC) -I=$(SMAUG_HOME) --cpp_out=. $^

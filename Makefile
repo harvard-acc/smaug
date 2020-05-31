@@ -20,3 +20,5 @@ clean:
 	@$(MAKE) -f make/Makefile.native --no-print-directory clean
 tracer:
 	@$(MAKE) -f make/Makefile.tracer --no-print-directory dma-trace-binary
+clean-trace:
+	@$(MAKE) -f make/Makefile.tracer --no-print-directory clean-trace

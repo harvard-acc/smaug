@@ -3,7 +3,7 @@
 # before including this.
 ##################################
 
-include common/Makefile.common
+include make/Makefile.common
 
 .PHONY: dma-trace-binary run-trace clean-trace src-symlinks
 
@@ -12,7 +12,10 @@ include common/Makefile.common
 ##################################
 
 dma-trace-binary: DLEVEL=0
-dma-trace-binary: build-trace
+dma-trace-binary:
+	$(MAKE) -f make/Makefile.common --no-print-directory src-symlinks
+	$(MAKE) -f make/Makefile.common --no-print-directory protos
+	$(MAKE) -f make/Makefile.tracer --no-print-directory build-trace
 
 ##################################
 #      COMPILATION FLAGS         #
@@ -31,16 +34,11 @@ LFLAGS += -lz
 
 LLVM_VERSION = $(shell clang-6.0 --version | grep -o -m 1 "[0-9\.]\+" | head -n 1)
 
-# The file containinng the main function must be instrumented LAST so that it
-# can include all labels discovered by the clangtool. Therefore, we take it out
-# of this list and manually append it to the end.
-ALL_TRACER_SRCS = $(filter-out $(MAIN), $(SRCS) $(BUILD_PROTO_CPP_SRCS) $(BUILD_GEM5_SRCS)) $(MAIN)
+ALL_TRACER_SRCS = $(BUILD_SRCS) $(BUILD_PROTO_CPP_SRCS) $(BUILD_GEM5_SRCS) $(BUILD_DIR)/$(MAIN)
 
 LLVM_OBJS = $(filter-out %.h %.S, \
-						$(patsubst build/%.c, $(BUILD_DIR)/%-opt.llvm, \
-						$(patsubst build/%.cpp, $(BUILD_DIR)/%-opt.llvm, \
-						$(patsubst src/%.c, $(BUILD_DIR)/%-opt.llvm, \
-						$(patsubst src/%.cpp, $(BUILD_DIR)/%-opt.llvm, $(ALL_TRACER_SRCS))))))
+	$(patsubst %.c, %-opt.llvm, \
+	$(patsubst %.cpp, %-opt.llvm, $(ALL_TRACER_SRCS))))
 
 LABELMAPS = $(patsubst %-opt.llvm, %-labelmap, $(LLVM_OBJS))
 
@@ -52,8 +50,7 @@ LABELMAPS = $(patsubst %-opt.llvm, %-labelmap, $(LLVM_OBJS))
 #        INSTRUMENTATION AND TRACE FILE GENERATION      #
 #########################################################
 
-build-trace: src-symlinks $(BUILD_PROTO_CPP_SRCS)
-	@$(MAKE) -f common/Makefile.tracer $(BUILD_DIR)/$(EXEC)-instrumented
+build-trace: $(BUILD_DIR)/bin/$(EXEC)-instrumented
 
 %-labelmap: %.cpp
 	@echo Generating labelmap for $<
@@ -78,7 +75,7 @@ $(BUILD_DIR)/full.llvm: $(LLVM_OBJS)
 $(BUILD_DIR)/full.s: $(BUILD_DIR)/full.llvm
 	@llc -O0 -disable-fp-elim -filetype=asm -o $@ $<
 
-$(BUILD_DIR)/$(EXEC)-instrumented: $(BUILD_DIR)/full.s
+$(BUILD_DIR)/bin/$(EXEC)-instrumented: $(BUILD_DIR)/full.s
 	@echo Producing final binary...
 	@g++ -O0 -fno-inline -o $@ $^ $(LFLAGS)
 

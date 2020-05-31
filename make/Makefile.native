@@ -1,14 +1,15 @@
-# Make rules for native host-side execution.
+# Make rules for native host-side or gem5 execution.
 
 include make/Makefile.common
 
 .PHONY: all tests clean run-tests
 
-# CFLAGS += -std=gnu++11 $(NATIVE_SIMD_FLAGS) -mf16c -flax-vector-conversions
+####################################
+####      COMPILATION FLAGS     ####
+####################################
 
-# Disable some warnings.
-native: CFLAGS+=-Wno-attributes
-
+# To run SMAUG in gem5 simulation, we disable SSSE3, SSSE4.1 and SSSE4.2
+# because these are not fully supported by gem5. Also AVX is not enabled.
 GEM5_SIMD_CFLAGS = -msse3 -msse2 -mno-ssse3 -mno-sse4.1 -mno-sse4.2
 CFLAGS += -DDMA_MODE $(BMARK_SPECIFIC_CFLAGS) $(GEM5_SIMD_CFLAGS)
 
@@ -17,20 +18,19 @@ CFLAGS += -DDMA_MODE $(BMARK_SPECIFIC_CFLAGS) $(GEM5_SIMD_CFLAGS)
 ######################################
 
 # Create object files for each cpp/c file.
-BUILD_SRCS = $(patsubst %, $(BUILD_DIR)/%, $(SRCS))
-BUILD_SRCS += $(BUILD_PROTO_CPP_SRCS) $(BUILD_GEM5_SRCS)
 BUILD_SRCS_OBJS := $(patsubst %.cpp, %.o, $(BUILD_SRCS))
 BUILD_SRCS_OBJS := $(patsubst %.c, %.o, $(BUILD_SRCS_OBJS))
 BUILD_SRCS_OBJS := $(patsubst %.S, %.o, $(BUILD_SRCS_OBJS))
 
-BUILD_TESTS_COMMON = $(patsubst %, $(BUILD_DIR)/%, $(TESTS_COMMON))
-BUILD_TESTS = $(patsubst %, $(BUILD_DIR)/%, $(TESTS))
-BUILD_PY_TESTS = $(patsubst %, $(BUILD_DIR)/%, $(PY_TESTS))
-
 BUILD_MAIN_SRC = $(patsubst %, $(BUILD_DIR)/%, $(MAIN))
 BUILD_MAIN_OBJ = $(patsubst %.cpp, %.o, $(BUILD_MAIN_SRC))
 
-all: src-symlinks $(BUILD_PROTO_CPP_SRCS) $(PROTO_PY_SRCS) $(BUILD_DIR)/bin/$(EXEC)
+all:
+	$(MAKE) -f make/Makefile.common --no-print-directory src-symlinks
+	$(MAKE) -f make/Makefile.common --no-print-directory protos
+	$(MAKE) -f make/Makefile.native --no-print-directory exec
+
+exec: $(BUILD_DIR)/bin/$(EXEC)
 
 $(BUILD_DIR)/bin/$(EXEC): $(BUILD_SRCS_OBJS) $(BUILD_MAIN_OBJ)
 	$(CXX) $^ $(LFLAGS) -o $@
@@ -52,15 +52,26 @@ CATCH_MAIN = $(BUILD_DIR)/smaug/core/catch
 CATCH_OBJ = $(CATCH_MAIN).o
 CATCH_SRC = $(CATCH_MAIN).cpp
 
+BUILD_TESTS_COMMON = $(patsubst %, $(BUILD_DIR)/%, $(TESTS_COMMON))
+BUILD_TESTS = $(patsubst %, $(BUILD_DIR)/%, $(TESTS))
+BUILD_PY_TESTS = $(patsubst %, $(BUILD_DIR)/%, $(PY_TESTS))
+
 TEST_OBJ = $(patsubst %.cpp, %.o, $(BUILD_TESTS))
 TEST_BIN = $(patsubst %.cpp, %, $(BUILD_TESTS))
 
-tests: src-symlinks $(TEST_BIN) $(BUILD_PROTO_CPP_SRCS) $(PROTO_PY_SRCS) $(BUILD_GEM5_SRCS)
+tests:
+	$(MAKE) -f make/Makefile.common --no-print-directory src-symlinks
+	$(MAKE) -f make/Makefile.common --no-print-directory protos
+	$(MAKE) -f make/Makefile.native --no-print-directory test_bin
+
+test_bin: $(TEST_BIN)
 
 $(TEST_BIN) : % : %.o $(CATCH_OBJ) $(BUILD_SRCS_OBJS) $(BUILD_TESTS_COMMON)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ -o $@ $(LFLAGS)
 
-run-tests: $(TEST_BIN) $(BUILD_PY_TESTS)
+run-tests:
+	$(MAKE) -f make/Makefile.native --no-print-directory tests
+	$(MAKE) -f make/Makefile.native --no-print-directory exec
 	@$(foreach t, $(TEST_BIN), echo $(t); ./$(t);)
 	@$(foreach t, $(BUILD_PY_TESTS), echo $(t); ./$(t);)
 
@@ -69,5 +80,5 @@ run-tests: $(TEST_BIN) $(BUILD_PY_TESTS)
 ###########################
 
 clean:
-	rm -f $(BUILD_DIR)/bin/$(EXEC) $(TEST_BIN) $(TEST_OBJ) $(BUILD_PROTO_CPP_SRCS) $(PROTO_PY_SRCS)
-	find $(BUILD_DIR) -name "*.llvm" -o -name "*.o" | xargs rm -f
+	rm -f $(BUILD_DIR)/bin/$(EXEC) $(TEST_BIN) $(BUILD_PROTO_CPP_SRCS) $(PROTO_PY_SRCS)
+	find $(BUILD_DIR) -name "*.o" | xargs rm -f
