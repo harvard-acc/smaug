@@ -298,8 +298,10 @@ class Tensor : public TensorBase {
                 break;
             case Int64:
                 fillData<int64_t>(tensorData.int64_data());
+                break;
             case Bool:
                 fillData<bool>(tensorData.bool_data());
+                break;
             default:
                 assert(false && "Unknown data format!");
         }
