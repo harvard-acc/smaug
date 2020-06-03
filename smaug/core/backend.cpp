@@ -7,6 +7,7 @@
 #include "smaug/operators/eltwise_mul_op.h"
 #include "smaug/operators/less_op.h"
 #include "smaug/operators/greater_op.h"
+#include "smaug/operators/control_flow_ops.h"
 #include "smaug/operators/elu_op.h"
 #include "smaug/operators/inner_product_op.h"
 #include "smaug/operators/pooling_op.h"
@@ -70,6 +71,7 @@ DEF_CREATE_OP(LessOp, ReferenceBackend)
 DEF_CREATE_OP(LessEqualOp, ReferenceBackend)
 DEF_CREATE_OP(GreaterOp, ReferenceBackend)
 DEF_CREATE_OP(GreaterEqualOp, ReferenceBackend)
+DEF_CREATE_OP(SwitchOp, ReferenceBackend)
 DEF_CREATE_OP(ReluOp, ReferenceBackend)
 DEF_CREATE_OP(SigmoidOp, ReferenceBackend)
 DEF_CREATE_OP(EluOp, ReferenceBackend)
@@ -103,6 +105,7 @@ DEF_CREATE_OP(SplitOp, SmvBackend)
 DEF_CREATE_OP(ReshapeOp, SmvBackend)
 DEF_CREATE_OP(RepeatOp, SmvBackend)
 DEF_CREATE_OP(FlattenOp, SmvBackend)
+DEF_CREATE_OP(SwitchOp, SmvBackend)
 
 namespace ref {
 const unsigned kConvolutionHw = 0x0001;

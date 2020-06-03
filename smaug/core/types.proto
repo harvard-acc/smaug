@@ -21,8 +21,9 @@ enum DataLayout {
   CN = 8;
   NCT = 16;
   NTC = 32;
-  X = 63; // Elementwise
-  EndDataLayout = 32;
+  N = 64;
+  X = 127; // Elementwise
+  EndDataLayout = 64;
 }
 
 enum DataStorageFormat {
@@ -61,6 +62,7 @@ enum OpType {
   LessEqual = 24;
   Greater = 25;
   GreaterEqual = 26;
+  Switch = 27;
 }
 
 enum PaddingType {

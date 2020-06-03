@@ -1,0 +1,22 @@
+from smaug.core.types_pb2 import *
+from smaug.python.global_vars import *
+from smaug.python.ops.common import *
+
+def switch(input_tensor, pred, name="switch"):
+  """Forward the input to output port determined by the given predication.
+
+  Args:
+    input_tensor: Input tensor.
+    pred: Predication tensor. The tensor should only contain a single boolean
+      value.
+
+  Returns:
+    output_false, output_true: Two tensors representing the two branches of the
+      switch. Input will only be forwarded to the taken branch.
+  """
+  return add_node(
+      name=name,
+      op=Switch,
+      input_tensors=[input_tensor, pred],
+      output_tensors_dims=[input_tensor.shape.dims] * 2,
+      output_tensor_layout=input_tensor.shape.layout)

@@ -23,6 +23,7 @@
 #include "smaug/operators/eltwise_mul_op.h"
 #include "smaug/operators/less_op.h"
 #include "smaug/operators/greater_op.h"
+#include "smaug/operators/control_flow_ops.h"
 #include "smaug/operators/elu_op.h"
 #include "smaug/operators/inner_product_op.h"
 #include "smaug/operators/pooling_op.h"
@@ -231,6 +232,9 @@ static void createAndAddOperator(const NodeProto& node,
         network->addOperator(op);
     } else if (type == OpType::GreaterEqual) {
         auto op = Backend::createGreaterEqualOp(name, workspace);
+        network->addOperator(op);
+    } else if (type == OpType::Switch) {
+        auto op = Backend::createSwitchOp(name, workspace);
         network->addOperator(op);
     } else if (type == OpType::ReLU) {
         auto op = Backend::createReluOp(name, workspace);

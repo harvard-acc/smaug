@@ -18,6 +18,12 @@ class Scheduler {
     // Schedules the operators in the ready queue. This may add new operators to
     // the readu queue by calling updateChildren().
     Tensor* scheduleReady();
+
+    // This will call the run() method of the given operator if none of its
+    // inputs are dead, otherwise all its outputs will be marked as dead
+    // tensors.
+    void maybeRunOperator(Operator* op);
+
     // After an operator is scheduled, this activates its children to be
     // scheduled if they become ready.
     void updateChildren(Operator* op);

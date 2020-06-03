@@ -223,19 +223,19 @@ class TensorRegionIndexIterator : public TensorIndexIterator {
 
 class TensorBase {
    public:
-    TensorBase() : name(""), dataFormat(UnknownStorageFormat) {}
+    TensorBase() : name(""), dataFormat(UnknownStorageFormat), dead(false) {}
     virtual ~TensorBase() {}
 
     // We could use this constructor for placeholder variables that don't have
     // any dynamic memory allocated yet.
     TensorBase(const std::string& _name, const TensorShape& _shape)
             : name(_name), shape(_shape), dataFormat(Uncompressed),
-              dataType(UnknownDataType) {}
+              dataType(UnknownDataType), dead(false) {}
 
     TensorBase(const TensorProto& tensorProto)
             : name(tensorProto.name()), shape(tensorProto.shape()),
               dataFormat(tensorProto.data_format()),
-              dataType(tensorProto.data_type()) {}
+              dataType(tensorProto.data_type()), dead(false) {}
 
     // TODO: Do we need a copy constructor?
 
@@ -264,6 +264,8 @@ class TensorBase {
                 assert(false && "UnknownDataType has no size!");
         }
     }
+    bool isDead() const { return dead; }
+    void setDead(bool _dead = true) { dead = _dead; }
     virtual bool containsData() const = 0;
 
    protected:
@@ -271,6 +273,9 @@ class TensorBase {
     TensorShape shape;
     DataStorageFormat dataFormat;
     DataType dataType;
+    // If true, the tensor becomes a dead tensor, meaning that it's on an
+    // untaken path of control flow divergence.
+    bool dead;
 };
 
 class Tensor : public TensorBase {

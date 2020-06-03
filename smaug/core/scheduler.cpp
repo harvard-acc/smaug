@@ -60,12 +60,28 @@ Tensor* Scheduler::scheduleReady() {
     for (auto op : readyQueue) {
         dout(0) << "Scheduling " << op->getName() << " ("
                 << OpType_Name(op->getOpType()) << ").\n";
-        op->run();
+        maybeRunOperator(op);
         updateChildren(op);
         output = op->getOutput(0);
         dout(2) << *output << "\n";
     }
     return output;
+}
+
+void Scheduler::maybeRunOperator(Operator* op) {
+    bool anyInputDead = false;
+    for (auto input : op->getInputs()) {
+        if (input->isDead()) {
+            anyInputDead = true;
+            break;
+        }
+    }
+    if (!anyInputDead) {
+        op->run();
+    } else {
+        for (auto output : op->getOutputs())
+            output->setDead();
+    }
 }
 
 void Scheduler::updateChildren(Operator* op) {
