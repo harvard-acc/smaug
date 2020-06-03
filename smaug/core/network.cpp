@@ -21,39 +21,6 @@ void Network::addOperator(
     }
     op->createAllTensors();
     operators[op->getName()] = op;
-    lastOperator = op;
-}
-
-void Network::insertOperatorBetween(Operator* newOp,
-                                    Operator* sourceOp,
-                                    const std::vector<Operator*>& targetOps) {
-    // If graph contains sourceOp->[set of targetOps], then change this to
-    // sourceOp->newOp->[targetOps]. Edges that do not end in any of targetOps
-    // should not be affected.
-    Vertex newVertex = newOp->getVertex();
-    Vertex sourceVertex = sourceOp->getVertex();
-    for (Operator* targetOp : targetOps) {
-        Vertex targetVertex = targetOp->getVertex();
-        auto edgeToRemove = boost::edge(sourceVertex, targetVertex, graph);
-        if (edgeToRemove.second)
-            remove_edge(edgeToRemove.first, graph);
-        add_edge(newVertex, targetVertex, EdgeProperty(NULL), graph);
-
-        // The new op must have the same number of outputs as the source
-        // operation in the same logical order. So find the original matching
-        // pairs of src outputs to dest inputs and update the target ops inputs
-        // with the corresponding outputs of the new op.
-        auto& sourceOpOutputs = sourceOp->getOutputs();
-        auto& targetOpInputs = targetOp->getInputs();
-        for (int i = 0; i < sourceOpOutputs.size(); ++i) {
-            auto srcTensor = sourceOpOutputs[i];
-            for (int j = 0; j < targetOpInputs.size(); ++j) {
-                auto dstTensor = targetOpInputs[j];
-                if (srcTensor == dstTensor)
-                    targetOp->setInput(newOp->getOutput(i), j);
-            }
-        }
-    }
 }
 
 void Network::dumpDataflowGraph() const {
