@@ -65,11 +65,6 @@ class ConcatOp : public Operator {
         }
     }
 
-    void printSummary(std::ostream& out) const override {
-        const TensorShape& outputShape = outputs.at(0)->getShape();
-        out << this->name << " (Concat)\t\t" << outputShape << "\n";
-    }
-
     int getConcatAxis() const { return concatAxis; }
 
    protected:

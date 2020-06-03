@@ -4,7 +4,6 @@
 #include "smaug/core/backend.h"
 #include "smaug/core/operator.h"
 #include "smaug/core/tensor.h"
-#include "smaug/core/tensor_utils.h"
 #include "smaug/core/workspace.h"
 #include "smaug/operators/common.h"
 #include "smaug/operators/fused_activation_op.h"
@@ -75,11 +74,8 @@ class InnerProductOp : public FusedActivationOp {
 
     int getNumOutputs() const { return numOutputs; }
 
-    void printSummary(std::ostream& out) const override {
-        const TensorShape& weightsShape = inputs.at(Weights)->getShape();
-        const TensorShape& outputShape = outputs.at(Outputs)->getShape();
-        out << this->name << " (InnerProduct)\t\t" << outputShape << "\t\t"
-            << weightsShape << "\t\t" << weightsShape.size() << "\n";
+    int getNumParameters() const override {
+        return inputs.at(Weights)->getShape().size();
     }
 
     std::vector<TensorBase*> getParameterizableInputs() override {

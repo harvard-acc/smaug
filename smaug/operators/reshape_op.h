@@ -44,10 +44,6 @@ class ReshapeOp : public Operator {
         outputs.at(0) = output;
     }
 
-    void printSummary(std::ostream& out) const override {
-        out << name << " (Reshape)\t\t" << outputs.at(0)->getShape() << "\n";
-    }
-
     void run() override {
         // Copy the input data.
         Tensor* input = getInput(0);

@@ -1,6 +1,7 @@
 #include <list>
 #include <set>
 #include <vector>
+#include <boost/format.hpp>
 
 #include "smaug/core/datatypes.h"
 #include "smaug/core/typedefs.h"
@@ -44,10 +45,12 @@ void Network::printSummary() const {
             "______________________________________________");
     std::list<Vertex> vertices;
     boost::topological_sort(graph, std::front_inserter(vertices));
-    std::cout << hline <<"\n";
-    std::cout << "Layer (type)\t\t\tOutput shape\t\tWeights shape\t\t"
-                 "Parameters\n";
-    std::cout << hline <<"\n";
+    std::cout << hline << "\n";
+    std::cout << boost::format(kLayerFormat)
+                 % "Layer (type)"
+                 % "Output shape"
+                 % "Parameters";
+    std::cout << hline << "\n";
     for (auto vertex : vertices) {
         Operator* op = get(boost::vertex_op, graph, vertex);
         op->printSummary(std::cout);

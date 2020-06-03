@@ -3,7 +3,6 @@
 
 #include "smaug/core/backend.h"
 #include "smaug/core/tensor.h"
-#include "smaug/core/tensor_utils.h"
 #include "smaug/core/workspace.h"
 
 namespace smaug {
@@ -26,11 +25,6 @@ class DataOp : public Operator {
     void run() override {}
     bool validate() override { return data != NULL && Operator::validate(); }
     void createAllTensors() override {}
-
-    void printSummary(std::ostream& out) const override {
-        const TensorShape& shape = data->getShape();
-        out << name << " (Data)\t\t\t" << shape << "\n";
-    }
 
    protected:
     Tensor* data;

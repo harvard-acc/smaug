@@ -133,10 +133,6 @@ class ReorderOp : public Operator {
     void createAllTensors() override {
         createOutputTensors();
     }
-    void printSummary(std::ostream& out) const override {
-        const TensorShape& shape = outputs.at(Outputs)->getShape();
-        out << name << " (Reorder)\t\t" << shape << "\n";
-    }
 
    protected:
     enum { Inputs, kNumInputs };
@@ -151,12 +147,6 @@ class FlattenOp : public ReorderOp<Backend> {
 
     FlattenOp(const std::string& name, Workspace* workspace)
             : ReorderOp<Backend>(name, DataLayout::NC, workspace) {}
-
-    void printSummary(std::ostream& out) const override {
-        const TensorShape& shape =
-                this->outputs.at(Parent::Outputs)->getShape();
-        out << this->name << " (Flatten)\t\t" << shape << "\n";
-    }
 };
 
 }  // namespace smaug

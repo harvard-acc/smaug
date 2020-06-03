@@ -4,9 +4,11 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <boost/format.hpp>
 
 #include "smaug/core/typedefs.h"
 #include "smaug/core/tensor.h"
+#include "smaug/core/tensor_utils.h"
 #include "smaug/core/types.pb.h"
 #include "smaug/operators/common.h"
 
@@ -17,6 +19,8 @@
 namespace smaug {
 
 class Workspace;
+
+constexpr const char* kLayerFormat = "%-40s %-25s %=15d\n";
 
 class Operator {
    public:
@@ -32,10 +36,21 @@ class Operator {
     }
     virtual void createAllTensors() = 0;
     virtual std::vector<TensorBase*> getParameterizableInputs() { return {}; }
-    virtual void printSummary(std::ostream& out) const {}
+    // This returns the number of parameterizable weights in the operator.
+    virtual int getNumParameters() const { return 0; }
     virtual bool isSamplingSupported() const { return false; }
     virtual void setSamplingInfo(const SamplingInfo& sampling) {}
 
+    void printSummary(std::ostream& out) const {
+        boost::format fmter(kLayerFormat);
+        out << fmter % (this->name + " (" + OpType_Name(opType) + ")")
+                     % outputs.at(0)->getShape()
+                     % getNumParameters();
+        if (outputs.size() > 1) {
+           for (int i = 1; i < outputs.size(); i++)
+               out << fmter % "" % outputs.at(i)->getShape() % "";
+        }
+    }
     void setInput(TensorBase* op, int index) {
         inputs[index] = op;
     }

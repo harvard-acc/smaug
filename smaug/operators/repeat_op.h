@@ -85,10 +85,6 @@ class RepeatOp : public Operator {
         }
     }
 
-    void printSummary(std::ostream& out) const override {
-        out << name << " (Repeat)\t\t" << outputs.at(0)->getShape() << "\n";
-    }
-
    protected:
     std::vector<int> multiples;
 };

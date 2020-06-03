@@ -4,7 +4,6 @@
 #include "smaug/core/backend.h"
 #include "smaug/core/operator.h"
 #include "smaug/core/tensor.h"
-#include "smaug/core/tensor_utils.h"
 #include "smaug/core/workspace.h"
 
 namespace smaug {
@@ -119,11 +118,6 @@ class MaxPoolingOp : public PoolingOp<Backend> {
     MaxPoolingOp(const std::string& name, Workspace* workspace)
             : PoolingOp<Backend>(name, OpType::MaxPooling, workspace) {}
     void run() override{};
-    void printSummary(std::ostream& out) const override {
-        const TensorShape& outputShape =
-                this->outputs.at(Parent::Outputs)->getShape();
-        out << this->name << " (MaxPooling)\t\t" << outputShape << "\n";
-    }
 };
 
 template <typename Backend>
@@ -135,11 +129,6 @@ class AvgPoolingOp : public PoolingOp<Backend> {
     AvgPoolingOp(const std::string& name, Workspace* workspace)
             : PoolingOp<Backend>(name, OpType::AveragePooling, workspace) {}
     void run() override{};
-    void printSummary(std::ostream& out) const override {
-        const TensorShape& outputShape =
-                this->outputs.at(Parent::Outputs)->getShape();
-        out << this->name << " (AvgPooling)\t\t" << outputShape << "\n";
-    }
 };
 
 REGISTER_SPECIAL_OP(MaxPoolingOp, ReferenceBackend);

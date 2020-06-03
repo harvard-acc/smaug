@@ -76,17 +76,6 @@ class SplitOp : public Operator {
         }
     }
 
-    void printSummary(std::ostream& out) const override {
-        out << this->name << " (Split)\t\t";
-        for (int i = 0; i < outputs.size(); i++) {
-            out << outputs.at(0)->getShape();
-            if (i != outputs.size() - 1)
-                out << ",";
-            else
-                out << "\n";
-        }
-    }
-
    protected:
     int splitAxis;
     std::vector<int> splits;

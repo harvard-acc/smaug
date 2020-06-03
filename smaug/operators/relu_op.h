@@ -15,9 +15,6 @@ class ReluOp : public UnaryOp<Backend> {
             : UnaryOp<Backend>(name, OpType::ReLU, workspace), slope(_slope) {}
 
     void run() override {}
-    std::string opTypeName() const override {
-        return slope == 0 ? "ReLU" : "LReLU";
-    }
     void setSlope(float _slope) { slope = _slope; }
     float getSlope () const { return slope; }
 

@@ -15,7 +15,6 @@ class TanhOp : public UnaryOp<Backend> {
             : UnaryOp<Backend>(name, OpType::Tanh, workspace) {}
 
     void run() override {}
-    std::string opTypeName() const override { return "Tanh"; }
 };
 
 template <typename Backend>
@@ -29,7 +28,6 @@ class HardTanhOp : public UnaryOp<Backend> {
               max(_max) {}
 
     void run() override {}
-    std::string opTypeName() const override { return "HardTanh"; }
 
     void setMin(float _min) { min = _min; }
     void setMax(float _max) { max = _max; }

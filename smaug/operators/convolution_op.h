@@ -6,7 +6,6 @@
 #include "smaug/core/backend.h"
 #include "smaug/core/operator.h"
 #include "smaug/core/workspace.h"
-#include "smaug/core/tensor_utils.h"
 #include "smaug/core/types.pb.h"
 #include "smaug/operators/common.h"
 #include "smaug/operators/fused_activation_op.h"
@@ -114,11 +113,8 @@ class ConvolutionOp : public FusedActivationOp {
 
     void run() override {}
 
-    void printSummary(std::ostream& out) const override {
-      const TensorShape& weightsShape = inputs.at(Kernels)->getShape();
-      const TensorShape& outputShape = outputs.at(Outputs)->getShape();
-      out << this->name << " (Convolution3d)\t\t" << outputShape << "\t\t"
-          << weightsShape << "\t\t" << weightsShape.size() << "\n";
+    int getNumParameters() const override {
+        return inputs.at(Kernels)->getShape().size();
     }
 
     std::vector<TensorBase*> getParameterizableInputs() override {

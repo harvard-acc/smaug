@@ -36,11 +36,6 @@ class SmvMaxPoolingOp : public SmvPoolingOp {
             : SmvPoolingOp(name, OpType::MaxPooling, workspace){};
     void tile() override;
     void run() override;
-    void printSummary(std::ostream& out) const override {
-        const TensorShape& outputShape =
-                this->outputs.at(Outputs)->getShape();
-        out << this->name << " (MaxPooling)\t\t" << outputShape << "\n";
-    }
 };
 
 class SmvAvgPoolingOp : public SmvPoolingOp {
@@ -49,11 +44,6 @@ class SmvAvgPoolingOp : public SmvPoolingOp {
             : SmvPoolingOp(name, OpType::AveragePooling, workspace){};
     void tile() override;
     void run() override;
-    void printSummary(std::ostream& out) const override {
-        const TensorShape& outputShape =
-                this->outputs.at(Outputs)->getShape();
-        out << this->name << " (AvgPooling)\t\t" << outputShape << "\n";
-    }
 };
 
 }  // namespace smaug

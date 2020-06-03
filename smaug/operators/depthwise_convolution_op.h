@@ -61,18 +61,6 @@ class DepthwiseConvolutionOp : public ConvolutionOp<Backend> {
                     layout, Backend::Alignment);
         }
     }
-
-    void printSummary(std::ostream& out) const override {
-        const TensorShape& weightsShape =
-                this->inputs.at(Parent::Kernels)->getShape();
-        const TensorShape& outputShape =
-                this->outputs.at(Parent::Outputs)->getShape();
-        out << this->name << " (DepthwiseConvolution)\t\t" << outputShape
-            << "\t\t" << weightsShape << "\t\t" << weightsShape.size() << "\n";
-        /*
-        out << "  Row, col strides: (" << this->rowStride << ", "
-            << this->colStride << ")\n"; */
-    }
 };
 
 REGISTER_SPECIAL_OP(DepthwiseConvolutionOp, ReferenceBackend);

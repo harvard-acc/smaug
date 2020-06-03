@@ -15,7 +15,6 @@ class EluOp : public UnaryOp<Backend> {
             : UnaryOp<Backend>(name, OpType::ELU, workspace), alpha(_alpha) {}
 
     void run() override {}
-    std::string opTypeName() const override { return "ELU"; }
 
     void setAlpha(float _alpha) { alpha = _alpha; }
     float getAlpha() const { return alpha; }
@@ -33,7 +32,6 @@ class SeluOp : public EluOp<Backend> {
     }
 
     void run() override {}
-    std::string opTypeName() const override { return "SELU"; }
 
     void setLambda(float _lambda) { lambda = _lambda; }
     float getLambda() const { return lambda; }

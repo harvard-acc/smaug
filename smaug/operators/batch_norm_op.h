@@ -4,7 +4,6 @@
 #include "smaug/core/backend.h"
 #include "smaug/core/operator.h"
 #include "smaug/core/tensor.h"
-#include "smaug/core/tensor_utils.h"
 #include "smaug/core/workspace.h"
 #include "smaug/operators/common.h"
 #include "smaug/operators/fused_activation_op.h"
@@ -87,11 +86,8 @@ class BatchNormOp : public FusedActivationOp {
         createOutputTensors();
     }
 
-    void printSummary(std::ostream& out) const override {
-      const TensorShape& weightsShape = inputs.at(Mean)->getShape();
-      const TensorShape& outputShape = outputs.at(Outputs)->getShape();
-      out << this->name << " (BatchNormalization)\t" << outputShape << "\t\t"
-          << weightsShape << "\t\t\t" << 4 * weightsShape.size() << "\n";
+    int getNumParameters() const override {
+        return kNumInputs * inputs.at(Mean)->getShape().size();
     }
 
     std::vector<TensorBase*> getParameterizableInputs() override {

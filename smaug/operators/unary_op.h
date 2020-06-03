@@ -4,7 +4,6 @@
 #include <string>
 
 #include "smaug/core/operator.h"
-#include "smaug/core/tensor_utils.h"
 #include "smaug/core/workspace.h"
 
 namespace smaug {
@@ -19,15 +18,9 @@ class UnaryOp : public Operator {
     }
 
     bool validate() override { return Operator::validate(); }
-    virtual std::string opTypeName() const = 0;
 
     void createAllTensors() override {
         createOutputTensors();
-    }
-    void printSummary(std::ostream& out) const override {
-        TensorShape outputShape = outputs.at(Outputs)->getShape();
-        out << this->name << " (" << opTypeName() << ")\t\t" << outputShape
-            << "\n";
     }
 
     void createOutputTensors() {
