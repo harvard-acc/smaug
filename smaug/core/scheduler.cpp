@@ -51,7 +51,6 @@ Tensor* Scheduler::runNetwork() {
         auto stats =
                 gem5::ScopedStats(stats::kNetworkStart, stats::kNetworkEnd);
         output = scheduleReady();
-        dout(2) << *output << "\n";
     }
     return output;
 }
@@ -64,6 +63,7 @@ Tensor* Scheduler::scheduleReady() {
         op->run();
         updateChildren(op);
         output = op->getOutput(0);
+        dout(2) << *output << "\n";
     }
     return output;
 }
