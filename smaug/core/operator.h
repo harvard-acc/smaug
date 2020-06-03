@@ -25,14 +25,6 @@ class Operator {
               numPendingInputs(-1) {}
     virtual ~Operator() {}
 
-    // This indicates the index of an output tensor of an operator. This is used
-    // in the network builder, which creates each operator and connects it with
-    // the output tensors of its parent operators.
-    struct IndexedOutput {
-        Operator* op;
-        int idx;
-    };
-
     virtual void tile() {};
     virtual void run() = 0;
     virtual bool validate() {

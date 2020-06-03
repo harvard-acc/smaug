@@ -106,14 +106,6 @@ static void createAndAddOperator(const NodeProto& node,
 
     dout(0) << "Adding " << name << " (" << OpType_Name(type) << ").\n";
 
-    // Find all the input operators for this operator.
-    std::vector<Operator::IndexedOutput> inputs;
-    for (int i = 0; i < node.parents_size(); i++) {
-        std::string input_name = node.parents(i);
-        int tensor_idx = node.src_tensors_indices(i);
-        inputs.push_back({ network->getOperator(input_name), tensor_idx });
-    }
-
     if (type == OpType::Data) {
         // Find the tensor data from the tensor data array.
         TensorData tensorData;
@@ -152,7 +144,7 @@ static void createAndAddOperator(const NodeProto& node,
         op->setStride(convParams.stride(0), convParams.stride(1));
         op->setPadding(convParams.padding());
         op->setActivation(getActivationInfo(node.params().act_params()));
-        network->addOperator(op, inputs);
+        network->addOperator(op);
     } else if (type == OpType::MaxPooling || type == OpType::AveragePooling) {
         PoolingOp<Backend>* op;
         if (type == MaxPooling)
@@ -164,7 +156,7 @@ static void createAndAddOperator(const NodeProto& node,
         assert(poolParams.pool_size_size() == 2);
         op->setPoolingSize(poolParams.pool_size(0), poolParams.pool_size(1));
         op->setPoolingStride(poolParams.stride(0), poolParams.stride(1));
-        network->addOperator(op, inputs);
+        network->addOperator(op);
     } else if (type == OpType::InnerProduct) {
         auto op = Backend::createInnerProductOp(name, workspace);
         assert(node.input_tensors_size() == 2);
@@ -174,7 +166,7 @@ static void createAndAddOperator(const NodeProto& node,
         else
             op->setNumOutputs(weightTensorProto.shape().dims(1));
         op->setActivation(getActivationInfo(node.params().act_params()));
-        network->addOperator(op, inputs);
+        network->addOperator(op);
     } else if (type == OpType::Reorder) {
         DataLayout srcLayout = node.input_tensors(0).shape().layout();
         DataLayout targetLayout = node.output_tensors(0).shape().layout();
@@ -186,12 +178,12 @@ static void createAndAddOperator(const NodeProto& node,
             op = Backend::createReorderOp(name, workspace);
             op->setTargetLayout(node.output_tensors(0).shape().layout());
         }
-        network->addOperator(op, inputs);
+        network->addOperator(op);
     } else if (type == OpType::Concat) {
         auto op = Backend::createConcatOp(name, workspace);
         op->setNumInputs(node.input_tensors_size());
         op->setConcatAxis(node.params().concat_params().concat_axis());
-        network->addOperator(op, inputs);
+        network->addOperator(op);
     } else if (type == OpType::Split) {
         auto op = Backend::createSplitOp(name, workspace);
         int axis = node.params().split_params().split_axis();
@@ -200,7 +192,7 @@ static void createAndAddOperator(const NodeProto& node,
             splits.push_back(tensor.shape().dims(axis));
         op->setSplits(splits);
         op->setSplitAxis(axis);
-        network->addOperator(op, inputs);
+        network->addOperator(op);
     } else if (type == OpType::Reshape) {
         auto op = Backend::createReshapeOp(name, workspace);
         const TensorShapeProto& shapeProto = node.output_tensors(0).shape();
@@ -208,7 +200,7 @@ static void createAndAddOperator(const NodeProto& node,
                 shapeProto.dims().begin(), shapeProto.dims().end());
         DataLayout layout = shapeProto.layout();
         op->setShape(shape, layout);
-        network->addOperator(op, inputs);
+        network->addOperator(op);
     } else if (type == OpType::Repeat) {
         auto op = Backend::createRepeatOp(name, workspace);
         const TensorShapeProto& inputShape = node.input_tensors(0).shape();
@@ -217,55 +209,55 @@ static void createAndAddOperator(const NodeProto& node,
         for (int i = 0; i < inputShape.dims_size(); i++)
             multiples.push_back(outputShape.dims(i) / inputShape.dims(i));
         op->setMultiples(multiples);
-        network->addOperator(op, inputs);
+        network->addOperator(op);
     } else if (type == OpType::BatchNorm) {
         auto op = Backend::createBatchNormOp(name, workspace);
         op->setActivation(getActivationInfo(node.params().act_params()));
-        network->addOperator(op, inputs);
+        network->addOperator(op);
     } else if (type == OpType::EltwiseAdd) {
         auto op = Backend::createEltwiseAddOp(name, workspace);
-        network->addOperator(op, inputs);
+        network->addOperator(op);
     } else if (type == OpType::EltwiseMul) {
         auto op = Backend::createEltwiseMulOp(name, workspace);
-        network->addOperator(op, inputs);
+        network->addOperator(op);
     } else if (type == OpType::Less) {
         auto op = Backend::createLessOp(name, workspace);
-        network->addOperator(op, inputs);
+        network->addOperator(op);
     } else if (type == OpType::LessEqual) {
         auto op = Backend::createLessEqualOp(name, workspace);
-        network->addOperator(op, inputs);
+        network->addOperator(op);
     } else if (type == OpType::Greater) {
         auto op = Backend::createGreaterOp(name, workspace);
-        network->addOperator(op, inputs);
+        network->addOperator(op);
     } else if (type == OpType::GreaterEqual) {
         auto op = Backend::createGreaterEqualOp(name, workspace);
-        network->addOperator(op, inputs);
+        network->addOperator(op);
     } else if (type == OpType::ReLU) {
         auto op = Backend::createReluOp(name, workspace);
-        network->addOperator(op, inputs);
+        network->addOperator(op);
     } else if (type == OpType::LReLU) {
         // TODO: Add parameter to enable customization of this behavior.
         auto op = Backend::createReluOp(name, workspace);
         op->setSlope(0.1);
-        network->addOperator(op, inputs);
+        network->addOperator(op);
     } else if (type == OpType::ELU) {
         auto op = Backend::createEluOp(name, workspace);
-        network->addOperator(op, inputs);
+        network->addOperator(op);
     } else if (type == OpType::SELU) {
         auto op = Backend::createSeluOp(name, workspace);
-        network->addOperator(op, inputs);
+        network->addOperator(op);
     } else if (type == OpType::Sigmoid) {
         auto op = Backend::createSigmoidOp(name, workspace);
-        network->addOperator(op, inputs);
+        network->addOperator(op);
     } else if (type == OpType::Softmax) {
         auto op = Backend::createSoftmaxOp(name, workspace);
-        network->addOperator(op, inputs);
+        network->addOperator(op);
     } else if (type == OpType::Tanh) {
         auto op = Backend::createTanhOp(name, workspace);
-        network->addOperator(op, inputs);
+        network->addOperator(op);
     } else if (type == OpType::HardTanh) {
         auto op = Backend::createHardTanhOp(name, workspace);
-        network->addOperator(op, inputs);
+        network->addOperator(op);
     } else if (type == OpType::UnknownOp) {
         assert(false && "Invalid operator type!");
     }
@@ -295,31 +287,74 @@ static void createAndAddOperator(const NodeProto& node,
         assert(false && "Invalid host memory access policy!");
     }
 
-    // Allocate storage for the output tensors of the newly added operator. We
-    // have filled data for all the parameterizable input tensors from the model
-    // file, now we only need to allocate storage for the output tensors.
-    const std::vector<TensorBase*>& outputs = op->getOutputs();
-    for (int i = 0; i < outputs.size(); i++) {
-        Tensor* tensor = dynamic_cast<Tensor*>(outputs[i]);
-        DataType dataType = node.output_tensors(i).data_type();
-        tensor->allocateStorage(dataType);
+    // Create the output tensors and allocate storage for them.
+    // TODO: The tensor storage allocation can be deferred until scheduling
+    // time, which can benefit future control flow operators because the untaken
+    // branch of the control flow will not have that memory allocated and
+    // filled.
+    for (int i = 0; i < op->getOutputs().size(); i++) {
+        if (!op->getOutput(i)) {
+            const TensorProto& tensorProto = node.output_tensors(i);
+            Tensor* output = workspace->addTensor(
+                    new Tensor(tensorProto.name(), tensorProto.shape()));
+            output->allocateStorage(tensorProto.data_type());
+            op->setOutput(output, i);
+        }
     }
 }
 
 // Create the network by deserializing the graph stored in the
 // protobuf model.
 template <typename Backend>
-static Network* createNetworkFromProto(const GraphProto& graph,
+static Network* createNetworkFromProto(const GraphProto& graphProto,
                                        const TensorDataArray& tensorDataArray,
                                        SamplingInfo& sampling,
                                        Workspace* workspace) {
-    Network* network = new Network(graph.name());
+    Network* network = new Network(graphProto.name());
     network->setSamplingInfo(sampling);
-    for (int i = 0; i < graph.nodes_size(); i++) {
-        const NodeProto& node = graph.nodes(i);
-        createAndAddOperator<Backend>(
-                node, tensorDataArray, graph.mem_policy(), network, workspace);
+    for (int i = 0; i < graphProto.nodes_size(); i++) {
+        const NodeProto& node = graphProto.nodes(i);
+        createAndAddOperator<Backend>(node,
+                                      tensorDataArray,
+                                      graphProto.mem_policy(),
+                                      network,
+                                      workspace);
     }
+
+    // Now every operator has been added into the network, we can connect them
+    // together by adding edges in the graph view of the network.
+    for (int i = 0; i < graphProto.nodes_size(); i++) {
+        const NodeProto& node = graphProto.nodes(i);
+        Operator* op = network->getOperator(node.name());
+        for (int i = 0; i < node.parents_size(); i++) {
+            std::string inputOpName = node.parents(i);
+            int srcTensorIdx = node.src_tensors_indices(i);
+            Operator* inputOp = network->getOperator(inputOpName);
+            network->addEdge(inputOp, op, { srcTensorIdx, i });
+        }
+    }
+
+    // Flowing through the graph edges (by doing a topological sort), we forward
+    // the output tensors of each operator (aka node) to its children.
+    const Graph& graph = network->getGraph();
+    EdgeNameMap edges = get(boost::edge_name, graph);
+    std::list<Vertex> vertices;
+    boost::topological_sort(graph, std::front_inserter(vertices));
+    for (auto v : vertices) {
+        Operator* op = get(boost::vertex_op, graph, v);
+        const std::vector<TensorBase*>& outputs = op->getOutputs();
+        out_edge_iter outEdgeIt, outEdgeEnd;
+        int srcIdx, destIdx;
+        for (boost::tie(outEdgeIt, outEdgeEnd) = out_edges(v, graph);
+             outEdgeIt != outEdgeEnd;
+             ++outEdgeIt) {
+            Vertex childVertex = target(*outEdgeIt, graph);
+            Operator* child = get(boost::vertex_op, graph, childVertex);
+            const TensorIndices& indices = edges[*outEdgeIt];
+            child->setInput(op->getOutput(indices.srcIdx), indices.destIdx);
+        }
+    }
+
     return network;
 }
 

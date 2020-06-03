@@ -9,18 +9,15 @@
 
 using namespace smaug;
 
-void Network::addOperator(
-        Operator* op, const std::vector<Operator::IndexedOutput>& parentOps) {
+void Network::addOperator(Operator* op) {
     Vertex v = add_vertex(VertexProperty(op), graph);
     op->setVertex(v);
-    for (int i = 0; i < parentOps.size(); i++) {
-        Operator* inputOp = parentOps[i].op;
-        op->setInput(inputOp->getOutput(parentOps[i].idx), i);
-        Vertex sourceVertex = inputOp->getVertex();
-        add_edge(sourceVertex, v, graph);
-    }
-    op->createAllTensors();
     operators[op->getName()] = op;
+}
+
+void Network::addEdge(Operator* src, Operator* dest, TensorIndices indices) {
+    assert(src != dest && "Adding an edge to the node itself!");
+    add_edge(src->getVertex(), dest->getVertex(), EdgeProperty(indices), graph);
 }
 
 void Network::dumpDataflowGraph() const {

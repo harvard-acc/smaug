@@ -41,9 +41,8 @@ class Network {
             delete op.second;
     }
 
-    void addOperator(Operator* op,
-                     const std::vector<Operator::IndexedOutput>& parentOps =
-                             std::vector<Operator::IndexedOutput>());
+    void addOperator(Operator* op);
+    void addEdge(Operator* src, Operator* dest, TensorIndices indices);
     const OperatorMap& getOperators() const { return operators; }
     Operator* getOperator(const std::string& name) {
         return operators.at(name);

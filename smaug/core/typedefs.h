@@ -12,6 +12,14 @@
 namespace smaug {
 class TensorBase;
 class Operator;
+
+struct TensorIndices {
+    // This stores the indices of the tensor in the source and destination
+    // operators.
+    int srcIdx;
+    int destIdx;
+};
+
 }  // namespace smaug
 
 namespace boost {
@@ -20,8 +28,7 @@ namespace boost {
 }
 
 typedef boost::property<boost::vertex_op_t, smaug::Operator*> VertexProperty;
-typedef boost::property<boost::edge_name_t,
-                        smaug::TensorBase*> EdgeProperty;
+typedef boost::property<boost::edge_name_t, smaug::TensorIndices> EdgeProperty;
 typedef boost::adjacency_list<boost::setS,
                               boost::vecS,
                               boost::bidirectionalS,
@@ -33,7 +40,11 @@ typedef boost::graph_traits<Graph>::vertex_iterator vertex_iter;
 typedef boost::graph_traits<Graph>::edge_iterator edge_iter;
 typedef boost::graph_traits<Graph>::in_edge_iterator in_edge_iter;
 typedef boost::graph_traits<Graph>::out_edge_iterator out_edge_iter;
-typedef boost::property_map<Graph, boost::edge_name_t>::type EdgeNameMap;
-typedef boost::property_map<Graph, boost::vertex_op_t>::type VertexNameMap;
+typedef boost::property_map<Graph, boost::edge_name_t>::type MutableEdgeNameMap;
+typedef boost::property_map<Graph, boost::vertex_op_t>::type
+        MutableVertexNameMap;
+typedef boost::property_map<Graph, boost::edge_name_t>::const_type EdgeNameMap;
+typedef boost::property_map<Graph, boost::vertex_op_t>::const_type
+        VertexNameMap;
 
 #endif
