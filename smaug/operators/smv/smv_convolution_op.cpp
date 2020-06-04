@@ -29,6 +29,7 @@ void SmvConvolutionOp::runNHWC(TiledTensor& inputs,
     auto inputIdx = inputs.startIndex();
     auto weightIdx = weights.startIndex();
     auto outputIdx = outputs.startIndex();
+    std::vector<int> inputPadding = getInputPadding();
     int topPad = inputPadding[0];
     int bottomPad = inputPadding[1];
     int leftPad = inputPadding[2];

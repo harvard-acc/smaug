@@ -19,7 +19,7 @@ class ConvolutionOp : public FusedActivationOp {
     ConvolutionOp(const std::string& name, Workspace* workspace)
             : FusedActivationOp(name, OpType::Convolution3d, workspace),
               weightRows(0), weightCols(0), numOfmaps(0), rowStride(0),
-              colStride(0), paddingType(UnknownPadding), inputPadding(4),
+              colStride(0), paddingType(UnknownPadding),
               weightsName(name + "/kernels"), sampling({ NoSampling, 1 }) {
         inputs.resize(kNumInputs, nullptr);
         outputs.resize(kNumOutputs, nullptr);
@@ -108,7 +108,6 @@ class ConvolutionOp : public FusedActivationOp {
     void createAllTensors() override {
         createWeightsTensors();
         createOutputTensors();
-        computeInputPadding();
     }
 
     int getNumOfmaps() const { return numOfmaps; }
@@ -131,7 +130,17 @@ class ConvolutionOp : public FusedActivationOp {
     int getWeightRows() const { return weightRows; }
     int getWeightCols() const { return weightCols; }
     PaddingType getPadding() const { return paddingType; }
-    const std::vector<int>& getInputPadding() const { return inputPadding; }
+    // Compute padding sizes on the four boundaries of the input 2D feature map.
+    std::vector<int> getInputPadding() const {
+        std::vector<int> inputPadding(4);
+        int totalRowPad = (paddingType == SamePadding) ? weightRows - 1 : 0;
+        int totalColPad = (paddingType == SamePadding) ? weightCols - 1 : 0;
+        inputPadding[0] = FRAC_CEIL(totalRowPad, 2);
+        inputPadding[1] = totalRowPad - inputPadding[0];
+        inputPadding[2] = FRAC_CEIL(totalColPad, 2);
+        inputPadding[3] = totalColPad - inputPadding[2];
+        return inputPadding;
+    }
 
     bool isSamplingSupported() const override { return true; }
     void setSamplingInfo(const SamplingInfo& _sampling) override {
@@ -153,16 +162,6 @@ class ConvolutionOp : public FusedActivationOp {
         return (inputDim - weightDim + padding) / stride + 1;
     }
 
-    // We precompute the input halos here.
-    void computeInputPadding() {
-        int totalRowPad = (paddingType == SamePadding) ? weightRows - 1 : 0;
-        int totalColPad = (paddingType == SamePadding) ? weightCols - 1 : 0;
-        inputPadding[0] = FRAC_CEIL(totalRowPad, 2);
-        inputPadding[1] = totalRowPad - inputPadding[0];
-        inputPadding[2] = FRAC_CEIL(totalColPad, 2);
-        inputPadding[3] = totalColPad - inputPadding[2];
-    }
-
   public:
     enum { Inputs, Kernels, kNumInputs };
     enum { Outputs, kNumOutputs };
@@ -174,8 +173,6 @@ class ConvolutionOp : public FusedActivationOp {
     int rowStride;
     int colStride;
     PaddingType paddingType;
-    // Padding sizes on the four boundaries of the input 2D feature map.
-    std::vector<int> inputPadding;
     std::string weightsName;
     SamplingInfo sampling;
 };

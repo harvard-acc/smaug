@@ -293,7 +293,7 @@ TiledTensor TilingOptimizer::generateRowwiseOutputTiledTensor(
     int weightCols = op->getWeightCols();
     bool samePadding = op->getPadding() == SamePadding;
     // For even-sized filtered, FRAC_CEIL is needed to correctly handle padding.
-    const std::vector<int>& inputPadding = op->getInputPadding();
+    std::vector<int> inputPadding = op->getInputPadding();
     int topRowPad = inputPadding[0];
     int bottomRowPad = inputPadding[1];
     int leftColPad = inputPadding[2];
