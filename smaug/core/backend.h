@@ -41,6 +41,7 @@ template <typename Backend> class LessEqualOp;
 template <typename Backend> class GreaterOp;
 template <typename Backend> class GreaterEqualOp;
 template <typename Backend> class SwitchOp;
+template <typename Backend> class MergeOp;
 template <typename Backend> class ReluOp;
 template <typename Backend> class SigmoidOp;
 template <typename Backend> class EluOp;
@@ -90,6 +91,7 @@ class ReferenceBackend {
     DECL_CREATE_OP(GreaterOp);
     DECL_CREATE_OP(GreaterEqualOp);
     DECL_CREATE_OP(SwitchOp);
+    DECL_CREATE_OP(MergeOp);
     DECL_CREATE_OP(ReluOp);
     DECL_CREATE_OP(SigmoidOp);
     DECL_CREATE_OP(EluOp);
@@ -198,6 +200,7 @@ class SmvBackend {
     DECL_CREATE_OP(RepeatOp);
     DECL_CREATE_OP(FlattenOp);
     DECL_CREATE_OP(SwitchOp);
+    DECL_CREATE_OP(MergeOp);
 
 #undef DECL_SMV_OP
 #undef DECL_CREATE_OP

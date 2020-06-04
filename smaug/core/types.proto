@@ -63,6 +63,7 @@ enum OpType {
   Greater = 25;
   GreaterEqual = 26;
   Switch = 27;
+  Merge = 28;
 }
 
 enum PaddingType {

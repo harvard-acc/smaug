@@ -55,6 +55,50 @@ class SwitchOp : public Operator {
     }
 };
 
+template <typename Backend>
+class MergeOp : public Operator {
+   public:
+    MergeOp(const std::string& name, Workspace* workspace)
+            : Operator(name, OpType::Merge, workspace) {
+        outputs.resize(1, nullptr);
+    }
+
+    void setNumInputs(int num) { inputs.resize(num); }
+
+    void createAllTensors() override {
+        Tensor* output =
+                workspace->addTensor(new Tensor(name, getInput(0)->getShape()));
+        outputs.at(0) = output;
+    }
+
+    // A merge operator is dead only when all its inputs are dead.
+    bool isDead() override {
+        for (auto input : inputs) {
+            if (!input->isDead())
+                return false;
+        }
+        return true;
+    }
+
+    void run() override {
+        Tensor* output = getOutput(0);
+        bool forwarded = false;
+        for (int i = 0; i < getInputs().size(); i++) {
+            Tensor* input = getInput(i);
+            if (!input->isDead()) {
+                copyRawTensorData(
+                        output, input, 0, 0, input->getShape().storageSize());
+                forwarded = true;
+                break;
+            }
+        }
+        if (!forwarded) {
+            std::cerr << "All inputs to the merge operator are dead!\n";
+            exit(1);
+        }
+    }
+};
+
 }  // namespace smaug
 
 #endif

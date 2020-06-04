@@ -20,3 +20,19 @@ def switch(input_tensor, pred, name="switch"):
       input_tensors=[input_tensor, pred],
       output_tensors_dims=[input_tensor.shape.dims] * 2,
       output_tensor_layout=input_tensor.shape.layout)
+
+def merge(input_tensors, name="merge"):
+  """Forward the value of an available tensor from inputs to output.
+
+  Args:
+    input_tensors: Input tensors. All are dead tensor except one.
+
+  Returns:
+    A tensor that the available input tensor forwards to.
+  """
+  return add_node(
+      name=name,
+      op=Merge,
+      input_tensors=input_tensors,
+      output_tensors_dims=[input_tensors[0].shape.dims],
+      output_tensor_layout=input_tensors[0].shape.layout)[0]

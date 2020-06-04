@@ -21,7 +21,8 @@ class Scheduler {
 
     // This will call the run() method of the given operator if none of its
     // inputs are dead, otherwise all its outputs will be marked as dead
-    // tensors.
+    // tensors. An exception is the merge operator, which is the currently the
+    // only operator that will run with dead inputs.
     void maybeRunOperator(Operator* op);
 
     // After an operator is scheduled, this activates its children to be

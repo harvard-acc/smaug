@@ -236,6 +236,10 @@ static void createAndAddOperator(const NodeProto& node,
     } else if (type == OpType::Switch) {
         auto op = Backend::createSwitchOp(name, workspace);
         network->addOperator(op);
+    } else if (type == OpType::Merge) {
+        auto op = Backend::createMergeOp(name, workspace);
+        op->setNumInputs(node.input_tensors_size());
+        network->addOperator(op);
     } else if (type == OpType::ReLU) {
         auto op = Backend::createReluOp(name, workspace);
         network->addOperator(op);

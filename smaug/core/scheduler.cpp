@@ -69,14 +69,7 @@ Tensor* Scheduler::scheduleReady() {
 }
 
 void Scheduler::maybeRunOperator(Operator* op) {
-    bool anyInputDead = false;
-    for (auto input : op->getInputs()) {
-        if (input->isDead()) {
-            anyInputDead = true;
-            break;
-        }
-    }
-    if (!anyInputDead) {
+    if (!op->isDead()) {
         op->run();
     } else {
         for (auto output : op->getOutputs())

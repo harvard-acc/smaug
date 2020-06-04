@@ -34,4 +34,43 @@ TEST_CASE_METHOD(SmaugTest, "Control flow operators", "[contrlop]") {
         REQUIRE(outputTrue->getShape().dims() == inputShape.dims());
         verifyOutputs<float>(outputTrue, input);
     }
+
+    SECTION("Merge operator") {
+        auto mergeOp = new MergeOp<ReferenceBackend>("merge", workspace());
+        mergeOp->setNumInputs(3);
+        TensorShape inputShape({ 1, 2, 2, 2 }, DataLayout::NCHW);
+        Tensor* input0 =
+                workspace()->addTensor(new Tensor("input0", inputShape));
+        Tensor* input1 =
+                workspace()->addTensor(new Tensor("input1", inputShape));
+        Tensor* input2 =
+                workspace()->addTensor(new Tensor("input2", inputShape));
+        input0->allocateStorage<float>();
+        input1->allocateStorage<float>();
+        input2->allocateStorage<float>();
+        std::vector<float> input0Values{
+            1, 2, 3, 4, 5, 6, 7, 8,
+        };
+        std::vector<float> input1Values{
+            8, 7, 6, 5, 4, 3, 2, 1,
+        };
+        std::vector<float> input2Values{
+            4, 2, 2, 1, 8, 7, 6, 5,
+        };
+        input0->fillData(input0Values.data(), input0Values.size());
+        input1->fillData(input1Values.data(), input1Values.size());
+        input2->fillData(input2Values.data(), input2Values.size());
+        // Set all inputs dead except one.
+        input0->setDead();
+        input1->setDead();
+        mergeOp->setInput(input0, 0);
+        mergeOp->setInput(input1, 1);
+        mergeOp->setInput(input2, 2);
+        mergeOp->createAllTensors();
+        allocateAllTensors<float>(mergeOp);
+        mergeOp->run();
+        auto output = mergeOp->getOutput(0);
+        REQUIRE(output->getShape().dims() == inputShape.dims());
+        verifyOutputs<float>(output, input2);
+    }
 }
