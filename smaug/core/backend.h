@@ -128,8 +128,15 @@ class SmvSigmoidOp;
 class SmvSoftmaxOp;
 class SmvEltwiseAddOp;
 class SmvEltwiseMulOp;
+class SmvLessOp;
+class SmvLessEqualOp;
+class SmvGreaterOp;
+class SmvGreaterEqualOp;
 class SmvBackend {
 
+// The difference between DECL_CREATE_OP and DECL_CREATE_SMV_OP is the latter is
+// used for a custom operator implementation for the SMV backend, which is not
+// limited to explicit template specializations.
 #define DECL_CREATE_OP(OpType)                                                 \
     static smaug::OpType<SmvBackend>* create##OpType(                          \
             const std::string& name, Workspace* workspace)
@@ -176,6 +183,10 @@ class SmvBackend {
     DECL_CREATE_SMV_OP(SoftmaxOp);
     DECL_CREATE_SMV_OP(EltwiseAddOp);
     DECL_CREATE_SMV_OP(EltwiseMulOp);
+    DECL_CREATE_SMV_OP(LessOp);
+    DECL_CREATE_SMV_OP(LessEqualOp);
+    DECL_CREATE_SMV_OP(GreaterOp);
+    DECL_CREATE_SMV_OP(GreaterEqualOp);
     DECL_CREATE_OP(DataOp);
     DECL_CREATE_OP(DepthwiseConvolutionOp);
     DECL_CREATE_OP(ReorderOp);
@@ -184,10 +195,6 @@ class SmvBackend {
     DECL_CREATE_OP(ReshapeOp);
     DECL_CREATE_OP(RepeatOp);
     DECL_CREATE_OP(FlattenOp);
-    DECL_CREATE_OP(LessOp);
-    DECL_CREATE_OP(LessEqualOp);
-    DECL_CREATE_OP(GreaterOp);
-    DECL_CREATE_OP(GreaterEqualOp);
 
 #undef DECL_SMV_OP
 #undef DECL_CREATE_OP
