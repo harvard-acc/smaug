@@ -121,7 +121,7 @@ BUILD_SRCS += $(BUILD_PROTO_CPP_SRCS) $(BUILD_GEM5_SRCS)
 
 LFLAGS = -L$(BOOST_ROOT)/lib -lm -lrt -lboost_graph -lboost_program_options -lprotobuf -lpthread
 CFLAGS = -O3 -g
-CXXFLAGS = -std=c++11 $(CFLAGS) -Wno-deprecated-declarations
+CXXFLAGS = -std=c++17 $(CFLAGS) -Wno-deprecated-declarations
 INCLUDES = -I$(BUILD_DIR) \
            -I$(BUILD_DIR)/gem5 \
            -I$(ALADDIN_HOME)/gem5 \
