@@ -77,7 +77,7 @@ $(BUILD_DIR)/full.s: $(BUILD_DIR)/full.llvm
 
 $(BUILD_DIR)/bin/$(EXEC)-instrumented: $(BUILD_DIR)/full.s
 	@echo Producing final binary...
-	@g++ -O0 -fno-inline -o $@ $^ $(LFLAGS)
+	@g++ -O0 -no-pie -fno-inline -o $@ $^ $(LFLAGS)
 
 # A release build of clang-6 will by default pass -discard-value-names to the
 # cc1 compiler, which changes value names into numeric registers. Because
