@@ -94,6 +94,7 @@ void* TiledTensor::tileCopyWorker(void* _args) {
             tiledTensor->gatherDataFromTile(tile);
     }
     delete args;
+    return nullptr;
 }
 
 void TiledTensor::parallelCopyTileData(TileDataOperation op) {

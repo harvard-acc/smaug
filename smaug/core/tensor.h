@@ -262,6 +262,7 @@ class TensorBase {
                 return sizeof(bool);
             default:
                 assert(false && "UnknownDataType has no size!");
+                return 0;
         }
     }
     bool isDead() const { return dead; }
