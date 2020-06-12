@@ -66,7 +66,7 @@ RUN wget -q http://releases.llvm.org/6.0.0/llvm-6.0.0.src.tar.xz && \
     cd llvm-6.0.0.src && \
     mkdir build && \
     cd build && \
-    cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Debug .. && \
+    cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Release .. && \
     make -j24 && \
     make install && \
     rm -rf /tmp/llvm-6.0.0* && \
