@@ -1,5 +1,4 @@
 #!/bin/bash
 
-git submodule update --init --recursive
-cd nnet_lib/tests
-make all
+make all -j4
+make test-run -j4

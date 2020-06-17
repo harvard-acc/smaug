@@ -1,21 +1,56 @@
-sudo: required
-dist: trusty
-services:
-  - docker
+dist: bionic
 
 before_install:
-  - docker pull xyzsam/smaug
+  - sudo apt-get -qq update
+  - sudo apt-get -qq install -y libprotobuf-dev protobuf-compiler
+  - sudo apt-get -qq install -y libboost-graph-dev libboost-program-options-dev
+  - sudo apt-get -qq install -y python3 python3-pip python3-setuptools
+  # Install a newer version of Protobuf.
+  - |
+    pushd /tmp
+    wget -q https://github.com/protocolbuffers/protobuf/releases/download/v3.11.4/protobuf-all-3.11.4.tar.gz
+    tar -xzf protobuf-all-3.11.4.tar.gz
+    cd protobuf-3.11.4
+    ./configure > /dev/null
+    make -j4 > /dev/null
+    sudo make install
+    sudo ldconfig
+    popd
+  # Install Python 3.6 before installing required packages.
+  - pip3 install --upgrade pip
+  - sudo update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 1
+  - sudo update-alternatives --install /usr/bin/python python /usr/bin/python3.6 1
+  - pip install --progress-bar off -r requirements.txt
+  # Clone LLVM-Tracer and gem5-Aladdin without building. SMAUG build requires
+  # copying a few files from these two repos.
+  - git clone https://github.com/ysshao/LLVM-Tracer
+  - |
+    git clone https://github.com/harvard-acc/gem5-aladdin
+    cd gem5-aladdin
+    git submodule init
+    git submodule update
 
-language: c
-compiler:
-  - gcc
+env:
+  - |
+    SMAUG_HOME=$TRAVIS_BUILD_DIR
+    ALADDIN_HOME=$TRAVIS_BUILD_DIR/gem5-aladdin/src/aladdin
+    TRACER_HOME=$TRAVIS_BUILD_DIR/LLVM-Tracer
+    BOOST_ROOT=/usr/local
+    PROTOC=/usr/local/bin/protoc
+    PYTHONPATH=$SMAUG_HOME:$PYTHONPATH
+
+language: c++
+compiler: g++
 
 script:
-  - docker run --rm -v $PWD:/workspace/smaug:rw xyzsam/smaug /bin/bash -c "cd smaug && ./run_travis.sh"
+  - |
+    cd $TRAVIS_BUILD_DIR
+    ./run_travis.sh
 
 notifications:
   email:
     on_success: never
     on_failure: always
     recipients:
-      - samxi@seas.harvard.edu
+      - slxi1202@gmail.com
+      - yaoyuannnn@gmail.com
