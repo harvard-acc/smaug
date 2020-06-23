@@ -6,18 +6,7 @@
 #include "smaug/core/datatypes.h"
 #include "smaug/utility/utils.h"
 
-// These are compile-time switches that selectively build a copy of SMAUG with
-// a particular backend.
-#define REFERENCE 0
-#define SMVBACKEND 1
-
 namespace smaug {
-
-enum BackendName {
-    Reference = REFERENCE,
-    Smv = SMVBACKEND,
-    UnknownBackend,
-};
 
 class Workspace;
 template <typename Backend> class ConvolutionOp;
