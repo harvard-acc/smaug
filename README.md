@@ -1,7 +1,7 @@
 SMAUG: Simulating Machine Learning Accelerators Using gem5-Aladdin
 ==================================================================
 
-[![build status](https://travis-ci.com/xyzsam/smaug.svg?token=rpmJkoccAjPMAABDKPM9&branch=master)](https://travis-ci.com/xyzsam/smaug)
+[![build status](https://travis-ci.org/harvard-acc/smaug.svg?branch=master)](https://travis-ci.org/harvard-acc/smaug)
 
 SMAUG is a library for building and simulating neural networks, written to
 work with gem5-Aladdin. It supports the basic layer types and basic activation
