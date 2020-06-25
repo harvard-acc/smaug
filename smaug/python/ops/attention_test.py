@@ -5,8 +5,8 @@ import tensorflow as tf
 import tensorflow_addons as tfa
 import numpy as np
 
-import smaug.tests.recurrent_test as recurrent_test
-from smaug.tests.tensorflow_test import TensorflowTest
+import smaug.python.ops.recurrent_test as recurrent_test
+from smaug.python.smaug_test import SmaugTest
 from smaug.python.global_vars import *
 from smaug.python.graph import Graph
 from smaug.python.tensor import Tensor
@@ -15,7 +15,7 @@ from smaug.python.ops.attention import BahdanauAttention
 from smaug.python.ops.recurrent import LSTM
 from smaug.core.types_pb2 import *
 
-class AttentionTest(TensorflowTest):
+class AttentionTest(SmaugTest):
   """Validate SMAUG's attention implementations again TF.
 
   Attention used in seq2seq models is part of TensorFlow Addons instead of

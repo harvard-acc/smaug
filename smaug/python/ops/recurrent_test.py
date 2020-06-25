@@ -4,7 +4,7 @@ import unittest
 import tensorflow as tf
 import numpy as np
 
-from smaug.tests.tensorflow_test import TensorflowTest
+from smaug.python.smaug_test import SmaugTest
 from smaug.python.global_vars import *
 from smaug.python.graph import Graph
 from smaug.python.tensor import Tensor
@@ -20,7 +20,7 @@ def createSmaugWeights(tf_lstm):
     weights_tensors.append(Tensor(data_layout=NC, tensor_data=np.transpose(w)))
   return weights_tensors
 
-class LSTMTest(TensorflowTest):
+class LSTMTest(SmaugTest):
   def test_lstm_cell(self):
     # Build and run an LSTM layer in TF.
     tf.keras.backend.set_floatx(backend_datatype[self.backend].__name__)
