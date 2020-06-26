@@ -5,7 +5,7 @@
 import unittest
 import numpy as np
 
-from smaug.python.smaug_test import *
+from smaug.python.smaug_test import get_tensor_data
 from smaug.python.graph import Graph
 from smaug.python.tensor import Tensor
 from smaug.python.ops.data_op import *
@@ -31,7 +31,7 @@ class TensorBasicTest(TensorTestBase):
       input_tensor = Tensor(data_layout=NHWC, tensor_data=tensor_data)
       act = input_data(input_tensor, "input")
     self.assertEqual(test_graph.graph.backend, "Reference")
-    node = get_node(test_graph.graph, "input")
+    node = test_graph.get_node("input")
     self.assertEqual(node.input_tensors[0].data_type, Float32)
     self.assertEqual(node.input_tensors[0].shape.dims, [2, 2, 4, 4])
     self.assertEqual(node.input_tensors[0].shape.layout, NHWC)
@@ -51,7 +51,7 @@ class TensorBasicTest(TensorTestBase):
       input_tensor = Tensor(data_layout=NCHW, tensor_data=tensor_data)
       act = input_data(input_tensor, "input")
     self.assertEqual(test_graph.graph.backend, "SMV")
-    node = get_node(test_graph.graph, "input")
+    node = test_graph.get_node("input")
     self.assertEqual(node.input_tensors[0].data_type, Float16)
     self.assertEqual(node.input_tensors[0].shape.dims, [2, 2, 4, 8])
     self.assertEqual(node.input_tensors[0].shape.layout, NCHW)
@@ -72,7 +72,7 @@ class TensorBasicTest(TensorTestBase):
       input_tensor = Tensor(data_layout=NCHW, tensor_data=tensor_data)
       act = input_data(input_tensor, "input")
     self.assertEqual(test_graph.graph.backend, "SMV")
-    node = get_node(test_graph.graph, "input")
+    node = test_graph.get_node("input")
     self.assertEqual(node.input_tensors[0].data_type, Float16)
     self.assertEqual(node.input_tensors[0].shape.dims, [2, 4])
     self.assertEqual(node.input_tensors[0].shape.layout, NCHW)
@@ -96,7 +96,7 @@ class FP16Test(TensorTestBase):
     with Graph("test_graph", "Reference") as test_graph:
       input_tensor = Tensor(tensor_data=tensor_data)
       act = input_data(input_tensor, "input")
-    node = get_node(test_graph.graph, "input")
+    node = test_graph.get_node("input")
     self.assertEqual(node.input_tensors[0].data_type, Float16)
     tensor_data_proto = get_tensor_data(test_graph.tensor_data_array,
                                         node.input_tensors[0].name)
@@ -108,7 +108,7 @@ class FP16Test(TensorTestBase):
     with Graph("test_graph", "Reference") as test_graph:
       input_tensor = Tensor(tensor_data=tensor_data)
       act = input_data(input_tensor, "input")
-    node = get_node(test_graph.graph, "input")
+    node = test_graph.get_node("input")
     self.assertEqual(node.input_tensors[0].data_type, Float16)
     tensor_data_proto = get_tensor_data(test_graph.tensor_data_array,
                                         node.input_tensors[0].name)
@@ -123,7 +123,7 @@ class FP16Test(TensorTestBase):
     with Graph("test_graph", "Reference") as test_graph:
       input_tensor = Tensor(tensor_data=tensor_data)
       act = input_data(input_tensor, "input")
-    node = get_node(test_graph.graph, "input")
+    node = test_graph.get_node("input")
     self.assertEqual(node.input_tensors[0].data_type, Float16)
     tensor_data_proto = get_tensor_data(test_graph.tensor_data_array,
                                         node.input_tensors[0].name)

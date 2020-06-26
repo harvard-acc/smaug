@@ -98,6 +98,13 @@ class Graph:
 
     return output_tensors
 
+  def get_node(self, node_name):
+    """Return a node in the graph proto by its name."""
+    for i in range(len(self.graph.nodes)):
+      if self.graph.nodes[i].name == node_name:
+        return self.graph.nodes[i]
+    return None
+
   def _create_unique_name(self, name):
     """ Create a unique name for the node.
 

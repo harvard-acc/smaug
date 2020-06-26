@@ -12,13 +12,6 @@ from numpy.testing import assert_array_almost_equal
 from smaug.python.global_vars import *
 from smaug.core.tensor_pb2 import *
 
-def get_node(graph, node_name):
-  """ Find the node in the graph by its name."""
-  for i in range(len(graph.nodes)):
-    if graph.nodes[i].name == node_name:
-      return graph.nodes[i]
-  return None
-
 def get_tensor_data(tensor_data_array, tensor_name):
   """ Find the tensor data for this tensor by its name."""
   for i in range(len(tensor_data_array.data_array)):
