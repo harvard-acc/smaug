@@ -42,8 +42,9 @@ Tensor* Scheduler::runNetwork() {
     for (auto nameOp : network->getOperators()) {
         Operator* op = nameOp.second;
         Vertex vertex = op->getVertex();
-        op->setNumPendingInputs(boost::in_degree(vertex, network->getGraph()));
-        if (op->getOpType() == OpType::Data)
+        int numPendingInputs = boost::in_degree(vertex, network->getGraph());
+        op->setNumPendingInputs(numPendingInputs);
+        if (numPendingInputs == 0)
             readyQueue.push_back(op);
     }
     Tensor* output;
