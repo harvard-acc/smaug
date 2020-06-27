@@ -1,17 +1,16 @@
 import numpy as np
 
-from smaug.python import ops
-from smaug.python.ops.nn_ops import *
-from smaug.python.ops.math_ops import *
-from smaug.python.ops.array_ops import *
-from smaug.python.ops.activation_ops import *
+from smaug.core import types_pb2
+from smaug.python.tensor import Tensor
+from smaug.python.ops import nn_ops
+from smaug.python.ops import math_ops
+from smaug.python.ops import array_ops
+from smaug.python.ops import activation_ops
 
 class LSTM:
-  def __init__(self,
-               weight_tensors,
-               activation=Tanh,
-               activation_params=dict(),
-               name="lstm"):
+  def __init__(
+      self, weight_tensors, activation=types_pb2.Tanh, activation_params=dict(),
+      name="lstm"):
     """ An LSTM layer.
 
     Args:
@@ -23,19 +22,20 @@ class LSTM:
     self.name = name + ":"
     self.kernel, self.recurrent_kernel = weight_tensors
     self.prepare_states()
-    self.activation = ops.activation_ops.activation(activation)
+    self.activation = activation_ops.activation(activation)
     self.activation_params = activation_params
 
   def prepare_states(self):
     """Initialize states as zeros."""
     data_type = self.kernel.tensor_data.dtype
-    num_units = (self.kernel.shape.dims[0] if self.kernel.shape.layout == NC
-                 else self.wf.shape.dims[1]) // 4
+    num_units = (
+        self.kernel.shape.dims[0] if self.kernel.shape.layout == types_pb2.NC
+        else self.wf.shape.dims[1]) // 4
     self.h = Tensor(
-        name=self.name + "/h", data_layout=NC, tensor_data=np.zeros(
+        name=self.name + "/h", data_layout=types_pb2.NC, tensor_data=np.zeros(
             (1, num_units), dtype=data_type))
     self.c = Tensor(
-        name=self.name + "/c", data_layout=NC, tensor_data=np.zeros(
+        name=self.name + "/c", data_layout=types_pb2.NC, tensor_data=np.zeros(
             (1, num_units), dtype=data_type))
 
   def _concat_output_steps(self, outputs):
@@ -44,7 +44,6 @@ class LSTM:
       # output is shaped [batch, depth], expand it with the time dimension.
       outputs_expand.append(expand_dims(o, 1, name=self.name + "expand_dims"))
     return concat(outputs_expand, 1, name=self.name + "concat")
-
 
   def __call__(self, input_tensor, concat_output=False):
     """Invoke this cell repeatedly until finishing inputs.
@@ -65,7 +64,8 @@ class LSTM:
     """
     num_steps = 0
     if not isinstance(input_tensor, list):
-      input_steps = unstack(input_tensor, 1, name=self.name + "unstack")
+      input_steps = array_ops.unstack(
+          input_tensor, 1, name=self.name + "unstack")
       num_steps = input_tensor.shape.dims[1]
     else:
       input_steps = input_tensor
@@ -95,38 +95,33 @@ class LSTM:
     x = input_tensor
     name_pfx = self.name + "step%d:" % timestep
 
-    z = mat_mul(x, self.kernel, name=name_pfx + "mm_f")
-    z = add(
-        z,
-        mat_mul(self.h, self.recurrent_kernel, name="mm_u"),
+    z = nn_ops.mat_mul(x, self.kernel, name=name_pfx + "mm_f")
+    z = math_ops.add(
+        z, nn_ops.mat_mul(self.h, self.recurrent_kernel, name="mm_u"),
         name=name_pfx + "add_z")
     # i = input_gate, c = new_input, f = forget_gate, o = output_gate
-    zi, zf, zc, zo = split(z, num_or_size_splits=4, axis=1)
-    i = sigmoid(zi, name=name_pfx + "sigmoid_i")
-    f = sigmoid(zf, name=name_pfx + "sigmoid_f")
-    c = add(
-        mul(f, self.c, name=name_pfx + "mul_f"),
-        mul(i,
+    zi, zf, zc, zo = array_ops.split(z, num_or_size_splits=4, axis=1)
+    i = activation_ops.sigmoid(zi, name=name_pfx + "sigmoid_i")
+    f = activation_ops.sigmoid(zf, name=name_pfx + "sigmoid_f")
+    c = math_ops.add(
+        math_ops.mul(f, self.c, name=name_pfx + "mul_f"),
+        math_ops.mul(
+            i,
             self.activation(
                 zc, **self.activation_params, name=name_pfx + "act0"),
-            name=name_pfx + "mul_i"),
-        name=name_pfx + "add_c")
-    o = sigmoid(zo, name=name_pfx + "sigmoid_o")
-    h = mul(
-        o,
-        self.activation(c, **self.activation_params, name=name_pfx + "act1"),
+            name=name_pfx + "mul_i"), name=name_pfx + "add_c")
+    o = activation_ops.sigmoid(zo, name=name_pfx + "sigmoid_o")
+    h = math_ops.mul(
+        o, self.activation(c, **self.activation_params, name=name_pfx + "act1"),
         name=name_pfx + "mul_h")
     self.c = c
     self.h = h
     return self.h, self.c
 
 class BidirectionalLSTM:
-  def __init__(self,
-               fwd_weight_tensors,
-               bwd_weight_tensors,
-               activation=Tanh,
-               activation_params=dict(),
-               name="bidir_lstm"):
+  def __init__(
+      self, fwd_weight_tensors, bwd_weight_tensors, activation=types_pb2.Tanh,
+      activation_params=dict(), name="bidir_lstm"):
     """ A bidirectional LSTM layer.
 
     Args:
@@ -165,14 +160,14 @@ class BidirectionalLSTM:
     if isinstance(input_bwd, list):
       input_bwd.reverse()
     else:
-      input_bwd = unstack(input_bwd, 1)
+      input_bwd = array_ops.unstack(input_bwd, 1)
       input_bwd.reverse()
     bwd_outputs, bwd_state = self.bwd_lstm(input_bwd)
     outputs = []
     for i in range(len(fwd_outputs)):
       outputs.append(
-          concat([fwd_outputs[i], bwd_outputs[i]], 1,
-                 name=self.name + "concat"))
+          array_ops.concat([fwd_outputs[i], bwd_outputs[i]], 1,
+                           name=self.name + "concat"))
     if concat_output:
       return self._concat_output_steps(outputs), fwd_state, bwd_state
     return outputs, fwd_state, bwd_state

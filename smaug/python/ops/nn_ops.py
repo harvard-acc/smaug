@@ -1,36 +1,37 @@
 import numpy as np
 from warnings import warn
 
-from smaug.core.types_pb2 import *
-from smaug.core.node_pb2 import *
-from smaug.python.global_vars import *
+from smaug.core import types_pb2
+from smaug.core import node_pb2
+from smaug.python import global_vars
 from smaug.python.tensor import Tensor
-from smaug.python.ops.common import *
-from smaug.python.ops.activation_ops import *
+from smaug.python.ops import common
+from smaug.python.ops import activation_ops
 
 def to_padding_type(padding):
   if padding == "same":
-    return SamePadding
+    return types_pb2.SamePadding
   elif padding == "valid":
-    return ValidPadding
+    return types_pb2.ValidPadding
   else:
-    return UnknownPadding
+    return types_pb2.UnknownPadding
 
 def convolution(
     input_tensor, filter_tensor, stride, padding, activation=None,
     activation_params=None, name="conv"):
   def compute_output_dim(input_dim, weight_dim, stride, padding):
     pad = 0
-    if to_padding_type(padding) == SamePadding:
+    if to_padding_type(padding) == types_pb2.SamePadding:
       pad = weight_dim - 1
     return (input_dim - weight_dim + pad) // stride + 1
 
-  input_tensor, filter_tensor = check_and_add_layout_transform(
-      name=name, op=Convolution3d, input_tensors=[input_tensor, filter_tensor])
+  input_tensor, filter_tensor = common.check_and_add_layout_transform(
+      name=name, op=types_pb2.Convolution3d,
+      input_tensors=[input_tensor, filter_tensor])
 
-  row_idx = 2 if input_tensor.shape.layout == NCHW else 1
-  col_idx = 3 if input_tensor.shape.layout == NCHW else 2
-  chan_idx = 1 if input_tensor.shape.layout == NCHW else 3
+  row_idx = 2 if input_tensor.shape.layout == types_pb2.NCHW else 1
+  col_idx = 3 if input_tensor.shape.layout == types_pb2.NCHW else 2
+  chan_idx = 1 if input_tensor.shape.layout == types_pb2.NCHW else 3
   assert input_tensor.dims(chan_idx) == filter_tensor.dims(chan_idx), (
       "The weights must have the same number of channels as the inputs.")
   output_rows = compute_output_dim(input_tensor.shape.dims[row_idx],
@@ -40,27 +41,29 @@ def convolution(
                                    filter_tensor.shape.dims[col_idx], stride[1],
                                    padding)
   output_layout = input_tensor.shape.layout
-  if output_layout == NCHW:
+  if output_layout == types_pb2.NCHW:
     output_tensor_dims = [
         input_tensor.shape.dims[0], filter_tensor.shape.dims[0], output_rows,
         output_cols
     ]
-  elif output_layout == NHWC:
+  elif output_layout == types_pb2.NHWC:
     output_tensor_dims = [
         input_tensor.shape.dims[0], output_rows, output_cols,
         filter_tensor.shape.dims[0]
     ]
   else:
     assert False, "Unsupported output layout!"
-  params = Params()
+  params = node_pb2.Params()
   params.conv_params.padding = to_padding_type(padding)
   params.conv_params.stride.extend(stride)
   if activation != None:
     params.act_params.activation = activation
-    set_activation_params(activation, params.act_params, activation_params)
+    activation_ops.set_activation_params(
+        activation, params.act_params, activation_params)
 
-  return add_node(
-      name=name, op=Convolution3d, input_tensors=[input_tensor, filter_tensor],
+  return common.add_node(
+      name=name, op=types_pb2.Convolution3d,
+      input_tensors=[input_tensor, filter_tensor],
       output_tensors_dims=[output_tensor_dims],
       output_tensor_layout=output_layout, params=params)[0]
 
@@ -79,17 +82,18 @@ def batch_norm(
     post_fc = True
 
   if not post_fc:
-    input_tensor = check_and_add_layout_transform(
-        name=name, op=BatchNorm, input_tensors=[input_tensor])[0]
+    input_tensor = common.check_and_add_layout_transform(
+        name=name, op=types_pb2.BatchNorm, input_tensors=[input_tensor])[0]
 
-  output_layout = UnknownLayout
-  output_layout = NC if post_fc else input_tensor.shape.layout
-  params = Params()
+  output_layout = types_pb2.UnknownLayout
+  output_layout = types_pb2.NC if post_fc else input_tensor.shape.layout
+  params = node_pb2.Params()
   if activation != None:
     params.act_params.activation = activation
-    set_activation_params(activation, params.act_params, activation_params)
-  return add_node(
-      name=name, op=BatchNorm, input_tensors=[
+    activation_ops.set_activation_params(
+        activation, params.act_params, activation_params)
+  return common.add_node(
+      name=name, op=types_pb2.BatchNorm, input_tensors=[
           input_tensor, mean_tensor, var_tensor, gamma_tensor, beta_tensor
       ], output_tensors_dims=[input_tensor.shape.dims],
       output_tensor_layout=output_layout, params=params)[0]
@@ -98,17 +102,17 @@ def max_pool(input_tensor, pool_size, stride, name="max_pool"):
   def compute_output_dim(input_dim, pool_size, stride):
     return (input_dim - pool_size) // stride + 1
 
-  input_tensor = check_and_add_layout_transform(
-      name=name, op=MaxPooling, input_tensors=[input_tensor])[0]
+  input_tensor = common.check_and_add_layout_transform(
+      name=name, op=types_pb2.MaxPooling, input_tensors=[input_tensor])[0]
 
-  row_idx = 2 if input_tensor.shape.layout == NCHW else 1
-  col_idx = 3 if input_tensor.shape.layout == NCHW else 2
+  row_idx = 2 if input_tensor.shape.layout == types_pb2.NCHW else 1
+  col_idx = 3 if input_tensor.shape.layout == types_pb2.NCHW else 2
   output_rows = compute_output_dim(input_tensor.shape.dims[row_idx],
                                    pool_size[0], stride[0])
   output_cols = compute_output_dim(input_tensor.shape.dims[col_idx],
                                    pool_size[1], stride[1])
   output_layout = input_tensor.shape.layout
-  if output_layout == NCHW:
+  if output_layout == types_pb2.NCHW:
     output_tensor_dims = [
         input_tensor.shape.dims[0], input_tensor.shape.dims[1], output_rows,
         output_cols
@@ -118,34 +122,37 @@ def max_pool(input_tensor, pool_size, stride, name="max_pool"):
         input_tensor.shape.dims[0], output_rows, output_cols,
         input_tensor.shape.dims[3]
     ]
-  params = Params()
+  params = node_pb2.Params()
   params.pool_params.stride.extend(stride)
   params.pool_params.pool_size.extend(pool_size)
-  return add_node(
-      name=name, op=MaxPooling, input_tensors=[input_tensor],
+  return common.add_node(
+      name=name, op=types_pb2.MaxPooling, input_tensors=[input_tensor],
       output_tensors_dims=[output_tensor_dims],
       output_tensor_layout=output_layout, params=params)[0]
 
 def mat_mul(
     input_tensor, weight_tensor, activation=None, activation_params=None,
     name="mat_mul"):
-  input_tensor, weight_tensor = check_and_add_layout_transform(
-      name=name, op=InnerProduct, input_tensors=[input_tensor, weight_tensor])
+  input_tensor, weight_tensor = common.check_and_add_layout_transform(
+      name=name, op=types_pb2.InnerProduct,
+      input_tensors=[input_tensor, weight_tensor])
 
   weight_layout = weight_tensor.shape.layout
-  actIdx = 1 if weight_layout == NC else 0
-  neuronIdx = 0 if weight_layout == NC else 1
+  actIdx = 1 if weight_layout == types_pb2.NC else 0
+  neuronIdx = 0 if weight_layout == types_pb2.NC else 1
   assert (len(input_tensor.shape.dims) == 2
           and len(weight_tensor.shape.dims) == 2
           and input_tensor.shape.dims[1] == weight_tensor.shape.dims[actIdx])
   output_tensor_dims = [
       input_tensor.shape.dims[0], weight_tensor.shape.dims[neuronIdx]
   ]
-  params = Params()
+  params = node_pb2.Params()
   if activation != None:
     params.act_params.activation = activation
-    set_activation_params(activation, params.act_params, activation_params)
-  return add_node(
-      name=name, op=InnerProduct, input_tensors=[input_tensor, weight_tensor],
-      output_tensors_dims=[output_tensor_dims], output_tensor_layout=NC,
-      params=params)[0]
+    activation_ops.set_activation_params(
+        activation, params.act_params, activation_params)
+  return common.add_node(
+      name=name, op=types_pb2.InnerProduct,
+      input_tensors=[input_tensor, weight_tensor],
+      output_tensors_dims=[output_tensor_dims],
+      output_tensor_layout=types_pb2.NC, params=params)[0]

@@ -1,28 +1,29 @@
-from smaug.core.types_pb2 import *
-from smaug.core.node_pb2 import *
-from smaug.python.ops.common import *
+import numpy as np
+
+from smaug.core import types_pb2
+from smaug.core import node_pb2
+from smaug.python.ops import common
 
 def reorder(input_tensor, target_layout, name="reorder"):
   src_layout = input_tensor.shape.layout
   src_dims = input_tensor.shape.dims
-  if src_layout == NCHW:
-    assert (target_layout == NHWC or target_layout == NC)
-    if target_layout == NC:
+  if src_layout == types_pb2.NCHW:
+    assert (target_layout == types_pb2.NHWC or target_layout == types_pb2.NC)
+    if target_layout == types_pb2.NC:
       output_tensor_dims = [src_dims[0], np.prod(src_dims[1:])]
     else:
       output_tensor_dims = [src_dims[0], src_dims[2], src_dims[3], src_dims[1]]
-  elif src_layout == NHWC:
-    assert (target_layout == NCHW or target_layout == NC)
-    if target_layout == NC:
+  elif src_layout == types_pb2.NHWC:
+    assert (target_layout == types_pb2.NCHW or target_layout == types_pb2.NC)
+    if target_layout == types_pb2.NC:
       output_tensor_dims = [src_dims[0], np.prod(src_dims[1:])]
     else:
       output_tensor_dims = [src_dims[0], src_dims[3], src_dims[1], src_dims[2]]
-  elif (src_layout == NTC
-        and target_layout == NCT) or (src_layout == NCT
-                                      and target_layout == NTC):
+  elif (src_layout == types_pb2.NTC and target_layout == types_pb2.NCT) or (
+      src_layout == types_pb2.NCT and target_layout == types_pb2.NTC):
     output_tensor_dims = [src_dims[0], src_dims[2], src_dims[1]]
-  elif (src_layout == NC and target_layout == CN) or (src_layout == CN
-                                                      and target_layout == NC):
+  elif (src_layout == types_pb2.NC and target_layout == types_pb2.CN) or (
+      src_layout == types_pb2.CN and target_layout == types_pb2.NC):
     # 2D tensor transposition.
     output_tensor_dims = [src_dims[1], src_dims[0]]
   else:
@@ -30,14 +31,15 @@ def reorder(input_tensor, target_layout, name="reorder"):
         "Unsupported reordering %s->%s!" %
         (DataLayout.Name(src_layout), DataLayout.Name(target_layout)))
 
-  return add_node(
-      name=name, op=Reorder, input_tensors=[input_tensor],
+  return common.add_node(
+      name=name, op=types_pb2.Reorder, input_tensors=[input_tensor],
       output_tensors_dims=[output_tensor_dims],
       output_tensor_layout=target_layout)[0]
 
 def flatten(input_tensor, name="flatten"):
   assert (len(input_tensor.shape.dims) == 4)
-  return reorder(name=name, input_tensor=input_tensor, target_layout=NC)
+  return reorder(
+      name=name, input_tensor=input_tensor, target_layout=types_pb2.NC)
 
 def concat(input_tensors, axis=0, name="concat"):
   """Concatenate tensors into one.
@@ -58,10 +60,10 @@ def concat(input_tensors, axis=0, name="concat"):
         "concatenate." % axis)
   output_tensor_dims = list(input_tensors[0].shape.dims)
   output_tensor_dims[axis] = sum(x.shape.dims[axis] for x in input_tensors)
-  params = Params()
+  params = node_pb2.Params()
   params.concat_params.concat_axis = axis
-  return add_node(
-      name=name, op=Concat, input_tensors=input_tensors,
+  return common.add_node(
+      name=name, op=types_pb2.Concat, input_tensors=input_tensors,
       output_tensors_dims=[output_tensor_dims],
       output_tensor_layout=input_tensors[0].shape.layout, params=params)[0]
 
@@ -103,10 +105,10 @@ def split(input_tensor, num_or_size_splits, axis=0, name="split"):
     dims = list(input_tensor.shape.dims)
     dims[axis] = s
     output_tensors_dims.append(dims)
-  params = Params()
+  params = node_pb2.Params()
   params.split_params.split_axis = axis
-  return add_node(
-      name=name, op=Split, input_tensors=[input_tensor],
+  return common.add_node(
+      name=name, op=types_pb2.Split, input_tensors=[input_tensor],
       output_tensors_dims=output_tensors_dims,
       output_tensor_layout=input_tensor.shape.layout, params=params)
 
@@ -123,8 +125,8 @@ def reshape(input_tensor, shape, layout, name="reshape"):
     Tensor with the new shape.
   """
   assert np.prod(input_tensor.shape.dims) == np.prod(shape)
-  return add_node(
-      name=name, op=Reshape, input_tensors=[input_tensor],
+  return common.add_node(
+      name=name, op=types_pb2.Reshape, input_tensors=[input_tensor],
       output_tensors_dims=[shape], output_tensor_layout=layout)[0]
 
 def expand_dims(input_tensor, axis=0, name="expand_dims"):
@@ -138,10 +140,11 @@ def expand_dims(input_tensor, axis=0, name="expand_dims"):
   Returns:
     A tensor with an additional dimension inserted at index axis.
   """
-  if not (input_tensor.shape.layout == NC and (axis == 1 or axis == 2)):
+  if not (input_tensor.shape.layout == types_pb2.NC and
+          (axis == 1 or axis == 2)):
     raise ValueError("Currently we only support expanding NC layout.")
   output_tensor_dims = np.insert(input_tensor.shape.dims, axis, 1)
-  output_tensor_layout = NCT if axis == 2 else NTC
+  output_tensor_layout = types_pb2.NCT if axis == 2 else types_pb2.NTC
   return reshape(input_tensor, output_tensor_dims, output_tensor_layout, name)
 
 def squeeze(input_tensor, axis, name="squeeze"):
@@ -155,10 +158,10 @@ def squeeze(input_tensor, axis, name="squeeze"):
   Returns:
     A tensor with a dimension removed at index axis.
   """
-  if input_tensor.shape.layout not in [NTC, NCT]:
+  if input_tensor.shape.layout not in [types_pb2.NTC, types_pb2.NCT]:
     raise ValueError("Currently we only support squeezing NCT and NTC to NC.")
   output_tensor_dims = np.delete(input_tensor.shape.dims, axis)
-  output_tensor_layout = NC
+  output_tensor_layout = types_pb2.NC
   return reshape(input_tensor, output_tensor_dims, output_tensor_layout, name)
 
 def repeat(input_tensor, multiples, name="repeat"):
@@ -178,8 +181,8 @@ def repeat(input_tensor, multiples, name="repeat"):
         "The multiples of the repeat operator must have the same number of "
         "dims as the input tensor.")
   output_tensor_dims = np.multiply(input_tensor.shape.dims, multiples)
-  return add_node(
-      name=name, op=Repeat, input_tensors=[input_tensor],
+  return common.add_node(
+      name=name, op=types_pb2.Repeat, input_tensors=[input_tensor],
       output_tensors_dims=[output_tensor_dims],
       output_tensor_layout=input_tensor.shape.layout)[0]
 

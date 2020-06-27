@@ -1,21 +1,16 @@
 import numpy as np
 
-from smaug.core.tensor_pb2 import *
-from smaug.core.types_pb2 import *
-from smaug.python.global_vars import *
-from smaug.python.datatypes import *
+from smaug.core import tensor_pb2
+from smaug.core import types_pb2
+from smaug.python import global_vars
+from smaug.python import datatypes
 
 class Tensor:
-  def __init__(self,
-               dims=None,
-               name=None,
-               data_layout=NCHW,
-               data_type=None,
-               data_format=Uncompressed,
-               tensor_data=None,
-               source=None,
-               alignment=None):
-    self.shape = TensorShapeProto()
+  def __init__(
+      self, dims=None, name=None, data_layout=types_pb2.NCHW, data_type=None,
+      data_format=types_pb2.Uncompressed, tensor_data=None, source=None,
+      alignment=None):
+    self.shape = tensor_pb2.TensorShapeProto()
     self.tensor_data = tensor_data
     # If tensor_data is provided, deduce dims and data_type directly from it
     # (the kwargs are ignored if they are provided).
@@ -31,10 +26,10 @@ class Tensor:
     self.source = source
     if alignment != None:
       self.shape.alignment = alignment
-    elif get_graph() == None:
+    elif global_vars.get_graph() == None:
       self.shape.alignment = 0
     else:
-      self.shape.alignment = get_graph().alignment
+      self.shape.alignment = global_vars.get_graph().alignment
 
     # Do data padding if this Tensor contains data.
     if self.tensor_data is not None:
@@ -56,7 +51,7 @@ class Tensor:
     self.shape.dims.extend(list(self.tensor_data.shape))
     # Deduce data type from tensor data
     try:
-      self.data_type = np_to_smaug_type[self.tensor_data.dtype.type]
+      self.data_type = datatypes.np_to_smaug_type[self.tensor_data.dtype.type]
     except KeyError:
       assert False, "We don't support numpy dtype: %s" % self.tensor_data.dtype
 
@@ -81,7 +76,7 @@ class Tensor:
 
       # Since Protobuf doesn't support float16 data type, we pack two float16
       # elements into one int32.
-      if self.data_type == Float16:
+      if self.data_type == types_pb2.Float16:
         # Numpy.view comes in handy here. Note that it won't work if
         # tensor_data's last dimension is of odd size. To solve that, we
         # flatten the tensor data, and if the flattened list is still of
@@ -97,15 +92,15 @@ class Tensor:
       tensor_data_proto = tensor_data_array.data_array.add()
       tensor_data_proto.name = tensor_proto.name
       data_list = [x for x in np.nditer(self.tensor_data)]
-      if self.data_type == Float16:
+      if self.data_type == types_pb2.Float16:
         tensor_data_proto.half_data.extend(data_list)
-      elif self.data_type == Float32:
+      elif self.data_type == types_pb2.Float32:
         tensor_data_proto.float_data.extend(data_list)
-      elif self.data_type == Float64:
+      elif self.data_type == types_pb2.Float64:
         tensor_data_proto.double_data.extend(data_list)
-      elif self.data_type == Int32:
+      elif self.data_type == types_pb2.Int32:
         tensor_data_proto.int_data.extend(data_list)
-      elif self.data_type == Int64:
+      elif self.data_type == types_pb2.Int64:
         tensor_data_proto.int64_data.extend(data_list)
-      elif self.data_type == Bool:
+      elif self.data_type == types_pb2.Bool:
         tensor_data_proto.bool_data.extend(data_list)
