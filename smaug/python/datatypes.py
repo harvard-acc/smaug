@@ -1,14 +1,14 @@
 import numpy as np
 
-from smaug.core.types_pb2 import *
+from smaug.core import types_pb2
 
 np_to_smaug_type = {
-    np.float16: Float16,
-    np.float32: Float32,
-    np.float64: Float64,
-    np.int32: Int32,
-    np.int64: Int64,
-    np.bool_: Bool,
+    np.float16: types_pb2.Float16,
+    np.float32: types_pb2.Float32,
+    np.float64: types_pb2.Float64,
+    np.int32: types_pb2.Int32,
+    np.int64: types_pb2.Int64,
+    np.bool_: types_pb2.Bool,
 }
 
 class LayoutSet:

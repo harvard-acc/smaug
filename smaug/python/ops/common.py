@@ -1,5 +1,7 @@
-from smaug.core.types_pb2 import *
-from smaug.python.global_vars import *
+import numpy as np
+
+from smaug.core import types_pb2
+from smaug.python import global_vars
 
 def check_and_add_layout_transform(name, op, input_tensors):
   """ Check and perform layout transformation for the input tensors.
@@ -18,38 +20,40 @@ def check_and_add_layout_transform(name, op, input_tensors):
     layout transformation is required.
   """
   from smaug.python.ops.array_ops import reorder
-  if not get_graph().layout_trans_enabled:
+  if not global_vars.get_graph().layout_trans_enabled:
     return input_tensors
-  backend = get_graph().graph.backend
+  backend = global_vars.get_graph().graph.backend
   for i in range(len(input_tensors)):
-    expected_layoutset = backend_layouts[backend][op].input_layoutsets[i]
+    expected_layoutset = global_vars.backend_layouts[backend][
+        op].input_layoutsets[i]
     input_layout = input_tensors[i].shape.layout
     if not expected_layoutset.contains(input_layout):
       input_tensors[i] = reorder(input_tensors[i], expected_layoutset.layouts)
   return input_tensors
 
 def add_node(
-    name, op, input_tensors, output_tensors_dims, output_tensor_layout=NCHW,
-    output_tensor_dtype=None, output_tensor_dformat=Uncompressed, params=None):
-  if get_graph() == None:
+    name, op, input_tensors, output_tensors_dims,
+    output_tensor_layout=types_pb2.NCHW, output_tensor_dtype=None,
+    output_tensor_dformat=types_pb2.Uncompressed, params=None):
+  if global_vars.get_graph() == None:
     assert False, "No available active graph!"
   if output_tensor_dtype == None:
     output_tensor_dtype = input_tensors[0].data_type
-  if output_tensor_layout == X:
+  if output_tensor_layout == types_pb2.X:
     output_tensor_layout = input_tensors[0].shape.layout
 
   # If any input tensor doesn't have a source operator, we create a DataOp
   # for it. This makes the deserializing a lot easier in the C++ core. Note
   # that we don't need to create a DataOp for input_data.
   for i in range(len(input_tensors)):
-    if input_tensors[i].source == None and op != Data:
-      input_tensors[i] = get_graph().add_node(
-          name="data", op=Data, input_tensors=[input_tensors[i]],
+    if input_tensors[i].source == None and op != types_pb2.Data:
+      input_tensors[i] = global_vars.get_graph().add_node(
+          name="data", op=types_pb2.Data, input_tensors=[input_tensors[i]],
           output_tensors_dims=[input_tensors[i].shape.dims],
           output_tensor_layout=input_tensors[i].shape.layout,
           output_tensor_dtype=output_tensor_dtype,
           output_tensor_dformat=output_tensor_dformat)[0]
-  return get_graph().add_node(
+  return global_vars.get_graph().add_node(
       name=name, op=op, input_tensors=input_tensors,
       output_tensors_dims=output_tensors_dims,
       output_tensor_layout=output_tensor_layout,

@@ -9,8 +9,8 @@ import subprocess
 import numpy as np
 from numpy.testing import assert_array_almost_equal
 
-from smaug.python.global_vars import *
-from smaug.core.tensor_pb2 import *
+from smaug.python import global_vars
+from smaug.core import tensor_pb2
 
 def get_tensor_data(tensor_data_array, tensor_name):
   """ Find the tensor data for this tensor by its name."""
@@ -34,7 +34,7 @@ class SmaugTest(unittest.TestCase):
     self.graph_name = "test_graph"
     self.backend = "SMV"
     self.binary = os.environ["SMAUG_HOME"] + "/build/bin/smaug"
-    self.dtype = backend_datatype[self.backend]
+    self.dtype = global_vars.backend_datatype[self.backend]
 
   def tearDown(self):
     """ Delete temporary files and outputs. """
@@ -64,20 +64,21 @@ class SmaugTest(unittest.TestCase):
     self.assertEqual(returncode, 0, msg="Test returned nonzero exit code!")
 
     # Read the SMAUG result and validate it against the TF result.
-    sg_output_proto = TensorProto()
+    sg_output_proto = tensor_pb2.TensorProto()
     with open("output.pb", "rb") as f:
       sg_output_proto.ParseFromString(f.read())
     sg_output = None
-    if backend_datatype[self.backend] == np.float16:
-      sg_output = np.array(
-          sg_output_proto.data.half_data, dtype=np.int32).view(np.float16)
-    elif backend_datatype[self.backend] == np.float32:
+    datatype = global_vars.backend_datatype[self.backend]
+    if datatype == np.float16:
+      sg_output = np.array(sg_output_proto.data.half_data,
+                           dtype=np.int32).view(np.float16)
+    elif datatype == np.float32:
       sg_output = sg_output_proto.data.float_data
-    elif backend_datatype[self.backend] == np.float64:
+    elif datatype == np.float64:
       sg_output = sg_output_proto.data.double_data
-    elif backend_datatype[self.backend] == np.int32:
+    elif datatype == np.int32:
       sg_output = sg_output_proto.data.int_data
-    elif backend_datatype[self.backend] == np.int64:
+    elif datatype == np.int64:
       sg_output = sg_output_proto.data.int64_data
     shape = _account_for_padding(sg_output_proto.shape)
     sg_output = np.reshape(sg_output, sg_output_proto.shape.dims)

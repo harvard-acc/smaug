@@ -3,31 +3,32 @@ from __future__ import print_function
 from collections import namedtuple
 from google.protobuf import text_format
 
-from smaug.core.graph_pb2 import *
-from smaug.core.types_pb2 import *
-from smaug.core.tensor_pb2 import *
-from smaug.python.global_vars import *
+from smaug.core import graph_pb2
+from smaug.core import types_pb2
+from smaug.core import tensor_pb2
+from smaug.python import global_vars
 from smaug.python.tensor import Tensor
 
 class Graph:
-  def __init__(self, name="DefaultGraph", backend="Reference",
-               mem_policy=AllDma):
-    assert (backend in backend_alignment)
-    self.graph = GraphProto()
+  def __init__(
+      self, name="DefaultGraph", backend="Reference",
+      mem_policy=types_pb2.AllDma):
+    assert (backend in global_vars.backend_alignment)
+    self.graph = graph_pb2.GraphProto()
     self.node_names = {}
     self.graph.name = name
     self.graph.backend = backend
     self.graph.mem_policy = mem_policy
-    self.alignment = backend_alignment[backend]
+    self.alignment = global_vars.backend_alignment[backend]
     # Layout transformation is enabled by default.
     self.layout_trans_enabled = True
     # This proto stores all the parameters in the network.
-    self.tensor_data_array = TensorDataArray()
+    self.tensor_data_array = tensor_pb2.TensorDataArray()
 
   def __enter__(self):
-    if get_graph() != None:
+    if global_vars.get_graph() != None:
       assert False, "We only support one active graph!"
-    set_graph(self)
+    global_vars.set_graph(self)
     return self
 
   def __exit__(self, *args):
@@ -35,17 +36,13 @@ class Graph:
     # the active graph, we need to remove extraneous reorder operators from the
     # graph.
     self.remove_extra_reorder_ops()
-    clear_graph()
+    global_vars.clear_graph()
 
-  def add_node(self,
-               name,
-               op,
-               input_tensors,
-               output_tensors_dims,
-               output_tensor_layout=NCHW,
-               output_tensor_dtype=Float32,
-               output_tensor_dformat=Uncompressed,
-               params=None):
+  def add_node(
+      self, name, op, input_tensors, output_tensors_dims,
+      output_tensor_layout=types_pb2.NCHW,
+      output_tensor_dtype=types_pb2.Float32,
+      output_tensor_dformat=types_pb2.Uncompressed, params=None):
     """Create a node and add it to graph.
 
     Args:
@@ -158,7 +155,7 @@ class Graph:
       for i in range(len(parent.children)):
         child = nodes_by_name[parent.children[i]].node
         graph_index = nodes_by_name[parent.children[i]].graph_index
-        if child.op == Reorder:
+        if child.op == types_pb2.Reorder:
           layout = child.output_tensors[0].shape.layout
           if layout in target_layouts:
             # This is an extraneous reorder operator.
