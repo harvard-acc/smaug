@@ -221,11 +221,12 @@ class Graph:
     print("      Summary of the network: %s (%s)" % (self.graph.name,
                                                      self.graph.backend))
     print("=================================================================")
-    print("Host memory access policy: %s." % HostMemoryAccessPolicy.Name(
-        self.graph.mem_policy))
+    print(
+        "Host memory access policy: %s." %
+        types_pb2.HostMemoryAccessPolicy.Name(self.graph.mem_policy))
     print("-----------------------------------------------------------------")
     for node in self.graph.nodes:
-      print("Name: %s (%s)" % (node.name, OpType.Name(node.op)))
+      print("Name: %s (%s)" % (node.name, types_pb2.OpType.Name(node.op)))
       print("Parents:", end = '')
       for i in node.parents:
         print(i, end = ' ')
@@ -234,12 +235,14 @@ class Graph:
         print(o, end = ' ')
       print("\nInput tensors:")
       for t in node.input_tensors:
-        print(" ", t.name, DataType.Name(t.data_type), t.shape.dims,
-              DataLayout.Name(t.shape.layout),
-              "alignment(%d)" % t.shape.alignment)
+        print(
+            " ", t.name, types_pb2.DataType.Name(t.data_type), t.shape.dims,
+            types_pb2.DataLayout.Name(t.shape.layout),
+            "alignment(%d)" % t.shape.alignment)
       print("Output tensors:")
       for t in node.output_tensors:
-        print(" ", t.name, DataType.Name(t.data_type), t.shape.dims,
-              DataLayout.Name(t.shape.layout),
-              "alignment(%d)" % t.shape.alignment)
+        print(
+            " ", t.name, types_pb2.DataType.Name(t.data_type), t.shape.dims,
+            types_pb2.DataLayout.Name(t.shape.layout),
+            "alignment(%d)" % t.shape.alignment)
       print("-----------------------------------------------------------------")
