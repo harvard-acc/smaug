@@ -1,3 +1,5 @@
+#include <fstream>
+
 #include "catch.hpp"
 #include "smaug/core/network.h"
 #include "smaug/core/backend.h"
@@ -96,7 +98,15 @@ class SmaugTest {
         const char* baseDir = std::getenv("SMAUG_HOME");
         if (baseDir == NULL)
             assert(false && "SMAUG_HOME is not set.");
-        return std::string(baseDir) + '/' + relPath;
+        std::string fullPath = std::string(baseDir) + '/' + relPath;
+        if (!std::ifstream(fullPath)) {
+            std::cerr << "File " << fullPath
+                      << " doesn't exist! This could be because the proto is "
+                         "too large to be submit to GitHub, please check and "
+                         "create it locally.\n";
+            exit(0);
+        }
+        return fullPath;
     }
 
     Network* network_;
