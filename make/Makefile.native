@@ -72,8 +72,8 @@ $(TEST_BIN) : % : %.o $(CATCH_OBJ) $(BUILD_SRCS_OBJS) $(BUILD_TESTS_COMMON)
 run-tests:
 	$(MAKE) -f make/Makefile.native --no-print-directory tests
 	$(MAKE) -f make/Makefile.native --no-print-directory exec
-	@$(foreach t, $(TEST_BIN), echo $(t); ./$(t);)
-	@$(foreach t, $(BUILD_PY_TESTS), echo $(t); ./$(t);)
+	@$(foreach t, $(TEST_BIN), echo $(t); ./$(t) || exit 1;)
+	@$(foreach t, $(BUILD_PY_TESTS), echo $(t); ./$(t) || exit 1;)
 
 ###########################
 ####      CLEAN UP     ####
