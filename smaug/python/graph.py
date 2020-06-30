@@ -15,7 +15,7 @@ class Graph:
       mem_policy=types_pb2.AllDma):
     assert (backend in global_vars.backend_alignment)
     self.graph = graph_pb2.GraphProto()
-    self.node_names = {}
+    self._node_names = {}
     self.graph.name = name
     self.graph.backend = backend
     self.graph.mem_policy = mem_policy
@@ -60,7 +60,7 @@ class Graph:
       The output tensor of the added node.
     """
     node = self.graph.nodes.add()
-    node.name = self._create_unique_name(name)
+    node.name = self.create_unique_name(name)
     node.op = op
 
     # Add the parameters to the node.
@@ -102,18 +102,31 @@ class Graph:
         return self.graph.nodes[i]
     return None
 
-  def _create_unique_name(self, name):
+  def get_nodes(self):
+    """Return nodes in the graph proto."""
+    return self.graph.nodes
+
+  def create_unique_name(self, name, mark_as_used=True):
     """ Create a unique name for the node.
 
     Args:
       name: The node's name.
     """
-    if name not in self.node_names:
-      self.node_names[name] = 0
+    if name not in self._node_names:
+      self._node_names[name] = 0
       return name
     else:
-      self.node_names[name] += 1
-      return name + "_%d" % self.node_names[name]
+      self._node_names[name] += 1
+      new_name = "%s_%d" % (name, self._node_names[name])
+      # Make sure the new name is not already used.
+      while new_name in self._node_names:
+        self._node_names[name] += 1
+        new_name = "%s_%d" % (name, self._node_names[name])
+      # Mark the new name as used in case someone wants to call
+      # create_unique_name("name_1").
+      if mark_as_used:
+        self._node_names[new_name] = 0
+      return new_name
 
   def disable_layout_transform(self):
     """Disable automatic layout transformation.
