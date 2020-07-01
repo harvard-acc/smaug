@@ -116,12 +116,12 @@ class Graph:
       self._node_names[name] = 0
       return name
     else:
-      self._node_names[name] += 1
-      new_name = "%s_%d" % (name, self._node_names[name])
-      # Make sure the new name is not already used.
-      while new_name in self._node_names:
+      while True:
         self._node_names[name] += 1
         new_name = "%s_%d" % (name, self._node_names[name])
+        # Make sure the new name is not already used.
+        if new_name not in self._node_names:
+          break
       # Mark the new name as used in case someone wants to call
       # create_unique_name("name_1").
       if mark_as_used:
