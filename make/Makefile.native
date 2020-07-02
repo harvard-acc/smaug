@@ -58,11 +58,12 @@ BUILD_PY_TESTS = $(patsubst %, $(BUILD_DIR)/%, $(PY_TESTS))
 
 TEST_OBJ = $(patsubst %.cpp, %.o, $(BUILD_TESTS))
 TEST_BIN = $(patsubst %.cpp, %, $(BUILD_TESTS))
+ALL_TESTS = $(TEST_BIN) $(BUILD_PY_TESTS)
 
 tests:
-	$(MAKE) -f make/Makefile.common --no-print-directory src-symlinks
-	$(MAKE) -f make/Makefile.common --no-print-directory protos
-	$(MAKE) -f make/Makefile.native --no-print-directory test_bin
+	@$(MAKE) -f make/Makefile.common --no-print-directory src-symlinks
+	@$(MAKE) -f make/Makefile.common --no-print-directory protos
+	@$(MAKE) -f make/Makefile.native --no-print-directory test_bin
 
 test_bin: $(TEST_BIN)
 
@@ -70,10 +71,25 @@ $(TEST_BIN) : % : %.o $(CATCH_OBJ) $(BUILD_SRCS_OBJS) $(BUILD_TESTS_COMMON)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ -o $@ $(LFLAGS)
 
 run-tests:
-	$(MAKE) -f make/Makefile.native --no-print-directory tests
-	$(MAKE) -f make/Makefile.native --no-print-directory exec
-	@$(foreach t, $(TEST_BIN), echo $(t); ./$(t);)
-	@$(foreach t, $(BUILD_PY_TESTS), echo $(t); ./$(t);)
+	@$(MAKE) -f make/Makefile.native --no-print-directory tests
+	@$(MAKE) -f make/Makefile.native --no-print-directory exec
+	@HAS_ERROR=0;				\
+	for t in $(ALL_TESTS); do 		\
+		printf "Running test ($$t)";	\
+		./$$t > tmpout 2>&1;		\
+		RET_VAL=$$(echo $$?);		\
+		if [ $$RET_VAL -ne 0 ]; then 	\
+			echo "... failed";	\
+			cat tmpout;		\
+			HAS_ERROR=1;		\
+		else				\
+			echo " ... ok";		\
+		fi;				\
+	done;					\
+	rm -f tmpout;				\
+	if [ $$HAS_ERROR -ne 0 ]; then		\
+		exit 1;				\
+	fi
 
 ###########################
 ####      CLEAN UP     ####

@@ -12,7 +12,7 @@ before_install:
     tar -xzf protobuf-all-3.11.4.tar.gz
     cd protobuf-3.11.4
     ./configure > /dev/null
-    make -j4 > /dev/null
+    make -j2 > /dev/null
     sudo make install
     sudo ldconfig
     popd

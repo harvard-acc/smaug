@@ -1,4 +1,4 @@
 #!/bin/bash
 
-make all -j4
-make test-run -j4
+make all -j2
+make test-run -j2

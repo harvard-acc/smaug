@@ -18,7 +18,8 @@ y = Tensor(
     data_layout=types_pb2.N, tensor_data=np.random.rand(4).astype(np.float32))
 
 def get_node_names(graph):
-  return set([node.name for node in graph.get_nodes()])
+  return set(
+      [node.name for node in graph.get_nodes() if node.op != types_pb2.Data])
 
 class TestUniqueName(unittest.TestCase):
   def test_default_names(self):
