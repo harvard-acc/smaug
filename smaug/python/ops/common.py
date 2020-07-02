@@ -47,12 +47,17 @@ def add_node(
   # that we don't need to create a DataOp for input_data.
   for i in range(len(input_tensors)):
     if input_tensors[i].source == None and op != types_pb2.Data:
+      data_op_output = global_vars.get_graph().find_data_op_output(
+          input_tensors[i].name)
+      if data_op_output is not None:
+        input_tensors[i] = data_op_output
+        continue
       input_tensors[i] = global_vars.get_graph().add_node(
           name="data", op=types_pb2.Data, input_tensors=[input_tensors[i]],
           output_tensors_dims=[input_tensors[i].shape.dims],
           output_tensor_layout=input_tensors[i].shape.layout,
-          output_tensor_dtype=output_tensor_dtype,
-          output_tensor_dformat=output_tensor_dformat)[0]
+          output_tensor_dtype=input_tensors[i].data_type,
+          output_tensor_dformat=input_tensors[i].data_format)[0]
   return global_vars.get_graph().add_node(
       name=name, op=op, input_tensors=input_tensors,
       output_tensors_dims=output_tensors_dims,

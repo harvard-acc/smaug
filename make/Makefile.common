@@ -99,6 +99,7 @@ PY_TESTS = smaug/python/tensor_test.py \
            smaug/python/unique_name_test.py \
            smaug/python/ops/ops_test.py \
            smaug/python/ops/fp_precision_test.py \
+           smaug/python/ops/data_op_test.py \
            smaug/python/ops/activation_ops_test.py \
            smaug/python/ops/recurrent_test.py \
            smaug/python/ops/attention_test.py
