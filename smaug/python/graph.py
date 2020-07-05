@@ -110,23 +110,21 @@ class Graph:
     """ Create a unique name for the node.
 
     Args:
-      name: The node's name.
+      name: The base name used to create the unique name.
+      mark_as_used: Mark the unique name as used so if someone wants to call
+        create_unique_name(unique_name), a different name will be created.
     """
-    if name not in self._node_names:
-      self._node_names[name] = 0
-      return name
-    else:
+    new_name = name
+    if name in self._node_names:
       while True:
         self._node_names[name] += 1
         new_name = "%s_%d" % (name, self._node_names[name])
         # Make sure the new name is not already used.
         if new_name not in self._node_names:
           break
-      # Mark the new name as used in case someone wants to call
-      # create_unique_name("name_1").
-      if mark_as_used:
-        self._node_names[new_name] = 0
-      return new_name
+    if mark_as_used:
+      self._node_names[new_name] = 0
+    return new_name
 
   def disable_layout_transform(self):
     """Disable automatic layout transformation.

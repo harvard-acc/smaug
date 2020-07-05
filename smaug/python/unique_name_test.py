@@ -77,5 +77,11 @@ class TestUniqueName(unittest.TestCase):
       res = math_ops.add(res, res, name="add")
     self.assertEqual(get_node_names(test_graph), {"add", "add_1", "add_2"})
 
+  def test_user_supplied_names5(self):
+    with Graph(graph_name, backend) as test_graph:
+      unique_name = test_graph.create_unique_name("add", mark_as_used=False)
+      res = math_ops.add(x, y, name=unique_name)
+    self.assertEqual(get_node_names(test_graph), {"add"})
+
 if __name__ == "__main__":
   unittest.main()
