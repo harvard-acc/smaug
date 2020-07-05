@@ -29,7 +29,7 @@ namespace boost {
 
 typedef boost::property<boost::vertex_op_t, smaug::Operator*> VertexProperty;
 typedef boost::property<boost::edge_name_t, smaug::TensorIndices> EdgeProperty;
-typedef boost::adjacency_list<boost::setS,
+typedef boost::adjacency_list<boost::vecS,
                               boost::vecS,
                               boost::bidirectionalS,
                               VertexProperty,
