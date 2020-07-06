@@ -82,4 +82,4 @@ class SmaugTest(unittest.TestCase):
       sg_output = sg_output_proto.data.int64_data
     shape = _account_for_padding(sg_output_proto.shape)
     sg_output = np.reshape(sg_output, sg_output_proto.shape.dims)
-    assert_array_almost_equal(expected_output, sg_output, decimal=3)
+    assert_array_almost_equal(expected_output, sg_output, decimal=2)

@@ -1,4 +1,5 @@
 import numpy as np
+import warnings
 
 from smaug.core import types_pb2
 from smaug.core import node_pb2
@@ -96,7 +97,7 @@ def split(input_tensor, num_or_size_splits, axis=0, name="split"):
         "the sum (%d) of sizes along the split axis must match that of the "
         "input (%d)!" % (sum(splits), input_tensor.shape.dims[axis]))
   if splits == [1]:
-    warn(
+    warnings.warn(
         "Number of splits is 1 for the split operator, thus this operator is "
         "optimized out.")
     return [input_tensor]
