@@ -64,7 +64,7 @@ class AttentionTest(SmaugTest):
       cell_out, _ = sg_cell.step(
           concat([query, sg_initial_attention], axis=1), timestep=0)
       sg_attention(cell_out)
-    self.runAndValidate(graph, tf_attention)
+    self.runAndValidate(graph, tf_attention, decimal=2)
 
 if __name__ == "__main__":
   unittest.main()
