@@ -28,7 +28,7 @@ class FpPrecisionTest(SmaugTest):
     b = Tensor(data_layout=types_pb2.NC, tensor_data=tf_b.numpy())
     with Graph(name=self.graph_name, backend=self.backend) as graph:
       nn_ops.mat_mul(a, b)
-    self.runAndValidate(graph, tf_result)
+    self.runAndValidate(graph, tf_result, decimal=3)
 
   def test_convolution(self):
     batch = 4
@@ -54,7 +54,7 @@ class FpPrecisionTest(SmaugTest):
         tensor_data=np.transpose(tf_filters.numpy(), (3, 0, 1, 2)))
     with Graph(name=self.graph_name, backend=self.backend) as graph:
       nn_ops.convolution(inputs, filters, stride=[1, 1], padding="same")
-    self.runAndValidate(graph, tf_results)
+    self.runAndValidate(graph, tf_results, decimal=2)
 
   def test_add(self):
     batch = 4
@@ -67,7 +67,7 @@ class FpPrecisionTest(SmaugTest):
     b = Tensor(data_layout=types_pb2.NC, tensor_data=tf_b.numpy())
     with Graph(name=self.graph_name, backend=self.backend) as graph:
       math_ops.add(a, b)
-    self.runAndValidate(graph, tf_result)
+    self.runAndValidate(graph, tf_result, decimal=3)
 
   def test_mul(self):
     batch = 4
@@ -80,7 +80,7 @@ class FpPrecisionTest(SmaugTest):
     b = Tensor(data_layout=types_pb2.NC, tensor_data=tf_b.numpy())
     with Graph(name=self.graph_name, backend=self.backend) as graph:
       math_ops.mul(a, b)
-    self.runAndValidate(graph, tf_result)
+    self.runAndValidate(graph, tf_result, decimal=3)
 
 if __name__ == "__main__":
   unittest.main()

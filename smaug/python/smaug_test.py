@@ -54,7 +54,7 @@ class SmaugTest(unittest.TestCase):
 
     return returncode
 
-  def runAndValidate(self, graph, expected_output):
+  def runAndValidate(self, graph, expected_output, decimal=3):
     """ Run the test and validate the results. """
     os.chdir(self.run_dir)
     graph.write_graph()
@@ -82,4 +82,4 @@ class SmaugTest(unittest.TestCase):
       sg_output = sg_output_proto.data.int64_data
     shape = _account_for_padding(sg_output_proto.shape)
     sg_output = np.reshape(sg_output, sg_output_proto.shape.dims)
-    assert_array_almost_equal(expected_output, sg_output, decimal=2)
+    assert_array_almost_equal(expected_output, sg_output, decimal)
