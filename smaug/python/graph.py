@@ -113,11 +113,9 @@ class Graph:
     """Return nodes in the graph proto."""
     return self.graph.nodes
 
-  def find_data_op_output(self, tensor_name):
+  def get_tensor_data_op(self, tensor_name):
     """Return the output of the data op if one is created for this tensor."""
-    if tensor_name in self._tensor_data_op_map:
-      return self._tensor_data_op_map[tensor_name]
-    return None
+    return self._tensor_data_op_map.get(tensor_name, None)
 
   def create_unique_name(self, name, mark_as_used=True):
     """ Create a unique name for the node.

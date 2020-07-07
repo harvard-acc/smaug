@@ -17,28 +17,31 @@ y = Tensor(
     data_layout=types_pb2.N, tensor_data=np.random.rand(4).astype(np.float32))
 
 def get_num_data_nodes(graph):
-  return len(
-      [node.name for node in graph.get_nodes() if node.op == types_pb2.Data])
+  count = 0
+  for node in graph.get_nodes():
+    if node.op == types_pb2.Data:
+      count += 1
+  return count
 
 class TestUniqueName(unittest.TestCase):
-  def test_data_op0(self):
+  def test_auto_data_op(self):
     with Graph(graph_name, backend) as test_graph:
       res= math_ops.add(x, y)
     self.assertEqual(get_num_data_nodes(test_graph), 2)
 
-  def test_data_op1(self):
+  def test_no_extra_data_op(self):
     with Graph(graph_name, backend) as test_graph:
       x_ = data_op.input_data(x)
-      res= math_ops.add(x_, y)
-    self.assertEqual(get_num_data_nodes(test_graph), 2)
+      res= math_ops.add(x_, x)
+    self.assertEqual(get_num_data_nodes(test_graph), 1)
 
-  def test_data_op2(self):
+  def test_use_existing_data_op(self):
     with Graph(graph_name, backend) as test_graph:
       x_ = data_op.input_data(x)
       res= math_ops.add(x, y)
     self.assertEqual(get_num_data_nodes(test_graph), 2)
 
-  def test_data_op3(self):
+  def test_shared_data_op(self):
     with Graph(graph_name, backend) as test_graph:
       res = math_ops.add(x, y)
       res = math_ops.mul(x, res)
