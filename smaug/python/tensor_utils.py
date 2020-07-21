@@ -69,3 +69,22 @@ def get_tensor_data_op(tensor):
       data_op_output.source = (node, 0)
       return data_op_output
   return None
+
+def get_tensor_reorder_op(tensor, layout):
+  """Return the output of a reorder op if this tensor already has one.
+
+  Args:
+    tensor: A Tensor.
+    layout: The target layout.
+
+  Returns:
+    If found, the output tensor of the found reorder op. Otherwise, None is
+    returned.
+  """
+  for node in tensor.targets:
+    if node.op == types_pb2.Reorder and node.output_tensors[
+        0].shape.layout == layout:
+      reorder_op_output = from_tensor_proto(node.output_tensors[0])
+      reorder_op_output.source = (node, 0)
+      return reorder_op_output
+  return None
