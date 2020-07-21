@@ -29,6 +29,11 @@ def check_and_add_layout_transform(name, op, input_tensors):
         op].input_layoutsets[i]
     input_layout = input_tensors[i].shape.layout
     if not expected_layoutset.contains(input_layout):
+      reorder_op_output = tensor_utils.get_tensor_reorder_op(
+          input_tensors[i], expected_layoutset.layouts)
+      if reorder_op_output is not None:
+        input_tensors[i] = reorder_op_output
+        continue
       input_tensors[i] = reorder(input_tensors[i], expected_layoutset.layouts)
   return input_tensors
 
