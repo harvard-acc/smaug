@@ -9,7 +9,24 @@ class Tensor:
   def __init__(
       self, dims=None, name=None, data_layout=types_pb2.NCHW, data_type=None,
       data_format=types_pb2.Uncompressed, tensor_data=None, source=None,
-      alignment=None):
+      targets=None, alignment=None):
+    """Create a tensor.
+
+    Args:
+      dims: Dimensions of the tensor shape.
+      name: Optional Name of the tensor.
+      data_layout: Data layout of the tensor.
+      data_type: Data type of the tensor.
+      data_format: Data format of the tensor.
+      tensor_data: A NumPy array that represents the tensor data.
+      source: A tuple (source_node, tensor_index) that represents this tensor's
+        source node.
+      targets: A list of nodes that use this tensor as inputs.
+      alignment: Data alignment used in the tensor data.
+
+    Returns:
+      A `Tensor` object.
+    """
     self.shape = tensor_pb2.TensorShapeProto()
     self.tensor_data = tensor_data
     # If tensor_data is provided, deduce dims and data_type directly from it
@@ -24,6 +41,7 @@ class Tensor:
     self.name = name
     self.data_format = data_format
     self.source = source
+    self.targets = []
     if alignment != None:
       self.shape.alignment = alignment
     elif global_vars.get_graph() == None:

@@ -24,10 +24,6 @@ class Graph:
     self.layout_trans_enabled = True
     # This proto stores all the parameters in the network.
     self.tensor_data_array = tensor_pb2.TensorDataArray()
-    # We create a data op for every input tensor. To avoid adding extraneous
-    # data ops, this tracks the pairs of a tensor and its corresponding data
-    # op's output.
-    self._tensor_data_op_map = {}
     self._parent_graph = None
     self._merge_into_parent_graph = True
 
@@ -106,6 +102,7 @@ class Graph:
         node.src_tensors_indices.append(tensor.source[1])
         if node.name not in tensor.source[0].children:
           tensor.source[0].children.append(node.name)
+      tensor.targets.append(node)
       input_tensor_proto = node.input_tensors.add()
       tensor.to_tensor_proto(input_tensor_proto, self.tensor_data_array)
 
@@ -122,9 +119,6 @@ class Graph:
       output_tensor.to_tensor_proto(output_tensor_proto, self.tensor_data_array)
       output_tensors.append(output_tensor)
 
-    if node.op == types_pb2.Data:
-      self._tensor_data_op_map[input_tensors[0].name] = output_tensors[0]
-
     return output_tensors
 
   def get_node(self, node_name):
@@ -137,10 +131,6 @@ class Graph:
   def get_nodes(self):
     """Return nodes in the graph proto."""
     return self.graph.nodes
-
-  def get_tensor_data_op(self, tensor_name):
-    """Return the output of the data op if one is created for this tensor."""
-    return self._tensor_data_op_map.get(tensor_name, None)
 
   def create_unique_name(self, name, mark_as_used=True):
     """ Create a unique name for the node.
