@@ -28,10 +28,11 @@ class Graph:
     # data ops, this tracks the pairs of a tensor and its corresponding data
     # op's output.
     self._tensor_data_op_map = {}
+    self._parent_graph = None
+    self._merge_into_parent_graph = True
 
   def __enter__(self):
-    if global_vars.get_graph() != None:
-      assert False, "We only support one active graph!"
+    self._parent_graph = global_vars.get_graph()
     global_vars.set_graph(self)
     return self
 
@@ -40,7 +41,31 @@ class Graph:
     # the active graph, we need to remove extraneous reorder operators from the
     # graph.
     self.remove_extra_reorder_ops()
-    global_vars.clear_graph()
+    # Merge the graph into its parent if it exists.
+    if self._parent_graph is not None and self._merge_into_parent_graph:
+      self._parent_graph.merge(self)
+    global_vars.set_graph(self._parent_graph)
+
+  @property
+  def backend(self):
+    return self.graph.backend
+
+  @property
+  def mem_policy(self):
+    return self.graph.mem_policy
+
+  @property
+  def merge_into_parent_graph(self):
+    return self._merge_into_parent_graph
+
+  @merge_into_parent_graph.setter
+  def merge_into_parent_graph(self, merge):
+    self._merge_into_parent_graph = merge
+
+  def merge(self, other):
+    """Merge another graph into this."""
+    self.get_nodes().extend(other.get_nodes())
+    self.tensor_data_array.data_array.extend(other.tensor_data_array.data_array)
 
   def add_node(
       self, name, op, input_tensors, output_tensors_dims,
@@ -146,7 +171,7 @@ class Graph:
     """
     self.layout_trans_enabled = False
 
-  def eable_layout_transform(self):
+  def enable_layout_transform(self):
     """Enable automatic layout transformation."""
     self.layout_trans_enabled = True
 
