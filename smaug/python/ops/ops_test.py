@@ -704,85 +704,64 @@ class SMVSequentialGraphTest(unittest.TestCase, SequentialGraphTest):
     # input (Data).
     node = self.test_graph.get_node("input")
     self.assertEqual(len(node.parents), 0)
-    self.assertEqual(node.children[0], "reorder")
     # Reorder input from NCHW to NHWC.
     node = self.test_graph.get_node("reorder")
     self.assertEqual(node.parents[0], "input")
-    self.assertEqual(node.children[0], "conv0")
     # conv0 (Convolution).
     node = self.test_graph.get_node("conv0")
     self.assertEqual(node.parents[0], "reorder")
-    self.assertEqual(node.children[0], "conv0_relu")
     # conv0_relu (ReLU).
     node = self.test_graph.get_node("conv0_relu")
     self.assertEqual(node.parents[0], "conv0")
-    self.assertEqual(node.children[0], "bn")
     # bn (BN).
     node = self.test_graph.get_node("bn")
     self.assertEqual(node.parents[0], "conv0_relu")
-    self.assertEqual(node.children[0], "conv1")
     # conv1 (Convolution).
     node = self.test_graph.get_node("conv1")
     self.assertEqual(node.parents[0], "bn")
-    self.assertEqual(node.children[0], "conv1_relu")
     # conv1_relu (ReLU).
     node = self.test_graph.get_node("conv1_relu")
     self.assertEqual(node.parents[0], "conv1")
-    self.assertEqual(node.children[0], "pool")
     # pool (MaxPooling).
     node = self.test_graph.get_node("pool")
     self.assertEqual(node.parents[0], "conv1_relu")
-    self.assertEqual(node.children[0], "flatten")
     # flatten (Flatten).
     node = self.test_graph.get_node("flatten")
     self.assertEqual(node.parents[0], "pool")
-    self.assertEqual(node.children[0], "fc0")
     # fc0 (FC).
     node = self.test_graph.get_node("fc0")
     self.assertEqual(node.parents[0], "flatten")
-    self.assertEqual(node.children[0], "fc0_relu")
     # fc0_relu (ReLU)
     node = self.test_graph.get_node("fc0_relu")
     self.assertEqual(node.parents[0], "fc0")
-    self.assertEqual(node.children[0], "fc1")
     # fc1 (FC).
     node = self.test_graph.get_node("fc1")
     self.assertEqual(node.parents[0], "fc0_relu")
-    self.assertEqual(node.children[0], "expand_dims")
     # expand_dims (Reshape).
     node = self.test_graph.get_node("expand_dims")
     self.assertEqual(node.parents[0], "fc1")
-    self.assertEqual(node.children[0], "squeeze")
     # squeeze (Reshape).
     node = self.test_graph.get_node("squeeze")
     self.assertEqual(node.parents[0], "expand_dims")
-    self.assertEqual(node.children[0], "reshape")
     # reshape (Reshape).
     node = self.test_graph.get_node("reshape")
     self.assertEqual(node.parents[0], "squeeze")
-    self.assertEqual(node.children[0], "repeat")
     # repeat (Repeat).
     node = self.test_graph.get_node("repeat")
     self.assertEqual(node.parents[0], "reshape")
-    self.assertEqual(node.children[0], "stack:expand_dims")
     # stack (Reshape + Repeat).
     node = self.test_graph.get_node("stack:expand_dims")
     self.assertEqual(node.parents[0], "repeat")
-    self.assertEqual(node.children[0], "stack:repeat")
     node = self.test_graph.get_node("stack:repeat")
     self.assertEqual(node.parents[0], "stack:expand_dims")
-    self.assertEqual(node.children[0], "unstack:split")
     # unstack (Split + Squeeze).
     node = self.test_graph.get_node("unstack:split")
     self.assertEqual(node.parents[0], "stack:repeat")
-    self.assertEqual(len(node.children), 4)
-    for i, child in enumerate(node.children):
+    for i in range(4):
       child_name = "unstack:squeeze" + ("_%d" % i if i > 0 else "")
-      self.assertEqual(child, child_name)
       child_node = self.test_graph.get_node(child_name)
       self.assertEqual(child_node.parents[0], "unstack:split")
       self.assertEqual(child_node.src_tensors_indices, [i])
-      self.assertEqual(len(child_node.children), 0)
 
 class RefSequentialGraphTest(unittest.TestCase, SequentialGraphTest):
   """Test the sequential graph on the reference backend.
@@ -801,87 +780,65 @@ class RefSequentialGraphTest(unittest.TestCase, SequentialGraphTest):
     # input (Data).
     node = self.test_graph.get_node("input")
     self.assertEqual(len(node.parents), 0)
-    self.assertEqual(node.children[0], "conv0")
     # conv0 (Convolution).
     node = self.test_graph.get_node("conv0")
     self.assertEqual(node.parents[0], "input")
-    self.assertEqual(node.children[0], "conv0_relu")
     # conv0_relu (ReLU).
     node = self.test_graph.get_node("conv0_relu")
     self.assertEqual(node.parents[0], "conv0")
-    self.assertEqual(node.children[0], "bn")
     # bn (BN)
     node = self.test_graph.get_node("bn")
     self.assertEqual(node.parents[0], "conv0_relu")
-    self.assertEqual(node.children[0], "conv1")
     # conv1 (Convolution).
     node = self.test_graph.get_node("conv1")
     self.assertEqual(node.parents[0], "bn")
-    self.assertEqual(node.children[0], "conv1_relu")
     # conv1_relu (ReLU)
     node = self.test_graph.get_node("conv1_relu")
     self.assertEqual(node.parents[0], "conv1")
-    self.assertEqual(node.children[0], "pool")
     # pool (MaxPooling)
     node = self.test_graph.get_node("pool")
     self.assertEqual(node.parents[0], "conv1_relu")
-    self.assertEqual(node.children[0], "flatten")
     # flatten (Flatten)
     node = self.test_graph.get_node("flatten")
     self.assertEqual(node.parents[0], "pool")
-    self.assertEqual(node.children[0], "fc0")
     # Transpose fc0 weights
     node = self.test_graph.get_node("reorder")
-    self.assertEqual(node.children[0], "fc0")
     # fc0 (FC)
     node = self.test_graph.get_node("fc0")
     self.assertEqual(node.parents, ["flatten", "reorder"])
-    self.assertEqual(node.children[0], "fc0_relu")
     # fc0_relu (ReLU)
     node = self.test_graph.get_node("fc0_relu")
     self.assertEqual(node.parents[0], "fc0")
-    self.assertEqual(node.children[0], "fc1")
     # Transpose fc1/weights
     node = self.test_graph.get_node("reorder_1")
-    self.assertEqual(node.children[0], "fc1")
     # fc1 (FC)
     node = self.test_graph.get_node("fc1")
     self.assertEqual(node.parents, ["fc0_relu", "reorder_1"])
-    self.assertEqual(node.children[0], "expand_dims")
     # expand_dims (Reshape).
     node = self.test_graph.get_node("expand_dims")
     self.assertEqual(node.parents[0], "fc1")
-    self.assertEqual(node.children[0], "squeeze")
     # squeeze (Reshape).
     node = self.test_graph.get_node("squeeze")
     self.assertEqual(node.parents[0], "expand_dims")
-    self.assertEqual(node.children[0], "reshape")
     # reshape (Reshape)
     node = self.test_graph.get_node("reshape")
     self.assertEqual(node.parents[0], "squeeze")
-    self.assertEqual(node.children[0], "repeat")
     # repeat (Repeat)
     node = self.test_graph.get_node("repeat")
     self.assertEqual(node.parents[0], "reshape")
-    self.assertEqual(node.children[0], "stack:expand_dims")
     # stack (Reshape + Repeat).
     node = self.test_graph.get_node("stack:expand_dims")
     self.assertEqual(node.parents[0], "repeat")
-    self.assertEqual(node.children[0], "stack:repeat")
     node = self.test_graph.get_node("stack:repeat")
     self.assertEqual(node.parents[0], "stack:expand_dims")
-    self.assertEqual(node.children[0], "unstack:split")
     # unstack (Split + Squeeze).
     node = self.test_graph.get_node("unstack:split")
     self.assertEqual(node.parents[0], "stack:repeat")
-    self.assertEqual(len(node.children), 4)
-    for i, child in enumerate(node.children):
+    for i in range(4):
       child_name = "unstack:squeeze" + ("_%d" % i if i > 0 else "")
-      self.assertEqual(child, child_name)
       child_node = self.test_graph.get_node(child_name)
       self.assertEqual(child_node.parents[0], "unstack:split")
       self.assertEqual(child_node.src_tensors_indices, [i])
-      self.assertEqual(len(child_node.children), 0)
 
 class SMVResidualGraphTest(unittest.TestCase, ResidualGraphTest):
   """Test the residual graph on the SMV backend."""
@@ -896,62 +853,48 @@ class SMVResidualGraphTest(unittest.TestCase, ResidualGraphTest):
     # input (Data).
     node = self.test_graph.get_node("input")
     self.assertEqual(len(node.parents), 0)
-    self.assertEqual(node.children[0], "reorder")
     # Reorder input from NCHW to NHWC.
     node = self.test_graph.get_node("reorder")
     self.assertEqual(node.parents[0], "input")
-    self.assertEqual(node.children, ["conv0", "conv1"])
     # conv0 (Convolution).
     node = self.test_graph.get_node("conv0")
     self.assertEqual(node.parents[0], "reorder")
-    self.assertEqual(node.children[0], "add")
     # conv1 (Convolution).
     node = self.test_graph.get_node("conv1")
     self.assertEqual(node.parents[0], "reorder")
-    self.assertEqual(node.children[0], "bn")
     # bn (BN).
     node = self.test_graph.get_node("bn")
     self.assertEqual(node.parents[0], "conv1")
-    self.assertEqual(node.children[0], "relu")
     # relu (ReLU).
     node = self.test_graph.get_node("relu")
     self.assertEqual(node.parents[0], "bn")
-    self.assertEqual(node.children[0], "conv2")
     # conv2 (Convolution).
     node = self.test_graph.get_node("conv2")
     self.assertEqual(node.parents[0], "relu")
-    self.assertEqual(node.children[0], "add")
     # add (EltwiseAdd).
     node = self.test_graph.get_node("add")
     self.assertEqual(node.parents[0], "conv0")
     self.assertEqual(node.parents[1], "conv2")
-    self.assertEqual(node.children[0], "mul")
     # mul (EltwiseMul).
     node = self.test_graph.get_node("mul")
     self.assertEqual(node.parents, ["conv0", "add"])
-    self.assertEqual(node.children[0], "concat")
     # concat (Concat).
     node = self.test_graph.get_node("concat")
     self.assertEqual(node.parents, ["conv0", "mul"])
-    self.assertEqual(node.children[0], "split")
     # split (Split).
     node = self.test_graph.get_node("split")
     self.assertEqual(node.parents[0], "concat")
-    self.assertEqual(node.children, ["add1", "add2"])
     # add1 (EltwiseAdd).
     node = self.test_graph.get_node("add1")
     self.assertEqual(node.parents, ["split", "split"])
     self.assertEqual(node.src_tensors_indices, [0, 1])
-    self.assertEqual(node.children[0], "mul1")
     # add2 (EltwiseAdd).
     node = self.test_graph.get_node("add2")
     self.assertEqual(node.parents, ["split", "split"])
     self.assertEqual(node.src_tensors_indices, [2, 3])
-    self.assertEqual(node.children[0], "mul1")
     # mul (EltwiseMul).
     node = self.test_graph.get_node("mul1")
     self.assertEqual(node.parents, ["add1", "add2"])
-    self.assertEqual(len(node.children), 0)
 
 class RefResidualGraphTest(unittest.TestCase, ResidualGraphTest):
   """Test the residual graph on the reference backend."""
@@ -966,57 +909,44 @@ class RefResidualGraphTest(unittest.TestCase, ResidualGraphTest):
     # input (Data).
     node = self.test_graph.get_node("input")
     self.assertEqual(len(node.parents), 0)
-    self.assertEqual(node.children, ["conv0", "conv1"])
     # conv0 (Convolution).
     node = self.test_graph.get_node("conv0")
     self.assertEqual(node.parents[0], "input")
-    self.assertEqual(node.children[0], "add")
     # conv1 (Convolution).
     node = self.test_graph.get_node("conv1")
     self.assertEqual(node.parents[0], "input")
-    self.assertEqual(node.children[0], "bn")
     # bn (BN).
     node = self.test_graph.get_node("bn")
     self.assertEqual(node.parents[0], "conv1")
-    self.assertEqual(node.children[0], "relu")
     # relu (ReLU).
     node = self.test_graph.get_node("relu")
     self.assertEqual(node.parents[0], "bn")
-    self.assertEqual(node.children[0], "conv2")
     # conv2 (Convolution).
     node = self.test_graph.get_node("conv2")
     self.assertEqual(node.parents[0], "relu")
-    self.assertEqual(node.children[0], "add")
     # add (EltwiseAdd).
     node = self.test_graph.get_node("add")
     self.assertEqual(node.parents, ["conv0", "conv2"])
-    self.assertEqual(node.children[0], "mul")
     # mul (EltwiseMul).
     node = self.test_graph.get_node("mul")
     self.assertEqual(node.parents, ["conv0", "add"])
-    self.assertEqual(node.children[0], "concat")
     # concat (Concat).
     node = self.test_graph.get_node("concat")
     self.assertEqual(node.parents, ["conv0", "mul"])
-    self.assertEqual(node.children[0], "split")
     # split (Split).
     node = self.test_graph.get_node("split")
     self.assertEqual(node.parents[0], "concat")
-    self.assertEqual(node.children, ["add1", "add2"])
     # add1 (EltwiseAdd).
     node = self.test_graph.get_node("add1")
     self.assertEqual(node.parents, ["split", "split"])
     self.assertEqual(node.src_tensors_indices, [0, 1])
-    self.assertEqual(node.children[0], "mul1")
     # add2 (EltwiseAdd).
     node = self.test_graph.get_node("add2")
     self.assertEqual(node.parents, ["split", "split"])
     self.assertEqual(node.src_tensors_indices, [2, 3])
-    self.assertEqual(node.children[0], "mul1")
     # mul (EltwiseMul).
     node = self.test_graph.get_node("mul1")
     self.assertEqual(node.parents, ["add1", "add2"])
-    self.assertEqual(len(node.children), 0)
 
 if __name__ == "__main__":
   unittest.main()

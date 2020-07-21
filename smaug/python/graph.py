@@ -92,16 +92,13 @@ class Graph:
     if params != None:
       node.params.CopyFrom(params)
 
-    # Update the node's parents field and append it to the children field of the
-    # parents nodes. Also add every input tensor to the node.
+    # Update the node's parents field, and add every input tensor to the node.
     for i,tensor in enumerate(input_tensors):
       if tensor.name == None:
         tensor.name = node.name + "/input%d" % i
       if tensor.source is not None:
         node.parents.append(tensor.source[0].name)
         node.src_tensors_indices.append(tensor.source[1])
-        if node.name not in tensor.source[0].children:
-          tensor.source[0].children.append(node.name)
       tensor.targets.append(node)
       input_tensor_proto = node.input_tensors.add()
       tensor.to_tensor_proto(input_tensor_proto, self.tensor_data_array)
@@ -199,9 +196,6 @@ class Graph:
       print("Parents:", end = '')
       for i in node.parents:
         print(i, end = ' ')
-      print("\nChildren:", end = '')
-      for o in node.children:
-        print(o, end = ' ')
       print("\nInput tensors:")
       for t in node.input_tensors:
         print(
