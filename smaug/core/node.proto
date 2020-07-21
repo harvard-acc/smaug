@@ -60,9 +60,8 @@ message NodeProto {
   // Unique node name in the form of "scopes:name". Scopes are optional.
   string name = 1;
   OpType op = 2;
-  // Parents and children of this node.
+  // Parents of this node.
   repeated string parents = 3;
-  repeated string children = 4;
   // The size of src_tensors_indices must be the same as `parents`. For each
   // parent node parents[i], src_tensors_indices[i] indicates the index of its
   // output tensor that becomes the input tensor of this node. Note that if a

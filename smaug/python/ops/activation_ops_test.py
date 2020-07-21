@@ -18,8 +18,7 @@ class ActivationFunctionTest(unittest.TestCase):
     super(ActivationFunctionTest, self).__init__(*args, **kwargs)
     self.tensor_shape = [2, 32, 32, 32]
 
-  def do_basic_test(
-      self, test_graph, node_name, op_type, child_name=None, tensor_shape=None):
+  def do_basic_test(self, test_graph, node_name, op_type, tensor_shape=None):
     node = test_graph.get_node(node_name)
     if tensor_shape == None:
       tensor_shape = self.tensor_shape
@@ -31,8 +30,6 @@ class ActivationFunctionTest(unittest.TestCase):
     self.assertEqual(node.output_tensors[0].shape.layout,
                      node.input_tensors[0].shape.layout)
     self.assertEqual(node.output_tensors[0].shape.alignment, 8)
-    if len(node.children) > 0:
-      self.assertEqual(node.children[0], child_name)
     return node
 
   def test_activation_functions(self):
@@ -52,26 +49,25 @@ class ActivationFunctionTest(unittest.TestCase):
       act = array_ops.reorder(act, target_layout=types_pb2.NC, name="reorder")
       act = activation_ops.softmax(act, "softmax")
     # ReLU
-    self.do_basic_test(test_graph, "relu", types_pb2.ReLU, "lrelu")
+    self.do_basic_test(test_graph, "relu", types_pb2.ReLU)
     # LReLU
-    node = self.do_basic_test(test_graph, "lrelu", types_pb2.LReLU, "elu")
+    node = self.do_basic_test(test_graph, "lrelu", types_pb2.LReLU)
     self.assertAlmostEqual(node.params.act_params.lrelu_params.slope, 0.5)
     # ELU
-    node = self.do_basic_test(test_graph, "elu", types_pb2.ELU, "selu")
+    node = self.do_basic_test(test_graph, "elu", types_pb2.ELU)
     self.assertAlmostEqual(node.params.act_params.elu_params.alpha, 0.2)
     # SELU
-    node = self.do_basic_test(test_graph, "selu", types_pb2.SELU, "tanh")
+    node = self.do_basic_test(test_graph, "selu", types_pb2.SELU)
     self.assertAlmostEqual(node.params.act_params.elu_params.alpha, 0.4)
     self.assertAlmostEqual(node.params.act_params.elu_params.lambda_param, 0.8)
     # Tanh
-    self.do_basic_test(test_graph, "tanh", types_pb2.Tanh, "hard_tanh")
+    self.do_basic_test(test_graph, "tanh", types_pb2.Tanh)
     # HardTanh
-    node = self.do_basic_test(
-        test_graph, "hard_tanh", types_pb2.HardTanh, "sigmoid")
+    node = self.do_basic_test(test_graph, "hard_tanh", types_pb2.HardTanh)
     self.assertAlmostEqual(node.params.act_params.hard_tanh_params.min, -1.5)
     self.assertAlmostEqual(node.params.act_params.hard_tanh_params.max, 1.5)
     # Sigmoid
-    self.do_basic_test(test_graph, "sigmoid", types_pb2.Sigmoid, "reorder")
+    self.do_basic_test(test_graph, "sigmoid", types_pb2.Sigmoid)
     # Softmax
     self.do_basic_test(
         test_graph, "softmax", types_pb2.Softmax, tensor_shape=[2, 32768])
