@@ -2,6 +2,7 @@ import numpy as np
 
 from smaug.core import types_pb2
 from smaug.python import global_vars
+from smaug.python import tensor_utils
 
 def check_and_add_layout_transform(name, op, input_tensors):
   """ Check and perform layout transformation for the input tensors.
@@ -44,11 +45,11 @@ def add_node(
 
   # If any input tensor doesn't have a source operator, we create a DataOp
   # for it. This makes the deserializing a lot easier in the C++ core. To avoid
-  # deadlock, don't create a new data op if the node to be added is a data op.
+  # an infinite loop, don't create a new data op if the node to be added is a
+  # data op.
   for i in range(len(input_tensors)):
     if input_tensors[i].source == None and op != types_pb2.Data:
-      data_op_output = global_vars.get_graph().get_tensor_data_op(
-          input_tensors[i].name)
+      data_op_output = tensor_utils.get_tensor_data_op(input_tensors[i])
       if data_op_output is not None:
         input_tensors[i] = data_op_output
         continue

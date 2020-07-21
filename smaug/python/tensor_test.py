@@ -5,7 +5,7 @@
 import unittest
 import numpy as np
 
-from smaug.python.smaug_test import get_tensor_data
+from smaug.python.tensor_utils import get_tensor_data
 from smaug.python.graph import Graph
 from smaug.python.tensor import Tensor
 from smaug.python.ops.data_op import input_data

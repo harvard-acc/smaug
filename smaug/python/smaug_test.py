@@ -10,22 +10,8 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal
 
 from smaug.python import global_vars
+from smaug.python import tensor_utils
 from smaug.core import tensor_pb2
-
-def get_tensor_data(tensor_data_array, tensor_name):
-  """ Find the tensor data for this tensor by its name."""
-  for i in range(len(tensor_data_array.data_array)):
-    if tensor_data_array.data_array[i].name == tensor_name:
-      return tensor_data_array.data_array[i]
-  return None
-
-def _account_for_padding(shape):
-  alignment = shape.alignment
-  remainder = shape.dims[-1] % shape.alignment
-  if alignment == 0 or remainder == 0:
-    return shape
-  shape.dims[-1] += alignment - remainder;
-  return shape
 
 class SmaugTest(unittest.TestCase):
   def setUp(self):
@@ -80,6 +66,6 @@ class SmaugTest(unittest.TestCase):
       sg_output = sg_output_proto.data.int_data
     elif datatype == np.int64:
       sg_output = sg_output_proto.data.int64_data
-    shape = _account_for_padding(sg_output_proto.shape)
+    shape = tensor_utils.get_padded_shape(sg_output_proto.shape)
     sg_output = np.reshape(sg_output, sg_output_proto.shape.dims)
     assert_array_almost_equal(expected_output, sg_output, decimal)
