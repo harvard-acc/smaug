@@ -79,7 +79,7 @@ class Tensor:
       return 0
     return (self.shape.alignment - (value % self.shape.alignment))
 
-  def to_tensor_proto(self, tensor_proto, tensor_data_array):
+  def to_tensor_proto(self, tensor_proto, tensor_data_array=None):
     """Serialize the tensor into a tensor proto.
 
     Args:
@@ -90,7 +90,7 @@ class Tensor:
     tensor_proto.shape.CopyFrom(self.shape)
     tensor_proto.data_type = self.data_type
     tensor_proto.data_format = self.data_format
-    if self.tensor_data is not None:
+    if self.tensor_data is not None and tensor_data_array is not None:
 
       # Since Protobuf doesn't support float16 data type, we pack two float16
       # elements into one int32.

@@ -118,35 +118,49 @@ class Graph:
 
     return output_tensors
 
-  def get_node(self, node_name):
-    """Return a node in the graph proto by its name."""
+  def get_node(self, node_name, recursive=False):
+    """Return a node in the graph proto by its name.
+
+    Args:
+      node_name: Node name.
+      recursive: If true, recursively search the node in the parent graphs.
+
+    Returns:
+      A NodeProto if we find the node.
+    """
     for i in range(len(self.graph.nodes)):
       if self.graph.nodes[i].name == node_name:
         return self.graph.nodes[i]
-    return None
+    if recursive and self._parent_graph is not None:
+      return self._parent_graph.get_node(node_name, True)
 
   def get_nodes(self):
     """Return nodes in the graph proto."""
     return self.graph.nodes
 
-  def create_unique_name(self, name, mark_as_used=True):
+  def get_root_graph(self):
+    """Return the root graph."""
+    root = self
+    while root._parent_graph is not None:
+      root = root._parent_graph
+    return root
+
+  def create_unique_name(self, name):
     """ Create a unique name for the node.
 
     Args:
       name: The base name used to create the unique name.
-      mark_as_used: Mark the unique name as used so if someone wants to call
-        create_unique_name(unique_name), a different name will be created.
     """
+    root = self.get_root_graph()
     new_name = name
-    if name in self._node_names:
+    if name in root._node_names:
       while True:
-        self._node_names[name] += 1
-        new_name = "%s_%d" % (name, self._node_names[name])
+        root._node_names[name] += 1
+        new_name = "%s_%d" % (name, root._node_names[name])
         # Make sure the new name is not already used.
-        if new_name not in self._node_names:
+        if new_name not in root._node_names:
           break
-    if mark_as_used:
-      self._node_names[new_name] = 0
+    root._node_names[new_name] = 0
     return new_name
 
   def disable_layout_transform(self):
