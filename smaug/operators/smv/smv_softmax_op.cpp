@@ -49,6 +49,11 @@ void SmvSoftmaxOp::run() {
                      smv::spad0, smv::spad1, inputShape[0], inputShape[1],
                      inputShape.getPadding(1));
     }
+    {
+        auto stats = gem5::ScopedStats(
+                stats::kTensorFinalStart, stats::kTensorFinalEnd);
+        outputs.untile();
+    }
 }
 
 }  // namespace smaug
