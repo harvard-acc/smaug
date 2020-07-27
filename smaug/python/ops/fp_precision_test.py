@@ -22,7 +22,7 @@ class FpPrecisionTest(SmaugTest):
     units = 128
     tf_a = tf.Variable(initializer(shape=[batch, channels], dtype=self.dtype))
     tf_b = tf.Variable(initializer(shape=[units, channels], dtype=self.dtype))
-    tf_result = tf.python.math_ops.matmul(tf_a, tf_b, transpose_b=True)
+    tf_result = tf.linalg.matmul(tf_a, tf_b, transpose_b=True)
 
     a = Tensor(data_layout=types_pb2.NC, tensor_data=tf_a.numpy())
     b = Tensor(data_layout=types_pb2.NC, tensor_data=tf_b.numpy())
@@ -44,7 +44,7 @@ class FpPrecisionTest(SmaugTest):
         initializer(
             shape=[filter_height, filter_width, channels, num_filters],
             dtype=self.dtype))
-    tf_results = tf.python.nn_ops.conv2d(
+    tf_results = tf.nn.conv2d(
         tf_inputs, tf_filters, strides=[1, 1], padding="SAME",
         data_format="NHWC", dilations=None)
 
@@ -61,7 +61,7 @@ class FpPrecisionTest(SmaugTest):
     channels = 32
     tf_a = tf.Variable(initializer(shape=[batch, channels], dtype=self.dtype))
     tf_b = tf.Variable(initializer(shape=[batch, channels], dtype=self.dtype))
-    tf_result = tf.python.math_ops.add(tf_a, tf_b)
+    tf_result = tf.math.add(tf_a, tf_b)
 
     a = Tensor(data_layout=types_pb2.NC, tensor_data=tf_a.numpy())
     b = Tensor(data_layout=types_pb2.NC, tensor_data=tf_b.numpy())
@@ -74,7 +74,7 @@ class FpPrecisionTest(SmaugTest):
     channels = 32
     tf_a = tf.Variable(initializer(shape=[batch, channels], dtype=self.dtype))
     tf_b = tf.Variable(initializer(shape=[batch, channels], dtype=self.dtype))
-    tf_result = tf.python.math_ops.mul(tf_a, tf_b)
+    tf_result = tf.math.multiply(tf_a, tf_b)
 
     a = Tensor(data_layout=types_pb2.NC, tensor_data=tf_a.numpy())
     b = Tensor(data_layout=types_pb2.NC, tensor_data=tf_b.numpy())
