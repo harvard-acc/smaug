@@ -25,7 +25,6 @@ class Graph:
     # This proto stores all the parameters in the network.
     self.tensor_data_array = tensor_pb2.TensorDataArray()
     self._parent_graph = None
-    self._merge_into_parent_graph = True
 
   def __enter__(self):
     self._parent_graph = global_vars.get_graph()
@@ -34,7 +33,7 @@ class Graph:
 
   def __exit__(self, *args):
     # Merge the graph into its parent if it exists.
-    if self._parent_graph is not None and self._merge_into_parent_graph:
+    if self._parent_graph is not None:
       self._parent_graph.merge(self)
     global_vars.set_graph(self._parent_graph)
 
@@ -45,14 +44,6 @@ class Graph:
   @property
   def mem_policy(self):
     return self.graph.mem_policy
-
-  @property
-  def merge_into_parent_graph(self):
-    return self._merge_into_parent_graph
-
-  @merge_into_parent_graph.setter
-  def merge_into_parent_graph(self, merge):
-    self._merge_into_parent_graph = merge
 
   @property
   def layout_trans_enabled(self):
