@@ -5,7 +5,7 @@
 import unittest
 import numpy as np
 
-from smaug.python.graph import Graph
+from smaug.python.graph import Graph, get_node_proto
 from smaug.python.tensor import Tensor
 from smaug.python.ops import data_op
 from smaug.python.ops import activation_ops
@@ -19,7 +19,8 @@ class ActivationFunctionTest(unittest.TestCase):
     self.tensor_shape = [2, 32, 32, 32]
 
   def do_basic_test(self, test_graph, node_name, op_type, tensor_shape=None):
-    node = test_graph.get_node(node_name)
+    graph_proto, _ = test_graph.to_proto()
+    node = get_node_proto(graph_proto, node_name)
     if tensor_shape == None:
       tensor_shape = self.tensor_shape
     self.assertEqual(node.op, op_type)
@@ -129,44 +130,45 @@ class ActivationFunctionTest(unittest.TestCase):
           activation=types_pb2.ReLU, name="bn_relu")
       act = nn_ops.mat_mul(
           act, weight_tensor, activation=types_pb2.ReLU, name="fc_relu")
+    graph_proto, _ = test_graph.to_proto()
     # None
-    node = test_graph.get_node("conv_none")
+    node = get_node_proto(graph_proto, "conv_none")
     self.assertEqual(node.params.act_params.activation, types_pb2.UnknownOp)
     # ReLU
-    node = test_graph.get_node("conv_relu")
+    node = get_node_proto(graph_proto, "conv_relu")
     self.assertEqual(node.params.act_params.activation, types_pb2.ReLU)
     # LReLU (default slope = 0.2)
-    node = test_graph.get_node("conv_lrelu")
+    node = get_node_proto(graph_proto, "conv_lrelu")
     self.assertEqual(node.params.act_params.activation, types_pb2.LReLU)
     self.assertAlmostEqual(node.params.act_params.lrelu_params.slope, 0.2)
     # ELU (default alpha = 0.1)
-    node = test_graph.get_node("conv_elu")
+    node = get_node_proto(graph_proto, "conv_elu")
     self.assertEqual(node.params.act_params.activation, types_pb2.ELU)
     self.assertAlmostEqual(node.params.act_params.elu_params.alpha, 0.1)
     # SELU (default alpha = 1.6733, lambda = 1.0507)
-    node = test_graph.get_node("conv_selu")
+    node = get_node_proto(graph_proto, "conv_selu")
     self.assertEqual(node.params.act_params.activation, types_pb2.SELU)
     self.assertAlmostEqual(node.params.act_params.elu_params.alpha, 1.6733, 5)
     self.assertAlmostEqual(node.params.act_params.elu_params.lambda_param,
                            1.0507, 5)
     # Tanh
-    node = test_graph.get_node("conv_tanh")
+    node = get_node_proto(graph_proto, "conv_tanh")
     self.assertEqual(node.params.act_params.activation, types_pb2.Tanh)
     # HardTanh (default min = -1, max = 1)
-    node = test_graph.get_node("conv_hard_tanh")
+    node = get_node_proto(graph_proto, "conv_hard_tanh")
     self.assertEqual(node.params.act_params.activation, types_pb2.HardTanh)
     self.assertAlmostEqual(node.params.act_params.hard_tanh_params.min, -1)
     self.assertAlmostEqual(node.params.act_params.hard_tanh_params.max, 1)
     # Sigmoid
-    node = test_graph.get_node("conv_sigmoid")
+    node = get_node_proto(graph_proto, "conv_sigmoid")
     self.assertEqual(node.params.act_params.activation, types_pb2.Sigmoid)
     # Softmax
-    node = test_graph.get_node("conv_softmax")
+    node = get_node_proto(graph_proto, "conv_softmax")
     self.assertEqual(node.params.act_params.activation, types_pb2.Softmax)
     # Fusion with inner products and batch norms.
-    node = test_graph.get_node("bn_relu")
+    node = get_node_proto(graph_proto, "bn_relu")
     self.assertEqual(node.params.act_params.activation, types_pb2.ReLU)
-    node = test_graph.get_node("fc_relu")
+    node = get_node_proto(graph_proto, "fc_relu")
     self.assertEqual(node.params.act_params.activation, types_pb2.ReLU)
 
 if __name__ == "__main__":

@@ -23,7 +23,7 @@ def check_and_add_layout_transform(name, op, input_tensors):
   from smaug.python.ops.array_ops import reorder
   if not global_vars.get_graph().layout_trans_enabled:
     return input_tensors
-  backend = global_vars.get_graph().graph.backend
+  backend = global_vars.get_graph().backend
   for i in range(len(input_tensors)):
     expected_layoutset = global_vars.backend_layouts[backend][
         op].input_layoutsets[i]

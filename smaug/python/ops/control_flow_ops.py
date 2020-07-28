@@ -75,28 +75,20 @@ def cond(predication, true_fn, false_fn, name="cond"):
     # This keeps track of all the tensors that come from nodes in the graph.
     internal_tensors = set()
     for node in nodes:
-      internal_tensors.update(
-          set([tensor.name for tensor in node.output_tensors]))
+      internal_tensors.update(set([tensor.name for tensor in node.outputs]))
     for node in nodes:
-      for i, tensor_proto in enumerate(node.input_tensors):
+      for i, tensor in enumerate(node.inputs):
         # If any input tensor of the graph appear in the graph workspace, then
         # this tensor is an external to the graph and we create a switch node
         # for it.
         # Don't create switch node for an existing one.
         if node.op == types_pb2.Switch:
           continue
-        if tensor_proto.name not in internal_tensors:
-          source_node = graph.get_node(node.parents[i], True)
-          tensor = tensor_utils.from_tensor_proto(tensor_proto)
-          if source_node is not None:
-            tensor.source = (source_node, node.src_tensors_indices[i])
+        if tensor.name not in internal_tensors:
           switch_result = switch(
               tensor, predication)[switch_op_output_ports[branch_result]]
-          # Update the node with the switch node as its new parent.
-          switch_result.to_tensor_proto(node.input_tensors[i])
-          switch_node = switch_result.source[0]
-          node.parents[i] = switch_node.name
-          node.src_tensors_indices[i] = switch_op_output_ports[branch_result]
+          # Update the node's input with the switch node result.
+          node.update_input(switch_result, i)
 
   cur_graph = global_vars.get_graph()
   backend = cur_graph.backend
@@ -110,7 +102,6 @@ def cond(predication, true_fn, false_fn, name="cond"):
     if not isinstance(res_t, (list, tuple)):
       res_t = [res_t]
     _insert_switch_nodes(predication, "true", subgraph_t)
-  cur_graph.merge(subgraph_t)
 
   # Build the subgraph for the false branch.
   with Graph(name="%s_false_branch" % name, backend=backend,
@@ -119,7 +110,6 @@ def cond(predication, true_fn, false_fn, name="cond"):
     if not isinstance(res_f, (list, tuple)):
       res_f = [res_f]
     _insert_switch_nodes(predication, "false", subgraph_f)
-  cur_graph.merge(subgraph_f)
 
   # Add the merge nodes for the outputs.
   merges = [merge([t, f]) for (t, f) in zip(res_t, res_f)]
