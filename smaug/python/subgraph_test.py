@@ -31,7 +31,7 @@ class TestUniqueName(unittest.TestCase):
     """Test the connection among nodes."""
     for child, parents in child_parent_map.items():
       child_node = graph.get_node(child)
-      self.assertEqual(child_node.parents, parents)
+      self.assertEqual(child_node.get_parents(), parents)
 
   def test_subgraph_merge(self):
     with Graph(parent_graph_name, backend) as parent_graph:

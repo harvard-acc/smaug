@@ -15,6 +15,7 @@ from smaug.core import tensor_pb2
 
 class SmaugTest(unittest.TestCase):
   def setUp(self):
+    self._cwd = os.getcwd()
     self.run_dir = tempfile.mkdtemp()
     self.error_filename = os.path.join(self.run_dir, "stderr")
     self.graph_name = "test_graph"
@@ -25,6 +26,7 @@ class SmaugTest(unittest.TestCase):
   def tearDown(self):
     """ Delete temporary files and outputs. """
     shutil.rmtree(self.run_dir)
+    os.chdir(self._cwd)
 
   def launchSubprocess(self, cmd):
     with open(self.error_filename, "w") as f:
