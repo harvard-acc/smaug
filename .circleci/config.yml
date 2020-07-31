@@ -1,0 +1,27 @@
+version: 2.1
+jobs:
+  build:
+    docker:
+      - image: xyzsam/smaug:latest
+
+    environment:
+      SMAUG_HOME: /root/project
+    steps:
+      - checkout
+      - run:
+          name: Checkout dependencies
+          command: git submodule update --init --recursive
+      - run:
+          name: Build
+          command: |
+            make all -j2
+            make test -j2
+      - run:
+          name: Run unit tests
+          command: |
+            export PYTHONPATH=$SMAUG_HOME:$PYTHONPATH
+            make test-run
+      - run:
+          name: Download latest gem5-aladdin binary
+          command:
+            python .circleci/download_artifacts.py --api_token=${GEM5_ALADDIN_BUILD_ARTIFACT_TOKEN} --project=gem5-aladdin --artifact_name=gem5.opt --user=${USER} --download_loc=/tmp --filter=${BUILD_ARTIFACT_FILTER} --branch=${BUILD_ARTIFACT_BRANCH}

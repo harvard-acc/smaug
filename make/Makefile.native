@@ -4,6 +4,8 @@ include make/Makefile.common
 
 .PHONY: all tests clean run-tests
 
+SHELL:=/bin/bash
+
 ####################################
 ####      COMPILATION FLAGS     ####
 ####################################
