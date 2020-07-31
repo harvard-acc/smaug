@@ -1,4 +1,3 @@
-version: 2.1
 jobs:
   build:
     docker:
@@ -14,8 +13,8 @@ jobs:
       - run:
           name: Build
           command: |
-            make all -j2
-            make test -j2
+            make all -j4
+            make test -j4
       - run:
           name: Run unit tests
           command: |
@@ -25,3 +24,18 @@ jobs:
           name: Download latest gem5-aladdin binary
           command:
             python .circleci/download_artifacts.py --api_token=${GEM5_ALADDIN_BUILD_ARTIFACT_TOKEN} --project=gem5-aladdin --artifact_name=gem5.opt --user=${USER} --download_loc=/tmp --filter=${BUILD_ARTIFACT_FILTER} --branch=${BUILD_ARTIFACT_BRANCH}
+workflows:
+  version: 2
+  commit:
+    jobs:
+      - build
+  nightly:
+    triggers:
+      - schedule:
+          cron: "0 0 * * *"
+          filters:
+            branches:
+              only:
+                - master
+    jobs:
+      - build
