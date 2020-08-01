@@ -14,8 +14,8 @@ jobs:
       - run:
           name: Build
           command: |
-            make all -j2
-            make test -j2
+            make all -j4
+            make test -j4
       - run:
           name: Run unit tests
           command: |
