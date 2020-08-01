@@ -14,10 +14,10 @@
 
 
 import numpy as np
-from graph import *
-from tensor import *
-from ops import *
-from types_pb2 import *
+from smaug.core import types_pb2
+from smaug.python.graph import Graph
+from smaug.python.tensor import Tensor
+from smaug.python.ops import array_ops, math_ops, data_op, nn_ops
 
 def create_residual_model():
   with Graph(name="residual_graph", backend="SMV") as graph:
@@ -31,22 +31,26 @@ def create_residual_model():
     filter_tensor2 = Tensor(
         tensor_data=np.random.rand(64, 64, 3, 3).astype(np.float16))
     bn_mean_tensor = Tensor(
-        data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np.float16))
+        data_layout=types_pb2.NC,
+        tensor_data=np.random.rand(1, 64).astype(np.float16))
     bn_var_tensor = Tensor(
-        data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np.float16))
+        data_layout=types_pb2.NC,
+        tensor_data=np.random.rand(1, 64).astype(np.float16))
     bn_gamma_tensor = Tensor(
-        data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np.float16))
+        data_layout=types_pb2.NC,
+        tensor_data=np.random.rand(1, 64).astype(np.float16))
     bn_beta_tensor = Tensor(
-        data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np.float16))
+        data_layout=types_pb2.NC,
+        tensor_data=np.random.rand(1, 64).astype(np.float16))
 
-    act = input_data(input_tensor)
-    x = convolution(act, filter_tensor0, stride=[1, 1], padding="same")
-    out = convolution(act, filter_tensor1, stride=[1, 1], padding="same")
-    out = batch_norm(
+    act = data_op.input_data(input_tensor)
+    x = nn_ops.convolution(act, filter_tensor0, stride=[1, 1], padding="same")
+    out = nn_ops.convolution(act, filter_tensor1, stride=[1, 1], padding="same")
+    out = nn_ops.batch_norm(
         out, bn_mean_tensor, bn_var_tensor, bn_gamma_tensor, bn_beta_tensor,
-        activation=ReLU)
-    out = convolution(out, filter_tensor2, stride=[1, 1], padding="same")
-    out = add("add", x, out)
+        activation=types_pb2.ReLU)
+    out = nn_ops.convolution(out, filter_tensor2, stride=[1, 1], padding="same")
+    out = math_ops.add(x, out)
 
     return graph
 
@@ -61,30 +65,35 @@ def create_sequential_model():
     filter_tensor1 = Tensor(
         tensor_data=np.random.rand(64, 64, 3, 3).astype(np.float32))
     weight_tensor0 = Tensor(
-        data_layout=NC,
+        data_layout=types_pb2.NC,
         tensor_data=np.random.rand(256, 16384).astype(np.float32))
     weight_tensor1 = Tensor(
-        data_layout=NC, tensor_data=np.random.rand(10, 256).astype(np.float32))
+        data_layout=types_pb2.NC,
+        tensor_data=np.random.rand(10, 256).astype(np.float32))
     bn_mean_tensor = Tensor(
-        data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np.float32))
+        data_layout=types_pb2.NC,
+        tensor_data=np.random.rand(1, 64).astype(np.float32))
     bn_var_tensor = Tensor(
-        data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np.float32))
+        data_layout=types_pb2.NC,
+        tensor_data=np.random.rand(1, 64).astype(np.float32))
     bn_gamma_tensor = Tensor(
-        data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np.float32))
+        data_layout=types_pb2.NC,
+        tensor_data=np.random.rand(1, 64).astype(np.float32))
     bn_beta_tensor = Tensor(
-        data_layout=NC, tensor_data=np.random.rand(1, 64).astype(np.float32))
+        data_layout=types_pb2.NC,
+        tensor_data=np.random.rand(1, 64).astype(np.float32))
 
-    out = input_data(input_tensor)
-    out = convolution(
-        out, filter_tensor0, stride=[1, 1], padding="same", activation=ReLU)
-    out = batch_norm(
+    out = data_op.input_data(input_tensor)
+    out = nn_ops.convolution(
+        out, filter_tensor0, stride=[1, 1], padding="same", activation=types_pb2.ReLU)
+    out = nn_ops.batch_norm(
         out, bn_mean_tensor, bn_var_tensor, bn_gamma_tensor, bn_beta_tensor)
-    out = convolution(
-        out, filter_tensor1, stride=[1, 1], padding="same", activation=ReLU)
-    out = max_pool(out, pool_size=[2, 2], stride=[2, 2])
-    out = flatten(out)
-    out = mat_mul(out, weight_tensor0, activation=ReLU)
-    out = mat_mul(out, weight_tensor1)
+    out = nn_ops.convolution(
+        out, filter_tensor1, stride=[1, 1], padding="same", activation=types_pb2.ReLU)
+    out = nn_ops.max_pool(out, pool_size=[2, 2], stride=[2, 2])
+    out = array_ops.flatten(out)
+    out = nn_ops.mat_mul(out, weight_tensor0, activation=types_pb2.ReLU)
+    out = nn_ops.mat_mul(out, weight_tensor1)
 
     return graph
 
