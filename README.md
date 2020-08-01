@@ -55,9 +55,9 @@ need, but they are probably out of date.  You will need to update them. Go into
 your /workspace directory and run the following commands:
 
 ```bash
-root@dockerimageid:/workspace # cd gem5-aladdin && git pull origin master && git submodule update --init --recursive && cd ..
-root@dockerimageid:/workspace # cd LLVM-Tracer && git pull origin master && cd ..
-root@dockerimageid:/workspace # cd smaug && git pull origin master && git submodule update --init --recursive && cd ..
+cd gem5-aladdin && git pull origin master && git submodule update --init --recursive && cd ..
+cd LLVM-Tracer && git pull origin master && cd ..
+cd smaug && git pull origin master && git submodule update --init --recursive && cd ..
 ```
 
 You are now ready to work with SMAUG. Read on to learn how to run your first
