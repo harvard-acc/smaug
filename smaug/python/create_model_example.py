@@ -41,7 +41,7 @@ def create_residual_model():
     out = sg.nn.convolution(act, filter_tensor1, stride=[1, 1], padding="same")
     out = sg.nn.batch_norm(
         out, bn_mean_tensor, bn_var_tensor, bn_gamma_tensor, bn_beta_tensor,
-        activation=sg.ReLU)
+        activation="relu")
     out = sg.nn.convolution(out, filter_tensor2, stride=[1, 1], padding="same")
     out = sg.math.add(x, out)
 
@@ -73,14 +73,14 @@ def create_sequential_model():
 
     out = sg.input_data(input_tensor)
     out = sg.nn.convolution(
-        out, filter_tensor0, stride=[1, 1], padding="same", activation=sg.ReLU)
+        out, filter_tensor0, stride=[1, 1], padding="same", activation="relu")
     out = sg.nn.batch_norm(
         out, bn_mean_tensor, bn_var_tensor, bn_gamma_tensor, bn_beta_tensor)
     out = sg.nn.convolution(
-        out, filter_tensor1, stride=[1, 1], padding="same", activation=sg.ReLU)
+        out, filter_tensor1, stride=[1, 1], padding="same", activation="relu")
     out = sg.nn.max_pool(out, pool_size=[2, 2], stride=[2, 2])
     out = sg.flatten(out)
-    out = sg.nn.mat_mul(out, weight_tensor0, activation=sg.ReLU)
+    out = sg.nn.mat_mul(out, weight_tensor0, activation="relu")
     out = sg.nn.mat_mul(out, weight_tensor1)
 
     return graph

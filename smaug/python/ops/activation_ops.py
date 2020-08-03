@@ -3,41 +3,73 @@ from smaug.core import node_pb2
 from smaug.python import global_vars
 from smaug.python.ops import common
 
-def set_activation_params(activation, act_params_proto, act_params):
-  if activation not in global_vars.supported_activations:
-    raise AssertionError(
-        ("%s is not a supported activation function. "
-         "Supported activations: %s.")
-        % (OpType.Name(activation),
-           [OpType.Name(a) for a in supported_activations]))
-  if act_params != None:
+def _get_activation_type(activation):
+  """Return the corresponding activation type.
+
+  Args:
+    activation: A string.
+
+  Returns:
+    An activation op type such as `types_pb2.ReLU`.
+  """
+  if activation == "relu":
+    return types_pb2.ReLU
+  elif activation == "lrelu":
+    return types_pb2.LReLU
+  elif activation == "elu":
+    return types_pb2.ELU
+  elif activation == "selu":
+    return types_pb2.SELU
+  elif activation == "tanh":
+    return types_pb2.Tanh
+  elif activation == "hard_tanh":
+    return types_pb2.HardTanh
+  elif activation == "sigmoid":
+    return types_pb2.Sigmoid
+  elif activation == "softmax":
+    return types_pb2.Softmax
+  else:
+    raise ValueError("%s is not a supported activation function!" % activation)
+
+def _set_activation_params(activation, params, proto):
+  """Set the parameters of the activation function.
+
+  Args:
+    activation: An activation op type such as `types_pb2.ReLU`.
+    params: kwargs for the activation function parameters.
+    proto: An `ActivationParams`, the proto to set.
+  """
+  if params is not None:
     if activation == types_pb2.LReLU:
-      act_params_proto.lrelu_params.CopyFrom(act_params)
+      proto.lrelu_params.slope = params["slope"]
     elif activation == types_pb2.ELU:
-      act_params_proto.elu_params.CopyFrom(act_params)
+      proto.elu_params.alpha = params["alpha"]
     elif activation == types_pb2.SELU:
-      act_params_proto.elu_params.CopyFrom(act_params)
+      proto.elu_params.alpha = params["alpha"]
+      proto.elu_params.lambda_param = params["lambda_param"]
     elif activation == types_pb2.HardTanh:
-      act_params_proto.hard_tanh_params.CopyFrom(act_params)
+      proto.hard_tanh_params.min = params["min"]
+      proto.hard_tanh_params.max = params["max"]
   else:
     # Use default values for the parameters if not specified.
     if activation == types_pb2.LReLU:
-      act_params_proto.lrelu_params.slope = 0.2
+      proto.lrelu_params.slope = 0.2
     elif activation == types_pb2.ELU:
-      act_params_proto.elu_params.alpha = 0.1
+      proto.elu_params.alpha = 0.1
     elif activation == types_pb2.SELU:
-      act_params_proto.elu_params.alpha = 1.6733
-      act_params_proto.elu_params.lambda_param = 1.0507
+      proto.elu_params.alpha = 1.6733
+      proto.elu_params.lambda_param = 1.0507
     elif activation == types_pb2.HardTanh:
-      act_params_proto.hard_tanh_params.min = -1
-      act_params_proto.hard_tanh_params.max = 1
+      proto.hard_tanh_params.min = -1
+      proto.hard_tanh_params.max = 1
 
-def activation(op_type):
+def get_activation_op(activation):
   """Return an activation function functor.
 
   Args:
-    op_type: OpType of the activation function.
+    activation: A string representing the activation function.
   """
+  op_type = _get_activation_type(activation)
   if op_type == types_pb2.ReLU:
     return relu
   elif op_type == types_pb2.LReLU:
@@ -54,9 +86,20 @@ def activation(op_type):
     return sigmoid
   elif op_type == types_pb2.Softmax:
     return softmax
-  else:
-    raise ValueError("The given OpType %s is not an activation function." %
-                     OpType.Name(op_type))
+
+def to_proto(activation, params, proto):
+  """Set the activation proto.
+
+  Args:
+    activation: A string representing the activation function.
+    params: kwargs for the activation function parameters.
+    proto: An `ActivationParams`, the proto to set.
+  """
+  if activation is None:
+    return
+  act_type = _get_activation_type(activation)
+  proto.activation = act_type
+  _set_activation_params(act_type, params, proto)
 
 def relu(input_tensor, name="relu"):
   return common.add_node(
