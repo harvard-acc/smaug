@@ -56,7 +56,9 @@ def convolution(
   params = node_pb2.Params()
   params.conv_params.padding = to_padding_type(padding)
   params.conv_params.stride.extend(stride)
-  activation_ops.to_proto(activation, activation_params, params.act_params)
+  if activation is not None:
+    params.act_params.CopyFrom(
+        activation_ops.to_proto(activation, activation_params))
   return common.add_node(
       name=name, op=types_pb2.Convolution3d,
       input_tensors=[input_tensor, filter_tensor],
@@ -84,7 +86,9 @@ def batch_norm(
   output_layout = types_pb2.UnknownLayout
   output_layout = types_pb2.NC if post_fc else input_tensor.shape.layout
   params = node_pb2.Params()
-  activation_ops.to_proto(activation, activation_params, params.act_params)
+  if activation is not None:
+    params.act_params.CopyFrom(
+        activation_ops.to_proto(activation, activation_params))
   return common.add_node(
       name=name, op=types_pb2.BatchNorm, input_tensors=[
           input_tensor, mean_tensor, var_tensor, gamma_tensor, beta_tensor
@@ -140,7 +144,9 @@ def mat_mul(
       input_tensor.shape.dims[0], weight_tensor.shape.dims[neuronIdx]
   ]
   params = node_pb2.Params()
-  activation_ops.to_proto(activation, activation_params, params.act_params)
+  if activation is not None:
+    params.act_params.CopyFrom(
+        activation_ops.to_proto(activation, activation_params))
   return common.add_node(
       name=name, op=types_pb2.InnerProduct,
       input_tensors=[input_tensor, weight_tensor],

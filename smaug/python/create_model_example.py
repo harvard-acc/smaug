@@ -79,7 +79,7 @@ def create_sequential_model():
     out = sg.nn.convolution(
         out, filter_tensor1, stride=[1, 1], padding="same", activation="relu")
     out = sg.nn.max_pool(out, pool_size=[2, 2], stride=[2, 2])
-    out = sg.flatten(out)
+    out = sg.tensor.flatten(out)
     out = sg.nn.mat_mul(out, weight_tensor0, activation="relu")
     out = sg.nn.mat_mul(out, weight_tensor1)
 

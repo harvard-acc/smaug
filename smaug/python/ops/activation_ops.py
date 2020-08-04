@@ -3,33 +3,16 @@ from smaug.core import node_pb2
 from smaug.python import global_vars
 from smaug.python.ops import common
 
-def _get_activation_type(activation):
-  """Return the corresponding activation type.
-
-  Args:
-    activation: A string.
-
-  Returns:
-    An activation op type such as `types_pb2.ReLU`.
-  """
-  if activation == "relu":
-    return types_pb2.ReLU
-  elif activation == "lrelu":
-    return types_pb2.LReLU
-  elif activation == "elu":
-    return types_pb2.ELU
-  elif activation == "selu":
-    return types_pb2.SELU
-  elif activation == "tanh":
-    return types_pb2.Tanh
-  elif activation == "hard_tanh":
-    return types_pb2.HardTanh
-  elif activation == "sigmoid":
-    return types_pb2.Sigmoid
-  elif activation == "softmax":
-    return types_pb2.Softmax
-  else:
-    raise ValueError("%s is not a supported activation function!" % activation)
+_activation_types = {
+    "relu": types_pb2.ReLU,
+    "lrelu": types_pb2.LReLU,
+    "elu": types_pb2.ELU,
+    "selu": types_pb2.SELU,
+    "tanh": types_pb2.Tanh,
+    "hard_tanh": types_pb2.HardTanh,
+    "sigmoid": types_pb2.Sigmoid,
+    "softmax": types_pb2.Softmax
+}
 
 def _set_activation_params(activation, params, proto):
   """Set the parameters of the activation function.
@@ -69,7 +52,7 @@ def get_activation_op(activation):
   Args:
     activation: A string representing the activation function.
   """
-  op_type = _get_activation_type(activation)
+  op_type = _activation_types[activation]
   if op_type == types_pb2.ReLU:
     return relu
   elif op_type == types_pb2.LReLU:
@@ -87,19 +70,22 @@ def get_activation_op(activation):
   elif op_type == types_pb2.Softmax:
     return softmax
 
-def to_proto(activation, params, proto):
-  """Set the activation proto.
+def to_proto(activation, params):
+  """Return the activation proto.
 
   Args:
     activation: A string representing the activation function.
     params: kwargs for the activation function parameters.
     proto: An `ActivationParams`, the proto to set.
+
+  Returns:
+    An `ActivationParams`, the proto.
   """
-  if activation is None:
-    return
-  act_type = _get_activation_type(activation)
+  proto = node_pb2.ActivationParams()
+  act_type = _activation_types[activation]
   proto.activation = act_type
   _set_activation_params(act_type, params, proto)
+  return proto
 
 def relu(input_tensor, name="relu"):
   return common.add_node(
