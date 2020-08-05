@@ -3,60 +3,62 @@ from smaug.core import node_pb2
 from smaug.python import global_vars
 from smaug.python.ops import common
 
-def set_activation_params(activation, act_params_proto, act_params):
-  if activation not in global_vars.supported_activations:
-    raise AssertionError(
-        ("%s is not a supported activation function. "
-         "Supported activations: %s.")
-        % (OpType.Name(activation),
-           [OpType.Name(a) for a in supported_activations]))
-  if act_params != None:
+def _set_activation_params(activation, params, proto):
+  """Set the parameters of the activation function.
+
+  Args:
+    activation: An activation op type such as `types_pb2.ReLU`.
+    params: kwargs for the activation function parameters.
+    proto: An `ActivationParams`, the proto to set.
+  """
+  if params is not None:
     if activation == types_pb2.LReLU:
-      act_params_proto.lrelu_params.CopyFrom(act_params)
+      proto.lrelu_params.slope = params["slope"]
     elif activation == types_pb2.ELU:
-      act_params_proto.elu_params.CopyFrom(act_params)
+      proto.elu_params.alpha = params["alpha"]
     elif activation == types_pb2.SELU:
-      act_params_proto.elu_params.CopyFrom(act_params)
+      proto.elu_params.alpha = params["alpha"]
+      proto.elu_params.lambda_param = params["lambda_param"]
     elif activation == types_pb2.HardTanh:
-      act_params_proto.hard_tanh_params.CopyFrom(act_params)
+      proto.hard_tanh_params.min = params["min"]
+      proto.hard_tanh_params.max = params["max"]
   else:
     # Use default values for the parameters if not specified.
     if activation == types_pb2.LReLU:
-      act_params_proto.lrelu_params.slope = 0.2
+      proto.lrelu_params.slope = 0.2
     elif activation == types_pb2.ELU:
-      act_params_proto.elu_params.alpha = 0.1
+      proto.elu_params.alpha = 0.1
     elif activation == types_pb2.SELU:
-      act_params_proto.elu_params.alpha = 1.6733
-      act_params_proto.elu_params.lambda_param = 1.0507
+      proto.elu_params.alpha = 1.6733
+      proto.elu_params.lambda_param = 1.0507
     elif activation == types_pb2.HardTanh:
-      act_params_proto.hard_tanh_params.min = -1
-      act_params_proto.hard_tanh_params.max = 1
+      proto.hard_tanh_params.min = -1
+      proto.hard_tanh_params.max = 1
 
-def activation(op_type):
+def get_activation_op(activation):
   """Return an activation function functor.
 
   Args:
-    op_type: OpType of the activation function.
+    activation: A string representing the activation function.
   """
-  if op_type == types_pb2.ReLU:
-    return relu
-  elif op_type == types_pb2.LReLU:
-    return lrelu
-  elif op_type == types_pb2.ELU:
-    return elu
-  elif op_type == types_pb2.SELU:
-    return selu
-  elif op_type == types_pb2.Tanh:
-    return tanh
-  elif op_type == types_pb2.HardTanh:
-    return hard_tanh
-  elif op_type == types_pb2.Sigmoid:
-    return sigmoid
-  elif op_type == types_pb2.Softmax:
-    return softmax
-  else:
-    raise ValueError("The given OpType %s is not an activation function." %
-                     OpType.Name(op_type))
+  return _activation_type_op_tuples[activation][1]
+
+def to_proto(activation, params):
+  """Return the activation proto.
+
+  Args:
+    activation: A string representing the activation function.
+    params: kwargs for the activation function parameters.
+    proto: An `ActivationParams`, the proto to set.
+
+  Returns:
+    An `ActivationParams`, the proto.
+  """
+  proto = node_pb2.ActivationParams()
+  act_type = _activation_type_op_tuples[activation][0]
+  proto.activation = act_type
+  _set_activation_params(act_type, params, proto)
+  return proto
 
 def relu(input_tensor, name="relu"):
   return common.add_node(
@@ -117,3 +119,14 @@ def softmax(input_tensor, name=None):
       name=name, op=types_pb2.Softmax, input_tensors=[input_tensor],
       output_tensors_dims=[input_tensor.shape.dims],
       output_tensor_layout=input_tensor.shape.layout)[0]
+
+_activation_type_op_tuples = {
+    "relu": (types_pb2.ReLU, relu),
+    "lrelu": (types_pb2.LReLU, lrelu),
+    "elu": (types_pb2.ELU, elu),
+    "selu": (types_pb2.SELU, selu),
+    "tanh": (types_pb2.Tanh, tanh),
+    "hard_tanh": (types_pb2.HardTanh, hard_tanh),
+    "sigmoid": (types_pb2.Sigmoid, sigmoid),
+    "softmax": (types_pb2.Softmax, softmax)
+}

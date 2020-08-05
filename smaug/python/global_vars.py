@@ -5,7 +5,6 @@ Currently it contains:
   2) Alignment information for various backends.
   3) Input/output layouts for operators of various backends.
   4) Supported data types of backends.
-  5) Supported activation functions.
 """
 
 import numpy as np
@@ -80,7 +79,3 @@ backend_layouts = {
 }
 
 backend_datatype = {"SMV": np.float16, "Reference": np.float32}
-
-supported_activations = [
-    ReLU, LReLU, ELU, SELU, Tanh, HardTanh, Sigmoid, Softmax
-]

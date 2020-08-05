@@ -9,12 +9,12 @@ from smaug.python.ops import activation_ops
 
 class LSTM:
   def __init__(
-      self, weight_tensors, activation=types_pb2.Tanh, activation_params=dict(),
+      self, weight_tensors, activation="tanh", activation_params=dict(),
       name="lstm"):
     """ An LSTM layer.
 
     Args:
-      weight_tensors: A list of four weights.
+      weight_tensors: A list of two weights.
       activation: Activation function used in LSTM.
       activation_params: kwargs for the activation function.
     """
@@ -22,7 +22,7 @@ class LSTM:
     self.name = name + ":"
     self.kernel, self.recurrent_kernel = weight_tensors
     self.prepare_states()
-    self.activation = activation_ops.activation(activation)
+    self.activation = activation_ops.get_activation_op(activation)
     self.activation_params = activation_params
 
   def prepare_states(self):
@@ -120,7 +120,7 @@ class LSTM:
 
 class BidirectionalLSTM:
   def __init__(
-      self, fwd_weight_tensors, bwd_weight_tensors, activation=types_pb2.Tanh,
+      self, fwd_weight_tensors, bwd_weight_tensors, activation="tanh",
       activation_params=dict(), name="bidir_lstm"):
     """ A bidirectional LSTM layer.
 
