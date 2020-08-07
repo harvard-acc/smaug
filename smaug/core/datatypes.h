@@ -7,40 +7,6 @@
 
 namespace smaug {
 
-class DataLayoutSet {
-  public:
-    // DataLayoutSet(DataLayout layout) : layouts(layout) {}
-    DataLayoutSet(int bitmask = 0) : layouts(bitmask) {}
-
-    void insert(DataLayout layout) { layouts |= layout; }
-    void remove(DataLayout layout) { layouts &= (~layout); }
-    bool contains(DataLayout layout) const { return layouts & (int)layout; }
-    bool overlapsWith(const DataLayoutSet& other) const {
-        return (layouts & other.layouts) != 0;
-    }
-    int getLayouts() const { return layouts; }
-    bool operator==(const DataLayoutSet& other) const {
-        return layouts == other.layouts;
-    }
-    bool operator<(const DataLayoutSet& other) const {
-        return layouts < other.layouts;
-    }
-    std::vector<DataLayout> toArray() const {
-        int mask = DataLayout::EndDataLayout;
-        std::vector<DataLayout> array;
-        while (mask > 0) {
-            int match = layouts & mask;
-            if (match)
-                array.push_back((DataLayout)mask);
-            mask >>= 1;
-        }
-        return array;
-    }
-
-   protected:
-    int layouts;
-};
-
 using float16 = uint16_t;
 
 template <typename T>
