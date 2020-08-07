@@ -98,5 +98,5 @@ run-tests:
 ###########################
 
 clean:
-	rm -f $(BUILD_DIR)/bin/$(EXEC) $(TEST_BIN) $(BUILD_PROTO_CPP_SRCS) $(PROTO_PY_SRCS)
+	rm -f $(BUILD_DIR)/bin/$(EXEC) $(TEST_BIN) $(BUILD_PROTO_CPP_SRCS) $(BUILD_PROTO_PY_SRCS) $(PROTO_PY_SRCS)
 	find $(BUILD_DIR) -name "*.o" | xargs rm -f
