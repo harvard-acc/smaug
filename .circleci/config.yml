@@ -5,7 +5,7 @@ jobs:
       - image: xyzsam/smaug:latest
 
     environment:
-      SMAUG_HOME: /root/project
+      SMAUG_HOME: /root/project/smaug
     steps:
       - checkout
       - run:
