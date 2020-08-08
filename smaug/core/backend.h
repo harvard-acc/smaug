@@ -11,11 +11,20 @@
 #define REFERENCE 0
 #define SMVBACKEND 1
 
+/**
+ * The smaug namespace is the parent namespace of all C++ code in SMAUG.
+ */
 namespace smaug {
 
+/**
+ * The list of all hardware backends in the system.
+ */
 enum BackendName {
+    /** Reference backend. */
     Reference = REFERENCE,
+    /** SMV backend. */
     Smv = SMVBACKEND,
+    /** Invalid backend. */
     UnknownBackend,
 };
 
@@ -49,6 +58,9 @@ template <typename Backend> class SeluOp;
 template <typename Backend> class TanhOp;
 template <typename Backend> class HardTanhOp;
 
+/**
+ * The ref namespace contains all code specific to the Reference backend.
+ */
 namespace ref {
 extern const unsigned kConvolutionHw;
 extern const unsigned kInnerProductHw;
@@ -57,6 +69,13 @@ extern const unsigned kBatchNormHw;
 extern const unsigned kPoolingHw;
 }  // namespace ref
 
+/**
+ * ReferenceBackend provides reference implementations of all operators
+ * supported by SMAUG. Some of these operators are written to be
+ * Aladdin-compatible for simulation purposes; others are intended to be
+ * executed in software. As the name suggests, these implementations
+ * are not optimized in any way.
+ */
 class ReferenceBackend {
 
 #define DECL_CREATE_OP(OpType)                                                 \
@@ -103,6 +122,9 @@ class ReferenceBackend {
 
 };
 
+/**
+ * The smv namespace contains all code specific to the Smv backend.
+ */
 namespace smv {
 extern int kSpadSize;
 extern const unsigned kConvolutionHw;
@@ -136,6 +158,13 @@ class SmvLessOp;
 class SmvLessEqualOp;
 class SmvGreaterOp;
 class SmvGreaterEqualOp;
+
+/**
+ * SmvBackend implements a set of models of optimized DL kernels that were
+ * taped out on a machine learning SoC by the Harvard Architecture, Circuits,
+ * and Compilers. All operators implemented in this backend are vectorized
+ * using eight fp16 values. See the individual operators for more details.
+ */
 class SmvBackend {
 
 // The difference between DECL_CREATE_OP and DECL_CREATE_SMV_OP is the latter is

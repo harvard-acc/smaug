@@ -9,6 +9,10 @@ namespace smaug {
 
 using float16 = uint16_t;
 
+/**
+ * ToDataType provides a compile-time way to convert a C type (e.g. double,
+ * bool) to a SMAUG DataType enum (defined in smaug/core/types.proto).
+ */
 template <typename T>
 struct ToDataType {};
 

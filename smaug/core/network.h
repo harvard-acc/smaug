@@ -18,6 +18,10 @@ namespace smaug {
 template <typename Backend>
 class ReorderOp;
 
+/**
+ * DataflowGraphWriter writes the current network as a dot-graph file to the
+ * given ostream.
+ */
 class DataflowGraphWriter {
    public:
     DataflowGraphWriter(const Graph& _graph) : graph(_graph) {}
@@ -30,6 +34,11 @@ class DataflowGraphWriter {
     const Graph& graph;
 };
 
+/**
+ * Network encapsulates all of the information SMAUG will use during execution:
+ * the overall computation graph of the model, all the operators and tensors,
+ * various housekeeping structures, and simulation information.
+ */
 class Network {
    protected:
     typedef std::map<std::string, Operator*> OperatorMap;
@@ -67,16 +76,16 @@ class Network {
         std::vector<Operator*> targetOps;
     };
 
-    // The dataflow graph.
+    /** The dataflow graph. */
     Graph graph;
 
-    // Global map of operator names to their operator objects.
+    /** Global map of operator names to their operator objects. */
     OperatorMap operators;
 
-    // The sampling information of the model.
+    /** The sampling information of the model. */
     SamplingInfo sampling;
 
-    // Name of the model.
+    /** Name of the model. */
     std::string name;
 };
 
