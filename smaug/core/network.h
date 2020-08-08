@@ -76,16 +76,16 @@ class Network {
         std::vector<Operator*> targetOps;
     };
 
-    // The dataflow graph.
+    /** The dataflow graph. */
     Graph graph;
 
-    // Global map of operator names to their operator objects.
+    /** Global map of operator names to their operator objects. */
     OperatorMap operators;
 
-    // The sampling information of the model.
+    /** The sampling information of the model. */
     SamplingInfo sampling;
 
-    // Name of the model.
+    /** Name of the model. */
     std::string name;
 };
 
