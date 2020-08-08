@@ -149,6 +149,7 @@ BUILD_DIR = build
 PROTO_PY_SRCS = $(patsubst %.proto, %_pb2.py, $(PROTO_SRCS))
 PROTO_CPP_SRCS = $(patsubst %.proto, %.pb.cpp, $(PROTO_SRCS))
 BUILD_PROTO_CPP_SRCS = $(patsubst %, $(BUILD_DIR)/%, $(PROTO_CPP_SRCS))
+BUILD_PROTO_PY_SRCS = $(patsubst %, $(BUILD_DIR)/%, $(PROTO_PY_SRCS))
 
 # Create a build directory that just has symlinks to all the source files, so
 # we can build everything seemingly "alongside" the source.
@@ -161,12 +162,12 @@ src-symlinks:
 	@$(foreach f, $(GEM5_SRCS), cp -asf $(ALADDIN_HOME)/$(f) $(BUILD_DIR)/gem5/$(notdir $(f));)
 	@mkdir -p $(BUILD_DIR)/bin
 
-protos: $(BUILD_PROTO_CPP_SRCS) $(PROTO_PY_SRCS)
+protos: $(BUILD_PROTO_CPP_SRCS) $(BUILD_PROTO_PY_SRCS)
 
 $(BUILD_DIR)/%.pb.cpp: %.proto
 	$(PROTOC) -I=$(SMAUG_HOME) --cpp_out=. $^
 	mv $(basename $^).pb.cc $@
 	mv $(basename $^).pb.h $(dir $@)
 
-%_pb2.py: %.proto
-	$(PROTOC) -I=$(SMAUG_HOME) --python_out=. $^
+$(BUILD_DIR)/%_pb2.py: %.proto
+	$(PROTOC) -I=$(SMAUG_HOME) --python_out=$(BUILD_DIR) $^
