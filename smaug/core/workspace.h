@@ -9,6 +9,11 @@
 
 namespace smaug {
 
+ /**
+  * Workspace is the container and owner of all Tensors and Operators in the
+  * Network. Every Tensor/Operator that is created must be added to a
+  * Workspace (and in general, there is only one Workspace).
+  */
 class Workspace {
   public:
     Workspace() {}
