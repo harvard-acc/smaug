@@ -60,7 +60,7 @@ BUILD_PY_TESTS = $(patsubst %, $(BUILD_DIR)/%, $(PY_TESTS))
 
 TEST_OBJ = $(patsubst %.cpp, %.o, $(BUILD_TESTS))
 TEST_BIN = $(patsubst %.cpp, %, $(BUILD_TESTS))
-ALL_TESTS = $(TEST_BIN) $(BUILD_PY_TESTS)
+ALL_TESTS = $(realpath $(TEST_BIN) $(BUILD_PY_TESTS))
 
 tests:
 	@$(MAKE) -f make/Makefile.common --no-print-directory src-symlinks
@@ -76,9 +76,10 @@ run-tests:
 	@$(MAKE) -f make/Makefile.native --no-print-directory tests
 	@$(MAKE) -f make/Makefile.native --no-print-directory exec
 	@HAS_ERROR=0;				\
+	cd $(BUILD_DIR); \
 	for t in $(ALL_TESTS); do 		\
 		printf "Running test ($$t)";	\
-		./$$t > tmpout 2>&1;		\
+		$$t > tmpout 2>&1;		\
 		RET_VAL=$$(echo $$?);		\
 		if [ $$RET_VAL -ne 0 ]; then 	\
 			echo "... failed";	\
