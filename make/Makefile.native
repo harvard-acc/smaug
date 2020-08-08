@@ -60,7 +60,7 @@ BUILD_PY_TESTS = $(patsubst %, $(BUILD_DIR)/%, $(PY_TESTS))
 
 TEST_OBJ = $(patsubst %.cpp, %.o, $(BUILD_TESTS))
 TEST_BIN = $(patsubst %.cpp, %, $(BUILD_TESTS))
-ALL_TESTS = $(realpath $(TEST_BIN) $(BUILD_PY_TESTS))
+ALL_TESTS = $(abspath $(TEST_BIN) $(BUILD_PY_TESTS))
 
 tests:
 	@$(MAKE) -f make/Makefile.common --no-print-directory src-symlinks
