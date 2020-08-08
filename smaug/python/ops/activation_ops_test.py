@@ -102,34 +102,50 @@ class ActivationFunctionTest(unittest.TestCase):
           act, filter_tensor, stride=[1, 1], padding="same", activation=None,
           name="conv_none")
       act = nn_ops.convolution(
-          act, filter_tensor, stride=[1, 1], padding="same",
-          activation=types_pb2.ReLU, name="conv_relu")
+          act, filter_tensor, stride=[1, 1], padding="same", activation="relu",
+          name="conv_relu")
+      act = nn_ops.convolution(
+          act, filter_tensor, stride=[1, 1], padding="same", activation="lrelu",
+          name="conv_lrelu")
+      act = nn_ops.convolution(
+          act, filter_tensor, stride=[1, 1], padding="same", activation="elu",
+          name="conv_elu")
+      act = nn_ops.convolution(
+          act, filter_tensor, stride=[1, 1], padding="same", activation="selu",
+          name="conv_selu")
+      act = nn_ops.convolution(
+          act, filter_tensor, stride=[1, 1], padding="same", activation="tanh",
+          name="conv_tanh")
       act = nn_ops.convolution(
           act, filter_tensor, stride=[1, 1], padding="same",
-          activation=types_pb2.LReLU, name="conv_lrelu")
+          activation="hard_tanh", name="conv_hard_tanh")
       act = nn_ops.convolution(
           act, filter_tensor, stride=[1, 1], padding="same",
-          activation=types_pb2.ELU, name="conv_elu")
+          activation="sigmoid", name="conv_sigmoid")
       act = nn_ops.convolution(
           act, filter_tensor, stride=[1, 1], padding="same",
-          activation=types_pb2.SELU, name="conv_selu")
-      act = nn_ops.convolution(
-          act, filter_tensor, stride=[1, 1], padding="same",
-          activation=types_pb2.Tanh, name="conv_tanh")
-      act = nn_ops.convolution(
-          act, filter_tensor, stride=[1, 1], padding="same",
-          activation=types_pb2.HardTanh, name="conv_hard_tanh")
-      act = nn_ops.convolution(
-          act, filter_tensor, stride=[1, 1], padding="same",
-          activation=types_pb2.Sigmoid, name="conv_sigmoid")
-      act = nn_ops.convolution(
-          act, filter_tensor, stride=[1, 1], padding="same",
-          activation=types_pb2.Softmax, name="conv_softmax")
+          activation="softmax", name="conv_softmax")
       act = nn_ops.batch_norm(
           act, bn_mean_tensor, bn_var_tensor, bn_gamma_tensor, bn_beta_tensor,
-          activation=types_pb2.ReLU, name="bn_relu")
-      act = nn_ops.mat_mul(
-          act, weight_tensor, activation=types_pb2.ReLU, name="fc_relu")
+          activation="relu", name="bn_relu")
+      out = nn_ops.mat_mul(
+          act, weight_tensor, activation="relu", name="fc_relu")
+      out = nn_ops.mat_mul(
+          act, weight_tensor, activation="lrelu",
+          activation_params={"slope": 0.1}, name="fc_lrelu")
+      out = nn_ops.mat_mul(
+          act, weight_tensor, activation="elu",
+          activation_params={"alpha": 0.3}, name="fc_elu")
+      out = nn_ops.mat_mul(
+          act, weight_tensor, activation="selu", activation_params={
+              "alpha": 1.0,
+              "lambda_param": 1.0
+          }, name="fc_selu")
+      out = nn_ops.mat_mul(
+          act, weight_tensor, activation="hard_tanh", activation_params={
+              "min": -2.0,
+              "max": 2.0
+          }, name="fc_hard_tanh")
     graph_proto, _ = test_graph.to_proto()
     # None
     node = get_node_proto(graph_proto, "conv_none")
@@ -170,6 +186,20 @@ class ActivationFunctionTest(unittest.TestCase):
     self.assertEqual(node.params.act_params.activation, types_pb2.ReLU)
     node = get_node_proto(graph_proto, "fc_relu")
     self.assertEqual(node.params.act_params.activation, types_pb2.ReLU)
+    node = get_node_proto(graph_proto, "fc_lrelu")
+    self.assertEqual(node.params.act_params.activation, types_pb2.LReLU)
+    self.assertAlmostEqual(node.params.act_params.lrelu_params.slope, 0.1)
+    node = get_node_proto(graph_proto, "fc_elu")
+    self.assertEqual(node.params.act_params.activation, types_pb2.ELU)
+    self.assertAlmostEqual(node.params.act_params.elu_params.alpha, 0.3)
+    node = get_node_proto(graph_proto, "fc_selu")
+    self.assertEqual(node.params.act_params.activation, types_pb2.SELU)
+    self.assertAlmostEqual(node.params.act_params.elu_params.alpha, 1.0)
+    self.assertAlmostEqual(node.params.act_params.elu_params.lambda_param, 1.0)
+    node = get_node_proto(graph_proto, "fc_hard_tanh")
+    self.assertEqual(node.params.act_params.activation, types_pb2.HardTanh)
+    self.assertAlmostEqual(node.params.act_params.hard_tanh_params.min, -2.0)
+    self.assertAlmostEqual(node.params.act_params.hard_tanh_params.max, 2.0)
 
 if __name__ == "__main__":
   unittest.main()
