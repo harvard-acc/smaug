@@ -24,6 +24,9 @@ void printTensorElement(std::ostream& os, DType* data, int index) {
 template <>
 void printTensorElement<float16>(std::ostream& os, float16* data, int index);
 
+/**
+ * Pretty-print a Tensor's name, shape, and contents to the provided ostream.
+ */
 template <typename DType>
 void writeTensorToOstream(std::ostream& os, const Tensor& tensor) {
     const TensorShape& shape = tensor.getShape();
@@ -137,41 +140,84 @@ void copyTensorData(Tensor* dest,
 
 // Copy a region of data from one tensor to another.
 //
-// For example:
-//   tensor A: 4x4, tensor B: 3x3
-//   To copy upper left 2x2 block of tensor A to the lower left 2x2 block of
-//   tensor B:
-//      copyTensorRegion(tensorB, tensorA, {1,1}, {0,0}, {2,2});
+/**
+ * Copies a region of a source Tensor to a corresponding region in a
+ * destination Tensor. The two Tensors are expected to share the same layout.
+ * Region origins and sizes are all specified in elements (not bytes) and in
+ * accordance with the data layout.
+ *
+ * For example:
+ *   `tensorA`: 4x4, tensor B: 3x3
+ *   To copy upper left 2x2 block of `tensorA` to the lower left 2x2 block of
+ `*   tensorB`:
+ *      `copyTensorRegion(tensorB, tensorA, {1,1}, {0,0}, {2,2})`
+ *
+ * @param dest Destination Tensor
+ * @param src Source Tensor
+ * @param destOrigin The start of the copied region in the destination.
+ * @param srcOrigin The start of the copied region in the source.
+ * @param regionSize The size of the region.
+ */
 void copyTensorRegion(Tensor* dest,
                       Tensor* src,
                       std::vector<int> destOrigin,
                       std::vector<int> srcOrigin,
                       std::vector<int> regionSize);
 
-// Copy data from one tensor to another.
+/**
+ * Similar to copyTensorRegion, but the region is a contiguous block of
+ * memory.
+ */
 void copyTensorData(Tensor* dest,
                     Tensor* src,
                     std::vector<int> destOffset,
                     std::vector<int> srcOffset,
                     int copySize);
 
-// Copy the raw data linearly from the tensor to another without taking
-// dimensions and paddings into account.
+/**
+ * Directly copies a linear region of memory from dest to src, without taking
+ * dimensions/padding into account.
+ *
+ * @param dest Destination Tensor
+ * @param src Source Tensor
+ * @param destOffset The linear offset into the destination where data will be
+ * copied to.
+ * @param srcOffset The linear offset into the source where data will be copied
+ * from.
+ * @param copySize The size of the region in elements.
+ */
 void copyRawTensorData(
         Tensor* dest, Tensor* src, int destOffset, int srcOffset, int copySize);
 
 
-// This generates a TiledTensor from a Tensor using the specified tile shape.
+/**
+ * Generates a TiledTensor from a source Tensor with the specified tile shape.
+ *
+ * Depending on the operator that needs this TiledTensor, tiles may need to
+ * overlap each other (e.g. for a convolutional filter window).
+ *
+ * @param tensor The Tensor to tile.
+ * @param tileShape The maximum size of each tile.
+ * @param op The Operator that will be consuming this TiledTensor.
+ * @param fieldRows Number of rows of a filter applied, if any.
+ * @param fieldCols Number of columns of a filter applied, if any.
+ * @param rowStride The row stride of a filter applied, if any.
+ * @param colStride The column stride of a filter applied, if any.
+ * @param paddingType The type of additional zero-padding applied on the Tensor
+ * by the Operator, if any.
+ */
 TiledTensor generateTiledTensor(Tensor* tensor,
                                 const TensorShape& tileShape,
                                 Operator* op,
-                                int filedRows = 0,
-                                int filedCols = 0,
+                                int fieldRows = 0,
+                                int fieldCols = 0,
                                 int rowStride = 1,
                                 int colStride = 1,
                                 PaddingType paddingType = ValidPadding);
 
-// This generates the tiles and copies data to them from the original tensor.
+/**
+ * A helper method to both tile a Tensor and fill the tiles with data.
+ */
 TiledTensor generateTiledTensorAndCopyData(
         Tensor* tensor,
         const TensorShape& tileShape,
@@ -182,7 +228,9 @@ TiledTensor generateTiledTensorAndCopyData(
         int colStride = 1,
         PaddingType paddingType = ValidPadding);
 
-// This generates the tiles and copies data to them from the original tensor.
+/**
+ * A helper method to both tile a Tensor and fill the tiles with data.
+ */
 template <typename... Args>
 TiledTensor generateTiledTensorAndCopyData(Args&&... args) {
     TiledTensor tiledTensor =
@@ -191,14 +239,15 @@ TiledTensor generateTiledTensorAndCopyData(Args&&... args) {
     return tiledTensor;
 }
 
-// The difference between this and untileTiledTensor is:
-//  - untileTiledTensor copies tensors into specific regions of memory
-//    corresponding to their tile origins.
-//  - flattenTiledTensor copies tensor data as a contiguous block into the
-//    destination, as if only a single dimension existed.
+/**
+ * Copies the data from each tile in a TiledTensor into a destination Tensor as
+ * a contiguous block of memory, as if only one dimension ever existed.
+ */
 void flattenTiledTensor(TiledTensor& tiledTensor, Tensor* destTensor);
 
-// This concatenates tensors on the specified dimension into one single tensor.
+/**
+ * Concatenates Tensors on the specified dimension into one single tensor.
+ */
 Tensor* concatTensors(std::vector<Tensor*> inputTensors,
                       int concatDim,
                       Workspace* workspace);
