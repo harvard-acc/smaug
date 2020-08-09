@@ -43,10 +43,14 @@ class Operator {
      *
      * This should only be called once the Operator is fully initialized with
      * all required parameters. It is responsible for creating only the tensors
-     * it "owns". All tensors own their output tensors, but not necessarily all
-     * of their input tensors.  For example, a convolution operator "owns" its
-     * weight tensors, but not the input activations (which are the output of a
-     * previous Operator).
+     * it "owns". All operators "own" their output tensors, but not necessarily
+     * all of their input tensors.  For example, a convolution operator "owns"
+     * its weight tensors, but not the input activations (which are the output
+     * of a previous Operator).
+     *
+     * Note that "ownership" of a Tensor does not mean the Operator holds a
+     * std::unique_ptr to the Tensor; it simply means it is solely responsible
+     * for constructing and allocating memory for it.
      */
     virtual void createAllTensors() = 0;
 
@@ -120,9 +124,11 @@ class Operator {
     /** The number of tensors that this operator is waiting on before it can be
      * scheduled. */
     int numPendingInputs;
-    /** The memory interface over which the inputs are expected to arrive. */
+    /** The memory interface over which input activations are expected to arrive. */
     MemoryType inputsMemType;
+    /** The memory interface over which weights are expected to arrive. */
     MemoryType weightsMemType;
+    /** The memory interface over which outputs are expected to be delivered. */
     MemoryType outputsMemType;
 };
 
