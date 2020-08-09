@@ -517,9 +517,8 @@ class Tensor : public TensorBase {
     /**
      * Returns a const pointer to the Tensor data.
      */
-    // TODO(xyzsam): Should this be const T*?
     template <typename T>
-    T* const data() const {
+    const T* data() const {
         assert(ToDataType<T>::dataType == dataType);
         return reinterpret_cast<T*>(tensorData.get());
     }

@@ -9,7 +9,7 @@
 namespace smaug {
 
 template <>
-void printTensorElement<float16>(std::ostream& os, float16* data, int index) {
+void printTensorElement<float16>(std::ostream& os, const float16* data, int index) {
     os << fp16_ieee_to_fp32_value(data[index]);
 }
 
