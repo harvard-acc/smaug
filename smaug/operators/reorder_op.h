@@ -76,7 +76,7 @@ class ReorderOp : public Operator {
         if (!Operator::validate())
             return false;
         DataLayout sourceLayout = inputs[Inputs]->getShape().getLayout();
-        uf (sourceLayout == DataLayout::UnknownLayout) {
+        if (sourceLayout == DataLayout::UnknownLayout) {
             std::cerr << "[ERROR]: Reorder operation has unknown source "
                          "layout!\n";
             return false;
