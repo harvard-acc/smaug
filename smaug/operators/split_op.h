@@ -10,6 +10,11 @@
 
 namespace smaug {
 
+/** \ingroup Operators
+ *
+ * Implements the split operator, which divides a Tensor into N output Tensors
+ * along a specified dimension.
+ */
 template <typename Backend>
 class SplitOp : public Operator {
    public:
@@ -28,6 +33,7 @@ class SplitOp : public Operator {
         outputs.resize(splits.size());
     }
 
+    /** Set the size (along the split axis) of each split Tensor. */
     void setSplits(const std::vector<int>& _splits) {
         splits = _splits;
         outputs.resize(splits.size());
@@ -36,6 +42,8 @@ class SplitOp : public Operator {
         splits = _splits;
         outputs.resize(splits.size());
     }
+
+    /** Set the axis along which to split the input Tensor. */
     void setSplitAxis(int axis) { splitAxis = axis; }
 
     const std::vector<int>& getSplits() const { return splits; }

@@ -7,6 +7,13 @@
 
 namespace smaug {
 
+/** \ingroup Operators
+ * A data operator contains a Tensor that it exposes as its only Output.
+ *
+ * This is the only operator that is not expected to have any inputs. Its
+ * existence is to maintain the abstraction that the input to all other
+ * operators is always provided by another Operator.
+ */
 template <typename Backend>
 class DataOp : public Operator {
    public:

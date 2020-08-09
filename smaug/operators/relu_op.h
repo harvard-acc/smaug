@@ -8,6 +8,9 @@
 
 namespace smaug {
 
+/** \ingroup Operators
+  * Implements the rectified linear unit operator: max(slope * x, 0).
+  */
 template <typename Backend>
 class ReluOp : public UnaryOp<Backend> {
    public:

@@ -5,6 +5,9 @@
 
 namespace smaug {
 
+/** \ingroup Operators
+ * Implements the depthwise convolution operator.
+ */
 template <typename Backend>
 class DepthwiseConvolutionOp : public ConvolutionOp<Backend> {
    protected:
