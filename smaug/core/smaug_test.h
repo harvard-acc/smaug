@@ -8,17 +8,33 @@
 
 namespace smaug {
 
+/**
+ * Any function that accepts a Tensor, fills it with data, and returns
+ * nothing.
+ */
 typedef void (*FillTensorDataFunc)(Tensor* tensor);
 
-// The difference between margin and epsilon is that the former serves to set
-// the the absolute value by which a result can differ from Approx's value,
-// while the later serves to set the percentage by which a result can differ
-// from Approx's value.
+/**
+ * Sets the absolute value by which a result can differ from Approx's expected
+ * value.
+ */
 constexpr float kMargin = 0.001;
+
+/**
+ * Set the percentage by which a result can differ from Approx's expected
+ * value.
+ */
 constexpr float kEpsilon = 0.01;
 
 class Operator;
 
+/**
+ * The Catch2 test fixture used by all C++ unit tests.
+ *
+ * This fixture encapsulates a Network and Workspace, and exposes a set of
+ * useful functions for writing unit tests, like filling Tensors with random
+ * data and verifying approximate equality of two Tensors.
+ */
 class SmaugTest {
    public:
     SmaugTest() {
@@ -37,6 +53,12 @@ class SmaugTest {
         SmvBackend::freeGlobals();
     }
 
+    /**
+     * Allocates data storage for all Tensors in the Operator.
+     *
+     * @param T The data element type.
+     * @param op The Operator.
+     */
     template <typename T>
     void allocateAllTensors(Operator* op) {
         for (auto t : op->getInputs()) {
@@ -49,6 +71,15 @@ class SmaugTest {
         }
     }
 
+    /**
+     * Fills every input Tensor in the Operator with data by calling the
+     * provided FillTensorDataFunc.
+     *
+     * @param T The type of data stored in the Tensors.
+     * @param op The Operator
+     * @param fillTensorDataFunc A pointer to a function to auto-generate
+     * testing data for the Tensor.
+     */
     template <typename T>
     void createAndFillTensorsWithData(Operator* op,
                                       FillTensorDataFunc fillTensorDataFunc) {
@@ -60,6 +91,13 @@ class SmaugTest {
         }
     }
 
+    /**
+     * Compares the contents of the given Tensor against an std::vector of data
+     * elements and asserts (REQUIRE) that the two are approximately pointwise
+     * equal. Any region of the Tensor that would be ignored by its
+     * TensorIndexIterator (like alignment zero-padding) are not included in
+     * the pointwise comparison.
+     */
     template <typename DType>
     void verifyOutputs(Tensor* output,
                        const std::vector<DType>& expected) {
@@ -72,6 +110,13 @@ class SmaugTest {
         REQUIRE(i == expected.size());
     }
 
+    /**
+     * Compares the contents of the two given Tensors against each other and
+     * asserts (REQUIRE) that the two are approximately pointwise equal. Any
+     * region of the Tensor that would be ignored by its TensorIndexIterator
+     * (like alignment zero-padding) are not included in the pointwise
+     * comparison.
+     */
     template <typename DType>
     void verifyOutputs(Tensor* output, Tensor* expected) {
         auto outputPtr = output->template data<DType>();
@@ -94,6 +139,10 @@ class SmaugTest {
     Workspace* workspace() const { return workspace_; }
 
    protected:
+    /**
+     * Resolves a SMAUG_HOME relative path to a particular resource (like a
+     * protobuf).
+     */
     std::string resolvePath(const std::string& relPath) {
         const char* baseDir = std::getenv("SMAUG_HOME");
         if (baseDir == NULL)
@@ -113,18 +162,22 @@ class SmaugTest {
     Workspace* workspace_;
 };
 
-// This converts a float32 into a float16.
+/** This converts a float32 into a float16. */
 float16 fp16(float fp32_data);
 
-// This converts a float16 into a float32.
+/** This converts a float16 into a float32. */
 float fp32(float16 fp16_data);
 
-// This creates a tensor with float32 data type and fills it with data converted
-// from a source tensor with float16 data.
+/**
+ * This creates a tensor with float32 data type and fills it with data
+ * converted from a source tensor with float16 data.
+ */
 Tensor* convertFp16ToFp32Tensor(Tensor* fp16Tensor, Workspace* workspace);
 
-// This creates a tensor with float16 data type and fills it with data converted
-// from a source tensor with float32 data.
+/**
+ * This creates a tensor with float16 data type and fills it with data
+ * converted from a source tensor with float32 data.
+ */
 Tensor* convertFp32ToFp16Tensor(Tensor* fp32Tensor, Workspace* workspace);
 
 }  // namespace smaug

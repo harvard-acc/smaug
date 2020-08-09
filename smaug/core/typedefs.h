@@ -13,9 +13,13 @@ namespace smaug {
 class TensorBase;
 class Operator;
 
+/**
+ * Additional metadata for edges in the graph.
+ *
+ * Edges are Tensors. This stores the input indices of the tensor in the source
+ * and destination operators.
+ */
 struct TensorIndices {
-    // This stores the indices of the tensor in the source and destination
-    // operators.
     int srcIdx;
     int destIdx;
 };
