@@ -446,8 +446,8 @@ class Tensor : public TensorBase {
     /**
      * Fill the tensor with float16 data.
      *
-     * This special overload is required is needed because the data stored in
-     * TensorProto packs two float16 into one int32.
+     * This special overload is required because the data stored in TensorProto
+     * packs two float16 into one int32.
      */
     void fillHalfData(
             const google::protobuf::RepeatedField<int>& externalData) {
@@ -561,7 +561,7 @@ class TiledTensor : public TensorBase {
     * in each dimension. Alignment padding is ignored here.
     * @param _origTensor The Tensor that is being tiled.
     * @param _useRawTensor If true, data from the original Tensor is memcpy'ed
-    * into the all thetiles, instead of being copied element-wise from/to a
+    * into the all the tiles, instead of being copied element-wise from/to a
     * specific region. Only useful for broadcasting data into the tiles.
     */
    TiledTensor(const TensorShape& shape,
