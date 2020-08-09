@@ -33,6 +33,12 @@ class Operator {
     virtual ~Operator() {}
 
     virtual void tile() {};
+
+    /**
+     * Executes the Operator.
+     *
+     * All Operator subclasses must override this method.
+     */
     virtual void run() = 0;
     virtual bool validate() {
         return validateInputsOutputs() && opType != OpType::UnknownOp;
@@ -54,8 +60,15 @@ class Operator {
      */
     virtual void createAllTensors() = 0;
 
-    /** The default implementation will just return true if any input is dead. */
+    /**
+     * Returns true if the Operator is dead.
+     *
+     * By default, an Operator is dead if any input is dead, but operators can
+     * override this behavior if they are expected to operate on dead Tensors.
+     */
     virtual bool isDead();
+
+    /** Return a list of Tensors that are parameterizable (i.e. weights). */
     virtual std::vector<TensorBase*> getParameterizableInputs() { return {}; }
 
     /** This returns the number of parameterizable weights in the operator. */

@@ -8,6 +8,14 @@
 
 namespace smaug {
 
+/** \ingroup Operators
+ *
+ * Implements a pooling operator.
+ *
+ * The pooling operator reduces the size of the input Tensor by applying a
+ * windowed filter that reduces all elements in its field of view to a single
+ * value.
+ */
 template <typename Backend>
 class PoolingOp : public Operator {
    public:
@@ -109,6 +117,9 @@ class PoolingOp : public Operator {
     SamplingInfo sampling;
 };
 
+/** \ingroup Operators
+ * Implements the max-pooling operator.
+ */
 template <typename Backend>
 class MaxPoolingOp : public PoolingOp<Backend> {
    protected:
@@ -120,6 +131,9 @@ class MaxPoolingOp : public PoolingOp<Backend> {
     void run() override{};
 };
 
+/** \ingroup Operators
+ * Implements the arithmetic-average-pooling operator.
+ */
 template <typename Backend>
 class AvgPoolingOp : public PoolingOp<Backend> {
    protected:

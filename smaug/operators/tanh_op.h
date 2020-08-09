@@ -8,6 +8,9 @@
 
 namespace smaug {
 
+/** \ingroup Operators
+ * Implements the tanh operator.
+ */
 template <typename Backend>
 class TanhOp : public UnaryOp<Backend> {
    public:
@@ -17,6 +20,10 @@ class TanhOp : public UnaryOp<Backend> {
     void run() override {}
 };
 
+/** \ingroup Operators
+ * Implements the hard tanh operator, which bounds the min and max value of the
+ * tanh operator.
+ */
 template <typename Backend>
 class HardTanhOp : public UnaryOp<Backend> {
    public:

@@ -7,11 +7,31 @@
 
 namespace smaug {
 
+/** \ingroup Operators
+ * The switch operator passes an input Tensor to one of two output tensors,
+ * depending on whether the specified predicate is true. The other tensor is
+ * marked as dead.
+ *
+ * This is an integral component of implementing control flow in networks.
+ */
 template <typename Backend>
 class SwitchOp : public Operator {
    public:
-    enum { Input, Pred, kNumInputs };
-    enum { OutputFalse, OutputTrue, kNumOutputs };
+    enum {
+      /** The input Tensor to pass through. */
+      Input,
+      /** A scalar Tensor (a Tensor with just one value). 0 is false; anything
+       * nonzero is true. */
+      Pred,
+      kNumInputs
+    };
+    enum {
+      /** The output tensor on the false branch. */
+      OutputFalse,
+      /** The output tensor on the true branch. */
+      OutputTrue,
+      kNumOutputs
+    };
 
     SwitchOp(const std::string& name, Workspace* workspace)
             : Operator(name, OpType::Switch, workspace) {
@@ -55,6 +75,10 @@ class SwitchOp : public Operator {
     }
 };
 
+/** \ingroup Operators
+ * A merge operator takes multiple tensors, all but one of which should be
+ * dead, and copies the one live Tensor to its output.
+ */
 template <typename Backend>
 class MergeOp : public Operator {
    public:
@@ -71,7 +95,7 @@ class MergeOp : public Operator {
         outputs.at(0) = output;
     }
 
-    // A merge operator is dead only when all its inputs are dead.
+    /** A merge operator is dead only when all its inputs are dead. */
     bool isDead() override {
         for (auto input : inputs) {
             if (!input->isDead())

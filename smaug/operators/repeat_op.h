@@ -10,6 +10,12 @@
 
 namespace smaug {
 
+/** \ingroup Operators
+ *
+ * Implements a repeat operator, which replicates the contents of a Tensor
+ * along each dimension a configurable number of times. This is set by the
+ * `setMultiples` function.
+ */
 template <typename Backend>
 class RepeatOp : public Operator {
    public:
@@ -27,9 +33,12 @@ class RepeatOp : public Operator {
         outputs.resize(1, nullptr);
     }
 
+    /** Set the number of copies of the Tensor along each dimension. */
     void setMultiples(const std::vector<int>& _multiples) {
         multiples = _multiples;
     }
+
+    /** Set the number of copies of the Tensor along each dimension. */
     void setMultiples(const std::initializer_list<int>& _multiples) {
         multiples = _multiples;
     }

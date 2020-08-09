@@ -9,6 +9,13 @@
 
 namespace smaug {
 
+/** \ingroup Operators
+ * An Operator fused with an activation function.
+ *
+ * This is an optimized operator that reduces memory/compute by directly
+ * computing the activation function on its output.  This is a parent class of
+ * all operator implementations that support activation op fusion.
+ */
 class FusedActivationOp : public Operator {
    public:
     FusedActivationOp(const std::string& name,

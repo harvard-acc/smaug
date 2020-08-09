@@ -9,6 +9,9 @@
 
 namespace smaug {
 
+/** \ingroup Operators
+ * Multiplies two Tensors elementwise.
+ */
 template <typename Backend>
 class EltwiseMulOp : public EltwiseOp<Backend> {
    public:
