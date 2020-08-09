@@ -17,12 +17,12 @@ std::ostream& operator<<(std::ostream& os, const TensorShape& shape);
 std::ostream& operator<<(std::ostream& os, const Tensor& tensor);
 
 template <typename DType>
-void printTensorElement(std::ostream& os, DType* data, int index) {
+void printTensorElement(std::ostream& os, const DType* data, int index) {
     os << data[index];
 }
 
 template <>
-void printTensorElement<float16>(std::ostream& os, float16* data, int index);
+void printTensorElement<float16>(std::ostream& os, const float16* data, int index);
 
 /**
  * Pretty-print a Tensor's name, shape, and contents to the provided ostream.
@@ -40,7 +40,7 @@ void writeTensorToOstream(std::ostream& os, const Tensor& tensor) {
             (shape.ndims() >= 2 ? shape[ndims - 1] * shape[ndims - 2]
                                 : shape[ndims - 1]);
     int counter = 0;
-    DType* data = tensor.template data<DType>();
+    const DType* data = tensor.template data<DType>();
     os << tensor.getName() << ", shape = " << shape << "\n";
     for (auto idx = tensor.startIndex(); !idx.end(); ++idx) {
         // Print the current index after going through all of the last two
