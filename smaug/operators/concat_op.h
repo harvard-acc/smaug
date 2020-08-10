@@ -7,6 +7,11 @@
 
 namespace smaug {
 
+/** \ingroup Operators
+ * Concatenates N Tensors along a specified axis.
+ *
+ * This has a backend-agnostic software-based implementation.
+ */
 template <typename Backend>
 class ConcatOp : public Operator {
    public:
@@ -15,6 +20,14 @@ class ConcatOp : public Operator {
         outputs.resize(1, nullptr);
     }
 
+    /**
+     * Create a ConcatOp.
+     *
+     * @param name Operator name
+     * @param workspace Workspace to manage this Operator.
+     * @param num Number of tensors to concatenate.
+     * @param axis Axis/dimension along which to concatenate.
+     */
     ConcatOp(const std::string& name,
              Workspace* workspace,
              int num,
@@ -24,7 +37,9 @@ class ConcatOp : public Operator {
         outputs.resize(1, nullptr);
     }
 
+    /** Set the number of Tensors to concatenate. */
     void setNumInputs(int num) { inputs.resize(num); }
+    /** Set the axis along which to concatenate. */
     void setConcatAxis(int axis) { concatAxis = axis; }
 
     TensorShape inferOutputShape() const {

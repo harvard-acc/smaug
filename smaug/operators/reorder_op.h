@@ -7,6 +7,11 @@
 
 namespace smaug {
 
+/** \ingroup Operators
+ *
+ * Implements a Tensor reordering operation to convert between different
+ * DataLayouts.
+ */
 template <typename Backend>
 class ReorderOp : public Operator {
    public:
@@ -140,6 +145,11 @@ class ReorderOp : public Operator {
     DataLayout targetLayout;
 };
 
+/** \ingroup FlattenOp
+ *
+ * Implements a flattening operation that squashes any Tensor DataLayout into
+ * NC; that is, each batch in a Tensor is flattened into a single dimension.
+ */
 template <typename Backend>
 class FlattenOp : public ReorderOp<Backend> {
    public:

@@ -8,6 +8,11 @@
 
 namespace smaug {
 
+/** \ingroup Operators
+ * Implements the exponential linear unit function.
+ *
+ * Defined as: if input > 0, alpha * exp(input - 1), else input.
+ */
 template <typename Backend>
 class EluOp : public UnaryOp<Backend> {
    public:
@@ -23,6 +28,11 @@ class EluOp : public UnaryOp<Backend> {
     float alpha;
 };
 
+/** \ingroup Operators
+ * Implements the scaled exponential linear unit function.
+ *
+ * Defined as: lambda * elu(input).
+ */
 template <typename Backend>
 class SeluOp : public EluOp<Backend> {
    public:

@@ -10,6 +10,10 @@
 
 namespace smaug {
 
+/** \ingroup Operators
+ *
+ * Implements the inner product operator.
+ */
 template <typename Backend>
 class InnerProductOp : public FusedActivationOp {
    public:

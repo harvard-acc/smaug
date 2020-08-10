@@ -9,6 +9,9 @@
 
 namespace smaug {
 
+/** \ingroup Operators
+ * Implements an elementwise less-than operator.
+ */
 template <typename Backend>
 class LessOp : public EltwiseOp<Backend> {
    public:
@@ -20,6 +23,9 @@ class LessOp : public EltwiseOp<Backend> {
     }
 };
 
+/** \ingroup Operators
+ * Implements an elementwise less-than-or-equal-to operator.
+ */
 template <typename Backend>
 class LessEqualOp : public EltwiseOp<Backend> {
    public:

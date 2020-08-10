@@ -12,6 +12,11 @@
 
 namespace smaug {
 
+/** \ingroup Operators
+ *
+ * The base class for all 4D spatial convolution operators. Provides common
+ * functionality for writing convolution operators.
+ */
 template <typename Backend>
 class ConvolutionOp : public FusedActivationOp {
    public:
@@ -84,8 +89,9 @@ class ConvolutionOp : public FusedActivationOp {
         }
     }
 
-    // Create placeholder tensors for weights, assuming that any data layout is
-    // okay. This function can be specialized for a specific backend.
+    /**
+     * Create placeholder tensors for weights, assuming any data layout is okay.
+     */
     void createWeightsTensors() {
         if (inputs.at(Kernels) != nullptr)
             return;
@@ -126,7 +132,11 @@ class ConvolutionOp : public FusedActivationOp {
     int getWeightRows() const { return weightRows; }
     int getWeightCols() const { return weightCols; }
     PaddingType getPadding() const { return paddingType; }
-    // Compute padding sizes on the four boundaries of the input 2D feature map.
+
+    /**
+     * Compute padding sizes on the row/column boundaries of the input feature
+     * map.
+     */
     std::vector<int> getInputPadding() const {
         std::vector<int> inputPadding(4);
         int totalRowPad = (paddingType == SamePadding) ? weightRows - 1 : 0;

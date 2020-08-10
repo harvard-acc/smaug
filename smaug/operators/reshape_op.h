@@ -7,6 +7,12 @@
 
 namespace smaug {
 
+/** \ingroup Operators
+ *
+ * Implements the reshape operator, which changes the dimensionality of a
+ * Tensor while retaining the same number of elements. The output need not be
+ * of the same DataLayout.
+ */
 template <typename Backend>
 class ReshapeOp : public Operator {
    public:
@@ -26,10 +32,12 @@ class ReshapeOp : public Operator {
         outputs.resize(1, nullptr);
     }
 
+    /** Set the desired shape of the output. */
     void setShape(const std::vector<int>& _shape, DataLayout _layout) {
         shape = _shape;
         layout = _layout;
     }
+    /** Set the desired shape of the output. */
     void setShape(const std::initializer_list<int>& _shape,
                   DataLayout _layout) {
         shape = _shape;
@@ -57,6 +65,7 @@ class ReshapeOp : public Operator {
         if (inputPadding == outputPadding) {
             // If input and output have the same padding, then copy the raw
             // tensor data.
+            // TODO(xyzsam): Must also check for DataLayout here.
             copyRawTensorData(output, input, 0, 0, inputShape.storageSize());
         } else {
             // Due to different paddings, we can't copy the data in one shot.

@@ -8,6 +8,11 @@
 
 namespace smaug {
 
+/** \ingroup Operators
+ *
+ * A base class for all unary operators: operators that only take a single
+ * input. Unary operators can produce multiple output Tensors.
+ */
 template <typename Backend>
 class UnaryOp : public Operator {
    public:

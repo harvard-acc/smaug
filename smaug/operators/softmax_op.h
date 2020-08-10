@@ -8,6 +8,10 @@
 
 namespace smaug {
 
+/** \ingroup Operators
+ *
+ * Implements the softmax operator.
+ */
 template <typename Backend>
 class SoftmaxOp : public UnaryOp<Backend> {
    public:

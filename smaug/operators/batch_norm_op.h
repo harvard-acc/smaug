@@ -10,6 +10,12 @@
 
 namespace smaug {
 
+/** \ingroup Operators
+ * Implements the batch normalization layer.
+ *
+ * The four different parameter types to BN layers (mean, v ariance, gamma, and
+ * beta) are to be provided as separate Tensors.
+ */
 template <typename Backend>
 class BatchNormOp : public FusedActivationOp {
    public:

@@ -8,6 +8,10 @@
 
 namespace smaug {
 
+/** \ingroup Operators
+ *
+ * Implements the sigmoid operator, defined as 1/(1 + exp(-input)).
+ */
 template <typename Backend>
 class SigmoidOp : public UnaryOp<Backend> {
    public:
