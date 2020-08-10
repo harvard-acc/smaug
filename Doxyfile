@@ -2172,9 +2172,9 @@ PREDEFINED             = __attribute__(x)= \
                          __builtin_assume_aligned((x) \
                          __cplusplus \
                          __GNUC__ \
-                         __ALWAYS_INLINE__ \
-                         __ASSERT__ \
-                         __ASSUME_ALIGNED__ \
+                         ALWAYS_INLINE \
+                         ASSERT \
+                         ASSUME_ALIGNED \
                          REGISTER_SPECIAL_OP
 
 # If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then this
