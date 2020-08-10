@@ -1,6 +1,10 @@
 #ifndef _OPERATORS_REF_ACTIVATION_FUN_OP_H_
 #define _OPERATORS_REF_ACTIVATION_FUN_OP_H_
 
+/** \ingroup AladdinKernels
+ * @{
+ */
+
 #include "assert.h"
 #include "stdio.h"
 #include "math.h"
@@ -131,6 +135,9 @@ static inline void activation_fun(float* inputs,
     }
 }
 
+/**
+ * Top level entry point for all Reference activation functions.
+ */
 void ref_activation_fun_nc(float* inputs,
                            float* results,
                            int inputs_size,
@@ -141,4 +148,7 @@ void ref_activation_fun_nc(float* inputs,
 }  // extern "C"
 #endif
 
+/**
+ * @}
+ */
 #endif

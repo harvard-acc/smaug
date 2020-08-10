@@ -6,6 +6,10 @@
 extern "C" {
 #endif
 
+/** \ingroup AladdinKernels
+ *
+ * A Reference implementation of elementwise greater-than.
+ */
 void ref_greater(float* input0, float* input1, bool* results, int input_size) {
     dmaLoad(input0, input0, input_size * sizeof(float));
     dmaLoad(input1, input1, input_size * sizeof(float));
@@ -16,6 +20,10 @@ void ref_greater(float* input0, float* input1, bool* results, int input_size) {
     dmaStore(results, results, input_size * sizeof(bool));
 }
 
+/** \ingroup AladdinKernels
+ *
+ * A Reference implementation of elementwise greater-than-or-equal-to.
+ */
 void ref_greater_equal(float* input0,
                        float* input1,
                        bool* results,

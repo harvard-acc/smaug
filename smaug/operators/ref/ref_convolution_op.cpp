@@ -8,6 +8,11 @@
 extern "C" {
 #endif
 
+/** \ingroup AladdinKernels
+ *
+ * A Reference implementation of a 3D convolution on NCHW data with valid
+ * padding.
+ */
 void ref_conv3d_nchw_valid_padding(float* input,
                                    float* kernels,
                                    float* result,
@@ -81,6 +86,11 @@ void ref_conv3d_nchw_valid_padding(float* input,
     dmaStore(result, result, result_size * sizeof(float));
 }
 
+/** \ingroup AladdinKernels
+ *
+ * A Reference implementation of a 3D convolution on NCHW data with same
+ * padding.
+ */
 void ref_conv3d_nchw_same_padding(float* input,
                                   float* kernels,
                                   float* result,
@@ -170,6 +180,11 @@ void ref_conv3d_nchw_same_padding(float* input,
     dmaStore(result, result, result_size * sizeof(float));
 }
 
+/** \ingroup AladdinKernels
+ *
+ * A Reference implementation of a 3D convolution on NHWC data with valid
+ * padding.
+ */
 void ref_conv3d_nhwc_valid_padding(float* input,
                                    float* kernels,
                                    float* result,
@@ -243,6 +258,11 @@ void ref_conv3d_nhwc_valid_padding(float* input,
     dmaStore(result, result, result_size * sizeof(float));
 }
 
+/** \ingroup AladdinKernels
+ *
+ * A Reference implementation of a 3D convolution on NHWC data with same
+ * padding.
+ */
 void ref_conv3d_nhwc_same_padding(float* input,
                                   float* kernels,
                                   float* result,

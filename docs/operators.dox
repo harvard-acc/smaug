@@ -2,3 +2,9 @@
   *
   * All operators supported by SMAUG.
   */
+
+/**
+  * \defgroup AladdinKernels
+  *
+  * Kernel functions meant to be run under Aladdin.
+  */
