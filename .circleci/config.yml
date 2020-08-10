@@ -9,9 +9,6 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Checkout dependencies
-          command: git submodule update --init --recursive
-      - run:
           name: Build
           command: |
             make all -j4
@@ -19,9 +16,75 @@ jobs:
       - run:
           name: Run unit tests
           command: |
-            export PYTHONPATH=$SMAUG_HOME/build:$PYTHONPATH
+            export PYTHONPATH=$SMAUG_HOME:$PYTHONPATH
             make test-run
+      - run:
+          name: Build documentation
+          command: |
+            apt install -y doxygen
+            doxygen Doxyfile
       - run:
           name: Download latest gem5-aladdin binary
           command:
             python .circleci/download_artifacts.py --api_token=${GEM5_ALADDIN_BUILD_ARTIFACT_TOKEN} --project=gem5-aladdin --artifact_name=gem5.opt --user=${USER} --download_loc=/tmp --filter=${BUILD_ARTIFACT_FILTER} --branch=${BUILD_ARTIFACT_BRANCH}
+      - persist_to_workspace:
+          root: docs
+          paths:
+            - html
+
+  docs_deploy:
+    docker:
+      - image: cimg/base:2020.01
+    steps:
+      - run:
+          name: Stop if doc deployment is disabled
+          command: |
+            if [[ ${ENABLE_DOC_DEPLOY} ]]; then
+              echo "Documentation deployment is enabled, continuing."
+            else
+              echo "Documentation deployment is disabled, exiting."
+              circleci step halt
+            fi
+      - attach_workspace:
+          at: /tmp/smaug_docs_out
+      # In order to add a new SSH key, we need to add github.com to
+      # known_hosts. checkout will do this for us.
+      - checkout
+      - run:
+          # The setup project needs to delete the registered SSH keys so we can
+          # install a second one for use. Otherwise the system is configured to
+          # always use the first key, which cannot commit changes.
+          name: Setup documentation deploy
+          command: |
+              ssh-add -D
+      - add_ssh_keys:
+          fingerprints:
+            - e2:ac:82:28:7f:6f:95:3a:a4:7c:32:1f:09:03:8a:ba
+      - run:
+          name: Deploy to Github Pages
+          command: |
+            cd ${HOME}
+            git clone git@github.com:harvard-acc/smaug_docs
+            cd smaug_docs
+            mkdir -p docs
+            cp -rf /tmp/smaug_docs_out/html/* docs/
+            if [[ `git diff --exit-code` -eq 0 ]]; then
+              echo "No changes to documentation, exiting."
+              exit 0
+            fi
+            git config --global user.name "CircleCI Docs Deploy"
+            git config --global user.email "no@email.addr"
+            git commit -a -m "Update documentation on ${CIRCLE_BRANCH} for commit ${CIRCLE_SHA1}"
+            git push origin master
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - build
+      - docs_deploy:
+          requires:
+            - build
+          filters:
+            branches:
+              only: master
