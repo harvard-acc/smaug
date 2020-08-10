@@ -15,6 +15,12 @@ Welcome to SMAUG's documentation!
    math
    tensor
 
+.. toctree::
+   :maxdepth: 1
+   :caption: C++ API
+
+   cpp_index
+
 Indices and tables
 ==================
 
