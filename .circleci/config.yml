@@ -71,9 +71,9 @@ jobs:
             cd ${HOME}
             git clone git@github.com:harvard-acc/smaug_docs
             cd smaug_docs
-            mkdir -p docs
-            cp -rf /tmp/smaug_docs_out/build/html/* docs/
-            git add docs/
+            rm -rf .
+            cp -rf /tmp/smaug_docs_out/build/html/* .
+            git add .
             git config --global user.name "CircleCI Docs Deploy"
             git config --global user.email "no@email.addr"
             # If there are no differences, git commit returns exit code 1,
