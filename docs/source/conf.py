@@ -41,9 +41,7 @@ extensions = [
     'sphinx.ext.coverage',
     'sphinx.ext.napoleon',
     'sphinx.ext.viewcode',
-    'sphinxcontrib.katex',
     'sphinx.ext.autosectionlabel',
-    'numpydoc',
     'breathe',
     'exhale',
 ]
