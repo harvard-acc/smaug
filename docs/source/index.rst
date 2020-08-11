@@ -5,9 +5,10 @@
 
 Welcome to SMAUG's documentation!
 =================================
+SMAUG is a deep learning framework that enables end-to-end simulation of DL models on custom SoCs with a variety of hardware accelerators. 
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Python API
 
    smaug
@@ -16,10 +17,10 @@ Welcome to SMAUG's documentation!
    tensor
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: C++ API
 
-   cpp_index
+   api/library_root
 
 Indices and tables
 ==================

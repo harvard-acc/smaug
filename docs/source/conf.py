@@ -12,6 +12,8 @@
 #
 import os
 import sys
+import textwrap
+
 sys.path.insert(0, os.path.abspath('../../'))
 
 
@@ -42,7 +44,46 @@ extensions = [
     'sphinxcontrib.katex',
     'sphinx.ext.autosectionlabel',
     'numpydoc',
+    'breathe',
+    'exhale',
 ]
+
+# Setup absolute paths for communicating with breathe / exhale where
+# items are expected / should be trimmed by.
+breathe_projects = {
+    "SMAUG": os.path.join(os.environ['SMAUG_HOME'], 'docs/build/xml')
+}
+breathe_default_project = "SMAUG"
+
+# Setup the exhale extension
+exhale_args = {
+    ############################################################################
+    # These arguments are required.                                            #
+    ############################################################################
+    "containmentFolder": "./api",
+    "rootFileName": "library_root.rst",
+    "rootFileTitle": "Library API",
+    "doxygenStripFromPath": os.environ['SMAUG_HOME'],
+    ############################################################################
+    # Suggested optional arguments.                                            #
+    ############################################################################
+    "createTreeView": True,
+    "exhaleExecutesDoxygen": True,
+    "exhaleUseDoxyfile": True,
+    "verboseBuild": True,
+    ############################################################################
+    # Individual page layout example configuration.                            #
+    ############################################################################
+    # Example of adding contents directives on custom kinds with custom title
+    "contentsTitle": "Page Contents",
+    "kindsWithContentsDirectives": ["class", "file", "namespace", "struct"],
+    ############################################################################
+    # Main library page layout example configuration.                          #
+    ############################################################################
+    "afterTitleDescription": textwrap.dedent(u'''
+        Welcome to the developer reference for the SMAUG C++ API.
+    '''),
+}
 
 autodoc_default_flags = ['members']
 autosummary_generate = True
