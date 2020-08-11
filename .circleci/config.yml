@@ -71,14 +71,14 @@ jobs:
             git clone git@github.com:harvard-acc/smaug_docs
             cd smaug_docs
             mkdir -p docs
-            cp -rf /tmp/smaug_docs_out/docs/build/doxygen_html/* docs/
-            if [[ `git diff --exit-code` -eq 0 ]]; then
-              echo "No changes to documentation, exiting."
-              exit 0
-            fi
+            cp -rf /tmp/smaug_docs_out/html/* docs/
+            git add docs/
             git config --global user.name "CircleCI Docs Deploy"
             git config --global user.email "no@email.addr"
-            git commit -a -m "Update documentation on ${CIRCLE_BRANCH} for commit ${CIRCLE_SHA1}"
+            # If there are no differences, git commit returns exit code 1,
+            # which we have to swallow to prevent the job from failing.
+            git commit -a -m "Update documentation on ${CIRCLE_BRANCH} for commit ${CIRCLE_SHA1}" || true
+            # This will return exit code 0 even if there are no new commits.
             git push origin master
 
 workflows:
