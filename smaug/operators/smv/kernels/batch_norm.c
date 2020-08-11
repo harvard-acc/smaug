@@ -10,8 +10,17 @@
 extern "C" {
 #endif
 
-// 1/sqrt(var + eps) is precomputed to avoid having to run a sqrt and division
-// in the ASIC.
+/** \ingroup AladdinKernels
+ *
+ * Batch normalizes one input value.
+ *
+ * @param input Input activation.
+ * @param mean Batch mean
+ * @param recip_sqrt_var 1/sqrt(var + eps), which is precomputed to avoid
+ * having to run a sqrt and division in the ASIC.
+ * @param gamma Gamma parameter.
+ * @param beta Beta parameter.
+ */
 ALWAYS_INLINE
 v8fp_t batch_norm_simd_op(v8fp_t input,
                           v8fp_t mean,
@@ -23,6 +32,12 @@ v8fp_t batch_norm_simd_op(v8fp_t input,
     return shift * scale + beta;
 }
 
+/** \ingroup AladdinKernels
+ *
+ * SMV implementation of batch normalization following a fully-connected layer.
+ *
+ * In this case, we have one pair of gamma/beta weights per activation.
+ */
 void smv_batch_norm_post_fc_nc_vec_fxp(float16* host_inputs,
                                        float16* host_weights,
                                        float16* host_results,
@@ -74,8 +89,14 @@ void smv_batch_norm_post_fc_nc_vec_fxp(float16* host_inputs,
         host_store_fp16(results, host_results, results_size, 0, 0);
 }
 
-// For batch norm following a convolutional/pooling layer, we only have a
-// gamma/beta per output feature map, not per activation.
+/** \ingroup AladdinKernels
+ *
+ * SMV implementation of batch normalization following a convolutional/pooling
+ * layer on NCHW data.
+ *
+ * After conv/pooling, we only have a gamma/beta per output feature map, not
+ * per activation.
+ */
 void smv_batch_norm_post_conv_nchw_vec_fxp(float16* host_inputs,
                                            float16* host_weights,
                                            float16* host_results,
@@ -164,6 +185,14 @@ void smv_batch_norm_post_conv_nchw_vec_fxp(float16* host_inputs,
     host_store_fp16(results, host_results, results_size, 0, 0);
 }
 
+/** \ingroup AladdinKernels
+ *
+ * SMV implementation of batch normalization following a convolutional/pooling
+ * layer on NHWC data.
+ *
+ * After conv/pooling, we only have a gamma/beta per output feature map, not
+ * per activation.
+ */
 void smv_batch_norm_post_conv_nhwc_vec_fxp(float16* host_inputs,
                                            float16* host_weights,
                                            float16* host_results,

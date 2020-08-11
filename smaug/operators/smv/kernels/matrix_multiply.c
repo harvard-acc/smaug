@@ -10,45 +10,49 @@
 extern "C" {
 #endif
 
-// Matrix b after transposition:
-//
-// cols (originally rows) --->
-//
-// rows  [[---][---][---]]
-//  |    [[---][---][---]]
-//       [[---][---][---]]
-//  v    [[---][---][---]]
-//
-//  Each [---] represents an 8-wide vector. This inner product executes a 32-way
-//  MACC -- 4 such 8-wide vectors -- per PE, and 8 PEs, where each PE is
-//  assigned a row in in the transposed matrix. It continues across each row of
-//  b until the complete output pixel is finished (output stationary).
-//
-//  No biases are added.
-//
-// Args:
-//   host_a: Host buffer for a in NC.
-//   host_b: Host buffer for b in NC.
-//   host_results: Host results buffer in NC.
-//   a: Local buffer for a in NC.
-//   b: Local buffer for b in NC.
-//   results: Local results buffer in NC.
-//   a_dims: Dimensions of a.
-//   b_dims: Dimensions of b.
-//   results_dims: Dimensions of the results.
-//   a_pad: Align padding size on the channel dimension of a.
-//   b_pad: Align padding size on the channel dimension of b.
-//   results_pad: Align padding size on the channel dimension of the results.
-//   a_start: If a contains more activations than b, start from this one.
-//       Otherwise this should always be zero.
-//   result_start: If the results contain more neurons than the b, start writing
-//       results from this one. Otherwise this should always be zero.
-//   accumulate: If the original b tensor is tiled on activations, this should
-//       be set to true in order to avoid resetting the result buffer for
-//       non-first b tiles.
-//   send_results: Send the results to the host memory if this is true.
-//   act_function: Activation function the operator runs.
-//   act_params: Parameters for the activation function.
+/** \ingroup AladdinKernels
+ *
+ * Matrix b after transposition:
+ *
+ * cols (originally rows) --->
+ *
+ * rows  [[---][---][---]]
+ *  |    [[---][---][---]]
+ *       [[---][---][---]]
+ *  v    [[---][---][---]]
+ *
+ *  Each [---] represents an 8-wide vector. This inner product executes a 32-way
+ *  MACC -- 4 such 8-wide vectors -- per PE, and 8 PEs, where each PE is
+ *  assigned a row in in the transposed matrix. It continues across each row of
+ *  b until the complete output pixel is finished (output stationary).
+ *
+ *  No biases are added.
+ *
+ * Args:
+ * @param host_a Host buffer for a in NC.
+ * @param host_b Host buffer for b in NC.
+ * @param host_results Host results buffer in NC.
+ * @param a Local buffer for a in NC.
+ * @param b Local buffer for b in NC.
+ * @param results Local results buffer in NC.
+ * @param a_dims Dimensions of a.
+ * @param b_dims Dimensions of b.
+ * @param results_dims Dimensions of the results.
+ * @param a_pad Align padding size on the channel dimension of a.
+ * @param b_pad Align padding size on the channel dimension of b.
+ * @param results_pad Align padding size on the channel dimension of the
+ *        results.
+ * @param a_start If a contains more activations than b, start from this one.
+ *        Otherwise this should always be zero.
+ * @param result_start If the results contain more neurons than the b, start
+ *        writing results from this one. Otherwise this should always be zero.
+ * @param accumulate If the original b tensor is tiled on activations, this
+ *        should be set to true in order to avoid resetting the result buffer
+ *        for knon-first b tiles.
+ * @param send_results Send the results to the host memory if this is true.
+ * @param act_function Activation function the operator runs.
+ * @param act_params Parameters for the activation function.
+ */
 void smv_matrix_multiply_transpose_nc_vec_fxp(float16* host_a,
                                               float16* host_b,
                                               float16* host_results,

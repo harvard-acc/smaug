@@ -6,7 +6,10 @@
 extern "C" {
 #endif
 
-// Top level function entry for activation functions.
+/** \ingroup AladdinKernels
+ *
+ * Top level function entry for all unary SMV activation functions.
+ */
 void smv_activation_fun_nc_vec_fxp(float16* host_inputs,
                                    float16* host_results,
                                    float* inputs,
@@ -21,7 +24,10 @@ void smv_activation_fun_nc_vec_fxp(float16* host_inputs,
     host_store_fp16(results, host_results, inputs_size, 0, 0);
 }
 
-// Top level function for softmax.
+/** \ingroup AladdinKernels
+ *
+ * Top level function for softmax.
+ */
 void smv_softmax_nc_vec_fxp(float16* host_inputs,
                             float16* host_results,
                             float* inputs,
