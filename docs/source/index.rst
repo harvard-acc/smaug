@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to SMAUG's documentation!
-=================================
+SMAUG DOCUMENTATION
+===================
 SMAUG is a deep learning framework that enables end-to-end simulation of DL models on custom SoCs with a variety of hardware accelerators. 
 
 .. toctree::
