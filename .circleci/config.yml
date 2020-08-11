@@ -8,6 +8,9 @@ jobs:
       SMAUG_HOME: /root/project
     steps:
       - checkout
+      - run:	
+          name: Checkout dependencies	
+          command: git submodule update --init --recursive
       - run:
           name: Build
           command: |
@@ -16,7 +19,7 @@ jobs:
       - run:
           name: Run unit tests
           command: |
-            export PYTHONPATH=$SMAUG_HOME:$PYTHONPATH
+						export PYTHONPATH=$SMAUG_HOME/build:$PYTHONPATH
             make test-run
       - run:
           name: Build documentation
