@@ -71,7 +71,7 @@ jobs:
             git clone git@github.com:harvard-acc/smaug_docs
             cd smaug_docs
             mkdir -p docs
-            cp -rf /tmp/smaug_docs_out/html/* docs/
+            cp -rf /tmp/smaug_docs_out/build/doxygen_html/* docs/
             git add docs/
             git config --global user.name "CircleCI Docs Deploy"
             git config --global user.email "no@email.addr"
