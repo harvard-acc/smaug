@@ -6,6 +6,10 @@
 extern "C" {
 #endif
 
+/** \ingroup AladdinKernels
+ *
+ * A Reference implementation of elementwise multiplication.
+ */
 void ref_eltwise_mul(float* input0,
                      float* input1,
                      float* results,

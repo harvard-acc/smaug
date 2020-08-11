@@ -6,6 +6,15 @@
 extern "C" {
 #endif
 
+/** \ingroup AladdinKernels
+ *
+ * A Reference implementation of a depthwise convolution on NCHW data with
+ * valid padding.
+ *
+ * @param img_pad Alignment padding on the W dimension of inputs.
+ * @param k_pad Alignment padding on the W dimension of weights.
+ * @param res_pad Alignment padding on the W dimension of results.
+ */
 void ref_conv2d_nchw_valid_padding(float* input,
                                    float* kernels,
                                    float* result,
@@ -69,6 +78,11 @@ void ref_conv2d_nchw_valid_padding(float* input,
     dmaStore(result, result, result_size * sizeof(float));
 }
 
+/** \ingroup AladdinKernels
+ *
+ * A Reference implementation of a depthwise convolution on NCHW data with same
+ * padding.
+ */
 void ref_conv2d_nchw_same_padding(float* input,
                                   float* kernels,
                                   float* result,

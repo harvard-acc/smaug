@@ -6,6 +6,10 @@
 extern "C" {
 #endif
 
+/** \ingroup AladdinKernels
+ *
+ * A Reference implementation of elementwise addition.
+ */
 void ref_eltwise_add(float* input0,
                      float* input1,
                      float* results,
