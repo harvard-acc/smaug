@@ -8,6 +8,23 @@
 extern "C" {
 #endif
 
+/** \ingroup AladdinKernels
+ *
+ * A Reference implementation of an inner product operator: `C = A x B`.
+ *
+ * @param a A matrix of dimensions a_height x a_width
+ * @param b A matrix of dimensions a_width x b_width
+ * @param c A matrix of dimensions a_height x b_width
+ * @param a_height Number of rows in A
+ * @param a_width Number of columns in A
+ * @param b_width Number of columns in B
+ * @param a_pad Additional alignment zero-padding on a.
+ * @param b_pad Additional alignment zero-padding on b.
+ * @param c_pad Additional alignment zero-padding on c.
+ * @param act_function The activation function to apply on the result of the
+ * inner product.
+ * @param act_params Parameters to the activation function.
+ */
 void ref_inner_product_ab_times_bc(float* a,
                                    float* b,
                                    float* c,
@@ -49,6 +66,15 @@ void ref_inner_product_ab_times_bc(float* a,
     dmaLoad(c, c, result_size * sizeof(float));
 }
 
+/** \ingroup AladdinKernels
+ *
+ * A Reference implementation of an inner product operator. `C = A x *
+ * B_transpose`.
+ *
+ * @param a A matrix of dimensions a_height x b_width
+ * @param b A matrix of dimensions b_height x b_width
+ * @param c A matrix of dimensions a_height x b_width
+ */
 void ref_inner_product_ab_times_cb(float* a,
                                    float* b,
                                    float* c,

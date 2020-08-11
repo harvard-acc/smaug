@@ -8,21 +8,22 @@
 extern "C" {
 #endif
 
-// Softmax function.
-//
-// The softmax function exponentiates each element and then normalizes each row
-// to sum to 1.
-//
-// Args:
-//   inputs: Matrix of size input_num x input_size, stored rowmajor. This
-//      contains both inputs and the outputs.
-//   input_num: batch size.
-//   input_size: number of activations per input.
-//   input_pad: alignment padding.
-//   results: Output array.
-//
-// To improve numerical stability, we use the max trick: all elements are first
-// subtracted by the maximum value in each input before being exponentiated.
+/** \ingroup AladdinKernels
+ *
+ * A Reference implementation of the softmax function.
+ *
+ * The softmax function exponentiates each element and then normalizes each row
+ * to sum to 1.  To improve numerical stability, we use the max trick: all
+ * elements are first subtracted by the maximum value in each input before
+ * being exponentiated.
+ *
+ * @param inputs  Matrix of size input_num x input_size, stored rowmajor. This
+ * contains both inputs and the outputs.
+ * @param results Output array.
+ * @param input_num Batch size.
+ * @param input_size Number of activations per input.
+ * @param input_pad Alignment padding.
+ */
 void ref_softmax_nc(float* inputs,
                     float* results,
                     int input_num,

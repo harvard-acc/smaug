@@ -5,7 +5,6 @@
 extern "C" {
 #endif
 
-// Top level function entry for activation functions.
 void ref_activation_fun_nc(float* inputs,
                            float* results,
                            int inputs_size,

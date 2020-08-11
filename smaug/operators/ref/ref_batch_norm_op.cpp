@@ -8,8 +8,17 @@
 extern "C" {
 #endif
 
-// 1/sqrt(var + eps) is precomputed to avoid having to run a sqrt and division
-// in the ASIC.
+/** \ingroup AladdinKernels
+ *
+ * Batch normalizes one input value.
+ *
+ * @param input Input activation.
+ * @param mean Batch mean
+ * @param recip_sqrt_var 1/sqrt(var + eps), which is precomputed to avoid
+ * having to run a sqrt and division in the ASIC.
+ * @param gamma Gamma parameter.
+ * @param beta Beta parameter.
+ */
 ALWAYS_INLINE
 float batch_norm_op(float input,
                     float mean,
@@ -21,8 +30,13 @@ float batch_norm_op(float input,
     return shift * scale + beta;
 }
 
-// For batch norm following a FC layer, we have one pair of gamma/beta weights
-// per activation.
+/** \ingroup AladdinKernels
+ *
+ * A Reference implementation of batch normalization following a
+ * fully-connected layer.
+ *
+ * In this case, we have one pair of gamma/beta weights per activation.
+ */
 void ref_batch_norm_post_fc(float* inputs,
                             float* mean,
                             float* variance,
@@ -60,8 +74,14 @@ void ref_batch_norm_post_fc(float* inputs,
     dmaStore(result, result, result_size * sizeof(float));
 }
 
-// For batch norm following a convolutional/pooling layer, we only have a
-// gamma/beta per output feature map, not per activation.
+/** \ingroup AladdinKernels
+ *
+ * A Reference implementation of batch normalization following a
+ * convolutional/pooling layer on NCHW data.
+ *
+ * After conv/pooling, we only have a gamma/beta per output feature map, not
+ * per activation.
+ */
 void ref_batch_norm_nchw_post_conv(float* inputs,
                                    float* mean,
                                    float* variance,
@@ -116,6 +136,14 @@ void ref_batch_norm_nchw_post_conv(float* inputs,
     dmaStore(result, result, result_size * sizeof(float));
 }
 
+/** \ingroup AladdinKernels
+ *
+ * A Reference implementation of batch normalization following a
+ * convolutional/pooling layer on NHWC data.
+ *
+ * After conv/pooling, we only have a gamma/beta per output feature map, not
+ * per activation.
+ */
 void ref_batch_norm_nhwc_post_conv(float* inputs,
                                    float* mean,
                                    float* variance,

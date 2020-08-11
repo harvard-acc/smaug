@@ -8,6 +8,10 @@
 extern "C" {
 #endif
 
+/** \ingroup AladdinKernels
+ * A Reference implementation of MaxPoolingOp on NCHW data, using a tree-based
+ * maximum function.
+ */
 void ref_max_pooling_nchw_treemax(float* input,
                                   float* result,
                                   int img_num,
@@ -72,6 +76,10 @@ void ref_max_pooling_nchw_treemax(float* input,
     }
 }
 
+/** \ingroup AladdinKernels
+ * A Reference implementation of MaxPoolingOp on NHWC data, using a tree-based
+ * maximum function.
+ */
 void ref_max_pooling_nhwc_treemax(float* input,
                                   float* result,
                                   int img_num,
@@ -136,6 +144,10 @@ void ref_max_pooling_nhwc_treemax(float* input,
     }
 }
 
+/** \ingroup AladdinKernels
+ * A Reference implementation of MaxPoolingOp on NCHW data, using a loop-based
+ * maximum function.
+ */
 void ref_max_pooling_nchw_itermax(float* input,
                                   float* result,
                                   int img_num,
@@ -185,6 +197,10 @@ void ref_max_pooling_nchw_itermax(float* input,
     }
 }
 
+/** \ingroup AladdinKernels
+ * A Reference implementation of MaxPoolingOp on NHWC data, using a loop-based
+ * maximum function.
+ */
 void ref_max_pooling_nhwc_itermax(float* input,
                                   float* result,
                                   int img_num,
@@ -234,6 +250,9 @@ void ref_max_pooling_nhwc_itermax(float* input,
     }
 }
 
+/** \ingroup AladdinKernels
+ * A Reference implementation of AvgPoolingOp on NCHW data.
+ */
 void ref_avg_pooling_nchw(float* input,
                           float* result,
                           int img_num,
@@ -283,6 +302,9 @@ void ref_avg_pooling_nchw(float* input,
     }
 }
 
+/** \ingroup AladdinKernels
+ * AladdinKernels Reference implementation of AvgPoolingOp on NHWC data.
+ */
 void ref_avg_pooling_nhwc(float* input,
                           float* result,
                           int img_num,
