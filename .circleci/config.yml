@@ -34,7 +34,7 @@ jobs:
       - persist_to_workspace:
           root: docs
           paths:
-            - html
+            - build/doxygen_html
 
   docs_deploy:
     docker:
@@ -71,7 +71,7 @@ jobs:
             git clone git@github.com:harvard-acc/smaug_docs
             cd smaug_docs
             mkdir -p docs
-            cp -rf /tmp/smaug_docs_out/docs/build/html/* docs/
+            cp -rf /tmp/smaug_docs_out/docs/build/doxygen_html/* docs/
             if [[ `git diff --exit-code` -eq 0 ]]; then
               echo "No changes to documentation, exiting."
               exit 0
