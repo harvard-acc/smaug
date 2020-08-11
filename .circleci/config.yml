@@ -19,7 +19,7 @@ jobs:
       - run:
           name: Run unit tests
           command: |
-						export PYTHONPATH=$SMAUG_HOME/build:$PYTHONPATH
+            export PYTHONPATH=$SMAUG_HOME/build:$PYTHONPATH
             make test-run
       - run:
           name: Build documentation
