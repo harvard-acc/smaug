@@ -8,6 +8,7 @@
 
 namespace smaug {
 
+/** Tanh operator on SMV. */
 class SmvTanhOp : public TanhOp<SmvBackend> {
    public:
     using TanhOp<SmvBackend>::TanhOp;
@@ -18,6 +19,7 @@ class SmvTanhOp : public TanhOp<SmvBackend> {
     std::array<TiledTensor, 2> tiledTensors;
 };
 
+/** Hard tanh operator on SMV. */
 class SmvHardTanhOp : public HardTanhOp<SmvBackend> {
    public:
     using HardTanhOp<SmvBackend>::HardTanhOp;

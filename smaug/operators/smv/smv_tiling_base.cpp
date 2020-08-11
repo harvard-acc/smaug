@@ -7,26 +7,6 @@
 namespace smaug {
 namespace smv {
 
-// Find the best set of dimensions to tile a given tensor shape.
-//
-// The goal is to divide up a tensor into tiles that each are <= maxTileSize
-// elements. The tensor layouts can be NC, NHWC or NCHW. The minimum tile size
-// is specified via minShape. The preferences for tiling dimensions are as
-// follows:
-//   1) No tiling.
-//   2) Dim-N tiling. N is the input batch.
-//   3) Dim-NC tiling. After tiling by N, tile channelwise. Do not tile in HW.
-//   4) Dim-NH tiling. After tiling by N, tile rowwise. Do not tile in WC.
-//   5) Dim-NW tiling. After tiling by N, tile columnwise. Do not tile in HC.
-//   6) Dim-NHW tiling. After tiling by N, tile rowwise and then columnwise. Do
-//      not tile in C.
-//   7) Dim-NCH tiling. After tiling by N and channel dimensions, tile rowwise.
-//      Do not tile in W.
-//   8) Dim-NCW tiling. After tiling by N and channel dimensions, tile
-//      columnwise. Do not tile in H.
-//
-// Except Option 1, a minimum size for each dimension can be deduced from
-// minShape. Note that for a 2D tensor shape, only options 1-5 are viable.
 TilingDims TilingOptimizerBase::findBestTilingDims(
         const TensorShape& shape,
         int maxTileSize,

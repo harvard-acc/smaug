@@ -7,6 +7,7 @@
 
 namespace smaug {
 
+/** Softmax operator on SMV. */
 class SmvSoftmaxOp : public SoftmaxOp<SmvBackend> {
    public:
     using SoftmaxOp<SmvBackend>::SoftmaxOp;

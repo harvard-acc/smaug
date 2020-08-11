@@ -10,14 +10,6 @@ namespace smaug {
 namespace smv {
 namespace conv {
 
-// Determine the best tiling dimensions for running convolution on SMV.
-//
-// This function imposes some additional constraints on the tiling dimensions,
-// in that certain combinations of input/weight/output tiling dimensions are
-// not allowed in the interest of tiling code complexity.
-//
-// Returns:
-//   A 3-element array of TilingDims enums (inputs, weights, outputs).
 std::array<TilingDims, 3> TilingOptimizer::determineBestTilingDims(
         Tensor* inputs, Tensor* weights, Tensor* outputs, int maxTileSize) {
     // Determine the best tiling strategy for each of inputs, weights, and
@@ -62,31 +54,6 @@ std::array<TilingDims, 3> TilingOptimizer::determineBestTilingDims(
     return { bestInputTilingDims, bestWeightTilingDims, bestOutputTilingDims };
 }
 
-// Determine the best basic tiling shape for this convolution layer.
-//
-// The algorithm first determines the dimensions along which the inputs,
-// weights, and outputs will be tiled. Then based on those dimensions, we
-// enumerate all possible basic tile shapes for inputs, weights, and outputs. A
-// **basic** shape is the shape that all but potentially the last tile along a
-// set of dimensions will use. This triplet of tile shapes defines a
-// TilingConfig. The TilingConfig that maximizes the total combined size of
-// input, weights, and output tiles is chosen as the best.
-//
-// To limit the number of possibilities, we only enumerate each dimension in
-// certain increments. For example, input channels are only enumerated in
-// multiples of kNumMaccsPerPE, and output channels are only enumerated in
-// multiples in kNumPEs.
-//
-// This algorithm assumes that the maximum tile size for weights, inputs, and
-// outputs are all the same and that they will reside in separate scratchpads
-// (no sharing).
-//
-// Args:
-//    op: The SMV convolution operator. All tensors must have been created with
-//        createAllTensors() prior to calling this function.
-// Returns:
-//    The TilingConfig that describes the best tiling shapes.
-//
 TilingConfig TilingOptimizer::computeBasicTileShapes(SmvConvolutionOp* op) {
     Tensor* inputs = op->getInput(op->Inputs);
     Tensor* weights = op->getInput(op->Kernels);

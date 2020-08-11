@@ -8,6 +8,7 @@
 
 namespace smaug {
 
+/** Elementwise exponential linear unit on SMV. */
 class SmvEluOp : public EluOp<SmvBackend> {
    public:
     using EluOp<SmvBackend>::EluOp;
@@ -18,6 +19,7 @@ class SmvEluOp : public EluOp<SmvBackend> {
     std::array<TiledTensor, 2> tiledTensors;
 };
 
+/** Elementwise scaled exponential linear unit on SMV. */
 class SmvSeluOp : public SeluOp<SmvBackend> {
    public:
     using SeluOp<SmvBackend>::SeluOp;

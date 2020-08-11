@@ -7,6 +7,7 @@
 
 namespace smaug {
 
+/** Elementwise greater-than operator on SMV. */
 class SmvGreaterOp : public GreaterOp<SmvBackend> {
   public:
     using GreaterOp<SmvBackend>::GreaterOp;
@@ -19,6 +20,7 @@ class SmvGreaterOp : public GreaterOp<SmvBackend> {
    std::array<TiledTensor, 3> tiledTensors;
 };
 
+/** Elementwise greater-than-or-equal-to operator on SMV. */
 class SmvGreaterEqualOp : public GreaterEqualOp<SmvBackend> {
   public:
     using GreaterEqualOp<SmvBackend>::GreaterEqualOp;

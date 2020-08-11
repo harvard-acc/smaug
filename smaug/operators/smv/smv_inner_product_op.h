@@ -8,6 +8,8 @@
 namespace smaug {
 
 namespace smv {
+
+/** Contains implementations of inner product on SMV and related functions. */
 namespace fc {
 
 extern const int kNumPEs;
@@ -18,6 +20,11 @@ class TilingOptimizer;
 }  // namespace fc
 }  // namespace smv
 
+/**
+ * Inner product operator on SMV.
+ *
+ * SMV supports `C = A x B_tranpose`. Elements are 8-way vectorized.
+ */
 class SmvInnerProductOp : public InnerProductOp<SmvBackend> {
   public:
     using InnerProductOp<SmvBackend>::InnerProductOp;
