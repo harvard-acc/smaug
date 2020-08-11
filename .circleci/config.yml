@@ -72,7 +72,9 @@ jobs:
             mkdir -p docs
             cp -rf /tmp/smaug_docs_out/html/* docs/
             git add docs/
-            if [[ `git diff HEAD --exit-code > /dev/null` -eq 0 ]]; then
+            git diff HEAD --exit-code > /dev/null
+            HASCHANGES=$?
+            if [[ $HASCHANGES -eq 0 ]]; then
               echo "No changes to documentation, exiting."
               exit 0
             fi
