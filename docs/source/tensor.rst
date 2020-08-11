@@ -1,5 +1,5 @@
-smaug.tenosr
-===================================
+smaug.tensor
+============
 .. currentmodule:: smaug.tensor
 
 .. autofunction:: reorder
