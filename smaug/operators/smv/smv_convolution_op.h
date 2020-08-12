@@ -8,6 +8,7 @@
 namespace smaug {
 
 namespace smv {
+/** Contains convolution implementations and tiling optimizers for SMV. */
 namespace conv {
 
 extern const int kNumPEs;
@@ -18,6 +19,11 @@ class TilingOptimizer;
 }  // namespace conv
 }  // namespace smv
 
+/**
+ * SMV backend implementation of convolution.
+ *
+ * The dataflow is inspired by the NVDLA convolution engine.
+ */
 class SmvConvolutionOp : public ConvolutionOp<SmvBackend> {
   public:
     using ConvolutionOp<SmvBackend>::ConvolutionOp;

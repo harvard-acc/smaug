@@ -10,37 +10,41 @@
 extern "C" {
 #endif
 
-// Perform a 3D convolution with one kernel on an image, with reduction in NHWC
-// format. This is the vectorized implementation.
-//
-// Args:
-//   host_inputs: Host inputs buffer in NHWC.
-//   host_weights: Host weights buffer in NHWC.
-//   host_results: Host results buffer in NHWC.
-//   inputs: Local inputs buffer in NHWC.
-//   weights: Local weights buffer in NHWC.
-//   results: Local results buffer in NHWC.
-//   inputs_dims: Dimensions of the inputs.
-//   weights_dims: Dimensions of the weights.
-//   results_dims: Dimensions of the results.
-//   inputs_align_pad: Align padding size on the channel dimension of the
-//       inputs.
-//   weights_pad: Align padding size on the channel dimension of the weights.
-//   results_pad: Align padding size on the channel dimension of the results.
-//   inputs_halo_pad: Padding sizes on top, bottom, left and right of the input
-//       2D feature maps.
-//   row_stride: Stride size on the row dimension.
-//   col_stride: Stride size on the col dimension.
-//   ifmap_start: If the input contains more channels than the weights, start
-//       from this one. Otherwise this should always be zero.
-//   kern_start: If the weights contain more kernels than the results buffer can
-//       fit, start from this one. Otherwise this should always be zero.
-//   accumulate: If the original weight tensor is tiled channelwise, this should
-//       be set to true in order to avoid resetting the result buffer for
-//       non-first weight tiles.
-//   send_results: Send the results to the host memory if this is true.
-//   act_function: Activation function the operator runs.
-//   act_params: Parameters for the activation function.
+/** \ingroup AladdinKernels
+ *
+ * Perform a 3D convolution with one kernel on an image, with reduction in NHWC
+ * format. This is the vectorized implementation.
+ *
+ * @param host_inputs Host inputs buffer in NHWC.
+ * @param host_weights Host weights buffer in NHWC.
+ * @param host_results Host results buffer in NHWC.
+ * @param inputs Local inputs buffer in NHWC.
+ * @param weights Local weights buffer in NHWC.
+ * @param results Local results buffer in NHWC.
+ * @param inputs_dims Dimensions of the inputs.
+ * @param weights_dims Dimensions of the weights.
+ * @param results_dims Dimensions of the results.
+ * @param inputs_align_pad Align padding size on the channel dimension of the
+ *        inputs.
+ * @param weights_pad Align padding size on the channel dimension of the
+ *        weights.
+ * @param results_pad Align padding size on the channel dimension of the
+ *        results.
+ * @param inputs_halo_pad Padding sizes on top, bottom, left and right of the
+ * input 2D feature maps.
+ * @param row_stride Stride size on the row dimension.
+ * @param col_stride Stride size on the col dimension.
+ * @param ifmap_start If the input contains more channels than the weights,
+ *        start from this one. Otherwise this should always be zero.
+ * @param kern_start If the weights contain more kernels than the results buffer can
+ *        fit, start from this one. Otherwise this should always be zero.
+ * @param accumulate If the original weight tensor is tiled channelwise, this
+ *        should be set to true in order to avoid resetting the result buffer
+ *        for non-first weight tiles.
+ * @param send_results Send the results to the host memory if this is true.
+ * @param act_function Activation function the operator runs.
+ * @param act_params Parameters for the activation function.
+ */
 void smv_conv3d_nhwc_vec_fxp(float16* host_inputs,
                              float16* host_weights,
                              float16* host_results,

@@ -7,6 +7,7 @@
 
 namespace smaug {
 
+/** Elementwise addition on SMV. */
 class SmvEltwiseAddOp : public EltwiseAddOp<SmvBackend> {
   public:
     using EltwiseAddOp<SmvBackend>::EltwiseAddOp;

@@ -8,6 +8,7 @@
 
 namespace smaug {
 
+/** Rectified linear-unit operator on SMV. */
 class SmvReluOp : public ReluOp<SmvBackend> {
    public:
     using ReluOp<SmvBackend>::ReluOp;

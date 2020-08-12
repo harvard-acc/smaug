@@ -6,6 +6,10 @@
 extern "C" {
 #endif
 
+/** \ingroup AladdinKernels
+ *
+ * SMV implementation of elementwise addition.
+ */
 void smv_eltwise_add_nc_vec_fxp(float16* host_inputs0,
                                 float16* host_inputs1,
                                 float16* host_results,

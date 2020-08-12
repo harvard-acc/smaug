@@ -8,6 +8,8 @@
 namespace smaug {
 
 namespace smv {
+
+/** Contains pooling operators and tiling optimizers for SMV. */
 namespace pool {
 
 extern const int kVectorSize;
@@ -17,6 +19,7 @@ class TilingOptimizer;
 }  // namespace pool
 }  // namespace smv
 
+/** Base class for SMV pooling oeprators */
 class SmvPoolingOp : public PoolingOp<SmvBackend> {
    public:
     using PoolingOp<SmvBackend>::PoolingOp;
@@ -30,6 +33,7 @@ class SmvPoolingOp : public PoolingOp<SmvBackend> {
     std::array<TiledTensor, 2> tiledTensors;
 };
 
+/** Max-pooling operator on SMV. */
 class SmvMaxPoolingOp : public SmvPoolingOp {
    public:
     SmvMaxPoolingOp(const std::string& name, Workspace* workspace)
@@ -38,6 +42,7 @@ class SmvMaxPoolingOp : public SmvPoolingOp {
     void run() override;
 };
 
+/** Average pooling operator on SMV. */
 class SmvAvgPoolingOp : public SmvPoolingOp {
    public:
     SmvAvgPoolingOp(const std::string& name, Workspace* workspace)

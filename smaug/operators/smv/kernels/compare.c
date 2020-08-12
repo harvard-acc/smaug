@@ -12,6 +12,10 @@ static inline v8bl_t convert_to_bool(v8sfx_t a) {
                      (bool)a[4], (bool)a[5], (bool)a[6], (bool)a[7] };
 }
 
+/** \ingroup AladdinKernels
+ *
+ * SMVe implementation of elementwise less-than.
+ */
 void smv_less_nc_vec_fxp(float16* host_inputs0,
                          float16* host_inputs1,
                          bool* host_results,
@@ -37,6 +41,10 @@ void smv_less_nc_vec_fxp(float16* host_inputs0,
     dmaStore(host_results, results, inputs_size * sizeof(bool));
 }
 
+/** \ingroup AladdinKernels
+ *
+ * SMVe implementation of elementwise less-than-or-equal-to.
+ */
 void smv_less_equal_nc_vec_fxp(float16* host_inputs0,
                                float16* host_inputs1,
                                bool* host_results,
@@ -62,6 +70,10 @@ void smv_less_equal_nc_vec_fxp(float16* host_inputs0,
     dmaStore(host_results, results, inputs_size * sizeof(bool));
 }
 
+/** \ingroup AladdinKernels
+ *
+ * SMVe implementation of elementwise greater-than.
+ */
 void smv_greater_nc_vec_fxp(float16* host_inputs0,
                             float16* host_inputs1,
                             bool* host_results,
@@ -87,6 +99,10 @@ void smv_greater_nc_vec_fxp(float16* host_inputs0,
     dmaStore(host_results, results, inputs_size * sizeof(bool));
 }
 
+/** \ingroup AladdinKernels
+ *
+ * SMVe implementation of elementwise greater-than-or-equal-to.
+ */
 void smv_greater_equal_nc_vec_fxp(float16* host_inputs0,
                                   float16* host_inputs1,
                                   bool* host_results,

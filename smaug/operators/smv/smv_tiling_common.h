@@ -6,6 +6,10 @@
 namespace smaug {
 namespace smv {
 
+/**
+ * The set of supported tiling strategies. Each strategy indicates along which
+ * set of dimensions a Tensor should be tiled along.
+ */
 enum TilingDims {
     None,
     DimN,
@@ -18,6 +22,10 @@ enum TilingDims {
     Invalid
 };
 
+/**
+ * A TilingConfig describes tiling strategies and optimal tile sizes for inputs,
+ * weights, and outputs Tensors. 
+ */
 struct TilingConfig {
   public:
     TilingConfig(TensorShape _inputs = TensorShape(),

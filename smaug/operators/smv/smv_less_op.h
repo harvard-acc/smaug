@@ -7,6 +7,7 @@
 
 namespace smaug {
 
+/** Elementwise less-than operator on SMV. */
 class SmvLessOp : public LessOp<SmvBackend> {
   public:
     using LessOp<SmvBackend>::LessOp;
@@ -19,6 +20,7 @@ class SmvLessOp : public LessOp<SmvBackend> {
    std::array<TiledTensor, 3> tiledTensors;
 };
 
+/** Elementwise less-than-or-equal-to operator on SMV. */
 class SmvLessEqualOp : public LessEqualOp<SmvBackend> {
   public:
     using LessEqualOp<SmvBackend>::LessEqualOp;

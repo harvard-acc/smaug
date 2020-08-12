@@ -8,6 +8,8 @@
 namespace smaug {
 
 namespace smv {
+
+/** Contains batch-norm implementations and tiling optimizers for SMV. */
 namespace bn {
 
 extern const int kVectorSize;
@@ -17,6 +19,11 @@ class TilingOptimizer;
 }  // namespace bn
 }  // namespace smv
 
+/**
+ * SMV backend implementation of batch normalization.
+ *
+ * Elements are formatted and consumed in vectors of 8.
+ */
 class SmvBatchNormOp : public BatchNormOp<SmvBackend> {
   public:
     using BatchNormOp<SmvBackend>::BatchNormOp;
@@ -24,9 +31,10 @@ class SmvBatchNormOp : public BatchNormOp<SmvBackend> {
     void run() override;
 
   protected:
-   // This is for post-FC batch norm.
+   /** Post-FC tile dispatcher. */
    void runNA(TiledTensor& inputs, TiledTensor& weights, TiledTensor& outputs);
-   // This is for post-Conv bath norm.
+
+   /** Post-convolution tile dispatcher. */
    void runNHWC(TiledTensor& inputs,
                 TiledTensor& weights,
                 TiledTensor& outputs);

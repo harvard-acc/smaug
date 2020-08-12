@@ -10,10 +10,6 @@ namespace smaug {
 namespace smv {
 namespace bn {
 
-// Determine the best tiling dimensions for running batch norm on SMV.
-//
-// Returns:
-//   A 2-element array of TilingDims enums (inputs, weights).
 std::array<TilingDims, 2> TilingOptimizer::determineBestTilingDims(
         Tensor* inputs, Tensor* weights, int maxTileSize) {
     // Determine the best tiling dims for each of inputs and weights. The
@@ -208,28 +204,6 @@ void TilingOptimizer::enumPostConvTilingConfigs(
     assert(!fullConfigs.empty() && "No tiling configurations found!");
 }
 
-// Determine the best basic tiling shape for this batch norm layer.
-//
-// The algorithm first determines the dimensions along which the inputs,
-// weights, and outputs will be tiled. Then based on those dimensions, we
-// enumerate all possible basic tile shapes for inputs, weights, and outputs. A
-// **basic** shape is the shape that all but potentially the last tile along a
-// set of dimensions will use. This triplet of tile shapes defines a
-// TilingConfig. The TilingConfig that maximizes the total combined size of
-// input, weights, and output tiles is chosen as the best.
-//
-// This algorithm assumes that the maximum tile size for weights, inputs, and
-// outputs are all the same and that they will reside in separate scratchpads
-// (no sharing).
-//
-// Args:
-//    inputs: Inputs tensor of the batch norm operator.
-//    weights: A tensor that concatenates the four weights tensors of the batch
-//        norm operator.
-//    outputs: Outputs tensor of the batch norm operator.
-// Returns:
-//    The TilingConfig that describes the best tiling shapes.
-//
 TilingConfig TilingOptimizer::computeBasicTileShapes(Tensor* inputs,
                                                      Tensor* weights,
                                                      Tensor* outputs) {

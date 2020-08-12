@@ -8,6 +8,7 @@
 
 namespace smaug {
 
+/** Sigmoid linear-unit operator on SMV. */
 class SmvSigmoidOp : public SigmoidOp<SmvBackend> {
    public:
     using SigmoidOp<SmvBackend>::SigmoidOp;
