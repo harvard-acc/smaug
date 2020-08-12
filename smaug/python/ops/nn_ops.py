@@ -19,6 +19,17 @@ def to_padding_type(padding):
 def convolution(
     input_tensor, filter_tensor, stride, padding, activation=None,
     activation_params=None, name="conv"):
+  """Compute a 3D Convolution given 4D `input_tensor` and `filter_tensor`.
+
+  Args:
+    input_tensor: A 4D `Tensor`.
+    filter_tensor: A 4D `Tensor`.
+    stride: A list of two integers: [row_stride, col_stride].
+    padding: A string from: `same`, `valid`. The zero padding options.
+    activation: A string representing the activation function (optional).
+    activation_params: kwargs for the activation function (optional).
+    name: Operator name (optional).
+  """
   def compute_output_dim(input_dim, weight_dim, stride, padding):
     pad = 0
     if to_padding_type(padding) == types_pb2.SamePadding:
@@ -68,6 +79,18 @@ def convolution(
 def batch_norm(
     input_tensor, mean_tensor, var_tensor, gamma_tensor, beta_tensor,
     activation=None, activation_params=None, name="batch_norm"):
+  """Perform batch normalization.
+
+  Args:
+    input_tensor: A 2D or 4D `Tensor`.
+    mean_tensor: Mean parameter.
+    var_tensor: Variance parameter. For performance reasons, this is
+      precomputed as 1/sqrt(variance + eps).
+    gamma_tensor: Gamma parameter.
+    beta_tensor: Beta parameter.
+    activation/activation_params: Activation function to use (optional).
+    name: Operator name (optional).
+  """
   assert (len(mean_tensor.shape.dims) == 2 and len(var_tensor.shape.dims) == 2
           and len(gamma_tensor.shape.dims) == 2
           and len(beta_tensor.shape.dims) == 2)
@@ -96,6 +119,14 @@ def batch_norm(
       output_tensor_layout=output_layout, params=params)[0]
 
 def max_pool(input_tensor, pool_size, stride, name="max_pool"):
+  """Compute max pooling.
+
+  Args:
+    input_tensor: A 4D `Tensor`.
+    pool_size: A list of two integers: [pool_rows, pool_cols].
+    stride: A list of two integers: [row_stride, col_stride].
+    name: Operator name (optional).
+  """
   def compute_output_dim(input_dim, pool_size, stride):
     return (input_dim - pool_size) // stride + 1
 
@@ -130,6 +161,16 @@ def max_pool(input_tensor, pool_size, stride, name="max_pool"):
 def mat_mul(
     input_tensor, weight_tensor, activation=None, activation_params=None,
     name="mat_mul"):
+  """Compute a matrix multiplication for `input_tensor` and `weight_tensor`.
+
+  Args:
+    input_tensor: A 2D `Tensor`. Shaped as `NC`, where `N` is batch size and `C`
+      is number of channels.
+    weight_tensor: A 2D `Tensor`. Shaped as `NC` or `CN`, where `N` is number of
+      neurons and `C` is the same as in `input_tensor`.
+    activation/activation_params: Activation function to use (optional).
+    name: Operator name (optional).
+  """
   input_tensor, weight_tensor = common.check_and_add_layout_transform(
       name=name, op=types_pb2.InnerProduct,
       input_tensors=[input_tensor, weight_tensor])

@@ -6,6 +6,16 @@ from smaug.core import node_pb2
 from smaug.python.ops import common
 
 def reorder(input_tensor, target_layout, name="reorder"):
+  """Reorder the data of a given `Tensor` with the target layout.
+
+  Args:
+    input_tensor: A `Tensor`.
+    target_layout: The target layout.
+    name: Operator name (optional).
+
+  Returns:
+    A new `Tensor` with the layout as `target_layout`.
+  """
   src_layout = input_tensor.shape.layout
   src_dims = input_tensor.shape.dims
   if src_layout == types_pb2.NCHW:
@@ -38,6 +48,15 @@ def reorder(input_tensor, target_layout, name="reorder"):
       output_tensor_layout=target_layout)[0]
 
 def flatten(input_tensor, name="flatten"):
+  """Flatten the data of a given `Tensor`.
+
+  Args:
+    input_tensor: A 4D `Tensor`.
+    name: Operator name (optional).
+
+  Returns:
+    A 2D `Tensor` shpaed as `NC`.
+  """
   assert (len(input_tensor.shape.dims) == 4)
   return reorder(
       name=name, input_tensor=input_tensor, target_layout=types_pb2.NC)

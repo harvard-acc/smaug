@@ -61,12 +61,14 @@ def to_proto(activation, params):
   return proto
 
 def relu(input_tensor, name="relu"):
+  """Rectified linear unit operator."""
   return common.add_node(
       name=name, op=types_pb2.ReLU, input_tensors=[input_tensor],
       output_tensors_dims=[input_tensor.shape.dims],
       output_tensor_layout=input_tensor.shape.layout)[0]
 
 def lrelu(input_tensor, slope=0.2, name="lrelu"):
+  """Leaky rectified linear unit operator: max(slope * x, 0)."""
   params = node_pb2.Params()
   params.act_params.lrelu_params.slope = slope
   return common.add_node(
@@ -75,6 +77,11 @@ def lrelu(input_tensor, slope=0.2, name="lrelu"):
       output_tensor_layout=input_tensor.shape.layout, params=params)[0]
 
 def elu(input_tensor, alpha=0.1, name="relu"):
+  """Exponential linear unit function.
+
+  Defined as:
+    if input_tensor > 0, alpha * exp(input_tensor - 1), else input_tensor.
+  """
   params = node_pb2.Params()
   params.act_params.elu_params.alpha = alpha
   return common.add_node(
@@ -83,6 +90,10 @@ def elu(input_tensor, alpha=0.1, name="relu"):
       output_tensor_layout=input_tensor.shape.layout, params=params)[0]
 
 def selu(input_tensor, alpha=1.6733, lambda_param=1.0507, name="selu"):
+  """Scaled exponential linear unit function.
+
+  Defined as: lambda_param * elu(input_tensor, alpha).
+  """
   params = node_pb2.Params()
   params.act_params.elu_params.alpha = alpha
   params.act_params.elu_params.lambda_param = lambda_param
@@ -92,12 +103,17 @@ def selu(input_tensor, alpha=1.6733, lambda_param=1.0507, name="selu"):
       output_tensor_layout=input_tensor.shape.layout, params=params)[0]
 
 def tanh(input_tensor, name="tanh"):
+  """Tanh operator."""
   return common.add_node(
       name=name, op=types_pb2.Tanh, input_tensors=[input_tensor],
       output_tensors_dims=[input_tensor.shape.dims],
       output_tensor_layout=input_tensor.shape.layout)[0]
 
 def hard_tanh(input_tensor, min=-1, max=1, name="hard_tanh"):
+  """Hard tanh operator.
+
+  This bounds the min and max values of the tanh operator.
+  """
   params = node_pb2.Params()
   params.act_params.hard_tanh_params.min = min
   params.act_params.hard_tanh_params.max = max
@@ -107,12 +123,17 @@ def hard_tanh(input_tensor, min=-1, max=1, name="hard_tanh"):
       output_tensor_layout=input_tensor.shape.layout, params=params)[0]
 
 def sigmoid(input_tensor, name="sigmoid"):
+  """Sigmoid operator.
+
+  Defined as 1/(1 + exp(-input_tensor)).
+  """
   return common.add_node(
       name=name, op=types_pb2.Sigmoid, input_tensors=[input_tensor],
       output_tensors_dims=[input_tensor.shape.dims],
       output_tensor_layout=input_tensor.shape.layout)[0]
 
 def softmax(input_tensor, name=None):
+  """Softmax operator."""
   input_tensor = common.check_and_add_layout_transform(
       name=name, op=types_pb2.Softmax, input_tensors=[input_tensor])[0]
   return common.add_node(
