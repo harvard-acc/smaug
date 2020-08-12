@@ -28,7 +28,7 @@ ENV LLVM_HOME /usr/local
 ENV BOOST_ROOT /usr/include
 ENV SMAUG_HOME /workspace/smaug
 ENV PROTOC /usr/local/bin/protoc
-ENV PYTHONPATH "${PYTHONPATH}:${SMAUG_HOME}"
+ENV PYTHONPATH "${SMAUG_HOME}/build:${PYTHONPATH}"
 ENV SHELL /bin/bash
 
 #######################################################
