@@ -6,6 +6,15 @@ smaug.nn
 .. autofunction:: batch_norm
 .. autofunction:: max_pool
 .. autofunction:: mat_mul
+.. autoclass:: LSTM
+   :members:
+   :undoc-members:
+.. autoclass:: BidirectionalLSTM
+   :members:
+   :undoc-members:
+.. autoclass:: BahdanauAttention
+   :members:
+   :undoc-members:
 .. autofunction:: relu
 .. autofunction:: lrelu
 .. autofunction:: elu
