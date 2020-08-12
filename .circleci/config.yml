@@ -24,6 +24,7 @@ jobs:
       - run:
           name: Build documentation
           command: |
+            export PYTHONPATH=$SMAUG_HOME/build:$PYTHONPATH
             apt install -y doxygen
             cd docs
             pip install -r requirements.txt
@@ -71,7 +72,7 @@ jobs:
             cd ${HOME}
             git clone git@github.com:harvard-acc/smaug_docs
             cd smaug_docs
-            rm -rf .
+            rm -rf ./*
             cp -rf /tmp/smaug_docs_out/build/html/* .
             git add .
             git config --global user.name "CircleCI Docs Deploy"

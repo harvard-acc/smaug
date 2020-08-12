@@ -12,7 +12,10 @@ BUILDDIR      = build
 help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
-.PHONY: help Makefile
+.PHONY: help html clean Makefile
 
 html:
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+
+clean:
+	@rm -rf $(SOURCEDIR)/api/* $(BUILDDIR)/*
