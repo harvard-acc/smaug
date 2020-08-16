@@ -24,11 +24,11 @@ extern "C" {
  * @param inputs_dims Dimensions of the inputs.
  * @param weights_dims Dimensions of the weights.
  * @param results_dims Dimensions of the results.
- * @param inputs_align_pad Align padding size on the channel dimension of the
- *        inputs.
- * @param weights_pad Align padding size on the channel dimension of the
+ * @param inputs_align_pad Alignment padding size on the channel dimension of
+ *        the inputs.
+ * @param weights_pad Alignment padding size on the channel dimension of the
  *        weights.
- * @param results_pad Align padding size on the channel dimension of the
+ * @param results_pad Alignment padding size on the channel dimension of the
  *        results.
  * @param inputs_halo_pad Padding sizes on top, bottom, left and right of the
  * input 2D feature maps.
@@ -41,9 +41,14 @@ extern "C" {
  * @param accumulate If the original weight tensor is tiled channelwise, this
  *        should be set to true in order to avoid resetting the result buffer
  *        for non-first weight tiles.
+ * @param read_inputs Load inputs from the host. Set to false if the input
+ *        activations can be reused from the last invocation.
+ * @param read_weights Load weights from the host. Set to false if the weights
+ *        can be reused from the last invocation.
  * @param send_results Send the results to the host memory if this is true.
  * @param act_function Activation function the operator runs.
  * @param act_params Parameters for the activation function.
+ * @param sampling Simulation samplng settings.
  */
 void smv_conv3d_nhwc_vec_fxp(float16* host_inputs,
                              float16* host_weights,

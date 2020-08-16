@@ -467,7 +467,7 @@ class Tensor : public TensorBase {
     /**
      * Allocates memory to store Tensor data.
      *
-     * @params T The type of data to store.
+     * @tparam T The type of data to store.
      */
     template <typename T>
     T* allocateStorage() {

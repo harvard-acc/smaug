@@ -9,11 +9,8 @@ extern "C" {
 /** \ingroup AladdinKernels
  *
  * A Reference implementation of a depthwise convolution on NCHW data with
- * valid padding.
- *
- * @param img_pad Alignment padding on the W dimension of inputs.
- * @param k_pad Alignment padding on the W dimension of weights.
- * @param res_pad Alignment padding on the W dimension of results.
+ * valid padding. The Reference backend requires no alignment padding so all
+ * _pad parameters can be zero.
  */
 void ref_conv2d_nchw_valid_padding(float* input,
                                    float* kernels,

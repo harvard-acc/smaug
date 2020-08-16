@@ -15,9 +15,6 @@
 
 namespace smaug {
 
-template <typename Backend>
-class ReorderOp;
-
 /**
  * DataflowGraphWriter writes the current network as a dot-graph file to the
  * given ostream.

@@ -1,3 +1,8 @@
+/**
+ * \file smaug_test.h
+ * \brief SMAUG unit test fixture.
+ */
+
 #include <fstream>
 
 #include "catch.hpp"
@@ -56,7 +61,7 @@ class SmaugTest {
     /**
      * Allocates data storage for all Tensors in the Operator.
      *
-     * @param T The data element type.
+     * @tparam T The data element type.
      * @param op The Operator.
      */
     template <typename T>
@@ -75,7 +80,7 @@ class SmaugTest {
      * Fills every input Tensor in the Operator with data by calling the
      * provided FillTensorDataFunc.
      *
-     * @param T The type of data stored in the Tensors.
+     * @tparam T The type of data stored in the Tensors.
      * @param op The Operator
      * @param fillTensorDataFunc A pointer to a function to auto-generate
      * testing data for the Tensor.
