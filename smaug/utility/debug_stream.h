@@ -5,6 +5,10 @@
 
 namespace smaug {
 
+/**
+ * An stream class to consume debug logs. Depending on the globalDebugLevel,
+ * logs are either printed to std::cout or swallowed.
+ */
 class DebugStream {
    public:
     DebugStream(bool _enabled) : enabled(_enabled) {}
@@ -27,7 +31,10 @@ class DebugStream {
     bool enabled;
 };
 
+/** Initializes the global debug stream for the given debug level. */
 void initDebugStream(int debugLevel);
+
+/** Returns a DebugStream instance for the given debug level. */
 const DebugStream& dout(int debugLevel);
 
 }  // namespace smaug
