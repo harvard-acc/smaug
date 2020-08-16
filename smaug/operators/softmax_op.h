@@ -11,6 +11,8 @@ namespace smaug {
 /** \ingroup Operators
  *
  * Implements the softmax operator.
+ *
+ * @tparam Backend The Backend specialization of this Operator.
  */
 template <typename Backend>
 class SoftmaxOp : public UnaryOp<Backend> {
@@ -21,7 +23,9 @@ class SoftmaxOp : public UnaryOp<Backend> {
     void run() override {}
 };
 
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
 REGISTER_SPECIAL_OP(SoftmaxOp, ReferenceBackend);
+#endif
 
 }  // namespace smaug
 

@@ -11,6 +11,8 @@ namespace smaug {
 
 /** \ingroup Operators
  * Adds two Tensors elementwise.
+ *
+ * @tparam Backend The Backend specialization of this Operator.
  */
 template <typename Backend>
 class EltwiseAddOp : public EltwiseOp<Backend> {
@@ -21,7 +23,9 @@ class EltwiseAddOp : public EltwiseOp<Backend> {
     void run() override {}
 };
 
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
 REGISTER_SPECIAL_OP(EltwiseAddOp, ReferenceBackend);
+#endif
 
 }  // namespace smaug
 

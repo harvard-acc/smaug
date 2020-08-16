@@ -13,6 +13,8 @@ namespace smaug {
  * marked as dead.
  *
  * This is an integral component of implementing control flow in networks.
+ *
+ * @tparam Backend The Backend specialization of this Operator.
  */
 template <typename Backend>
 class SwitchOp : public Operator {

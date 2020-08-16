@@ -10,7 +10,9 @@ namespace smaug {
 /** \ingroup Operators
  * Concatenates N Tensors along a specified axis.
  *
- * This has a backend-agnostic software-based implementation.
+ * This has a software-based implementation.
+ *
+ * @tparam Backend The Backend that sets Alignment.
  */
 template <typename Backend>
 class ConcatOp : public Operator {

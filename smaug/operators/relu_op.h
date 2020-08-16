@@ -10,6 +10,8 @@ namespace smaug {
 
 /** \ingroup Operators
   * Implements the rectified linear unit operator: max(slope * x, 0).
+ *
+ * @tparam Backend The Backend specialization of this Operator.
   */
 template <typename Backend>
 class ReluOp : public UnaryOp<Backend> {
@@ -26,7 +28,10 @@ class ReluOp : public UnaryOp<Backend> {
     float slope;
 };
 
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
 REGISTER_SPECIAL_OP(ReluOp, ReferenceBackend);
+#endif
+
 
 }  // namespace smaug
 

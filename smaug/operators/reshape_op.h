@@ -12,6 +12,8 @@ namespace smaug {
  * Implements the reshape operator, which changes the dimensionality of a
  * Tensor while retaining the same number of elements. The output need not be
  * of the same DataLayout.
+ *
+ * @tparam Backend The Backend specialization of this Operator.
  */
 template <typename Backend>
 class ReshapeOp : public Operator {

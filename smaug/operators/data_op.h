@@ -13,6 +13,8 @@ namespace smaug {
  * This is the only operator that is not expected to have any inputs. Its
  * existence is to maintain the abstraction that the input to all other
  * operators is always provided by another Operator.
+ *
+ * @tparam Backend The Backend specialization of this Operator.
  */
 template <typename Backend>
 class DataOp : public Operator {

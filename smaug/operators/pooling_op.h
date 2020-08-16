@@ -15,6 +15,8 @@ namespace smaug {
  * The pooling operator reduces the size of the input Tensor by applying a
  * windowed filter that reduces all elements in its field of view to a single
  * value.
+ *
+ * @tparam Backend The Backend specialization of this Operator.
  */
 template <typename Backend>
 class PoolingOp : public Operator {
@@ -145,8 +147,10 @@ class AvgPoolingOp : public PoolingOp<Backend> {
     void run() override{};
 };
 
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
 REGISTER_SPECIAL_OP(MaxPoolingOp, ReferenceBackend);
 REGISTER_SPECIAL_OP(AvgPoolingOp, ReferenceBackend);
+#endif
 
 }  // namespace smaug
 

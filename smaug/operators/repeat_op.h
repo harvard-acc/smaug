@@ -15,6 +15,8 @@ namespace smaug {
  * Implements a repeat operator, which replicates the contents of a Tensor
  * along each dimension a configurable number of times. This is set by the
  * `setMultiples` function.
+ *
+ * @tparam Backend The Backend specialization of this Operator.
  */
 template <typename Backend>
 class RepeatOp : public Operator {
