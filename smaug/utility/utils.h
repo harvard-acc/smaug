@@ -71,13 +71,13 @@ int calc_padding(int value, unsigned alignment);
 /** Get the string version of DataLayout. */
 std::string dataLayoutToStr(DataLayout layout);
 
-/** 
+/**
  * Contains utility functions for interacting with gem5. In trace mode, these
  * are no-ops.
  */
 namespace gem5 {
 
-/** 
+/**
  * Switches to the next CPU type. Often used to implement fast-forwarding, in
  * which switchCpu is called just before starting the detailed region of
  * simulation.
@@ -111,7 +111,7 @@ void wakeCpu(int id);
  */
 int getCpuId();
 
-/** 
+/**
  * A RAII helper class which dumps and/or resets gem5 stats at construction and
  * destruction.
  */
