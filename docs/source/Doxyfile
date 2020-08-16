@@ -870,10 +870,7 @@ RECURSIVE              = YES
 # Note that relative paths are relative to the directory from which doxygen is
 # run.
 
-EXCLUDE                = smaug/operators/smiv \
-                         smaug/utility/compression.h \
-                         smaug/utility/compression.c \
-                         nnet_fwd_defs.h
+EXCLUDE                =
 
 # The EXCLUDE_SYMLINKS tag can be used to select whether or not files or
 # directories that are symbolic links (a Unix file system feature) are excluded
@@ -889,9 +886,10 @@ EXCLUDE_SYMLINKS       = NO
 # Note that the wildcards are matched against the file with absolute path, so to
 # exclude all test directories for example use the pattern */test/*
 
-EXCLUDE_PATTERNS       = smaug/operators/smiv/* \
-                         smaug/utility/compression* \
-                         nnet_fwd_defs.h
+EXCLUDE_PATTERNS       = *smiv* \
+                         */compression* \
+                         */*_test.cpp \
+                         */nnet_fwd_defs.h
 
 # The EXCLUDE_SYMBOLS tag can be used to specify one or more symbol names
 # (namespaces, classes, functions, etc.) that should be excluded from the
@@ -2174,8 +2172,7 @@ PREDEFINED             = __attribute__(x)= \
                          __GNUC__ \
                          ALWAYS_INLINE \
                          ASSERT \
-                         ASSUME_ALIGNED \
-                         REGISTER_SPECIAL_OP
+                         ASSUME_ALIGNED
 
 # If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then this
 # tag can be used to specify a list of macro names that should be expanded. The
