@@ -10,6 +10,8 @@ namespace smaug {
 
 /** \ingroup Operators
  * Implements the tanh operator.
+ *
+ * @tparam Backend The Backend specialization of this Operator.
  */
 template <typename Backend>
 class TanhOp : public UnaryOp<Backend> {
@@ -23,6 +25,8 @@ class TanhOp : public UnaryOp<Backend> {
 /** \ingroup Operators
  * Implements the hard tanh operator, which bounds the min and max value of the
  * tanh operator.
+ *
+ * @tparam Backend The Backend specialization of this Operator.
  */
 template <typename Backend>
 class HardTanhOp : public UnaryOp<Backend> {
@@ -46,8 +50,10 @@ class HardTanhOp : public UnaryOp<Backend> {
     float max;
 };
 
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
 REGISTER_SPECIAL_OP(TanhOp, ReferenceBackend);
 REGISTER_SPECIAL_OP(HardTanhOp, ReferenceBackend);
+#endif
 
 }  // namespace smaug
 

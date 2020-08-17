@@ -12,6 +12,8 @@ namespace smaug {
  *
  * A base class for all unary operators: operators that only take a single
  * input. Unary operators can produce multiple output Tensors.
+ *
+ * @tparam Backend The Backend specialization of this Operator.
  */
 template <typename Backend>
 class UnaryOp : public Operator {

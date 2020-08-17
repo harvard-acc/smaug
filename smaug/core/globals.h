@@ -1,3 +1,8 @@
+/**
+ * \file globals.h
+ * \brief SMAUG Global variables.
+ */
+
 #ifndef _CORE_GLOBALS_H_
 #define _CORE_GLOBALS_H_
 

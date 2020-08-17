@@ -28,6 +28,7 @@ enum BackendName {
     UnknownBackend,
 };
 
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
 class Workspace;
 template <typename Backend> class ConvolutionOp;
 template <typename Backend> class DataOp;
@@ -57,6 +58,7 @@ template <typename Backend> class EluOp;
 template <typename Backend> class SeluOp;
 template <typename Backend> class TanhOp;
 template <typename Backend> class HardTanhOp;
+#endif
 
 /**
  * The ref namespace contains all code specific to the Reference backend.
@@ -140,6 +142,7 @@ extern float* spad1;
 extern float* spad2;
 }  // namespace smv
 
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
 class SmvConvolutionOp;
 class SmvInnerProductOp;
 class SmvMaxPoolingOp;
@@ -158,6 +161,7 @@ class SmvLessOp;
 class SmvLessEqualOp;
 class SmvGreaterOp;
 class SmvGreaterEqualOp;
+#endif
 
 /**
  * SmvBackend implements a set of models of optimized DL kernels that were

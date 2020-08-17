@@ -1,3 +1,8 @@
+/**
+ * \file common.h
+ * \brief Utilities for writing and invoking Aladdin kernels from Operators.
+ */
+
 #ifndef _OPERATORS_COMMON_H_
 #define _OPERATORS_COMMON_H_
 
@@ -274,7 +279,7 @@ typedef uint16_t float16;
 #define CACHELINE_SIZE 32
 #define LOG_PAGE_SIZE 12
 
-/** \defgroup VectorData
+/** \defgroup VectorData Working with SIMD in C.
  *
  * Typedefs and macros for working with vector data.
  *
@@ -345,7 +350,7 @@ typedef uint8_t v8bl_t
  * @}
  */
 
-/** \defgroup MultiDimArrays
+/** \defgroup MultiDimArrays Multi-dim arrays in C
  *
  * Use these convenience macros to cast a raw pointer into a multidimensional
  * variable-length array, which lets us use `[]` notation instead of manually
@@ -466,7 +471,7 @@ typedef uint8_t v8bl_t
 #endif
 
 
-/** \defgroup AladdinHelpers
+/** \defgroup AladdinHelpers Utilities for writing Aladdin kernels.
  *
  * Macros to assist in writing code for Aladdin/LLVM-Tracer that translates
  * into an efficient hardware model.
@@ -474,7 +479,7 @@ typedef uint8_t v8bl_t
  * @{
  */
 
-/** \defgroup AladdinMath
+/** \defgroup AladdinMath Common math functions in Aladdin
  *
  * Macros for computing the min/max of a group of elements.
  *

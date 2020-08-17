@@ -11,6 +11,8 @@ namespace smaug {
  *
  * Implements a Tensor reordering operation to convert between different
  * DataLayouts.
+ *
+ * @tparam Backend The Backend specialization of this Operator.
  */
 template <typename Backend>
 class ReorderOp : public Operator {

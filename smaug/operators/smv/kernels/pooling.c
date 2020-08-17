@@ -20,7 +20,6 @@ extern "C" {
  * @param inputs Local inputs buffer in NHWC.
  * @param results Local results buffer in NHWC.
  * @param inputs_dims Dimensions of the inputs.
- * @param weights_dims Dimensions of the weights.
  * @param results_dims Dimensions of the results.
  * @param inputs_pad Align padding size on the channel dimension of the
  *        inputs.
@@ -32,6 +31,7 @@ extern "C" {
  * @param col_stride Stride size on the col dimension.
  * @param ofmap_start If the results contains more channels than the inputs,
  *        start from this one. Otherwise this should always be zero.
+ * @param sampling Simulation samplng settings.
  */
 void smv_maxpooling_nhwc_vec_fxp(float16* host_inputs,
                                  float16* host_results,
@@ -142,25 +142,26 @@ void smv_maxpooling_nhwc_vec_fxp(float16* host_inputs,
  * An average-pooling operation on SMV with NHWC format. This is the
  * vectorized implementation.
  *
+ * This requires a blocked channel data format (GNHWC), where G = channels/8,
+ * and the last dimension = chans = 8. The last dimension MUST be 8.
+ * This supports arbitrary pooling sizes and strides.
+ *
  * @param host_inputs Host inputs buffer in NHWC.
  * @param host_results Host results buffer in NHWC.
  * @param inputs Local inputs buffer in NHWC.
  * @param results Local results buffer in NHWC.
  * @param inputs_dims Dimensions of the inputs.
- * @param weights_dims Dimensions of the weights.
  * @param results_dims Dimensions of the results.
- * @param inputs_pad Align padding size on the channel dimension of the
- *       inputs.
- * @param results_pad Align padding size on the channel dimension of the results.
+ * @param inputs_pad Align padding size on the channel dimension of the inputs.
+ * @param results_pad Align padding size on the channel dimension of the
+ *        results.
  * @param pool_rows Row size of the pooling function.
  * @param pool_cols Column size of the pooling function.
  * @param row_stride Stride size on the row dimension.
  * @param col_stride Stride size on the col dimension.
- * @param ofmap_start If the results contains more channels than the inputs, start
- *       from this one. Otherwise this should always be zero.
- * This requires a blocked channel data format (GNHWC), where G = channels/8,
- * and the last dimension = chans = 8. The last dimension MUST be 8.
- * This supports arbitrary pooling sizes and strides.
+ * @param ofmap_start If the results contains more channels than the inputs,
+ *        start from this one. Otherwise this should always be zero.
+ * @param sampling Simulation samplng settings.
  */
 void smv_avgpooling_nhwc_vec_fxp(float16* host_inputs,
                                  float16* host_results,

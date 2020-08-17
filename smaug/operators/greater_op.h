@@ -11,6 +11,8 @@ namespace smaug {
 
 /** \ingroup Operators
  * Implements an elementwise greater than operator.
+ *
+ * @tparam Backend The Backend specialization of this Operator.
  */
 template <typename Backend>
 class GreaterOp : public EltwiseOp<Backend> {
@@ -25,6 +27,8 @@ class GreaterOp : public EltwiseOp<Backend> {
 
 /** \ingroup Operators
  * Implements an elementwise greater than or equal to operator.
+ *
+ * @tparam Backend The Backend specialization of this Operator.
  */
 template <typename Backend>
 class GreaterEqualOp : public EltwiseOp<Backend> {
@@ -37,8 +41,10 @@ class GreaterEqualOp : public EltwiseOp<Backend> {
     }
 };
 
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
 REGISTER_SPECIAL_OP(GreaterOp, ReferenceBackend);
 REGISTER_SPECIAL_OP(GreaterEqualOp, ReferenceBackend);
+#endif
 
 }  // namespace smaug
 

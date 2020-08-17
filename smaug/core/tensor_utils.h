@@ -1,3 +1,8 @@
+/**
+ * \file tensor_utils.h
+ * \brief Utility functions for copying/printing/tiling tensors.
+ */
+
 #ifndef _CORE_TENSOR_UTILS_H_
 #define _CORE_TENSOR_UTILS_H_
 

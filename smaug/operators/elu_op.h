@@ -12,6 +12,8 @@ namespace smaug {
  * Implements the exponential linear unit function.
  *
  * Defined as: if input > 0, alpha * exp(input - 1), else input.
+ *
+ * @tparam Backend The Backend specialization of this Operator.
  */
 template <typename Backend>
 class EluOp : public UnaryOp<Backend> {
@@ -32,6 +34,8 @@ class EluOp : public UnaryOp<Backend> {
  * Implements the scaled exponential linear unit function.
  *
  * Defined as: lambda * elu(input).
+ *
+ * @tparam Backend The Backend specialization of this Operator.
  */
 template <typename Backend>
 class SeluOp : public EluOp<Backend> {
@@ -50,8 +54,10 @@ class SeluOp : public EluOp<Backend> {
     float lambda;
 };
 
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
 REGISTER_SPECIAL_OP(EluOp, ReferenceBackend);
 REGISTER_SPECIAL_OP(SeluOp, ReferenceBackend);
+#endif
 
 }  // namespace smaug
 

@@ -13,6 +13,8 @@ namespace smaug {
 /** \ingroup Operators
  *
  * Implements the inner product operator.
+ *
+ * @tparam Backend The Backend specialization of this Operator.
  */
 template <typename Backend>
 class InnerProductOp : public FusedActivationOp {
@@ -103,7 +105,10 @@ class InnerProductOp : public FusedActivationOp {
     SamplingInfo sampling;
 };
 
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
 REGISTER_SPECIAL_OP(InnerProductOp, ReferenceBackend);
+#endif
+
 
 }  // namespace smaug
 

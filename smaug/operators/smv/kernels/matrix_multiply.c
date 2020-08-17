@@ -49,9 +49,12 @@ extern "C" {
  * @param accumulate If the original b tensor is tiled on activations, this
  *        should be set to true in order to avoid resetting the result buffer
  *        for knon-first b tiles.
+ * @param read_inputs Load inputs from the host. Set to false if the input
+ *        activations can be reused from the last invocation.
  * @param send_results Send the results to the host memory if this is true.
  * @param act_function Activation function the operator runs.
  * @param act_params Parameters for the activation function.
+ * @param sampling Simulation samplng settings.
  */
 void smv_matrix_multiply_transpose_nc_vec_fxp(float16* host_a,
                                               float16* host_b,

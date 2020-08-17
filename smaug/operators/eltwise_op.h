@@ -9,6 +9,8 @@ namespace smaug {
 
 /** \ingroup Operators
  * The base class of all elementwise operators.
+ *
+ * @tparam Backend The Backend specialization of this Operator.
  */
 template <typename Backend>
 class EltwiseOp : public Operator {

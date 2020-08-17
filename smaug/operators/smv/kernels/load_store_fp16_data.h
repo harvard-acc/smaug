@@ -1,3 +1,8 @@
+/**
+ * \file load_store_fp16_data.h
+ * \brief Aladdin kernels to load/store FP16 data to/from host memory.
+ */
+
 #ifndef _OPERATORS_SMV_KERNELS_LOAD_STORE_FP16_DATA_H_
 #define _OPERATORS_SMV_KERNELS_LOAD_STORE_FP16_DATA_H_
 

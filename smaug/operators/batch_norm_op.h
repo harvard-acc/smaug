@@ -11,12 +11,15 @@
 namespace smaug {
 
 /** \ingroup Operators
+ *
  * Implements the batch normalization layer.
  *
  * The four different parameter types to BN layers (mean, v ariance, gamma, and
  * beta) are to be provided as separate Tensors. For performance reasons, the
  * variance parameter is often precomputed as 1/sqrt(variance + eps), so
  * hardware does not need to do a square root/division operation.
+ *
+ * @tparam Backend The Backend specialization of this Operator.
  */
 template <typename Backend>
 class BatchNormOp : public FusedActivationOp {
@@ -115,7 +118,9 @@ class BatchNormOp : public FusedActivationOp {
     SamplingInfo sampling;
 };
 
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
 REGISTER_SPECIAL_OP(BatchNormOp, ReferenceBackend);
+#endif
 
 }  // namespace smaug
 

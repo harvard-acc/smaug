@@ -14,6 +14,8 @@ namespace smaug {
  *
  * Implements the split operator, which divides a Tensor into N output Tensors
  * along a specified dimension.
+ *
+ * @tparam Backend The Backend specialization of this Operator.
  */
 template <typename Backend>
 class SplitOp : public Operator {
