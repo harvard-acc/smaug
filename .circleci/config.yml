@@ -25,9 +25,7 @@ jobs:
           name: Build documentation
           command: |
             export PYTHONPATH=$SMAUG_HOME/build:$PYTHONPATH
-            apt install -y doxygen
             cd docs
-            pip install -r requirements.txt
             make html
       - run:
           name: Download latest gem5-aladdin binary

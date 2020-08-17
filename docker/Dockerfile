@@ -80,7 +80,7 @@ RUN wget -q https://github.com/protocolbuffers/protobuf/releases/download/v3.11.
     make && \
     make install && \
     ldconfig && \
-    rm -rf /tmp/protobuf-3.11.4
+    rm -rf /tmp/protobuf-3.11.4 /tmp/protobuf-all-3.11.4.tar.gz
 
 WORKDIR /workspace
 
@@ -108,13 +108,22 @@ RUN apt-get install -y \
       python3 \
       python3-pip \
       libboost-program-options-dev
-
 # Change the default Python version to 3.6.
 RUN update-alternatives --install /usr/bin/pip pip /usr/bin/pip2 1
 RUN update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 2
 RUN pip3 install --user --upgrade pip
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python2.7 1
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.6 2
+
+# Download the binary of Doxygen 1.8.18.
+WORKDIR /tmp
+RUN wget https://sourceforge.net/projects/doxygen/files/rel-1.8.18/doxygen-1.8.18.linux.bin.tar.gz && \
+    tar -xzf doxygen-1.8.18.linux.bin.tar.gz && \
+    cp doxygen-1.8.18/bin/* /usr/local/bin && \
+    rm -rf /tmp/doxygen-1.8.18 /tmp/doxygen-1.8.18.linux.bin.tar.gz
+
+# Install Sphinx/Breathe/Exhale.
+RUN pip install sphinx==3.1.2 breathe==4.19.2 exhale==0.2.3 sphinx-rtd-theme==0.5.0
 
 # Install TensorFlow and addons.
 RUN pip install tensorflow tensorflow-addons
