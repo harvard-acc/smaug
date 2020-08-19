@@ -38,46 +38,7 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.viewcode',
     'sphinx.ext.autosectionlabel',
-    'breathe',
-    'exhale',
 ]
-
-# Setup absolute paths for communicating with breathe / exhale where
-# items are expected / should be trimmed by.
-breathe_projects = {
-    "SMAUG": os.path.join(os.environ['SMAUG_HOME'], 'docs/build/xml')
-}
-breathe_default_project = "SMAUG"
-
-# Setup the exhale extension
-exhale_args = {
-    ############################################################################
-    # These arguments are required.                                            #
-    ############################################################################
-    "containmentFolder": "./api",
-    "rootFileName": "library_root.rst",
-    "rootFileTitle": "Library API",
-    "doxygenStripFromPath": os.environ['SMAUG_HOME'],
-    ############################################################################
-    # Suggested optional arguments.                                            #
-    ############################################################################
-    "createTreeView": True,
-    "exhaleExecutesDoxygen": True,
-    "exhaleUseDoxyfile": True,
-    "verboseBuild": True,
-    ############################################################################
-    # Individual page layout example configuration.                            #
-    ############################################################################
-    # Example of adding contents directives on custom kinds with custom title
-    "contentsTitle": "Page Contents",
-    "kindsWithContentsDirectives": ["class", "file", "namespace", "struct"],
-    ############################################################################
-    # Main library page layout example configuration.                          #
-    ############################################################################
-    "afterTitleDescription": textwrap.dedent(u'''
-        Welcome to the developer reference for the SMAUG C++ API.
-    '''),
-}
 
 autodoc_default_flags = ['members']
 autoclass_content = 'both'
@@ -91,7 +52,6 @@ templates_path = ['_templates']
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = []
-
 
 # -- Options for HTML output -------------------------------------------------
 

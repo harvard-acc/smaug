@@ -16,6 +16,7 @@ help:
 
 html:
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+	doxygen source/Doxyfile
 
 clean:
 	@rm -rf $(SOURCEDIR)/api/* $(BUILDDIR)/*
