@@ -12,8 +12,8 @@ namespace smaug {
 
 /** \ingroup Operators
  *
- * Implements the split operator, which divides a Tensor into N output Tensors
- * along a specified dimension.
+ * \brief Implements the split operator, which divides a Tensor into N output
+ * Tensors along a specified dimension.
  *
  * @tparam Backend The Backend specialization of this Operator.
  */

@@ -12,7 +12,7 @@ namespace smaug {
 
 /** \ingroup Operators
  *
- * Implements the batch normalization layer.
+ * \brief Implements the batch normalization layer.
  *
  * The four different parameter types to BN layers (mean, v ariance, gamma, and
  * beta) are to be provided as separate Tensors. For performance reasons, the
@@ -118,9 +118,7 @@ class BatchNormOp : public FusedActivationOp {
     SamplingInfo sampling;
 };
 
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
 REGISTER_SPECIAL_OP(BatchNormOp, ReferenceBackend);
-#endif
 
 }  // namespace smaug
 

@@ -541,7 +541,8 @@ class Tensor : public TensorBase {
     std::shared_ptr<void> tensorData;
 };
 
-/* A multidimensional container of Tensors..
+/**
+ * A multidimensional container of Tensors.
  *
  * Each of the tensors in a TiledTensor represents one tile or rectangular
  * section of a large tensor.  TileTensor can be iterated over via a
@@ -614,7 +615,7 @@ class TiledTensor : public TensorBase {
    /** Copies data (if needed) to all the tiles from the original Tensor. */
    void copyDataToAllTiles();
 
-   /** 
+   /**
     * Copies data from the TiledTensor into the original Tensor. We name it
     * "untile" because what it does reverses the tiling process.
     */
@@ -636,7 +637,7 @@ class TiledTensor : public TensorBase {
        /** True if we have copied data to this tile. */
        bool hasData;
 
-       /** 
+       /**
         * Construct a new blank Tile.
         *
         * Set the properties of this Tile using TiledTensor::setTile
@@ -647,11 +648,11 @@ class TiledTensor : public TensorBase {
    /**
     * Specifies what to do with the data in the original Tensor and tiles.
     */
-   enum TileDataOperation { 
+   enum TileDataOperation {
      /** Copies data from a contiguous Tensor to the tiles. */
-     Scatter, 
+     Scatter,
      /** Copies data from the tiles to a contiguous Tensor. */
-     Gather 
+     Gather
    };
 
    struct CopyTilesArgs {

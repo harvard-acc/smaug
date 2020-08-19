@@ -6,7 +6,8 @@
 namespace smaug {
 
 /** \ingroup Operators
- * Implements the depthwise convolution operator.
+ *
+ * \brief Implements the depthwise convolution operator.
  *
  * @tparam Backend The Backend specialization of this Operator.
  */
@@ -68,9 +69,7 @@ class DepthwiseConvolutionOp : public ConvolutionOp<Backend> {
     }
 };
 
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
 REGISTER_SPECIAL_OP(DepthwiseConvolutionOp, ReferenceBackend);
-#endif
 
 }  // namespace smaug
 

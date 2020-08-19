@@ -8,7 +8,8 @@
 namespace smaug {
 
 /** \ingroup Operators
- * A data operator contains a Tensor that it exposes as its only Output.
+ *
+ * \brief Exposes a Tensor as its only output.
  *
  * This is the only operator that is not expected to have any inputs. Its
  * existence is to maintain the abstraction that the input to all other

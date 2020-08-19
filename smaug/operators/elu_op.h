@@ -9,7 +9,8 @@
 namespace smaug {
 
 /** \ingroup Operators
- * Implements the exponential linear unit function.
+ *
+ * \brief Implements the exponential linear unit function.
  *
  * Defined as: if input > 0, alpha * exp(input - 1), else input.
  *
@@ -31,7 +32,8 @@ class EluOp : public UnaryOp<Backend> {
 };
 
 /** \ingroup Operators
- * Implements the scaled exponential linear unit function.
+ *
+ * \brief Implements the scaled exponential linear unit function.
  *
  * Defined as: lambda * elu(input).
  *
@@ -54,10 +56,8 @@ class SeluOp : public EluOp<Backend> {
     float lambda;
 };
 
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
 REGISTER_SPECIAL_OP(EluOp, ReferenceBackend);
 REGISTER_SPECIAL_OP(SeluOp, ReferenceBackend);
-#endif
 
 }  // namespace smaug
 

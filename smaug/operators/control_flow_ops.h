@@ -8,7 +8,10 @@
 namespace smaug {
 
 /** \ingroup Operators
- * The switch operator passes an input Tensor to one of two output tensors,
+ *
+ * \brief Conditionally forwards an input to one of two outputs.
+ *
+ * The switch operator copies an input Tensor to one of two output tensors,
  * depending on whether the specified predicate is true. The other tensor is
  * marked as dead.
  *
@@ -78,7 +81,10 @@ class SwitchOp : public Operator {
 };
 
 /** \ingroup Operators
- * A merge operator takes multiple tensors, all but one of which should be
+ *
+ * \brief Forwards the first live input to its output.
+ *
+ * The merge operator takes multiple tensors, all but one of which should be
  * dead, and copies the one live Tensor to its output.
  */
 template <typename Backend>

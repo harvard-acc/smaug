@@ -8,7 +8,7 @@
 namespace smaug {
 
 /** \ingroup Operators
- * Concatenates N Tensors along a specified axis.
+ * \brief Concatenates N Tensors along a specified axis.
  *
  * This has a software-based implementation.
  *
