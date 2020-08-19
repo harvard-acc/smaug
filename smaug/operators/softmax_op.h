@@ -10,7 +10,7 @@ namespace smaug {
 
 /** \ingroup Operators
  *
- * Implements the softmax operator.
+ * \brief Implements the softmax operator.
  *
  * @tparam Backend The Backend specialization of this Operator.
  */
@@ -23,9 +23,7 @@ class SoftmaxOp : public UnaryOp<Backend> {
     void run() override {}
 };
 
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
 REGISTER_SPECIAL_OP(SoftmaxOp, ReferenceBackend);
-#endif
 
 }  // namespace smaug
 

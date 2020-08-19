@@ -14,8 +14,9 @@ namespace smaug {
 
 /** \ingroup Operators
  *
- * The base class for all 4D spatial convolution operators. Provides common
- * functionality for writing convolution operators.
+ * \brief The base class for all 4D spatial convolution operators.
+ *
+ * Provides common * functionality for writing convolution operators.
  *
  * @tparam Backend The Backend specialization of this Operator.
  */
@@ -185,9 +186,7 @@ class ConvolutionOp : public FusedActivationOp {
     SamplingInfo sampling;
 };
 
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
 REGISTER_SPECIAL_OP(ConvolutionOp, ReferenceBackend);
-#endif
 
 }  // namespace smaug
 

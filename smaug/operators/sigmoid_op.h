@@ -10,7 +10,7 @@ namespace smaug {
 
 /** \ingroup Operators
  *
- * Implements the sigmoid operator, defined as 1/(1 + exp(-input)).
+ * \brief Implements the sigmoid operator, defined as 1/(1 + exp(-input)).
  *
  * @tparam Backend The Backend specialization of this Operator.
  */
@@ -23,9 +23,7 @@ class SigmoidOp : public UnaryOp<Backend> {
     void run() override {}
 };
 
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
 REGISTER_SPECIAL_OP(SigmoidOp, ReferenceBackend);
-#endif
 
 }  // namespace smaug
 

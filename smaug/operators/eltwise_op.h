@@ -8,7 +8,8 @@
 namespace smaug {
 
 /** \ingroup Operators
- * The base class of all elementwise operators.
+ *
+ * \brief The base class of all elementwise operators.
  *
  * @tparam Backend The Backend specialization of this Operator.
  */

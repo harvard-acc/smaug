@@ -10,7 +10,8 @@
 namespace smaug {
 
 /** \ingroup Operators
- * Multiplies two Tensors elementwise.
+ *
+ * \brief Multiplies two Tensors elementwise.
  *
  * @tparam Backend The Backend specialization of this Operator.
  */
@@ -23,9 +24,7 @@ class EltwiseMulOp : public EltwiseOp<Backend> {
     void run() override {}
 };
 
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
 REGISTER_SPECIAL_OP(EltwiseMulOp, ReferenceBackend);
-#endif
 
 }  // namespace smaug
 

@@ -12,6 +12,8 @@ namespace smaug {
 
 /** \ingroup Operators
  *
+ * \brief Replicates a Tensor's data among all dimensions.
+ *
  * Implements a repeat operator, which replicates the contents of a Tensor
  * along each dimension a configurable number of times. This is set by the
  * `setMultiples` function.

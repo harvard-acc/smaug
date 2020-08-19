@@ -10,7 +10,8 @@
 namespace smaug {
 
 /** \ingroup Operators
- * Implements an elementwise less-than operator.
+ *
+ * \brief Implements an elementwise less-than operator.
  *
  * @tparam Backend The Backend specialization of this Operator.
  */
@@ -26,7 +27,8 @@ class LessOp : public EltwiseOp<Backend> {
 };
 
 /** \ingroup Operators
- * Implements an elementwise less-than-or-equal-to operator.
+ *
+ * \brief Implements an elementwise less-than-or-equal-to operator.
  *
  * @tparam Backend The Backend specialization of this Operator.
  */
@@ -41,10 +43,8 @@ class LessEqualOp : public EltwiseOp<Backend> {
     }
 };
 
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
 REGISTER_SPECIAL_OP(LessOp, ReferenceBackend);
 REGISTER_SPECIAL_OP(LessEqualOp, ReferenceBackend);
-#endif
 
 }  // namespace smaug
 

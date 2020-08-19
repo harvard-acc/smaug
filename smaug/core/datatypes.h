@@ -10,8 +10,9 @@ namespace smaug {
 using float16 = uint16_t;
 
 /**
- * ToDataType provides a compile-time way to convert a C type (e.g. double,
- * bool) to a SMAUG DataType enum (defined in smaug/core/types.proto).
+ * Provides compile-time conversion from C types to SMAUG DataTypes.
+ *
+ * SMAUG DataType enum are defined in smaug/core/types.proto.
  */
 template <typename T>
 struct ToDataType {};
@@ -49,6 +50,11 @@ struct ToDataType<bool> {
     static const DataType dataType = Bool;
 };
 
+/**
+ * Provides compile-time conversion from SMAUG DataType to C type.
+ *
+ * SMAUG DataType enum are defined in smaug/core/types.proto.
+ */
 template <enum DataType>
 struct FromDataType {};
 

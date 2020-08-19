@@ -9,7 +9,7 @@ namespace smaug {
 
 /** \ingroup Operators
  *
- * Implements a Tensor reordering operation to convert between different
+ * \brief Implements a Tensor reordering operation to convert between different
  * DataLayouts.
  *
  * @tparam Backend The Backend specialization of this Operator.
@@ -148,6 +148,8 @@ class ReorderOp : public Operator {
 };
 
 /** \ingroup FlattenOp
+ *
+ * \brief Flattens each batch of a Tensor.
  *
  * Implements a flattening operation that squashes any Tensor DataLayout into
  * NC; that is, each batch in a Tensor is flattened into a single dimension.

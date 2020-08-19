@@ -10,7 +10,7 @@ namespace smaug {
 
 /** \ingroup Operators
  *
- * Implements a pooling operator.
+ * \brief Implements a pooling operator.
  *
  * The pooling operator reduces the size of the input Tensor by applying a
  * windowed filter that reduces all elements in its field of view to a single
@@ -120,7 +120,8 @@ class PoolingOp : public Operator {
 };
 
 /** \ingroup Operators
- * Implements the max-pooling operator.
+ *
+ * \brief Implements the max-pooling operator.
  */
 template <typename Backend>
 class MaxPoolingOp : public PoolingOp<Backend> {
@@ -134,7 +135,8 @@ class MaxPoolingOp : public PoolingOp<Backend> {
 };
 
 /** \ingroup Operators
- * Implements the arithmetic-average-pooling operator.
+ *
+ * \brief Implements the arithmetic-average-pooling operator.
  */
 template <typename Backend>
 class AvgPoolingOp : public PoolingOp<Backend> {
@@ -147,10 +149,8 @@ class AvgPoolingOp : public PoolingOp<Backend> {
     void run() override{};
 };
 
-#ifndef DOXYGEN_SHOULD_SKIP_THIS
 REGISTER_SPECIAL_OP(MaxPoolingOp, ReferenceBackend);
 REGISTER_SPECIAL_OP(AvgPoolingOp, ReferenceBackend);
-#endif
 
 }  // namespace smaug
 

@@ -9,6 +9,8 @@ namespace smaug {
 
 /** \ingroup Operators
  *
+ * \brief Changes the Tensor's shape while retaining the number of elements.
+ *
  * Implements the reshape operator, which changes the dimensionality of a
  * Tensor while retaining the same number of elements. The output need not be
  * of the same DataLayout.
