@@ -19,7 +19,7 @@ SMAUG is a deep learning framework that enables end-to-end simulation of DL mode
 C++ API
 -------
 
-* `C++ API <../doxygen_html/index.html>`_
+* `C++ API <doxygen_html/index.html>`_
 
 
 Indices and tables
