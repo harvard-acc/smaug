@@ -19,4 +19,4 @@ html:
 	doxygen source/Doxyfile
 
 clean:
-	@rm -rf $(SOURCEDIR)/api/* $(BUILDDIR)/*
+	@rm -rf $(BUILDDIR)/*
