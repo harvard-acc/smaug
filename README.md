@@ -59,14 +59,29 @@ cd gem5-aladdin && git pull origin master && git submodule update --init --recur
 cd LLVM-Tracer && git pull origin master && cd ..
 cd smaug && git pull origin master && git submodule update --init --recursive && cd ..
 ```
+# Building #
+We need to build gem5-Aladdin:
+
+```bash
+cd /workspace/gem5-aladdin
+python2.7 `whcih scons` build/X86/gem5.opt PROTOCOL=MESI_Two_Level_aladdin -j8
+```
+
+And then SMAUG:
+
+```bash
+cd /workspace/smaug
+make all -j8
+```
 
 You are now ready to work with SMAUG. Read on to learn how to run your first
 model.
 
 # Running your first model #
 Run the 4-layer Minerva model with our NVDLA-like backend codenamed *SMV*:
+
 ```bash
-cd experiments/sims/smv/tests/minerva
+cd /workspace/smaug/experiments/sims/smv/tests/minerva
 sh run.sh
 ```
 
