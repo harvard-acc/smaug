@@ -64,6 +64,11 @@ You are now ready to work with SMAUG. Read on to learn how to run your first
 model.
 
 # Running your first model #
+Run the 4-layer Minerva model with our NVDLA-like backend codenamed *SMV*:
+```bash
+cd experiments/sims/smv/tests/minerva
+sh run.sh
+```
 
 # Resources #
-
+Examples of writing network models can be found in `experiments/models`.
