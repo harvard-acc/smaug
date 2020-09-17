@@ -64,7 +64,7 @@ We need to build gem5-Aladdin:
 
 ```bash
 cd /workspace/gem5-aladdin
-python2.7 `whcih scons` build/X86/gem5.opt PROTOCOL=MESI_Two_Level_aladdin -j8
+python2.7 `which scons` build/X86/gem5.opt PROTOCOL=MESI_Two_Level_aladdin -j8
 ```
 
 And then SMAUG:
