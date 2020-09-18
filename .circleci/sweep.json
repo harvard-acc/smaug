@@ -1,0 +1,4 @@
+{
+    "num_accels": [1, 2, 4],
+    "soc_interface": ["dma", "acp"]
+}
