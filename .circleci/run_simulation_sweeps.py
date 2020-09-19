@@ -8,7 +8,7 @@ import tempfile
 models= ["minerva"]
 
 def run_sim_sweeps(sweep_file, gem5_binary, num_threads):
-  sweeps_dir = os.path.join(os.environ["SMAUG_HOME"], "experiments/sweeps")
+  sweeps_dir = os.path.join(os.environ["SMAUG_HOME"], "sweeps")
   sweep_generator = os.path.join(sweeps_dir, "main.py")
 
   for model in models:

@@ -1,0 +1,4 @@
+model_dir=${SMAUG_HOME}/experiments/models
+
+topo_file=${model_dir}/%(model_name)s/%(model_name)s_smv_%(soc_interface)s_topo.pbtxt
+params_file=${model_dir}/%(model_name)s/%(model_name)s_smv_params.pb

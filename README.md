@@ -87,3 +87,6 @@ sh run.sh
 
 # Resources #
 Examples of writing network models can be found in `experiments/models`.
+
+We also provide a design sweep generator for fast design exploration of deep
+learning systems built using SMAUG. Check it out in `sweeps`.
