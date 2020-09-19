@@ -135,3 +135,5 @@ RUN git clone https://github.com/harvard-acc/smaug.git && \
     git submodule init && \
     git submodule update
 
+# More dependencies
+RUN apt-get install -y libgoogle-perftools-dev
