@@ -28,7 +28,6 @@ jobs:
             # Download the gem5 binary.
             python .circleci/download_artifacts.py --api_token=${GEM5_ALADDIN_BUILD_ARTIFACT_TOKEN} --project=gem5-aladdin --artifact_name=gem5.opt --user=${USER} --download_loc=/tmp --filter=${BUILD_ARTIFACT_FILTER} --branch=${BUILD_ARTIFACT_BRANCH}
             chmod +x /tmp/gem5.opt
-            ln -s /usr/lib/x86_64-linux-gnu/libtcmalloc_minimal.so.4.3.0 /usr/lib/x86_64-linux-gnu/libtcmalloc.so.4
             # We have to use only 1 thread to not go OOM.
             python .circleci/run_simulation_sweeps.py --sweep-file=.circleci/sweep.json --gem5-binary=/tmp/gem5.opt --num-threads=1
       - run:
