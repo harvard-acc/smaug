@@ -1,7 +1,7 @@
 /**
   ***********************************************************************
   ***********************************************************************
-\mainpage The SMAUG API
+\mainpage The SMAUG C++ API
 \section Introduction
 
 SMAUG is a deep learning framework that enables end-to-end simulation of DL
