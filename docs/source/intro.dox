@@ -75,15 +75,15 @@ hardware accelerator model implementing the logic.
 
 \section backends SMAUG backends
 
-A backend is a way to enforce some shared properties on instantiations of
-operators. Logically, it can also group together a set of related operators.
-For example, a backend may logically require that operators share a
-common set of compute resources/global variables, impose zero-padding
-requirements on data, and more.  SMAUG ships with two backends:
+A backend is a way to logically group together a set of related operators and/or
+enforce shared properties on instantiations of operators.  For example, a
+backend may logically require that operators share a common set of compute
+resources/global variables, impose the same zero-padding requirements on data,
+and more.  SMAUG ships with two backends:
 
-* Reference: reference implementations of all operators supported in
+- Reference: reference implementations of all operators supported in
   SMAUG. These are intended to be correct, not fast.
-* SMV: operators implementations based on the SMV chip taped out by the Harvard
+- SMV: operators implementations based on the SMV chip taped out by the Harvard
   Architecture, Circuits, and Compilers research group in 2018. These are
   models of accelerators with 8-wide 16-bit vectorized datapaths. The SIMD
   datapaths require data to be properly aligned first.
