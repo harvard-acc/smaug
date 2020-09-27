@@ -1,3 +1,4 @@
+namespace smaug {
 /**
   ***********************************************************************
   ***********************************************************************
@@ -69,8 +70,160 @@ output tensor) is written either to a proto, a file, or stdout.
 
 \page custom_operator Building a custom operator
 
+In this document, we will describe how to build a custom operator with a custom
+hardware accelerator model implementing the logic.
+
+\section backends SMAUG backends
+
+A backend is a way to enforce some shared properties on instantiations of
+operators. Logically, it can also group together a set of related operators.
+For example, a backend may logically require that operators share a
+common set of compute resources/global variables, impose zero-padding
+requirements on data, and more.  SMAUG ships with two backends:
+
+* Reference: reference implementations of all operators supported in
+  SMAUG. These are intended to be correct, not fast.
+* SMV: operators implementations based on the SMV chip taped out by the Harvard
+  Architecture, Circuits, and Compilers research group in 2018. These are
+  models of accelerators with 8-wide 16-bit vectorized datapaths. The SIMD
+  datapaths require data to be properly aligned first.
+
+Backends are classes comprised purely of static functions and variables. They
+are defined in core/backend.h and core/backend.cpp. Backend classes are used
+as template parameters when constructing the graph and operators, so they must be
+statically interchangeable. Thus, all backend definitions must statically
+define the same set of functions and variables, which means that they must
+also support every operator type.
+
+After building your custom Operator, you will need to include and register the
+new operator in those files. We will discuss this more once we get to that
+step.
+
+\section operator The Operator class
+
+When SMAUG reads the model topology proto, it creates named Operator objects
+and places them in a global Workspace. Any Tensor or Operator can be
+looked up by name in the workspace. By convention, SMAUG first creates an empty
+Operator of the appropriate type with a common constructor signature, then uses
+type-specific setters to fill in all the parameters. After all operators are
+constructed, SMAUG automatically adds edges in the graph to link dependent
+operators together. For example, here is a typical operator construction
+pattern (see network_builder.cpp for more examples):
+
+\code
+ConvolutionOp<Backend>* op = Backend::createConvolutionOp(name, workspace);
+op->setWeightDims(1,2,3,4);
+op->setPadding(smaug::PaddingType::SAME);
+// Set the remaining operator parameters...
+network->addOperator(op);
+\endcode
+
+
+Note that operator constructors are invoked by a `Backend::createXXXOperator`
+function (created when registering a new operator in the backend).  Every
+Operator's constructor must accept the same two arguments: name and workspace,
+and it must invoke the parent class's constructor.
+
+More importantly, note that at construction time, we do not set or create
+tensors as parameters to operators. Instead, we set the dimensions of tensors
+and create than at a later time. Here, we provided a setter for the dimensions
+of a 4D convolution's weights - filter size (1x2x3) and number of output
+feature maps (4). But we do not set the dimensions for the input or output
+activation tensors. The dimensions of the input tensor depend on the previous
+operator in the graph, and the dimensions of the output in turn depends on the
+input. At operator construction time, these relationships are not yet known.
+
+Once all operators are constructed, how does SMAUG connect an output tensor of
+operator A to the input tensor of operator B? What happens if operator B has
+many input tensors, each of which have different meanings? The answer is that
+the base Operator class contains an ordered list of inputs and outputs. Each
+operator implementation publishes the number of inputs and outputs it has
+along with the meaning of each one (e.g. input tensor 0 represents activations
+and input tensor 1 represents weights). This ordering is reflected in to the
+Python API and encoded in the model topology proto. SMAUG uses this information
+to link operators together with the Operator::setInput and Operator::setOutput
+APIs.  This information is typically encoded as enums:
+
+\code
+enum {kInputs, kWeights, kNumInputs};
+enum {kOutput, kNumOutputs};
+\endcode
+
+Here is a basic example of what is required to construct a custom Operator:
+
+\code
+#include "core/operator.h"
+#include "core/workspace.h"
+
+namespace smaug {
+
+class MyCustomOperator : public Operator {
+ public:
+  MyCustomOperator(const std::string& name, Workspace* workspace) :
+    Operator(name, workspace) {
+      inputs.resize(kNumInputs, nullptr);
+      outputs.resize(kNumOutputs, nullptr);
+  }
+
+  void setParam1(int val) { param1 = val; }
+  void setParam2(int val) { param2 = val; }
+
+  // Required overrides. Leave them blank for now; we'll implement them later.
+  void run() override {}
+  void createAllTensors() override {}
+
+  // An optional function to tile the input tensors.
+  void tile() override {}
+
+  enum {kInputs, kWeights, kNumInputs};
+  enum {kOutput, kNumOutputs};
+
+ private:
+  int param1 = 0;
+  int param2 = 0;
+};
+
+}  // namespace smaug
+
+\endcode
+
+Now we can integrate this custom operator into SMAUG. To do so, we need
+to make a few more modifications:
+
+1. Add a new `OpType` enum for this operator to smaug/core/types.proto.
+2. Define the operator in all backends. Simply follow the existing convention
+   in backend.h and backend.cpp:
+
+   - Include the header file and forward declare the operator in backend.h.
+   - Add `DECL_CREATE_OP(MyCustomOperator)` to all backends in backend.h.
+   - Add `DEF_CREATE_OP(MyCustomOperator, Backend)` for all backends in
+     backend.cpp.
+
+3. Update network_builder.cpp to know about the new operator. This belongs in
+   `createAndAddOperator`:
+   \code
+   if (type == OpType::MyCustomOperator) {
+     auto op = Backend::createMyCustomOperator(name, workspace);
+     op->setParam1(node.param1());
+     op->setParam2(node.param2());
+     network->addOperator(op);
+   }
+   \endcode
+
+4. Add any new .cpp files to the `SRCS` variable in smaug/make/Makefile.common.
+
+In order to use your new operator in a model, you also need to add an API to
+create it in the Python API. See the Python documentation for details.
+
+\section logic Implementing the operator logic
+
+\section register Registering your new operator with SMAUG
+
+\section try_it_out Try it out
+
 \page tiling_optimizer Building a custom tiling optimizer
 
 \page simulation SMAUG in simulation
 
 */
+}
