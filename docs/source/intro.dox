@@ -90,10 +90,10 @@ and more.  SMAUG ships with two backends:
 
 Backends are classes comprised purely of static functions and variables. They
 are defined in core/backend.h and core/backend.cpp. Backend classes are used
-as template parameters when constructing the graph and operators, so they must be
-statically interchangeable. Thus, all backend definitions must statically
-define the same set of functions and variables, which means that they must
-also support every operator type.
+as template parameters to Operator subclasses, so they must be statically
+interchangeable. Thus, all backend definitions must statically define the same
+set of functions and variables, which means that they must also support every
+operator type.
 
 After building your custom Operator, you will need to include and register the
 new operator in those files. We will discuss this more once we get to that
@@ -149,7 +149,8 @@ enum {kInputs, kWeights, kNumInputs};
 enum {kOutput, kNumOutputs};
 \endcode
 
-Here is a basic example of what is required to construct a custom Operator:
+Putting this all together, below is a simple example of a custom Operator that
+has no backend-specific behavior.
 
 \code
 #include "core/operator.h"
@@ -157,6 +158,7 @@ Here is a basic example of what is required to construct a custom Operator:
 
 namespace smaug {
 
+template <typename Backend>
 class MyCustomOperator : public Operator {
  public:
   MyCustomOperator(const std::string& name, Workspace* workspace) :
