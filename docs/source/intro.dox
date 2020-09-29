@@ -26,8 +26,8 @@ tutorials on how to work with them. It is divided into the following sections:
   <br>How to write a custom tiling optimizer.
 
 - \subpage simulation
-  <br>Differences in behavior when simulating or running natively (on real
-  hardware).
+  <br>Differences in behavior when simulating or running natively on the host
+  machine.
 
 ***********************************************************************
 ***********************************************************************
@@ -219,7 +219,16 @@ create it in the Python API. See the Python documentation for details.
 
 \section logic Implementing the operator logic
 
-\section register Registering your new operator with SMAUG
+We've written the skeleton of a new custom operator, but it currently doesn't
+do anything. Let's suppose that `MyCustomOperator` will take two tensors and
+add them elementwise.  In this section, we'll learn how to write the function
+that performs this operation. We'll first learn how to write it to run on a
+CPU-only (no hardware-acceleration) to familiarize ourselves with SMAUG APIs.
+Afterwards, we'll modify this to work with the gem5-Aladdin family of tools.
+
+\subsection Software-only implementation
+
+\subsection Hardware-accelerated implementation
 
 \section try_it_out Try it out
 
