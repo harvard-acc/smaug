@@ -1,9 +1,240 @@
+namespace smaug {
 /**
   ***********************************************************************
   ***********************************************************************
-\mainpage The SMAUG API
+\mainpage The SMAUG C++ API
 \section Introduction
 
-Placeholder for SMAUG main page documentation.
+SMAUG is a deep learning framework that enables end-to-end simulation of DL
+models on custom SoCs with a variety of hardware accelerators. SMAUG is
+designed to enable DNN researchers to rapidly evaluate different accelerator
+and SoC designs and perform hardware-software co-design. Simulation is powered
+by the gem5-Aladdin SoC simulator, allowing users to easily write new hardware
+accelerators and integrate them into SMAUG for testing and exploration.
+
+SMAUG provides stable Python and C++ APIs, allowing users to work at varying
+levels of abstraction. This site will describe the C++ APIs and provide
+tutorials on how to work with them. It is divided into the following sections:
+
+- \subpage overview
+  <br>Overview of how SMAUG consumes and processes a model.
+
+- \subpage custom_operator
+  <br>How to build your own operator and integrate it with the Python API.
+
+- \subpage tiling_optimizer
+  <br>How to write a custom tiling optimizer.
+
+- \subpage simulation
+  <br>Differences in behavior when simulating or running natively on the host
+  machine.
+
+***********************************************************************
+***********************************************************************
+
+\page overview Overall execution flow
+
+When you create a model in Python, you will produce two protobuf files. The
+first describes the topology of the model: each operation in the graph, its
+input/output tensors, and the dependencies between operators. The second
+contains all the parameters to the model. These two files, plus any additional
+options, are passed to SMAUG.
+
+```
+./smaug model_topo.pb model_params.pb [additional_options]
+```
+
+SMAUG reads the protos to build the operator graph and populate the tensors
+with the provided data. Then, it tiles all the inputs to each tensor. This is
+done ahead of time because it only needs to be done once for the entire
+model.
+
+The next step is to schedule each operator in the graph for execution and run
+them. This is the first point at which simulation will differ from native
+execution. All the work done up to here has been data loading and
+preprocessing. In simulation, this part can be fast-forwarded to save time, so
+in gem5, this is run with the `AtomicCPU` model. Once tiling is complete, we
+switch to the detailed out-of-order model, which is used for the rest of the
+simulation.
+
+Scheduling consists of two levels: operator and tiling. Operator scheduling
+sorts the graph topographically and schedules different operators based on
+their data dependences. Tile scheduling determines when each tile of each
+operator will be run onto the underlying hardware. This will be discussed more
+in \ref tiling_optimizer.  During scheduling, SMAUG can take advantage of
+multi-threading and multiple accelerators to exploit data-level parallelism
+(see \ref simulation).
+
+Finally, when the model is finished, the output of the model (i.e. the last
+output tensor) is written either to a proto, a file, or stdout.
+
+\page custom_operator Building a custom operator
+
+In this document, we will describe how to build a custom operator with a custom
+hardware accelerator model implementing the logic.
+
+\section backends SMAUG backends
+
+A backend is a way to logically group together a set of related operators and/or
+enforce shared properties on instantiations of operators.  For example, a
+backend may logically require that operators share a common set of compute
+resources/global variables, impose the same zero-padding requirements on data,
+and more.  SMAUG ships with two backends:
+
+- Reference: reference implementations of all operators supported in
+  SMAUG. These are intended to be correct, not fast.
+- SMV: operators implementations based on the SMV chip taped out by the Harvard
+  Architecture, Circuits, and Compilers research group in 2018. These are
+  models of accelerators with 8-wide 16-bit vectorized datapaths. The SIMD
+  datapaths require data to be properly aligned first.
+
+Backends are classes comprised purely of static functions and variables. They
+are defined in core/backend.h and core/backend.cpp. Backend classes are used
+as template parameters to Operator subclasses, so they must be statically
+interchangeable. Thus, all backend definitions must statically define the same
+set of functions and variables, which means that they must also support every
+operator type.
+
+After building your custom Operator, you will need to include and register the
+new operator in those files. We will discuss this more once we get to that
+step.
+
+\section operator The Operator class
+
+When SMAUG reads the model topology proto, it creates named Operator objects
+and places them in a global Workspace. Any Tensor or Operator can be
+looked up by name in the workspace. By convention, SMAUG first creates an empty
+Operator of the appropriate type with a common constructor signature, then uses
+type-specific setters to fill in all the parameters. After all operators are
+constructed, SMAUG automatically adds edges in the graph to link dependent
+operators together. For example, here is a typical operator construction
+pattern (see network_builder.cpp for more examples):
+
+\code
+ConvolutionOp<Backend>* op = Backend::createConvolutionOp(name, workspace);
+op->setWeightDims(1,2,3,4);
+op->setPadding(smaug::PaddingType::SAME);
+// Set the remaining operator parameters...
+network->addOperator(op);
+\endcode
+
+
+Note that operator constructors are invoked by a `Backend::createXXXOperator`
+function (created when registering a new operator in the backend).  Every
+Operator's constructor must accept the same two arguments: name and workspace,
+and it must invoke the parent class's constructor.
+
+More importantly, note that at construction time, we do not set or create
+tensors as parameters to operators. Instead, we set the dimensions of tensors
+and create than at a later time. Here, we provided a setter for the dimensions
+of a 4D convolution's weights - filter size (1x2x3) and number of output
+feature maps (4). But we do not set the dimensions for the input or output
+activation tensors. The dimensions of the input tensor depend on the previous
+operator in the graph, and the dimensions of the output in turn depends on the
+input. At operator construction time, these relationships are not yet known.
+
+Once all operators are constructed, how does SMAUG connect an output tensor of
+operator A to the input tensor of operator B? What happens if operator B has
+many input tensors, each of which have different meanings? The answer is that
+the base Operator class contains an ordered list of inputs and outputs. Each
+operator implementation publishes the number of inputs and outputs it has
+along with the meaning of each one (e.g. input tensor 0 represents activations
+and input tensor 1 represents weights). This ordering is reflected in to the
+Python API and encoded in the model topology proto. SMAUG uses this information
+to link operators together with the Operator::setInput and Operator::setOutput
+APIs.  This information is typically encoded as enums:
+
+\code
+enum {kInputs, kWeights, kNumInputs};
+enum {kOutput, kNumOutputs};
+\endcode
+
+Putting this all together, below is a simple example of a custom Operator that
+has no backend-specific behavior.
+
+\code
+#include "core/operator.h"
+#include "core/workspace.h"
+
+namespace smaug {
+
+template <typename Backend>
+class MyCustomOperator : public Operator {
+ public:
+  MyCustomOperator(const std::string& name, Workspace* workspace) :
+    Operator(name, workspace) {
+      inputs.resize(kNumInputs, nullptr);
+      outputs.resize(kNumOutputs, nullptr);
+  }
+
+  void setParam1(int val) { param1 = val; }
+  void setParam2(int val) { param2 = val; }
+
+  // Required overrides. Leave them blank for now; we'll implement them later.
+  void run() override {}
+  void createAllTensors() override {}
+
+  // An optional function to tile the input tensors.
+  void tile() override {}
+
+  enum {kInputs, kWeights, kNumInputs};
+  enum {kOutput, kNumOutputs};
+
+ private:
+  int param1 = 0;
+  int param2 = 0;
+};
+
+}  // namespace smaug
+
+\endcode
+
+Now we can integrate this custom operator into SMAUG. To do so, we need
+to make a few more modifications:
+
+1. Add a new `OpType` enum for this operator to smaug/core/types.proto.
+2. Define the operator in all backends. Simply follow the existing convention
+   in backend.h and backend.cpp:
+
+   - Include the header file and forward declare the operator in backend.h.
+   - Add `DECL_CREATE_OP(MyCustomOperator)` to all backends in backend.h.
+   - Add `DEF_CREATE_OP(MyCustomOperator, Backend)` for all backends in
+     backend.cpp.
+
+3. Update network_builder.cpp to know about the new operator. This belongs in
+   `createAndAddOperator`:
+   \code
+   if (type == OpType::MyCustomOperator) {
+     auto op = Backend::createMyCustomOperator(name, workspace);
+     op->setParam1(node.param1());
+     op->setParam2(node.param2());
+     network->addOperator(op);
+   }
+   \endcode
+
+4. Add any new .cpp files to the `SRCS` variable in smaug/make/Makefile.common.
+
+In order to use your new operator in a model, you also need to add an API to
+create it in the Python API. See the Python documentation for details.
+
+\section logic Implementing the operator logic
+
+We've written the skeleton of a new custom operator, but it currently doesn't
+do anything. Let's suppose that `MyCustomOperator` will take two tensors and
+add them elementwise.  In this section, we'll learn how to write the function
+that performs this operation. We'll first learn how to write it to run on a
+CPU-only (no hardware-acceleration) to familiarize ourselves with SMAUG APIs.
+Afterwards, we'll modify this to work with the gem5-Aladdin family of tools.
+
+\subsection Software-only implementation
+
+\subsection Hardware-accelerated implementation
+
+\section try_it_out Try it out
+
+\page tiling_optimizer Building a custom tiling optimizer
+
+\page simulation SMAUG in simulation
 
 */
+}

@@ -68,7 +68,12 @@ class Operator {
      */
     virtual bool isDead();
 
-    /** Return a list of Tensors that are parameterizable (i.e. weights). */
+    /**
+     * Return a list of Tensors whose values that are parameterizable.
+     *
+     * Parameterizable Tensors often include "weights", but typically do not
+     * include outputs of other Tensors.
+     */
     virtual std::vector<TensorBase*> getParameterizableInputs() { return {}; }
 
     /** This returns the number of parameterizable weights in the operator. */

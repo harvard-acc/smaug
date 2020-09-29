@@ -127,7 +127,7 @@ static inline __smaug256 __smaug_vcvtph2ps256(__m128i a) {
 
 //=----------------- 128-bit conversion instructions -----------------=//
 
-/** \defgroup VectorFPConversionMacros
+/** \defgroup VectorFPConversionMacros SIMD Floating Point Precision Conversions
  *
  * Use these macros to portably convert between vectors of single-precision and
  * half-precision floats, instead of directly calling the FP16 library
