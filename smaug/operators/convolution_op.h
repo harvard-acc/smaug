@@ -16,7 +16,7 @@ namespace smaug {
  *
  * \brief The base class for all 4D spatial convolution operators.
  *
- * Provides common * functionality for writing convolution operators.
+ * Provides common functionality for writing convolution operators.
  *
  * @tparam Backend The Backend specialization of this Operator.
  */
