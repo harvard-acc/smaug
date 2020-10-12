@@ -120,8 +120,6 @@ class Operator {
     MemoryType getOutputsMemType() const { return outputsMemType; }
 
    protected:
-    bool tensorsAllConstructed(const std::vector<TensorBase*>& tensors) const;
-
     /** An ordered list of input tensors consumed by this operator.
      *
      * Operators may assign semantic meaning to specific input tensors at
