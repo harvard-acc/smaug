@@ -45,7 +45,12 @@ class Operator {
     }
 
     /**
-     * Creates all the input and output tensors specific to this operator.
+     * For tests: creates all input and output tensors for this operator.
+     *
+     * When running a network, all tensor shapes are specified in the
+     * network topology proto, and the network builder will automatically create
+     * them for you. In unit tests, this is a convenience method to avoid
+     * needing to create TensorShape protos.
      *
      * This should only be called once the Operator is fully initialized with
      * all required parameters. It is responsible for creating only the tensors
@@ -58,7 +63,7 @@ class Operator {
      * std::unique_ptr to the Tensor; it simply means it is solely responsible
      * for constructing and allocating memory for it.
      */
-    virtual void createAllTensors() = 0;
+    virtual void createAllTensors() {}
 
     /**
      * Returns true if the Operator is dead.
