@@ -151,7 +151,8 @@ enum {kOutput, kNumOutputs};
 \endcode
 
 Putting this all together, below is a simple example of a custom Operator that
-has no backend-specific behavior.
+has no backend-specific behavior. Place this code into
+`smaug/operators/my_custom_operator.h`.
 
 \code
 #include "core/operator.h"
@@ -229,9 +230,9 @@ create it in the Python API. See the Python documentation for details.
 We've written the skeleton of a new custom operator, but it currently doesn't
 do anything. Our custom operator is supposed to take two tensors and add them
 elementwise.  In this section, we'll learn how to implement this.  We'll first
-write it to run on a CPU-only (no hardware-acceleration) to familiarize
-ourselves with SMAUG APIs.  Afterwards, we'll modify this to work with the
-gem5-Aladdin family of tools.
+write and test a CPU-only implementation (no interaction with Aladdin) to
+familiarize ourselves with SMAUG APIs.  Afterwards, we'll modify this to work
+with the gem5-Aladdin family of tools.
 
 \subsection sw_implementation Software-only implementation
 
@@ -304,8 +305,63 @@ void run() override {
 }
 \endcode
 
+\subsection testing Test it out
 
+With the implementation complete, let's try it out with a unit test. SMAUG uses
+the Catch2 framework for unit testing, and the `SmaugTest` fixture provides a
+range of useful testing utilities. Open up a new cpp file
+(my_custom_operator_test.cpp):
 
+\code
+#include "catch.hpp"
+#include "smaug/core/backend.h"
+#include "smaug/core/tensor.h"
+#include "smaug/core/smaug_test.h"
+#include "smaug/operators/my_custom_operator.h"
+
+using namespace smaug;
+
+TEST_CASE_METHOD(SmaugTest, MyCustomOperator) {
+  // DataLayout::NC is a simple 2D layout, where N = batches and C = a column
+  // of data.
+  TensorShape shape(1, 10, DataLayout::NC);
+  Tensor* input0 = new Tensor("tensor", shape);
+  // Allocate the memory for a 1x10 array of floats.
+  input0->allocateStorage<float>();
+  // Add some testing data.
+  input0->fillData<float>({1,2,3,4,5,6,7,8,9,10});
+  workspace()->addTensor(input0);
+
+  // Repeat this for a second input tensor.
+  Tensor* input1 = new Tensor("tensor", shape);
+  input1->allocateStorage<float>();
+  input1->fillData<float>({2,3,4,5,6,7,8,9,10,11});
+  workspace()->addTensor(input1);
+
+  // Create the operator and fill it with our tensors.
+  using TestOp = MyCustomOperator<ReferenceBackend>;
+  auto op = new TestOp("eltwise_add", workspace());
+  op->setInput(input0, TestOp::kInputs0);
+  op->setInput(input1, TestOp::kInputs1);
+  op->createAllTensors();
+  // Allocates memory for all the output tensors created by createAllTensors.
+  allocateAllTensors(op);
+  
+  op->run();
+
+  // Compare the output of the operator against expected values.
+  std::vector<float> expectedOutput = {3,5,7,9,11,13,15,17,19,21};
+  Tensor* output = op->getOutput(TestOp::kOutput);
+  // This performs an approximate comparison between the tensor's output and
+  // the expected values.
+  verifyOutputs(output, expectedOutput);
+}
+
+\endcode
+
+Add your new test to the `TESTS` variable in `make/Make.common`. Then build the
+unit tests with `make tests` and run
+`./smaug/operators/my_custom_operator_test`.
 
 \subsection hw_implementation Hardware-accelerated implementation
 
