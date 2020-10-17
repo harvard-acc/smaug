@@ -40,8 +40,12 @@ class Operator {
      * All Operator subclasses must override this method.
      */
     virtual void run() = 0;
+
+    /**
+     * Returns true if the parameters/tensors of this operator are all valid.
+     */
     virtual bool validate() {
-        return validateInputsOutputs() && opType != OpType::UnknownOp;
+        return opType != OpType::UnknownOp;
     }
 
     /**
@@ -121,9 +125,6 @@ class Operator {
     MemoryType getOutputsMemType() const { return outputsMemType; }
 
    protected:
-    bool tensorsAllConstructed(const std::vector<TensorBase*>& tensors) const;
-    bool validateInputsOutputs() const;
-
     /** An ordered list of input tensors consumed by this operator.
      *
      * Operators may assign semantic meaning to specific input tensors at
