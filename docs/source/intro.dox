@@ -71,7 +71,8 @@ output tensor) is written either to a proto, a file, or stdout.
 \page custom_operator Building a custom operator
 
 In this document, we will describe how to build a custom operator with a custom
-hardware accelerator model implementing the logic.
+hardware accelerator model implementing the logic. Our custom operator will
+perform an element-wise add of two tensors.
 
 \section backends SMAUG backends
 
@@ -145,12 +146,13 @@ to link operators together with the Operator::setInput and Operator::setOutput
 APIs.  This information is typically encoded as enums:
 
 \code
-enum {kInputs, kWeights, kNumInputs};
+enum {kInput0, kInput1, kNumInputs};
 enum {kOutput, kNumOutputs};
 \endcode
 
 Putting this all together, below is a simple example of a custom Operator that
-has no backend-specific behavior.
+has no backend-specific behavior. Place this code into
+`smaug/operators/my_custom_operator.h`.
 
 \code
 #include "core/operator.h"
@@ -170,14 +172,20 @@ class MyCustomOperator : public Operator {
   void setParam1(int val) { param1 = val; }
   void setParam2(int val) { param2 = val; }
 
-  // Required overrides. Leave them blank for now; we'll implement them later.
+  // A required function that implements the actual Operator logic.  Leave this
+  // blank for now.
   void run() override {}
+
+  // Optional override for testing purposes.
   void createAllTensors() override {}
+
+  // Optional but recommended function to verify operator parameters.
+  bool validate() override {}
 
   // An optional function to tile the input tensors.
   void tile() override {}
 
-  enum {kInputs, kWeights, kNumInputs};
+  enum {kInput0, kInput1, kNumInputs};
   enum {kOutput, kNumOutputs};
 
  private:
@@ -220,15 +228,142 @@ create it in the Python API. See the Python documentation for details.
 \section logic Implementing the operator logic
 
 We've written the skeleton of a new custom operator, but it currently doesn't
-do anything. Let's suppose that `MyCustomOperator` will take two tensors and
-add them elementwise.  In this section, we'll learn how to write the function
-that performs this operation. We'll first learn how to write it to run on a
-CPU-only (no hardware-acceleration) to familiarize ourselves with SMAUG APIs.
-Afterwards, we'll modify this to work with the gem5-Aladdin family of tools.
+do anything. Our custom operator is supposed to take two tensors and add them
+elementwise.  In this section, we'll learn how to implement this.  We'll first
+write and test a CPU-only implementation (no interaction with Aladdin) to
+familiarize ourselves with SMAUG APIs.  Afterwards, we'll modify this to work
+with the gem5-Aladdin family of tools.
 
-\subsection Software-only implementation
+\subsection sw_implementation Software-only implementation
 
-\subsection Hardware-accelerated implementation
+The first step of implementing the actual operator is to create the tensors to
+store the output. In practice, the Python API will compute shapes for all
+Tensors, and the network builder will handle creation and population of Tensor
+objects into each Operator. However, for testing purposes, we also implement a
+`createAllTensors` virtual function to do this all in a single step. For an
+elementwise add, the output tensor's shape is the same as the inputs.
+
+\code
+void createAllTensors() override {
+  Tensor* output = new Tensor(name, inputs.at(Input0)->getShape());
+  output.at(kOutput) = output;
+  workspace->addTensor(output);
+}
+\endcode
+
+We should also verify that the inputs to our operator match our expectations.
+There are several common properties to validate:
+
+1. Tensor shapes.
+2. Data layout. The operator must support the order of the dimensions in which
+   the elements of the tensor are arranged.
+3. Data type. The operator implementation (which represents a hardware model) 
+   must have explicit support for whatever data types are desired.
+
+In our example, an elementwise addition requires that the two input tensors be
+of the same shape, the data type to be single-precision float, but supports all
+data layouts. It doesn't matter whether the data is stored as NCHW/NHWC/NC,
+because the operation is elementwise.
+
+This validation is provided by a `validate` API which runs after the network is
+fully constructed:
+
+\code
+bool validate() override {
+  Tensor* input0 = getInput(kInput0);
+  Tensor* input1 = getInput(kInput1);
+  return (input0.getShape() == input1.getShape() ||
+          input0.getDataType() != DataType::Float32 ||
+          input1.getDataType() != DataType::Float32);
+}
+\endcode
+
+Now, we can write the `run` function which implements the operator's function
+itself. 
+
+\code
+
+void elementwise_add(float* input0, float* input1, float* output, int size) {
+  for (int i = 0; i < size; i++) {
+    output[i] = input0[i] + input1[i];
+  }
+}
+
+void run() override {
+  Tensor* input0 = getInput(kInput0);
+  Tensor* input1 = getInput(kInput1);
+  Tensor* output = getOutput(kInput1);
+
+  // Get handles to the actual underlying data storage. This performs a
+  // dynamic_cast to the specified data type, which we verified is safe inside
+  // validate().
+  float* input0Data = input0->data<float>();
+  float* input1Data = input1->data<float>();
+  float* outputData = output->data<float>();
+
+  elementwise_add(input0Data, input1Data, output, output.getShape().size());
+}
+\endcode
+
+\subsection testing Test it out
+
+With the implementation complete, let's try it out with a unit test. SMAUG uses
+the Catch2 framework for unit testing, and the `SmaugTest` fixture provides a
+range of useful testing utilities. Open up a new cpp file
+(my_custom_operator_test.cpp):
+
+\code
+#include "catch.hpp"
+#include "smaug/core/backend.h"
+#include "smaug/core/tensor.h"
+#include "smaug/core/smaug_test.h"
+#include "smaug/operators/my_custom_operator.h"
+
+using namespace smaug;
+
+TEST_CASE_METHOD(SmaugTest, MyCustomOperator) {
+  // DataLayout::NC is a simple 2D layout, where N = batches and C = a column
+  // of data.
+  TensorShape shape(1, 10, DataLayout::NC);
+  Tensor* input0 = new Tensor("tensor", shape);
+  // Allocate the memory for a 1x10 array of floats.
+  input0->allocateStorage<float>();
+  // Add some testing data.
+  input0->fillData<float>({1,2,3,4,5,6,7,8,9,10});
+  workspace()->addTensor(input0);
+
+  // Repeat this for a second input tensor.
+  Tensor* input1 = new Tensor("tensor", shape);
+  input1->allocateStorage<float>();
+  input1->fillData<float>({2,3,4,5,6,7,8,9,10,11});
+  workspace()->addTensor(input1);
+
+  // Create the operator and fill it with our tensors.
+  using TestOp = MyCustomOperator<ReferenceBackend>;
+  auto op = new TestOp("eltwise_add", workspace());
+  op->setInput(input0, TestOp::kInputs0);
+  op->setInput(input1, TestOp::kInputs1);
+  op->createAllTensors();
+  // Allocates memory for all the output tensors created by createAllTensors.
+  allocateAllTensors(op);
+  
+  op->run();
+
+  // Compare the output of the operator against expected values.
+  std::vector<float> expectedOutput = {3,5,7,9,11,13,15,17,19,21};
+  Tensor* output = op->getOutput(TestOp::kOutput);
+  // This performs an approximate comparison between the tensor's output and
+  // the expected values.
+  verifyOutputs(output, expectedOutput);
+}
+
+\endcode
+
+Add your new test to the `TESTS` variable in `make/Make.common`. Then build the
+unit tests with `make tests` and run
+`./smaug/operators/my_custom_operator_test`.
+
+\subsection hw_implementation Hardware-accelerated implementation
 
 \section try_it_out Try it out
 
