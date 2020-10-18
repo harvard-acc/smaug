@@ -196,11 +196,10 @@ int computePaddedTileDim(int maxTileDim,
 }
 }  // namespace internal
 
-TiledTensor generateTiledTensorPerBatchNC(
-		Tensor* tensor,
-                                  const TensorShape& tileShape,
-                                  Operator* op,
-                                  bool copyData) {
+TiledTensor generateTiledTensorPerBatchNC(Tensor* tensor,
+                                          const TensorShape& tileShape,
+                                          Operator* op,
+                                          bool copyData) {
     const TensorShape& inputShape = tensor->getShape();
     int inputSize = inputShape.storageSize();
     int tileSize = tileShape.storageSize();

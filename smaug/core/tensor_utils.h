@@ -209,9 +209,9 @@ void copyRawTensorData(
  * @param copyData Whether to copy data from the source tensor into the tiles.
  */
 TiledTensor generateTiledTensorPerBatchNC(Tensor* tensor,
-                                  const TensorShape& tileShape,
-                                  Operator* op,
-                                  bool copyData = true);
+                                          const TensorShape& tileShape,
+                                          Operator* op,
+                                          bool copyData = true);
 
 /**
  * Generates a TiledTensor from a source Tensor with the specified tile shape.
