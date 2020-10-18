@@ -91,6 +91,10 @@ class ReferenceBackend {
     static const std::string Name;
     static const DataLayout DefaultInputDataLayout = DataLayout::NCHW;
 
+    static int SpadSize() { return 0; }
+    static void initGlobals() {}
+    static void freeGlobals() {}
+
     DECL_CREATE_OP(ConvolutionOp);
     DECL_CREATE_OP(DataOp);
     DECL_CREATE_OP(DepthwiseConvolutionOp);
