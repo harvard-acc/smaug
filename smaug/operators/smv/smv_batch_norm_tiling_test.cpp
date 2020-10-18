@@ -1,10 +1,10 @@
 #include "catch.hpp"
 #include "smaug/core/backend.h"
-#include "smaug/core/tensor.h"
 #include "smaug/core/smaug_test.h"
-#include "smaug/operators/smv/smv_test_common.h"
+#include "smaug/core/tensor.h"
 #include "smaug/operators/smv/smv_batch_norm_op.h"
 #include "smaug/operators/smv/smv_batch_norm_tiling.h"
+#include "smaug/operators/smv/smv_test_common.h"
 
 using namespace smaug;
 
@@ -58,8 +58,8 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
-            TiledTensor inputsTiles =
-                    generateTiledTensorAndCopyData(inputs, config.inputs, bnOp);
+            TiledTensor inputsTiles = generateTiledTensor(
+                    inputs, config.inputs, bnOp, /* copy_data */ true);
             REQUIRE(inputsTiles.size() == 2);
             for (auto i = inputsTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(inputsTiles[i]->getShape().dims() ==
@@ -68,16 +68,16 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
             }
 
             fillTensorWithFixedData(weights);
-            TiledTensor weightsTiles = generateTiledTensorAndCopyData(
-                    weights, config.weights, bnOp);
+            TiledTensor weightsTiles = generateTiledTensor(
+                    weights, config.weights, bnOp, /* copy_data */ true);
             REQUIRE(weightsTiles.size() == 1);
             REQUIRE(weightsTiles[0]->getShape().dims() ==
                     config.weights.dims());
             verifyTensorWithFixedData(weightsTiles[0], 0);
 
             fillTensorWithFixedData(outputs);
-            TiledTensor outputsTiles = generateTiledTensorAndCopyData(
-                    outputs, config.outputs, bnOp);
+            TiledTensor outputsTiles = generateTiledTensor(
+                    outputs, config.outputs, bnOp, /* copy_data */ true);
             REQUIRE(outputsTiles.size() == 2);
             for (auto i = outputsTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(outputsTiles[i]->getShape().dims() ==
@@ -105,8 +105,8 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
-            TiledTensor inputsTiles =
-                    generateTiledTensorAndCopyData(inputs, config.inputs, bnOp);
+            TiledTensor inputsTiles = generateTiledTensor(
+                    inputs, config.inputs, bnOp, /* copy_data */ true);
             REQUIRE(inputsTiles.size() == 8);
             for (auto i = inputsTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(inputsTiles[i]->getShape().dims() ==
@@ -115,16 +115,16 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
             }
 
             fillTensorWithFixedData(weights);
-            TiledTensor weightsTiles = generateTiledTensorAndCopyData(
-                    weights, config.weights, bnOp);
+            TiledTensor weightsTiles = generateTiledTensor(
+                    weights, config.weights, bnOp, /* copy_data */ true);
             REQUIRE(weightsTiles.size() == 1);
             REQUIRE(weightsTiles[0]->getShape().dims() ==
                     config.weights.dims());
             verifyTensorWithFixedData(weightsTiles[0], 0);
 
             fillTensorWithFixedData(outputs);
-            TiledTensor outputsTiles = generateTiledTensorAndCopyData(
-                    outputs, config.outputs, bnOp);
+            TiledTensor outputsTiles = generateTiledTensor(
+                    outputs, config.outputs, bnOp, /* copy_data */ true);
             REQUIRE(outputsTiles.size() == 8);
             for (auto i = outputsTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(outputsTiles[i]->getShape().dims() ==
@@ -152,8 +152,8 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
-            TiledTensor inputsTiles =
-                    generateTiledTensorAndCopyData(inputs, config.inputs, bnOp);
+            TiledTensor inputsTiles = generateTiledTensor(
+                    inputs, config.inputs, bnOp, /* copy_data */ true);
             REQUIRE(inputsTiles.size() == 128);
             for (auto i = inputsTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(inputsTiles[i]->getShape().dims() ==
@@ -162,16 +162,16 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
             }
 
             fillTensorWithFixedData(weights);
-            TiledTensor weightsTiles = generateTiledTensorAndCopyData(
-                    weights, config.weights, bnOp);
+            TiledTensor weightsTiles = generateTiledTensor(
+                    weights, config.weights, bnOp, /* copy_data */ true);
             REQUIRE(weightsTiles.size() == 1);
             REQUIRE(weightsTiles[0]->getShape().dims() ==
                     config.weights.dims());
             verifyTensorWithFixedData(weightsTiles[0], 0);
 
             fillTensorWithFixedData(outputs);
-            TiledTensor outputsTiles = generateTiledTensorAndCopyData(
-                    outputs, config.outputs, bnOp);
+            TiledTensor outputsTiles = generateTiledTensor(
+                    outputs, config.outputs, bnOp, /* copy_data */ true);
             REQUIRE(outputsTiles.size() == 128);
             for (auto i = outputsTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(outputsTiles[i]->getShape().dims() ==
@@ -199,8 +199,8 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
-            TiledTensor inputsTiles =
-                    generateTiledTensorAndCopyData(inputs, config.inputs, bnOp);
+            TiledTensor inputsTiles = generateTiledTensor(
+                    inputs, config.inputs, bnOp, /* copy_data */ true);
             REQUIRE(inputsTiles.size() == 64);
             for (auto i = inputsTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(inputsTiles[i]->getShape().dims() ==
@@ -209,16 +209,16 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
             }
 
             fillTensorWithFixedData(weights);
-            TiledTensor weightsTiles = generateTiledTensorAndCopyData(
-                    weights, config.weights, bnOp);
+            TiledTensor weightsTiles = generateTiledTensor(
+                    weights, config.weights, bnOp, /* copy_data */ true);
             REQUIRE(weightsTiles.size() == 1);
             REQUIRE(weightsTiles[0]->getShape().dims() ==
                     config.weights.dims());
             verifyTensorWithFixedData(weightsTiles[0], 0);
 
             fillTensorWithFixedData(outputs);
-            TiledTensor outputsTiles = generateTiledTensorAndCopyData(
-                    outputs, config.outputs, bnOp);
+            TiledTensor outputsTiles = generateTiledTensor(
+                    outputs, config.outputs, bnOp, /* copy_data */ true);
             REQUIRE(outputsTiles.size() == 64);
             for (auto i = outputsTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(outputsTiles[i]->getShape().dims() ==
@@ -246,8 +246,8 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
-            TiledTensor inputsTiles =
-                    generateTiledTensorAndCopyData(inputs, config.inputs, bnOp);
+            TiledTensor inputsTiles = generateTiledTensor(
+                    inputs, config.inputs, bnOp, /* copy_data */ true);
             REQUIRE(inputsTiles.size() == 2 * 64);
             for (auto i = inputsTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(inputsTiles[i]->getShape().dims() ==
@@ -256,16 +256,16 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
             }
 
             fillTensorWithFixedData(weights);
-            TiledTensor weightsTiles = generateTiledTensorAndCopyData(
-                    weights, config.weights, bnOp);
+            TiledTensor weightsTiles = generateTiledTensor(
+                    weights, config.weights, bnOp, /* copy_data */ true);
             REQUIRE(weightsTiles.size() == 1);
             REQUIRE(weightsTiles[0]->getShape().dims() ==
                     config.weights.dims());
             verifyTensorWithFixedData(weightsTiles[0], 0);
 
             fillTensorWithFixedData(outputs);
-            TiledTensor outputsTiles = generateTiledTensorAndCopyData(
-                    outputs, config.outputs, bnOp);
+            TiledTensor outputsTiles = generateTiledTensor(
+                    outputs, config.outputs, bnOp, /* copy_data */ true);
             REQUIRE(outputsTiles.size() == 2 * 64);
             for (auto i = outputsTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(outputsTiles[i]->getShape().dims() ==
@@ -293,8 +293,8 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
-            TiledTensor inputsTiles =
-                    generateTiledTensorAndCopyData(inputs, config.inputs, bnOp);
+            TiledTensor inputsTiles = generateTiledTensor(
+                    inputs, config.inputs, bnOp, /* copy_data */ true);
             REQUIRE(inputsTiles.size() == 16 * 64);
             for (auto i = inputsTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(inputsTiles[i]->getShape().dims() ==
@@ -303,16 +303,16 @@ TEST_CASE_METHOD(SmaugTest, "Post-conv bn tiling", "[smvtiling]") {
             }
 
             fillTensorWithFixedData(weights);
-            TiledTensor weightsTiles = generateTiledTensorAndCopyData(
-                    weights, config.weights, bnOp);
+            TiledTensor weightsTiles = generateTiledTensor(
+                    weights, config.weights, bnOp, /* copy_data */ true);
             REQUIRE(weightsTiles.size() == 1);
             REQUIRE(weightsTiles[0]->getShape().dims() ==
                     config.weights.dims());
             verifyTensorWithFixedData(weightsTiles[0], 0);
 
             fillTensorWithFixedData(outputs);
-            TiledTensor outputsTiles = generateTiledTensorAndCopyData(
-                    outputs, config.outputs, bnOp);
+            TiledTensor outputsTiles = generateTiledTensor(
+                    outputs, config.outputs, bnOp, /* copy_data */ true);
             REQUIRE(outputsTiles.size() == 16 * 64);
             for (auto i = outputsTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(outputsTiles[i]->getShape().dims() ==
@@ -363,8 +363,8 @@ TEST_CASE_METHOD(SmaugTest, "Post-fc bn tiling", "[smvtiling]") {
 
         SECTION("Generated tiles have correct shape and data") {
             fillTensorWithFixedData(inputs);
-            TiledTensor inputsTiles =
-                    generateTiledTensorAndCopyData(inputs, config.inputs, bnOp);
+            TiledTensor inputsTiles = generateTiledTensor(
+                    inputs, config.inputs, bnOp, /* copy_data */ true);
             REQUIRE(inputsTiles.size() == 8);
             for (auto i = inputsTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(inputsTiles[i]->getShape().dims() ==
@@ -373,8 +373,8 @@ TEST_CASE_METHOD(SmaugTest, "Post-fc bn tiling", "[smvtiling]") {
             }
 
             fillTensorWithFixedData(weights);
-            TiledTensor weightsTiles = generateTiledTensorAndCopyData(
-                    weights, config.weights, bnOp);
+            TiledTensor weightsTiles = generateTiledTensor(
+                    weights, config.weights, bnOp, /* copy_data */ true);
             REQUIRE(weightsTiles.size() == 8);
             for (auto i = weightsTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(weightsTiles[i]->getShape().dims() ==
@@ -383,8 +383,8 @@ TEST_CASE_METHOD(SmaugTest, "Post-fc bn tiling", "[smvtiling]") {
             }
 
             fillTensorWithFixedData(outputs);
-            TiledTensor outputsTiles = generateTiledTensorAndCopyData(
-                    outputs, config.outputs, bnOp);
+            TiledTensor outputsTiles = generateTiledTensor(
+                    outputs, config.outputs, bnOp, /* copy_data */ true);
             REQUIRE(outputsTiles.size() == 8);
             for (auto i = outputsTiles.startIndex(); !i.end(); ++i) {
                 REQUIRE(outputsTiles[i]->getShape().dims() ==

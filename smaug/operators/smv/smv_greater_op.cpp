@@ -1,8 +1,8 @@
+#include "smaug/operators/smv/smv_greater_op.h"
 #include "smaug/core/backend.h"
 #include "smaug/operators/common.h"
-#include "smaug/operators/smv/smv_greater_op.h"
-#include "smaug/operators/smv/smv_unary_op_common.h"
 #include "smaug/operators/smv/smv_kernels.h"
+#include "smaug/operators/smv/smv_unary_op_common.h"
 #include "smaug/utility/debug_stream.h"
 
 namespace smaug {
@@ -55,9 +55,12 @@ void SmvGreaterOp::tile() {
                      inputs0->getShape().storageSize());
     TensorShape tileShape(
             { 1, maxTileSize }, DataLayout::NC, SmvBackend::Alignment);
-    tiledTensors[0] = generateTiles(inputs0, tileShape, this, false);
-    tiledTensors[1] = generateTiles(inputs1, tileShape, this, false);
-    tiledTensors[2] = generateTiles(outputs, tileShape, this, false);
+    tiledTensors[0] =
+            generateTiledTensorPerBatchNC(inputs0, tileShape, this, false);
+    tiledTensors[1] =
+            generateTiledTensorPerBatchNC(inputs1, tileShape, this, false);
+    tiledTensors[2] =
+            generateTiledTensorPerBatchNC(outputs, tileShape, this, false);
 }
 
 void SmvGreaterOp::run() {
@@ -133,9 +136,12 @@ void SmvGreaterEqualOp::tile() {
                      inputs0->getShape().storageSize());
     TensorShape tileShape(
             { 1, maxTileSize }, DataLayout::NC, SmvBackend::Alignment);
-    tiledTensors[0] = generateTiles(inputs0, tileShape, this, false);
-    tiledTensors[1] = generateTiles(inputs1, tileShape, this, false);
-    tiledTensors[2] = generateTiles(outputs, tileShape, this, false);
+    tiledTensors[0] =
+            generateTiledTensorPerBatchNC(inputs0, tileShape, this, false);
+    tiledTensors[1] =
+            generateTiledTensorPerBatchNC(inputs1, tileShape, this, false);
+    tiledTensors[2] =
+            generateTiledTensorPerBatchNC(outputs, tileShape, this, false);
 }
 
 void SmvGreaterEqualOp::run() {

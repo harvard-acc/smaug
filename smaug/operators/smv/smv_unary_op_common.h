@@ -18,23 +18,12 @@ namespace unary {
 std::pair<activation_type, activation_param_t> getActivationParams(
         UnaryOp<SmvBackend>* op);
 
-/** 
+/**
  * A generic tile dispatcher for unary operators.
- * 
+ *
  * "X" indicates that tiles can be scheduled in any order.
  */
 void runX(UnaryOp<SmvBackend>* op, TiledTensor& inputs, TiledTensor& outputs);
-
-/**
- * Tile the provided Tensor.
- *
- * This is only for unary operators. The only requirement is to tile the Tensor
- * in contiguous blocks of tileShape.
- */
-TiledTensor generateTiles(Tensor* tensor,
-                          const TensorShape& tileShape,
-                          Operator* op,
-                          bool copyData = true);
 
 std::array<TiledTensor, 2> doTiling(UnaryOp<SmvBackend>* op,
                                     bool copyData = true);
