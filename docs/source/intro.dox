@@ -405,7 +405,9 @@ backend.cpp. For example, the SMV backend has three scratchpads (`spad0`,
 `spad2` is used for outputs, but this is merely a convention.
 
 For our custom operator, let's add two scratchpads to the Reference backend.
-Open up backend.cpp and add two array definitions as shown below:
+Open up backend.cpp and add two array definitions as shown below. Also, add
+a unique integer ID for this custom operator. We'll use it later when invoking
+the accelerator in simulation.
 
 \code
 namespace ref {
