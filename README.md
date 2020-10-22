@@ -60,11 +60,13 @@ cd LLVM-Tracer && git pull origin master && cd ..
 cd smaug && git pull origin master && git submodule update --init --recursive && cd ..
 ```
 # Building #
-We need to build gem5-Aladdin:
+We need to build gem5-Aladdin. The `-j` parameter controls how many CPUs are
+used. Increase this value to speed up the build, but keep in mind that you may
+run out of memory before you run out of CPUs.
 
 ```bash
 cd /workspace/gem5-aladdin
-python2.7 `which scons` build/X86/gem5.opt PROTOCOL=MESI_Two_Level_aladdin -j8
+python2.7 `which scons` build/X86/gem5.opt PROTOCOL=MESI_Two_Level_aladdin -j2
 ```
 
 And then SMAUG:
