@@ -62,7 +62,8 @@ cd smaug && git pull origin master && git submodule update --init --recursive &&
 # Building #
 We need to build gem5-Aladdin. The `-j` parameter controls how many CPUs are
 used. Increase this value to speed up the build, but keep in mind that you may
-run out of memory before you run out of CPUs.
+run out of memory before you run out of CPUs. Running out of memory or disk space
+can cause mysterious build failures.
 
 ```bash
 cd /workspace/gem5-aladdin
