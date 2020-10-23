@@ -150,6 +150,7 @@ int main(int argc, char* argv[]) {
     Workspace* workspace = new Workspace();
     Network* network =
             buildNetwork(modelTopo, modelParams, sampling, workspace);
+    ReferenceBackend::initGlobals();
     SmvBackend::initGlobals();
 
     if (dumpGraph)
@@ -187,6 +188,7 @@ int main(int argc, char* argv[]) {
 
     delete network;
     delete workspace;
+    ReferenceBackend::freeGlobals();
     SmvBackend::freeGlobals();
 
     return 0;
