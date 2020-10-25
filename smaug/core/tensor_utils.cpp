@@ -1,15 +1,17 @@
 #include <iostream>
 
 #include "fp16.h"
-#include "smaug/core/workspace.h"
 #include "smaug/core/tensor.h"
 #include "smaug/core/tensor_utils.h"
+#include "smaug/core/workspace.h"
 #include "smaug/utility/debug_stream.h"
 
 namespace smaug {
 
 template <>
-void printTensorElement<float16>(std::ostream& os, const float16* data, int index) {
+void printTensorElement<float16>(std::ostream& os,
+                                 const float16* data,
+                                 int index) {
     os << fp16_ieee_to_fp32_value(data[index]);
 }
 
@@ -194,14 +196,50 @@ int computePaddedTileDim(int maxTileDim,
 }
 }  // namespace internal
 
-TiledTensor generateTiledTensor(Tensor* tensor,
-                                const TensorShape& tileShape,
-                                Operator* op,
-                                int fieldRows,
-                                int fieldCols,
-                                int rowStride,
-                                int colStride,
-                                PaddingType paddingType) {
+TiledTensor generateTiledTensorPerBatchNC(Tensor* tensor,
+                                          const TensorShape& tileShape,
+                                          Operator* op,
+                                          bool copyData) {
+    const TensorShape& inputShape = tensor->getShape();
+    int inputSize = inputShape.storageSize();
+    int tileSize = tileShape.storageSize();
+    int numTiles = std::ceil(inputSize * 1.0 / tileSize);
+    TiledTensor tiledTensor(
+            TensorShape({ 1, numTiles }, DataLayout::NC), tensor, true);
+    int remainingSize = inputSize;
+    int srcOffset = 0;
+    for (auto tileIndex = tiledTensor.startIndex(); !tileIndex.end();
+         ++tileIndex) {
+        int currentTileSize = std::min(remainingSize, tileSize);
+        TensorShape currentShape({ 1, currentTileSize },
+                                 DataLayout::NC,
+                                 tileShape.getAlignment());
+        std::string tileName = op->getName() + ":" + tensor->getName() +
+                               "/tile:" + std::to_string((int)tileIndex);
+        Tensor* tile = new Tensor(tileName, currentShape);
+        tile->allocateStorage(tensor->getDataType());
+        tiledTensor.setTile(tileIndex, { srcOffset }, tile, copyData);
+        srcOffset += currentTileSize;
+        remainingSize -= currentTileSize;
+    }
+    op->getWorkspace()->addTiledTensor(tiledTensor);
+    dout(1) << "  Tiled Tensor " << tensor->getName() << ":\n"
+            << "    original tensor shape: " << tensor->getShape() << "\n"
+            << "    tile shape " << tileShape
+            << ", number of tiles: " << tiledTensor.size() << "\n";
+    return tiledTensor;
+}
+
+TiledTensor generateTiledTensorWithStrideAndPadding(
+        Tensor* tensor,
+        const TensorShape& tileShape,
+        Operator* op,
+        int fieldRows,
+        int fieldCols,
+        int rowStride,
+        int colStride,
+        PaddingType paddingType,
+        bool copyData) {
     const TensorShape& inputShape = tensor->getShape();
     const int ndims = inputShape.ndims();
     DataLayout layout = inputShape.getLayout();
@@ -283,12 +321,23 @@ TiledTensor generateTiledTensor(Tensor* tensor,
             }
         }
     }
+    if (copyData) {
+        tiledTensor.copyDataToAllTiles();
+    }
     op->getWorkspace()->addTiledTensor(tiledTensor);
     dout(1) << "  Tiled Tensor " << tensor->getName() << ":\n"
             << "    original tensor shape: " << tensor->getShape() << "\n"
             << "    tile shape: " << tileShape
             << ", number of tiles: " << tiledTensor.size() << "\n";
     return tiledTensor;
+}
+
+TiledTensor generateTiledTensor(Tensor* tensor,
+                                const TensorShape& tileShape,
+                                Operator* op,
+                                bool copyData) {
+    return generateTiledTensorWithStrideAndPadding(
+            tensor, tileShape, op, 0, 0, 1, 1, ValidPadding, copyData);
 }
 
 void flattenTiledTensor(TiledTensor& tiledTensor, Tensor* destTensor) {

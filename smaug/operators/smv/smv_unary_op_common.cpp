@@ -1,4 +1,5 @@
 #include "smaug/core/backend.h"
+#include "smaug/core/tensor_utils.h"
 #include "smaug/operators/common.h"
 #include "smaug/operators/smv/smv_unary_op_common.h"
 #include "smaug/operators/smv/smv_relu_op.h"
@@ -76,40 +77,6 @@ void runX(UnaryOp<SmvBackend>* op, TiledTensor& inputs, TiledTensor& outputs) {
     }
 }
 
-TiledTensor generateTiles(Tensor* tensor,
-                          const TensorShape& tileShape,
-                          Operator* op,
-                          bool copyData) {
-    const TensorShape& inputShape = tensor->getShape();
-    int inputSize = inputShape.storageSize();
-    int tileSize = tileShape.storageSize();
-    int numTiles = std::ceil(inputSize * 1.0 / tileSize);
-    TiledTensor tiledTensor(
-            TensorShape({ 1, numTiles }, DataLayout::NC), tensor, true);
-    int remainingSize = inputSize;
-    int srcOffset = 0;
-    for (auto tileIndex = tiledTensor.startIndex(); !tileIndex.end();
-         ++tileIndex) {
-        int currentTileSize = std::min(remainingSize, tileSize);
-        TensorShape currentShape({ 1, currentTileSize },
-                                 DataLayout::NC,
-                                 tileShape.getAlignment());
-        std::string tileName = op->getName() + ":" + tensor->getName() +
-                               "/tile:" + std::to_string((int)tileIndex);
-        Tensor* tile = new Tensor(tileName, currentShape);
-        tile->allocateStorage(tensor->getDataType());
-        tiledTensor.setTile(tileIndex, { srcOffset }, tile, copyData);
-        srcOffset += currentTileSize;
-        remainingSize -= currentTileSize;
-    }
-    op->getWorkspace()->addTiledTensor(tiledTensor);
-    dout(1) << "  Tiled Tensor " << tensor->getName() << ":\n"
-            << "    original tensor shape: " << tensor->getShape() << "\n"
-            << "    tile shape " << tileShape
-            << ", number of tiles: " << tiledTensor.size() << "\n";
-    return tiledTensor;
-}
-
 std::array<TiledTensor, 2> doTiling(UnaryOp<SmvBackend>* op, bool copyData) {
     auto inputs = op->getInput(UnaryOp<SmvBackend>::Inputs);
     auto outputs = op->getOutput(UnaryOp<SmvBackend>::Outputs);
@@ -120,8 +87,10 @@ std::array<TiledTensor, 2> doTiling(UnaryOp<SmvBackend>* op, bool copyData) {
                      inputs->getShape().storageSize());
     TensorShape tileShape(
             { 1, maxTileSize }, DataLayout::NC, SmvBackend::Alignment);
-    TiledTensor tiledInputs = generateTiles(inputs, tileShape, op, copyData);
-    TiledTensor tiledOutputs = generateTiles(outputs, tileShape, op, copyData);
+    TiledTensor tiledInputs = generateTiledTensorPerBatchNC(
+        inputs, tileShape, op, copyData);
+    TiledTensor tiledOutputs = generateTiledTensorPerBatchNC(
+        outputs, tileShape, op, copyData);
     return { tiledInputs, tiledOutputs };
 }
 

@@ -1,9 +1,9 @@
 #include "catch.hpp"
 #include "smaug/core/backend.h"
-#include "smaug/core/tensor.h"
 #include "smaug/core/smaug_test.h"
-#include "smaug/operators/smv/smv_test_common.h"
+#include "smaug/core/tensor.h"
 #include "smaug/operators/smv/smv_relu_op.h"
+#include "smaug/operators/smv/smv_test_common.h"
 #include "smaug/operators/smv/smv_unary_op_common.h"
 
 using namespace smaug;
@@ -101,7 +101,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV 4D Unary tiling tests", "[smvtiling]") {
             REQUIRE(inputTiles.size() == 2);
             for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
                 auto& testDims = inputTiles[i]->getShape().dims();
-                if (i == 0 )
+                if (i == 0)
                     REQUIRE(testDims == tileDims);
                 else if (i == 1)
                     REQUIRE(testDims == std::vector<int>{ 1, 8192 });
@@ -111,7 +111,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV 4D Unary tiling tests", "[smvtiling]") {
             REQUIRE(outputTiles.size() == 2);
             for (auto i = outputTiles.startIndex(); !i.end(); ++i) {
                 auto& testDims = outputTiles[i]->getShape().dims();
-                if (i == 0 )
+                if (i == 0)
                     REQUIRE(testDims == tileDims);
                 else if (i == 1)
                     REQUIRE(testDims == std::vector<int>{ 1, 8192 });
@@ -198,7 +198,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV 2D Unary tiling tests", "[smvtiling]") {
             REQUIRE(inputTiles.size() == 2);
             for (auto i = inputTiles.startIndex(); !i.end(); ++i) {
                 auto& testDims = inputTiles[i]->getShape().dims();
-                if (i == 0 )
+                if (i == 0)
                     REQUIRE(testDims == tileDims);
                 else if (i == 1)
                     REQUIRE(testDims == std::vector<int>{ 1, 8192 });
@@ -208,7 +208,7 @@ TEST_CASE_METHOD(SmaugTest, "SMV 2D Unary tiling tests", "[smvtiling]") {
             REQUIRE(outputTiles.size() == 2);
             for (auto i = outputTiles.startIndex(); !i.end(); ++i) {
                 auto& testDims = outputTiles[i]->getShape().dims();
-                if (i == 0 )
+                if (i == 0)
                     REQUIRE(testDims == tileDims);
                 else if (i == 1)
                     REQUIRE(testDims == std::vector<int>{ 1, 8192 });
@@ -217,4 +217,3 @@ TEST_CASE_METHOD(SmaugTest, "SMV 2D Unary tiling tests", "[smvtiling]") {
         }
     }
 }
-
