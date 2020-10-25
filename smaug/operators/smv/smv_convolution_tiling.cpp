@@ -358,8 +358,8 @@ std::array<TiledTensor, 3> TilingOptimizer::doTiling(SmvConvolutionOp* op) {
                                                     op->getPadding());
     // Copy data for the weight tiles since the data is read-only.
     TiledTensor tiledWeights =
-            generateTiledTensor(kernels, tileConfig.weights, op);
-    tiledWeights.copyDataToAllTiles();
+            generateTiledTensor(kernels, tileConfig.weights,
+			        op, /* copyData */ true);
     TiledTensor tiledOutputs;
     if (needsHwiseTiling(tileConfig.outputTilingDims)) {
         tiledOutputs = TilingOptimizer::generateRowwiseOutputTiledTensor(
