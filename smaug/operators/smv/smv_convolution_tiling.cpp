@@ -347,17 +347,19 @@ std::array<TiledTensor, 3> TilingOptimizer::doTiling(SmvConvolutionOp* op) {
     auto kernels = op->getInput(SmvConvolutionOp::Kernels);
     auto output = op->getOutput(SmvConvolutionOp::Outputs);
     TilingConfig tileConfig = TilingOptimizer::computeBasicTileShapes(op);
-    TiledTensor tiledInputs = generateTiledTensor(input,
-                                                  tileConfig.inputs,
-                                                  op,
-                                                  op->getWeightRows(),
-                                                  op->getWeightCols(),
-                                                  op->getRowStride(),
-                                                  op->getColStride(),
-                                                  op->getPadding());
+    TiledTensor tiledInputs =
+            generateTiledTensorWithStrideAndPadding(input,
+                                                    tileConfig.inputs,
+                                                    op,
+                                                    op->getWeightRows(),
+                                                    op->getWeightCols(),
+                                                    op->getRowStride(),
+                                                    op->getColStride(),
+                                                    op->getPadding());
     // Copy data for the weight tiles since the data is read-only.
-    TiledTensor tiledWeights = generateTiledTensorAndCopyData(
-            kernels, tileConfig.weights, op);
+    TiledTensor tiledWeights =
+            generateTiledTensor(kernels, tileConfig.weights,
+			        op, /* copyData */ true);
     TiledTensor tiledOutputs;
     if (needsHwiseTiling(tileConfig.outputTilingDims)) {
         tiledOutputs = TilingOptimizer::generateRowwiseOutputTiledTensor(
@@ -368,7 +370,8 @@ std::array<TiledTensor, 3> TilingOptimizer::doTiling(SmvConvolutionOp* op) {
                 output,
                 false);
     } else {
-        tiledOutputs = generateTiledTensor(output, tileConfig.outputs, op);
+        tiledOutputs =
+                generateTiledTensor(output, tileConfig.outputs, op);
     }
     return { tiledInputs, tiledWeights, tiledOutputs };
 }

@@ -6,9 +6,9 @@
 #ifndef _CORE_TENSOR_UTILS_H_
 #define _CORE_TENSOR_UTILS_H_
 
+#include <cstring>
 #include <iostream>
 #include <vector>
-#include <cstring>
 
 #include "smaug/core/tensor.h"
 
@@ -27,7 +27,9 @@ void printTensorElement(std::ostream& os, const DType* data, int index) {
 }
 
 template <>
-void printTensorElement<float16>(std::ostream& os, const float16* data, int index);
+void printTensorElement<float16>(std::ostream& os,
+                                 const float16* data,
+                                 int index);
 
 /**
  * Pretty-print a Tensor's name, shape, and contents to the provided ostream.
@@ -194,6 +196,22 @@ void copyTensorData(Tensor* dest,
 void copyRawTensorData(
         Tensor* dest, Tensor* src, int destOffset, int srcOffset, int copySize);
 
+/**
+ * Tile the provided NC Tensor per batch.
+ *
+ * The only requirement is to tile the Tensor in contiguous blocks of
+ * tileShape, without concern for strides, overlap, or padding. Thus, this is
+ * usually useful only for unary and elementwise operators.
+ *
+ * @param tensor The Tensor to tile.
+ * @param tileShape The maximum size of each tile.
+ * @param op The Operator that will be consuming this TiledTensor.
+ * @param copyData Whether to copy data from the source tensor into the tiles.
+ */
+TiledTensor generateTiledTensorPerBatchNC(Tensor* tensor,
+                                          const TensorShape& tileShape,
+                                          Operator* op,
+                                          bool copyData = true);
 
 /**
  * Generates a TiledTensor from a source Tensor with the specified tile shape.
@@ -210,39 +228,34 @@ void copyRawTensorData(
  * @param colStride The column stride of a filter applied, if any.
  * @param paddingType The type of additional zero-padding applied on the Tensor
  * by the Operator, if any.
+ * @param copyData Whether to copy data from the source tensor into the tiles.
+ */
+TiledTensor generateTiledTensorWithStrideAndPadding(
+        Tensor* tensor,
+        const TensorShape& tileShape,
+        Operator* op,
+        int fieldRows,
+        int fieldCols,
+        int rowStride,
+        int colStride,
+        PaddingType paddingType,
+        bool copyData = false);
+
+/**
+ * Generates a TiledTensor from a source Tensor.
+ *
+ * This does not support generating tiles with overlap, striding, or padding
+ * options.
+ *
+ * @param tensor The Tensor to tile.
+ * @param tileShape The maximum size of each tile.
+ * @param op The Operator that will be consuming this TiledTensor.
+ * @param copyData Whether to copy data from the source tensor into the tiles.
  */
 TiledTensor generateTiledTensor(Tensor* tensor,
                                 const TensorShape& tileShape,
                                 Operator* op,
-                                int fieldRows = 0,
-                                int fieldCols = 0,
-                                int rowStride = 1,
-                                int colStride = 1,
-                                PaddingType paddingType = ValidPadding);
-
-/**
- * A helper method to both tile a Tensor and fill the tiles with data.
- */
-TiledTensor generateTiledTensorAndCopyData(
-        Tensor* tensor,
-        const TensorShape& tileShape,
-        Operator* op,
-        int fieldRows = 0,
-        int fieldCols = 0,
-        int rowStride = 1,
-        int colStride = 1,
-        PaddingType paddingType = ValidPadding);
-
-/**
- * A helper method to both tile a Tensor and fill the tiles with data.
- */
-template <typename... Args>
-TiledTensor generateTiledTensorAndCopyData(Args&&... args) {
-    TiledTensor tiledTensor =
-            generateTiledTensor(std::forward<Args>(args)...);
-    tiledTensor.copyDataToAllTiles();
-    return tiledTensor;
-}
+                                bool copyData = false);
 
 /**
  * Copies the data from each tile in a TiledTensor into a destination Tensor as

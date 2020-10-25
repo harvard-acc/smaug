@@ -137,8 +137,7 @@ TilingConfig TilingOptimizer::computeBasicTileShapes(SmvPoolingOp* op) {
 
     // Fill in outputs.
     std::vector<TilingConfig> fullConfigs;
-    for (auto it = inputConfigs.begin(); it != inputConfigs.end();
-         ++it) {
+    for (auto it = inputConfigs.begin(); it != inputConfigs.end(); ++it) {
         TilingConfig config(*it);
         config.outputs = outputsShape;
         config.outputs[0] = config.inputs[0];
@@ -182,15 +181,18 @@ std::array<TiledTensor, 2> TilingOptimizer::doTiling(SmvPoolingOp* op) {
     int poolRowSize, poolColSize, poolRowStride, poolColStride;
     std::tie(poolRowSize, poolColSize) = op->getPoolingSize();
     std::tie(poolRowStride, poolColStride) = op->getPoolingStride();
-    TiledTensor tiledInputs = generateTiledTensor(input,
-                                                  tileConfig.inputs,
-                                                  op,
-                                                  poolRowSize,
-                                                  poolColSize,
-                                                  poolRowStride,
-                                                  poolColStride);
-    TiledTensor tiledOutputs =
-            generateTiledTensor(output, tileConfig.outputs, op);
+    TiledTensor tiledInputs =
+            generateTiledTensorWithStrideAndPadding(input,
+                                                    tileConfig.inputs,
+                                                    op,
+                                                    poolRowSize,
+                                                    poolColSize,
+                                                    poolRowStride,
+                                                    poolColStride,
+						    ValidPadding,
+						    /* copy_data */ false);
+    TiledTensor tiledOutputs = generateTiledTensor(
+            output, tileConfig.outputs, op);
     return { tiledInputs, tiledOutputs };
 }
 

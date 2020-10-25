@@ -200,12 +200,14 @@ std::array<TiledTensor, 3> TilingOptimizer::doTiling(SmvInnerProductOp* op) {
     auto kernels = op->getInput(SmvInnerProductOp::Weights);
     auto output = op->getOutput(SmvInnerProductOp::Outputs);
     TilingConfig tileConfig = TilingOptimizer::computeBasicTileShapes(op);
-    TiledTensor tiledInputs = generateTiledTensor(input, tileConfig.inputs, op);
+    TiledTensor tiledInputs =
+            generateTiledTensor(input, tileConfig.inputs, op, /* copy_data*/ false);
     // Copy data for the weight tiles since the data is read-only.
     TiledTensor tiledWeights =
-            generateTiledTensorAndCopyData(kernels, tileConfig.weights, op);
+            generateTiledTensor(kernels, tileConfig.weights, op);
+    tiledWeights.copyDataToAllTiles();
     TiledTensor tiledOutputs =
-            generateTiledTensor(output, tileConfig.outputs, op);
+            generateTiledTensor(output, tileConfig.outputs, op, /* copy_data */ false);
     return { tiledInputs, tiledWeights, tiledOutputs };
 }
 

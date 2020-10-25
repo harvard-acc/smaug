@@ -273,7 +273,8 @@ std::array<TiledTensor, 3> TilingOptimizer::doTiling(SmvBatchNormOp* op) {
             generateTiledTensor(inputs, tileConfig.inputs, op);
     // Copy data for the weight tiles since the data is read-only.
     TiledTensor tiledWeights =
-            generateTiledTensorAndCopyData(weights, tileConfig.weights, op);
+            generateTiledTensor(weights, tileConfig.weights, 
+			        op, /* copyData */ true);
     TiledTensor tiledOutputs =
             generateTiledTensor(outputs, tileConfig.inputs, op);
     return { tiledInputs, tiledWeights, tiledOutputs };
