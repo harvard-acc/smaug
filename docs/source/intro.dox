@@ -485,10 +485,10 @@ tiling there is - no need to consider data reuse, striding, etc. We simply need
 to break up the two input tensors and output tensor into equal sized pieces
 which maximize the use of the local scratchpads. This can be accomplished with
 just a few lines of code in `my_custom_operator.h` by overriding the `tile()`
-function and calling the smaug::generateTiledTensorSimple function. The result
-will be an array of TiledTensor objects. A TiledTensor represents a spatially
-ordered collection of Tensor objects, each containing a copy of a slice of data
-from an underlying Tensor.
+function and calling the smaug::generateTiledTensorPerBatchNC function. The
+result will be an array of TiledTensor objects. A TiledTensor represents a
+spatially ordered collection of Tensor objects, each containing a copy of a
+slice of data from an underlying Tensor.
 
 \code
 #include <array>
