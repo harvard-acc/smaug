@@ -470,15 +470,14 @@ class ReferenceBackend {
 Your accelerator-local scratchpads have now been correctly configured. We will
 modify our kernel function to use these shortly.
 
-\subsubsection tiling Tile your Tensors
+\subsubsection tutorial_tiling Tile your Tensors
 
 Writing logic to correctly tile your tensors can be tricky. There are lots of
 corner cases and special features of the data that must be taken into account
 so that the accelerator can still compute the correct output with partial data.
 To ease this, SMAUG provides a library of useful tiling functionality that you
-can reuse. When that library is insufficient, you can refer to the existing
-tiling optimizers (e.g. for SMV convolution) to get started on more complex
-tiling scenarios.
+can reuse. For more information on the SMAUG tiling optimizer design,
+refer to \ref tiling_optimizer.
 
 Fortunately, tiling a tensor for an elementwise operator is the easiest kind of
 tiling there is - no need to consider data reuse, striding, etc. We simply need
@@ -734,7 +733,6 @@ Build your code, make sure it all compiles, and voila! We are ready to generate
 our trace, set up the simulator configuration files, and start simulating our
 first operator!
 
-\page tiling_optimizer Building a custom tiling optimizer
 
 \page simulation SMAUG in simulation
 
