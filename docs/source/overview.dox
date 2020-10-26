@@ -1,0 +1,43 @@
+namespace smaug {
+/**
+  ***********************************************************************
+  ***********************************************************************
+
+\page overview Overall execution flow
+
+When you create a model in Python, you will produce two protobuf files. The
+first describes the topology of the model: each operation in the graph, its
+input/output tensors, and the dependencies between operators. The second
+contains all the parameters to the model. These two files, plus any additional
+options, are passed to SMAUG.
+
+```
+./smaug model_topo.pb model_params.pb [additional_options]
+```
+
+SMAUG reads the protos to build the operator graph and populate the tensors
+with the provided data. Then, it tiles all the inputs to each tensor. This is
+done ahead of time because it only needs to be done once for the entire
+model.
+
+The next step is to schedule each operator in the graph for execution and run
+them. This is the first point at which simulation will differ from native
+execution. All the work done up to here has been data loading and
+preprocessing. In simulation, this part can be fast-forwarded to save time, so
+in gem5, this is run with the `AtomicCPU` model. Once tiling is complete, we
+switch to the detailed out-of-order model, which is used for the rest of the
+simulation.
+
+Scheduling consists of two levels: operator and tiling. Operator scheduling
+sorts the graph topographically and schedules different operators based on
+their data dependences. Tile scheduling determines when each tile of each
+operator will be run onto the underlying hardware. This will be discussed more
+in \ref tiling_optimizer.  During scheduling, SMAUG can take advantage of
+multi-threading and multiple accelerators to exploit data-level parallelism
+(see \ref simulation).
+
+Finally, when the model is finished, the output of the model (i.e. the last
+output tensor) is written either to a proto, a file, or stdout.
+
+*/
+}
