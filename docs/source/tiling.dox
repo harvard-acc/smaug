@@ -1,0 +1,220 @@
+namespace smaug {
+/**
+  ***********************************************************************
+  ***********************************************************************
+
+\page tiling_optimizer Tiling optimizers in SMAUG
+\tableofcontents
+
+This page describes how the SMAUG tiling optimizers work. The idea of the SMAUG
+tiling system is to provide a basic scaffolding on which end users can write
+new tiling optimizers for new operators, but also allows users to completely
+depart from this scaffolding and design an entirely custom system if they
+desire. SMAUG's design is merely one design point and implementation choice and
+does not necessarily represent the "optimal" point.  How to optimally tile an
+operation to maximize data reuse and minimize data movement is an area of
+active research. 
+
+If you are looking for a tutorial that walks through writing a very simple
+tiling optimizer, see \ref tutorial_tiling. This page is designed to show you
+how to use SMAUG APIs to write tiling optimizers for more complex operators.
+
+For convenience, this section uses examples of tiling on convolutions, but the
+design applies to all operators.
+
+\section tiling_overview Overview
+
+The SMAUG tiling optimizers follow a three-step procedure to tile an operator:
+
+1. Determine a *tiling strategy*.
+2. Based on the tiling strategy, determine the best tile shape.
+3. Break up the original tensor into the specified tile shapes, taking into
+   account operator-specific requirements (e.g. padding, overlapping rows/columns,
+   etc).
+4. Based on the tiling strategy and tile shape, write a loop nest to schedule
+   each tile.
+
+\subsection tiling_strategy Tiling strategies
+
+A tiling strategy defines the best set of dimensions along which to tile the
+input and output tensors. This depends on three parameters:
+
+1. The input tensor shape (e.g. NHWC).
+2. The minimum tile shape. This is the smallest tile shape that can do useful
+   work and is determined by sensible heuristics. For example, if a convolution
+   uses 3x3 kernels, it doesn't make sense to have tiles whose row-width
+   dimensions are smaller than 3x3.  Similarly, if the data is stored as a packed
+   vector of eight elements, then breaking these vectors up is clearly
+   non-optimal.
+3. The maximum tile size, determined by the capacity of the accelerator's local
+   memory.
+
+Given these parameters, the tiling strategy is determined by a preference order
+on tiling dimensions. The supported tiling strategies are described by a
+Backend-specific TilingDims enum (e.g. smaug::smv::TilingDims).  For example,
+the preference order of the SMV convolution operator (whose accelerator is
+based on the NVDLA convolution engine) looks like this:
+
+1. If the entire tensor fits (less than the max tile size), no tiling is
+   needed. 
+2. If the minimum batch size fits (using the minimum tile size's batch size),
+   tile by batches only (`DimN`).
+3. If we can partition the tensor both batch-wise and channel-wise to make a
+   tile fit, then tile by batches and channels (`DimNC`).
+4. If we can partition the tensor batch-size and row-wise to make a tile fit,
+   then tile by batches and rows (`DimNH`).
+5. This procedure continues until we've onsidered all the possible tiling
+   strategies.
+
+For the SMV backend, this preference order for a single tensor is implemented
+at smaug::smv::TilingOptimizerBase::findBestTilingDims. Individual operators
+call this function on a per-input tensor basis, then combine the
+recommendations to pick either a more globally optimal strategy or one that is
+simpler to reason about. As an example, see the SMV convolution tiling logic at
+smaug::smv::conv::determineBestTilingDims.
+
+The order of tiling strategy preference depends on the accelerator's dataflow
+and the amount of work required to shuffle and reshape the data into the
+smaller tiles. Let's consider a simple example. If the dataflow reduces partial
+products along the channel dimension, then we generally want to maximize this
+dimension so more values can be reduced in-place. This also has benefits for
+tiling: if the innermost dimension of a tensor is the channel dimension, then
+tiling strategies which leave this dimension intact will generally be faster
+than those which break it up, because leaving it intact results in fewer,
+larger contiguous `memcpy` operations.
+
+\subsection best_tile_shape Best tile shape for the strategy
+
+Once we have determined a tiling strategy, the next step is to find the best
+tile shape for this strategy.  In this context, "best" simply means "the size
+that maximizes use of local scratchpad space", while respecting minimum and
+maximum tile size constraints. This is done by first enumerating all the
+possible tile shapes for all inputs and outputs to form a list of tiling
+configurations (which describe how all input and output tensors will be tiled),
+then picking the tiling configuration which maximizes the use of the local
+scratchpad space.
+ 
+For elementwise and unary operators, this is easy to determine, because the
+only requirement is that all tiles be of the same shape. In fact, for the SMV backend,
+elementwise/unary operators don't even bother with determining a tiling
+strategy; they just jump directly to picking the biggest tile shape and emitting
+a set of tiled tensors (smaug::smv::unary::doTiling). 
+
+For operators whose input tensors impose various constraints on each other,
+this can become more complex. For example, the field size of a convolution
+operator's weight limits the smallest practical size of a corresponding input
+tile. In these cases, we proceed tensor by tensor, strategy by strategy. See
+smaug::smv::conv::computeBasicTileShapes.
+
+1. Start with the input activation tensor. Generate a list of all valid tiling
+   shapes for this tensor. Adjust the minimum tile shape based on the tiling
+   strategy. Quick example:
+\code
+std::vector<TensorShape> inputConfigs;
+if (inputTilingDims == DimN) {
+   // DimN means we only tile along the batch dimension, so if the tensor has
+   // dimensions NxHxWxC, then the minimum tile shape is 1xHxWxC.
+   std::vector<int> minShape = inputTensor.getShape().dims()
+   minShape[0] = 1;
+   // Based on this minimum shape, enumerate all the possible tiling
+   // configurations into inputConfigs.
+   enum4DTensorTilingConfigs(
+       inputsShape, maxTileSize, minShape, { 1, 1, 1, 1 }, inputConfigs);
+}
+\endcode
+2. For each input tile shape, enumerate all the weight tile shapes that are
+   compatible with it and pair them together. A lot of parameters will affect
+   the size of the resulting set of tiling configurations. Consider this
+   snippet of code for the `DimN` case:
+\code
+for (auto it = inputConfigs.begin(); it != inputConfigs.end(); ++it) {
+  TensorShape& inputsShape = *it;
+  if (weightTilingDims == DimN) {
+    // For weights, DimN now represents the output feature map dimension.
+    // `kNumPEs` describes the number of processing elements in this
+    // accelerator.  Each PE processes a different output feature map. So on a
+    // per-tile basis, the minimum size of this dimension is either the number
+    // of ofmaps in the operator or the number of PEs available for use.
+    int minOfmaps = std::min(weightsShape[0], kNumPEs);
+
+    // Enumerate all the weight tiling shapes that are compatible with this
+    // input shape. The only free variable is config.weights[0] (the number
+    // of ofmaps in the tile). The only requirement is that the innermost
+    // dimensions match (weights[3] == inputsShape[3]). To reduce the number
+    // of tiling configurations we generate, we can stride the ofmaps variable
+    // by `kNumPEs` (if `kNumPEs = 4` and 4 and 8 are valid, then 5-7 must also
+    // be valid).
+    for (int n = minOfmaps; n <= weightsShape[0]; n += kNumPEs) {
+      TilingConfig config;
+      config.weights = weightsShape;
+      config.weights[0] = n;
+      config.weights[3] = inputsShape[3];
+
+      // Only add this tile shape if it doesn't exceed the maximum tile size.
+      if (config.weights.storageSize() <= maxTileSize) {
+        config.inputs = inputsShape;
+        inputWeightConfigs.push_back(config);
+      } else {
+        break;
+      }
+    }
+  } else if (/* other tiling strategies...*/) {
+    // do something different...
+  }
+}
+\endcode
+In general, if there are N possible input tile shapes, and if each tile shape
+generates an average of M compatible weight shapes, then we will have N*M
+tiling configurations.
+
+3. For each pair of input and weight tiles, compute the size of the
+   corresponding output tensor. There is no more parameter exploration to be done
+   at this point, as all the variables have been defined.
+
+4. Scan through all of the resulting input+weight+output tiling configurations
+   and pick the one that maximizes local scratchpad usage.
+
+The result is a tile shape for all input and output tensors for this operator.
+
+\subsection actually_tiling Generating tiles for a tensor
+
+With a tiling strategy and a tile shape on hand, we are ready to actually break
+up the original tensor into its tiles. There are already several functions to
+do this for a variety of use cases, defined in tensor_utils.h:
+
+1. smaug::generateTiledTensorPerBatchNC: Useful for elementwise/unary operators.
+2. smaug::generateTiledTensor: A more general tiling function that breaks up a
+   tensor into non-overlapping tiles of a specific shape.
+3. smaug::generateTiledTensorWithStrideAndPadding: A specialized tiling function
+   that can generate tiles with overlapping borders, striding, and other
+   features. Useful for sliding-window operators like convolutions and pooling.
+
+All of these functions take a final optional `copyData` bool parameter, which
+if `true` copies the appropriate window of data from the source tensor into
+each tile. This is typically `true` for input tensors and `false` for output
+tensors (since any data we write into them during tiling will get overwritten
+later by the operator itself).
+
+These functions are sufficient for the majority of cases. But sometimes even
+more custom handling is required for some operators, like
+smaug::smv::conv::TilingOptimizer::generateRowwiseOutputTiledTensor. 
+
+\subsection loop_nests Write a loop nest to schedule the tiles
+
+The final step is to write a loop nest that invokes the target accelerator
+using the tiled tensors. This is typically implemented as a `runX` / `runNHWC`
+/ etc function. Depending on the operator, this can be as straightforward as a
+single `for` loop, or it can be considerably more complex if tile reuse can be
+exploited to gain performance. Examples:
+
+1. Elementwise/unary: a single for loop that iterates through all tiles of the
+   inputs and outputs in lockstep is sufficient. See smaug::smv::unary::runX.
+2. Convolution: the huge number of corner cases and little optimizations to
+   avoid unnecessary data movement makes this loop nest much more complex than a
+   few nested for loops. See smaug::SmvConvolutionOp::runNHWC.
+3. Batch normalization: depending on whether this comes after a convolution or
+   an inner product, a different loop nest is used. See
+   smaug::SmvBatchNormOp::runNA and smaug::SmvBatchNormOp::runNHWC.
+
+*/
+}

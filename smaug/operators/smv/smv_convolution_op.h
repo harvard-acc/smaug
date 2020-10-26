@@ -32,6 +32,9 @@ class SmvConvolutionOp : public ConvolutionOp<SmvBackend> {
     friend class smv::conv::TilingOptimizer;
 
   protected:
+   /**
+    * Tiling scheduler for this operator.
+    */
    void runNHWC(TiledTensor& inputs,
                 TiledTensor& weights,
                 TiledTensor& outputs);
