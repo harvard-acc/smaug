@@ -16,9 +16,14 @@ very repetitive, so we can afford to sample the loop iterations to save on
 simulation time and trace storage. This means that during tracing and
 simulation, we will only execute a small fraction of the total loop iterations,
 and afterwards, we unsample this simulated time to estimate the actual time
-spent in the kernel. If sampling is enabled, functional results will be
-incorrect. This has implications if sampled operators feed into operators whose
-control-flow is data-dependent, so please keep this in mind.
+spent in the kernel.
+
+Caveats of sampling if enabled:
+
+1. Functional results will be incorrect. This has implications if sampled
+   operators feed into operators whose control-flow is data-dependent, so
+   please keep this in mind.
+2. There is a small amount of performance error, on average <1%.
 
 Here's an example of how a loop is instrumented to enable sampling:
 
