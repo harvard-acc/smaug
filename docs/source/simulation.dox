@@ -1,0 +1,105 @@
+namespace smaug {
+/**
+  ***********************************************************************
+  ***********************************************************************
+
+\page simulation SMAUG in simulation
+
+Due to certain limitations of the syscall-emulation mode of gem5-Aladdin, there
+are two key differences in how SMAUG runs under simulation compared to on real
+hardware, which affect how you will write code for SMAUG.
+
+\section sampling Sampling of accelerated kernels
+
+DL models are highly compute-intensive, but oftentimes these core kernels are
+very repetitive, so we can afford to sample the loop iterations to save on
+simulation time and trace storage. This means that during tracing and
+simulation, we will only execute a small fraction of the total loop iterations,
+and afterwards, we unsample this simulated time to estimate the actual time
+spent in the kernel.
+
+Caveats of sampling if enabled:
+
+1. Functional results will be incorrect. This has implications if sampled
+   operators feed into operators whose control-flow is data-dependent, so
+   please keep this in mind.
+2. There is a small amount of performance error, on average <1%.
+
+Here's an example of how a loop is instrumented to enable sampling:
+
+\code
+int reduction(int* a, int size, int sample) {
+  // dmaLoad is placed outside the sampled loop, so that we don't change the
+  // memory footprint of the application.
+  dmaLoad(a, size * sizeof(int));
+  int result = 0;
+  setSamplingFactor("loop", (float)size / sample);
+loop:
+  // Run only `sample` iterations of this loop; the result will be wrong,
+  // but that's expected for sampling.
+  for (int i = 0; i < sample; i++)
+    result += a[i];
+  return result;
+}
+\endcode
+
+By default, sampling is disabled. It is controlled by two flags in SMAUG:
+
+1. `--sample-level=[no|low|med|high|very_high]`. This is a hint to the software
+   that indicates how many levels of a nested loop are sampled. For example,
+   "low" could mean that only the innermost loop is sampled, but everything
+   above it is not affected, whereas "very_high" could mean to sample *every*
+   layer of a nested loop. Different kernels can implement this differently;
+   this is merely a hint.
+
+2. `--sample-num=N`: This informs the loop how many iterations to run (if
+   sampling is enabled). We often set this to 1 or 2. 1 is sufficient for many
+   loops. For pipelined loops, 2 iterations are required to correctly measure the
+   amount of overlap between successive iterations.
+
+\section multithreading Multithreading in gem5 SE mode
+
+In gem5's syscall-emulation mode, multithreading has slightly quirky behavior.
+
+1. You must explicitly allocate as many CPUs as you intend to have threads
+from the beginning by passing `--num-cpus=N` to gem5. gem5 will create N
+`ThreadContext` objects to represent the state of each thread. You must ensure
+that you never try to spawn more than this number of threads, or gem5 will crash
+with an "out of ThreadContexts" error.
+
+2. When a thread exists, its `ThreadContext` will be destroyed, but that
+slot cannot be reused. A newly created thread will always attempt to allocate a
+new `ThreadContext`, and if you've already created N `ThreadContext`s, any
+attempts to create more will fail even if CPUs are sitting around idling.
+
+3. In syscall-emulation mode, this is no thread scheduler built in, so there is no
+"idle" or "unscheduled" state of a thread. This means if you want to keep a
+thread around to accept work later (since destroying it means losing a thread),
+by default it will have to spinwait. This generates lots of useless memory
+traffic to the simulator, slowing down simulations.
+
+4. Since the behavior of accelerators is recorded in the trace, we must ensure
+that the CPU assignments and ordering is deterministic from run to run, or
+the simulation behavior will diverge from that in the trace, causing unexpected
+behavior.
+
+To work around these limitations, we have developed a specialized ThreadPool
+implementation. It ensures that as long as the pool is still alive, none of the
+threads will exit. An work queue API is exposed for the application to use.
+Thread scheduling is round-robin and CPUs are deterministically assigned. And to
+reduce excessive memory traffic from spin-idling threads, we use a magic
+instruction to quiesce a CPU when there's no work for it to do and a magic wake
+instruction when a quiesced CPU has work again. When running on real hardware,
+these instructions are ignored.
+
+To use the thread pool with N threads:
+
+1. Pass `--num-cpus=N+1` to %gem5. We need one extra thread to run the main
+   thread!
+2. To enqueue work, call ThreadPool::dispatchThread.
+3. To join on all threads, call ThreadPool::joinThreadPool.
+
+You can see examples of this in action at TiledTensor::parallelCopyTileData.
+
+*/
+}
