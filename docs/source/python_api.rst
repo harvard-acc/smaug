@@ -15,5 +15,6 @@ Building new SMAUG features
 
 .. toctree::
    :maxdepth: 1
+   :caption: Internal APIs
 
    internals
