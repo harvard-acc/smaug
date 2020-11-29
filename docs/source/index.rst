@@ -8,18 +8,17 @@ SMAUG DOCUMENTATION
 SMAUG is a deep learning framework that enables end-to-end simulation of DL models on custom SoCs with a variety of hardware accelerators.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Python API and tutorials
 
    python_api
    python_tutorials
 
+.. toctree::
+   :maxdepth: 1
+   :caption: C++ docs
 
-C++ API and tutorials
----------------------
-
-* `C++ docs link <doxygen_html/index.html>`_
-
+   cpp_docs
 
 Indices and tables
 ==================

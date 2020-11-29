@@ -1,5 +1,5 @@
-SMAUG Operators
-=========
+SMAUG Python APIs
+=================
 
 .. toctree::
    :maxdepth: 1
@@ -9,9 +9,6 @@ SMAUG Operators
    nn
    math
    tensor
-
-Building new SMAUG features
-==========
 
 .. toctree::
    :maxdepth: 1
