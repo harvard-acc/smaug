@@ -60,7 +60,18 @@ returns a list of tensors, but in our case, we have only one, so to simplify
 our API, we just return the first element.  There are other optional parameters
 to :func:`common.add_node`, but they aren't needed in this basic scenario.
 
-And that's it! You're now ready to use this operator in a new model.
+The final step is to expose this operator at the global :py:mod:`smaug` module
+level. Open up :file:`smaug/__init__.py` and add the following line:
+
+.. code-block:: python
+
+   from smaug.python.ops import my_custom_operator
+
+And that's it! You're now ready to use this new operator in a new model. Users
+will refer to it as :code:`smaug.my_custom_operator.my_custom_operator`.
+Obviously, the name for this small example is quite repetitive and
+uninformative, but in practice, you would use a more descriptive module
+and operator name.
 
 Adding an operator with additional parameters
 ---------------------------------------------
