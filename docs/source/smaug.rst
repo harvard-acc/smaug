@@ -2,6 +2,7 @@ smaug
 =====
 .. currentmodule:: smaug
 
+.. automodule:: smaug
 .. autoclass:: Graph
    :members:
    :undoc-members:

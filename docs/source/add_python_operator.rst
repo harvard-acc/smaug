@@ -60,7 +60,7 @@ returns a list of tensors, but in our case, we have only one, so to simplify
 our API, we just return the first element.  There are other optional parameters
 to :func:`common.add_node`, but they aren't needed in this basic scenario.
 
-The final step is to expose this operator at the global :mod:`smaug` module
+The final step is to expose this operator at the global :py:mod:`smaug` module
 level. Open up :file:`smaug/__init__.py` and add the following line:
 
 .. code-block:: python
