@@ -14,12 +14,11 @@ SMAUG is a deep learning framework that enables end-to-end simulation of DL mode
    python_api
    python_tutorials
 
+.. toctree::
+   :maxdepth: 1
+   :caption: C++ docs
 
-C++ API and tutorials
----------------------
-
-* `C++ docs link <doxygen_html/index.html>`_
-
+   cpp_docs
 
 Indices and tables
 ==================
