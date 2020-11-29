@@ -2,7 +2,7 @@ Tutorials
 =========
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    build_python_model
    add_python_operator
