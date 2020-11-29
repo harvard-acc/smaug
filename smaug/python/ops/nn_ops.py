@@ -1,12 +1,10 @@
 import numpy as np
 from warnings import warn
 
-from smaug.core import types_pb2
-from smaug.core import node_pb2
+from smaug.core import node_pb2, types_pb2
 from smaug.python import global_vars
 from smaug.python.tensor import Tensor
-from smaug.python.ops import common
-from smaug.python.ops import activation_ops
+from smaug.python.ops import activation_ops, array_ops, common
 
 def to_padding_type(padding):
   if padding == "same":
@@ -36,7 +34,7 @@ def convolution(
       pad = weight_dim - 1
     return (input_dim - weight_dim + pad) // stride + 1
 
-  input_tensor, filter_tensor = common.check_and_add_layout_transform(
+  input_tensor, filter_tensor = array_ops.check_and_add_layout_transform(
       name=name, op=types_pb2.Convolution3d,
       input_tensors=[input_tensor, filter_tensor])
 
@@ -103,7 +101,7 @@ def batch_norm(
     post_fc = True
 
   if not post_fc:
-    input_tensor = common.check_and_add_layout_transform(
+    input_tensor = array_ops.check_and_add_layout_transform(
         name=name, op=types_pb2.BatchNorm, input_tensors=[input_tensor])[0]
 
   output_layout = types_pb2.UnknownLayout
@@ -130,7 +128,7 @@ def max_pool(input_tensor, pool_size, stride, name="max_pool"):
   def compute_output_dim(input_dim, pool_size, stride):
     return (input_dim - pool_size) // stride + 1
 
-  input_tensor = common.check_and_add_layout_transform(
+  input_tensor = array_ops.check_and_add_layout_transform(
       name=name, op=types_pb2.MaxPooling, input_tensors=[input_tensor])[0]
 
   row_idx = 2 if input_tensor.shape.layout == types_pb2.NCHW else 1
@@ -171,7 +169,7 @@ def mat_mul(
     activation/activation_params: Activation function to use (optional).
     name: Operator name (optional).
   """
-  input_tensor, weight_tensor = common.check_and_add_layout_transform(
+  input_tensor, weight_tensor = array_ops.check_and_add_layout_transform(
       name=name, op=types_pb2.InnerProduct,
       input_tensors=[input_tensor, weight_tensor])
 

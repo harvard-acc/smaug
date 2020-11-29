@@ -1,9 +1,9 @@
 from smaug.core import types_pb2
-from smaug.python.ops import common
+from smaug.python.ops import array_ops, common
 
 def _math_op_common(tensor_a, tensor_b, op, name, output_tensor_dtype=None):
   if tensor_a.shape.dims != tensor_b.shape.dims:
-    tensor_a, tensor_b = common.broadcast_inputs(tensor_a, tensor_b, name)
+    tensor_a, tensor_b = array_ops.broadcast_inputs(tensor_a, tensor_b, name)
   if output_tensor_dtype == None:
     output_tensor_dtype = tensor_a.data_type
   return common.add_node(

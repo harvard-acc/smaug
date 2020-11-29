@@ -855,6 +855,7 @@ FILE_PATTERNS          = *.c \
                          *.cc \
                          *.cpp \
                          *.h \
+                         *.proto \
                          *.dox
 
 # The RECURSIVE tag can be used to specify whether or not subdirectories should
