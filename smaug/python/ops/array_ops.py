@@ -3,6 +3,7 @@ import warnings
 
 from smaug.core import types_pb2
 from smaug.core import node_pb2
+from smaug.python import global_vars, tensor_utils
 from smaug.python.ops import common
 
 def reorder(input_tensor, target_layout, name="reorder"):
@@ -55,7 +56,7 @@ def flatten(input_tensor, name="flatten"):
     name: Operator name (optional).
 
   Returns:
-    A 2D `Tensor` shpaed as `NC`.
+    A 2D `Tensor` shaped as `NC`.
   """
   assert (len(input_tensor.shape.dims) == 4)
   return reorder(
@@ -243,3 +244,103 @@ def unstack(input_tensor, axis, name="unstack"):
   for i,tensor in enumerate(split_tensors):
     outputs.append(squeeze(tensor, axis, name=name + ":squeeze"))
   return outputs
+
+def broadcast_inputs(tensor_a, tensor_b, name="broadcast_inputs"):
+  """Broadcast inputs to have a compatible shape.
+
+  This uses NumPy's broadcasting rules to make inputs of different shapes have a
+  compatible shape during arithmetic operations. On each axis, the smaller
+  dimension (of size 1) is broadcast across the larger dimension so that they
+  have compatible shapes. Broadcasting provides a means of vectorizing
+  operations.
+
+  Args:
+    tensor_a: The first input tensor.
+    tensor_b: The second input tensor.
+    name: Name prefix for the operators used in this function.
+
+  Returns:
+    Two new tensors with the same shape.
+
+  Examples:
+
+  .. code:: python
+
+     a = np.random.rand(2, 8).astype(np.float16)
+     b = np.random.rand(2, 1).astype(np.float16)
+     tensor_a = Tensor(data_layout=NC, tensor_data=a)
+     tensor_b = Tensor(data_layout=NC, tensor_data=b)
+     # The elementwise add operator calls _broadcast_inputs() so that tensor_b
+     # is broadcast in axis 1, making both inputs shaped [2, 8].
+     output = add(tensor_a, tensor_b)
+
+  .. code:: python
+
+     a = np.random.rand(2, 16, 1, 8).astype(np.float16)
+     b = np.random.rand(2, 1, 8, 8).astype(np.float16)
+     tensor_a = Tensor(data_layout=NHWC, tensor_data=a)
+     tensor_b = Tensor(data_layout=NHWC, tensor_data=b)
+     # The elementwise mul operator calls _broadcast_inputs() so that both
+     # inputs will be shaped [2, 16, 8, 8].
+     output = mul(tensor_a, tensor_b)
+  """
+  if len(tensor_a.shape.dims) != len(tensor_b.shape.dims):
+    raise ValueError(
+        "Cannot broadcast: tensor_a has % dimensions but tensor_b has %." %
+        (len(tensor_a.shape.dims), len(tensor_b.shape.dims)))
+  multiples_a = np.ones(len(tensor_a.shape.dims), dtype=np.int32)
+  multiples_b = np.ones(len(tensor_a.shape.dims), dtype=np.int32)
+  # Loop over the matching dimensions of the two inputs.
+  for i, (a_dim, b_dim) in enumerate(
+      zip(tensor_a.shape.dims, tensor_b.shape.dims)):
+    if a_dim == b_dim:
+      continue
+    elif a_dim == 1:
+      # tensor_a will be broadcast along this dimension.
+      multiples_a[i] = b_dim
+    elif b_dim == 1:
+      # tensor_b will be broadcast along this dimension.
+      multiples_b[i] = a_dim
+    else:
+      raise ValueError(
+          "tensor_a shape %s and tensor_b shape %s are incompatible for "
+          "broadcasting)" % (str(tensor_a.shape.dims), str(
+              tensor_b.shape.dims)))
+  if not np.all(multiples_a == 1):
+    tensor_a = repeat(tensor_a, multiples_a, name=name + ":repeat_a")
+  if not np.all(multiples_b == 1):
+    tensor_b = repeat(tensor_b, multiples_b, name=name + ":repeat_b")
+  return tensor_a, tensor_b
+
+def check_and_add_layout_transform(name, op, input_tensors):
+  """ Check and perform layout transformation for the input tensors.
+
+  This checks the input layout against the expected layout, and if a mismatch
+  is found, an reorder operator will be added to transform the tensors into
+  expected layouts.
+
+  Args:
+    name: Name of the operator.
+    op: OpType of the operator.
+    input_tensors: A list of input tensors
+
+  Returns:
+    A list of transformed input tensors, or the original input tensors if no
+    layout transformation is required.
+  """
+  if not global_vars.get_graph().layout_trans_enabled:
+    return input_tensors
+  backend = global_vars.get_graph().backend
+  for i in range(len(input_tensors)):
+    expected_layoutset = global_vars.backend_layouts[backend][
+        op].input_layoutsets[i]
+    input_layout = input_tensors[i].shape.layout
+    if not expected_layoutset.contains(input_layout):
+      reorder_op_output = tensor_utils.get_tensor_reorder_op(
+          input_tensors[i], expected_layoutset.layouts)
+      if reorder_op_output is not None:
+        input_tensors[i] = reorder_op_output
+        continue
+      input_tensors[i] = reorder(input_tensors[i], expected_layoutset.layouts)
+  return input_tensors
+

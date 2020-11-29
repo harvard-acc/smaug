@@ -1,7 +1,6 @@
-from smaug.core import types_pb2
-from smaug.core import node_pb2
+from smaug.core import node_pb2, types_pb2
 from smaug.python import global_vars
-from smaug.python.ops import common
+from smaug.python.ops import array_ops, common
 
 def _set_activation_params(activation, params, proto):
   """Set the parameters of the activation function.
@@ -134,7 +133,7 @@ def sigmoid(input_tensor, name="sigmoid"):
 
 def softmax(input_tensor, name=None):
   """Softmax operator."""
-  input_tensor = common.check_and_add_layout_transform(
+  input_tensor = array_ops.check_and_add_layout_transform(
       name=name, op=types_pb2.Softmax, input_tensors=[input_tensor])[0]
   return common.add_node(
       name=name, op=types_pb2.Softmax, input_tensors=[input_tensor],
