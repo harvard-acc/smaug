@@ -2,7 +2,7 @@ Build a SMAUG model with Python API
 ===================================
 
 SMAUG's Python frontend provides easy APIs to build DL models. The created model
-is a computational graph, which are serialized into two protobuf files, one for
+is a computational graph, which is serialized into two protobuf files, one for
 the model topology and the other for the parameters. These two files are inputs
 to SMAUG's C++ runtime that performs the actual simulation. In this tutorial,
 we will be using the SMAUG Python APIs to build new DL models.
