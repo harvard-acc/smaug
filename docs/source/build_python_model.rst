@@ -23,7 +23,7 @@ hardware blocks that implements all the SMAUG operators. Refer to
 `C++ docs <doxygen_html/index.html>`_ for more details of a backend
 implementation in the C++ runtime. Here, we choose the :code:`SMV` backend that
 comes with SMAUG, which is modeled after the NVDLA architecture. SMAUG also has
-another backend named :code:`Reference`, which is a implementation reference
+another backend named :code:`Reference`, which is an implementation reference
 without having specific performance optimizations. Also, refer to
 :class:`smaug.Graph` for a detailed description of the parameters.
 
