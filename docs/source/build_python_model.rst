@@ -23,7 +23,7 @@ hardware blocks that implements all the SMAUG operators. Refer to
 `C++ docs <doxygen_html/index.html>`_ for more details of a backend
 implementation in the C++ runtime. Here, we choose the :code:`SMV` backend that
 comes with SMAUG, which is modeled after the NVDLA architecture. SMAUG also has
-another backend named :code:`Reference`, which is an implementation reference
+another backend named :code:`Reference`, which is a reference implementation
 without having specific performance optimizations. Also, refer to
 :class:`smaug.Graph` for a detailed description of the parameters.
 
@@ -68,9 +68,9 @@ However, the user can use the real weights extracted from a pretrained model.
 Likewise, we create two weight tensors that will be used by a convolution
 operator and a matrix multiply operator, respectively.
 
-A :func:`smaug.data_op` is required for any tensor that is not the output of
-another operator, which simply creates a reference tensor to its input data.
-Here, :code:`act` is a reference to code:`input_tensor`. Then, :code:`act` is
+A :func:`smaug.data_op`, which simply forwards an input tensor to its output, is
+required for any tensor that is not the output of another operator. Here,
+:code:`act` is a reference to code:`input_tensor`. Then, :code:`act` is
 fed to a convolution operator that also takes :code:`conv_weights` as its
 filter input. With more details provided in :func:`smaug.nn.convolution`, it
 computes a 3D convolution given the 4D input and filter tensors, and we use 1x1
@@ -84,8 +84,7 @@ tensor, SMAUG will automatically add a layout transformation operator
 compatible. Thus, the 4D tensor of shape :code:`[1, 32, 14, 14]` will be
 flattened into a 2D tensor of shape :code:`[1, 6272]` before running the matrix
 multiply. Similarly, SMAUG will also perform the NHWC to NCHW layout
-transformation or vice versa as
-per the expected layout format of the backend.
+transformation or vice versa as per the expected layout format of the backend.
 
 After finishing adding operators to the model, we can now take a look at the
 summary of the model using the :func:`smaug.Graph.print_summary` API.
