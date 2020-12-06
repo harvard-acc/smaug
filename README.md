@@ -26,6 +26,9 @@ Sam (Likun) Xi, Yuan Yao, Kshitij Bhardwaj, Paul Whatmough, Gu-Yeon Wei, and
 David Brooks. 2020. SMAUG: End-to-End Full-Stack Simulation Infrastructure for
 Deep Learning Workloads. J. ACM 0, 0, Article 0 (2020). [PDF to be linked].
 
+API documentation and tutorials are available at
+[https://harvard-acc.github.io/smaug_docs](https:?/harvard-acc.github.io/smaug_docs).
+
 # Installation #
 
 SMAUG requires use of a Docker image, available on Docker Hub
@@ -88,5 +91,6 @@ cd /workspace/smaug/experiments/sims/smv/tests/minerva
 sh run.sh
 ```
 
-# Resources #
-Examples of writing network models can be found in `experiments/models`.
+# Tutorials and APIs #
+Documentation for writing new models and building on top of SMAUG can be found at
+[https://harvard-acc.github.io/smaug_docs](https:?/harvard-acc.github.io/smaug_docs).
