@@ -23,8 +23,10 @@ levels of abstraction. For example, researchers can:
 If you are using SMAUG in research, we would appreciate a reference to:
 
 Sam (Likun) Xi, Yuan Yao, Kshitij Bhardwaj, Paul Whatmough, Gu-Yeon Wei, and
-David Brooks. 2020. SMAUG: End-to-End Full-Stack Simulation Infrastructure for
-Deep Learning Workloads. J. ACM 0, 0, Article 0 (2020). [PDF to be linked].
+David Brooks. SMAUG: End-to-End Full-Stack Simulation Infrastructure for
+Deep Learning Workloads. ACM Transactions on Architecture and Code
+Optimization, 17, 4, Article 39 (November 2020).
+[https://doi.org/10.1145/3424669](PDF).
 
 API documentation and tutorials are available at
 [https://harvard-acc.github.io/smaug_docs](https://harvard-acc.github.io/smaug_docs).
