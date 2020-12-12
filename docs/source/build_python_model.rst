@@ -1,3 +1,5 @@
+.. _label_build_python_model:
+
 Build a SMAUG model with Python API
 ===================================
 
