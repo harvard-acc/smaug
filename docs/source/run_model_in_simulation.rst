@@ -4,12 +4,17 @@ Run a model in gem5-Aladdin simulation
 Following the tutorial in :ref:`label_build_python_model`, now we are able to
 create a DL model using the SMAUG Python APIs. In this tutorial, we will
 proceed to introduce the steps of running a model in gem5-Aladdin simulation.
+We strongly recommend using our `Docker image
+<https://registry.hub.docker.com/r/xyzsam/smaug>`_ and this tutorial assumes we
+are in the Docker image.
 
 Build gem5-Aladdin
 ------------------
 
 First, if you haven't built gem5-Aladdin (cloned in
-:code:`/workspace/gem5-aladdin`), use the following command to build it::
+:code:`/workspace/gem5-aladdin`), use the following command to build it.
+
+.. code-block:: console
 
     python2.7 `which scons` build/X86/gem5.opt PROTOCOL=MESI_Two_Level_aladdin -j2
 
@@ -28,17 +33,31 @@ simulator. Thus, in SMAUG, in order to run a model in gem5-Aladdin, we need to
 generate a dynamic trace for the kernels to be simulated as hardware blocks.
 
 First, we need to build the SMAUG tracer, which is an instrumented binary that
-will be executed to generate the dynamic trace::
+will be executed to generate the dynamic trace.
+
+.. code-block:: console
 
     make tracer -j4
 
 After running the above command, we will get a binary under :code:`build/bin/`
 named :code:`smaug-instrumented`. Then we will run the model created in
-:ref:`label_build_python_model` using the following command::
+:ref:`label_build_python_model` using the following command:
+
+.. code-block:: console
 
     build/bin/smaug-instrumented my_model_topo.pbtxt my_model_params.pb
 
-This generates a trace file named :code:`dynamic_trace_acc0.gz`.
+While the tracer is producing the dynamic trace, we will see outputs such as the
+following pair for each invocation of the hardware blocks::
+
+   dynamic_trace_acc0.gz: Starting to log at inst = 0.
+   dynamic_trace_acc0.gz: Stopping logging at inst 18199217.
+
+A trace file named :code:`dynamic_trace_acc0.gz` is generated.
+
+Note that for large models, this step can take a long time and the resulting
+trace file can be quite large. Sampling should be used to solve this, which is
+discussed in :ref:`label_apply_sampling`.
 
 Create gem5-Aladdin configuraion files
 ---------------------------------------
@@ -46,13 +65,21 @@ Create gem5-Aladdin configuraion files
 gem5-Aladdin also requires two configuration files for running simulations. One
 file specifies SoC-level parameters such as each accelerator's ID, cache or DMA
 configurations, location of the corresponding dynamic trace file, and etc.  An
-example can found be in :code:`experiments/sims/smv/minerva/gem5.cfg`. The
-other file gives the parameters to be used for implementing the accelerator,
-such as parameters for applying loop unrolling and scratchpad partition. An
-example configuration file of implementing the hardware blocks in our `SMV`
-backend can be found in :code:`experiments/sims/smv/smv-accel.cfg`. We defer to
-the `gem5-Aladdin GitHub repo <https://github.com/harvard-acc/gem5-aladdin>`_
-and `gem5-Aladdin tutorial
+example can found be in :code:`experiments/sims/smv/minerva/gem5.cfg` (make
+sure the submodules are initialized by running :code:`git submodule update
+--init --recursive`). The other file gives the parameters to be used for
+implementing the accelerator, such as parameters for applying loop unrolling
+and scratchpad partition. An example configuration file of implementing the
+hardware blocks in our `SMV` backend can be found in
+:code:`experiments/sims/smv/smv-accel.cfg`.  If you don't make any changes to
+the `SMV` backend, both of these configuration files are sufficient to simualte
+any model run on `SMV`. You can change the parameters but it may lead to
+unexpected accelerator performance characteristics especially the ones in
+:code:`smv-accel.cfg`, as the array partitioning/loop unrolling/loop pipelining
+are all fine tuned to achieve a specific throughput.
+
+We defer to the `gem5-Aladdin GitHub repo
+<https://github.com/harvard-acc/gem5-aladdin>`_ and `gem5-Aladdin tutorial
 <http://accelerator.eecs.harvard.edu/micro16tutorial/slides/micro2016-tutorial-gem5-aladdin.pptx>`_
 for more details of writing these configuration files.
 
@@ -62,16 +89,21 @@ Run the first simulation
 Assuming we use configuration files in
 :code:`experiments/sims/smv/tests/minerva/gem5.cfg`
 and :code:`experiments/sims/smv/smv-accel.cfg`, let's create a folder for our
-first simulation. It contains these files::
+first simulation. It contains these files:
 
-    my_model_topo.pbtxt my_model_params.pb dynamic_trace_acc0.gz gem5.cfg smv-accel.cfg
+.. code-block:: console
 
-Now we are ready to launch the simulation::
+    root@72e3f78202e0:test # ls
+    dynamic_trace_acc0.gz  gem5.cfg  my_model_params.pb  my_model_topo.pbtxt smv-accel.cfg
 
-    <path-to-gem5-aladdin>/build/X86/gem5.opt \
+Now we are ready to launch the simulation.
+
+.. code-block:: console
+
+    /workspace/gem5-aladdin/build/X86/gem5.opt \
       --debug-flags=Aladdin,HybridDatapath \
       --outdir=outputs \
-      <path-to-gem5-aladdin>/configs/aladdin/aladdin_se.py \
+      /workspace/gem5-aladdin/configs/aladdin/aladdin_se.py \
       --num-cpus=1 \
       --mem-size=4GB \
       --mem-type=LPDDR4_3200_2x16  \
@@ -84,17 +116,25 @@ Now we are ready to launch the simulation::
       --cacheline_size=32 \
       --accel_cfg_file=gem5.cfg \
       --fast-forward=10000000000 \
-      -c <path-to-smaug>/build/bin/smaug \
+      -c /workspace/smaug/build/bin/smaug \
       -o "my_model_topo.pbtxt my_model_params.pb --gem5 --debug-level=0"
 
-This command runs our custom 3-level model in gem5-Aladdin simulation.
+This command runs our custom 3-level DNN model in gem5-Aladdin simulation.
 gem5-Aladdin provides a wide range of SoC simulation choices, for instance,
 here, the simulated SoC has an out-of-order CPU running at 2.5GHZ, a two-level
 cache hierarchy with a 2MB, 16-way associative L2 cache and 32B cacheline size.
-The :code:`fast-forward` parameters is used to speed up the simulation of
-the initialization phase, which uses a simplified CPU model in gem5. In SMAUG,
-we use gem5's magic instruction :code:`m5_switch_cpu` to switch to the detailed
-OoO CPU when the initialization is done.
+
+There are a few parameters that have special importance. :code:`--mem-size=4GB`
+will attempt to allocate an enitre 4GB block of memory. If the host machine is
+low on memory, this could fail. The :code:`--num-cpus=1` can be adjusted to
+allow for multithreading (see :ref:`label_multithreading` for discussion). The
+:code:`--fast-forward` parameter is used to speed up the simulation of the
+initialization phase, which uses a simplified CPU model in gem5. It is set to a
+very large cycle value to ensure that gem5 doesn't automatically switch to
+detailed CPU too early. In SMAUG, we use gem5's magic instruction
+:code:`m5_switch_cpu` to switch to the detailed CPU when the initialization is
+done. For the SMAUG commandline options, note that now we must pass
+:code:`--gem5` flag to enable gem5-Aladdin simulation.
 
 After the simulation starts, we will see the output look like this::
 
@@ -190,15 +230,35 @@ block, results are printed::
           Aladdin Results
     ===============================
 
-Depending on the machine on which the simulation runs, it takes about 10 mins
-on my i7-9850H CPU to finish the simulation.
+How long the simulation will take depends on the machine. On my Intel Core i7
+9850H, it takes about 10 minutes. For larger models, both the trace storage and
+simulation time can become problematic, read on to see the solution.
 
-And congratulations! You just finished running the first SMAUG simulation. The
+.. _label_apply_sampling:
+
+Apply sampling to reduce simulation time and trace storage
+----------------------------------------------------------
+
+To save simulation time and trace storage for large models, we can sample the
+loop iterations in the oftentimes repetitive DL kernels. To enable sampling,
+use the :code:`--sample-level` and :code:`--sample-num` parameters in SMAUG.
+:code:`--sample-level` sets the sampling level, which can be one of the five
+levels: :code:`no`, :code:`low`, :code:`medium`, :code:`high` and
+:code:`very_high`. :code:`--sample-num` sets the number of sample iterations
+used by every sampling enabled entity, fewer sample iterations means more
+sampling. Details about using the sampling parameters and the gem5-Aladdin
+sampling APIs are discussed in `Sampling of accelerated kernels
+<doxygen_html/simulation.html>`_.
+
+.. _label_multithreading:
+
+Simulate with multiple threads
+------------------------------
+
+If the SoC has multiple CPUs (specified via the :code:`--num-cpus` parameter),
+we can enable SMAUG's multithreading feature by passing the
+:code:`--num-threads` parameter to it. See `Multithreading in gem5 SE mode
+<doxygen_html/simulation.html>`_ for more details.
+
+Congratulations! You just finished running the first SMAUG simulation. The
 :code:`outputs` folder contains simulation stats generated by gem5-Aladdin.
-
-Apply sampling to reduce simulation time
-----------------------------------------
-
-For large models, the trace storage and simulation time can become problematic.
-To solve these issue, we use sampling techniques detailed in `C++ side
-tutorials <doxygen_html/index.html>`_.
