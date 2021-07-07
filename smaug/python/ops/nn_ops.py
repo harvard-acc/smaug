@@ -74,6 +74,63 @@ def convolution(
       output_tensors_dims=[output_tensor_dims],
       output_tensor_layout=output_layout, params=params)[0]
 
+def depthwise_convolution(
+    input_tensor, filter_tensor, stride, padding, name="depthwise_conv"):
+  """Compute a 3D depthwise Convolution given 4D `input_tensor` and `filter_tensor`.
+
+  Args:
+    input_tensor: A 4D `Tensor`.
+    filter_tensor: A 4D `Tensor`.
+    stride: A list of two integers: [row_stride, col_stride].
+    padding: A string from: `same`, `valid`. The zero padding options.
+    name: Operator name (optional).
+  """
+  # 这个函数计算输出的维度，需要进行修改，因为我输出的维度不一样了
+  # 好像还真是一样的，就是channel维度不一样
+  def compute_output_dim(input_dim, weight_dim, stride, padding):
+    pad = 0
+    if to_padding_type(padding) == types_pb2.SamePadding:
+      pad = weight_dim - 1
+    return (input_dim - weight_dim + pad) // stride + 1
+
+  input_tensor, filter_tensor = array_ops.check_and_add_layout_transform(
+      name=name, op=types_pb2.ConvolutionDepthwise,
+      input_tensors=[input_tensor, filter_tensor])
+
+  row_idx = 2 if input_tensor.shape.layout == types_pb2.NCHW else 1
+  col_idx = 3 if input_tensor.shape.layout == types_pb2.NCHW else 2
+  chan_idx = 1 if input_tensor.shape.layout == types_pb2.NCHW else 3
+  assert input_tensor.dims(chan_idx) == filter_tensor.dims(chan_idx), (
+      "The weights must have the same number of channels as the inputs.")
+  output_rows = compute_output_dim(input_tensor.shape.dims[row_idx],
+                                   filter_tensor.shape.dims[row_idx], stride[0],
+                                   padding)
+  output_cols = compute_output_dim(input_tensor.shape.dims[col_idx],
+                                   filter_tensor.shape.dims[col_idx], stride[1],
+                                   padding)
+  output_layout = input_tensor.shape.layout
+  if output_layout == types_pb2.NCHW:
+    output_tensor_dims = [
+        input_tensor.shape.dims[0], input_tensor.shape.dims[chan_idx], output_rows,
+        output_cols
+    ]
+  elif output_layout == types_pb2.NHWC:
+    output_tensor_dims = [
+        input_tensor.shape.dims[0], output_rows, output_cols,
+        input_tensor.shape.dims[chan_idx]
+    ]
+  else:
+    assert False, "Unsupported output layout!"
+  params = node_pb2.Params()
+  params.conv_params.padding = to_padding_type(padding)
+  params.conv_params.stride.extend(stride)
+  
+  return common.add_node(
+      name=name, op=types_pb2.ConvolutionDepthwise,
+      input_tensors=[input_tensor, filter_tensor],
+      output_tensors_dims=[output_tensor_dims],
+      output_tensor_layout=output_layout, params=params)[0]
+
 def batch_norm(
     input_tensor, mean_tensor, var_tensor, gamma_tensor, beta_tensor,
     activation=None, activation_params=None, name="batch_norm"):

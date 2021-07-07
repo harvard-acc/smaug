@@ -3,79 +3,80 @@ syntax = "proto3";
 package smaug;
 
 enum DataType {
-  UnknownDataType = 0;
-  Int32 = 1;
-  Int64 = 2;
-  Float16 = 3;
-  Float32 = 4;
-  Float64 = 5;
-  Bool = 6;
+    UnknownDataType = 0;
+    Int32 = 1;
+    Int64 = 2;
+    Float16 = 3;
+    Float32 = 4;
+    Float64 = 5;
+    Bool = 6;
 }
 
 enum DataLayout {
-  option allow_alias = true;
-  UnknownLayout = 0;
-  NCHW = 1;
-  NHWC = 2;
-  NC = 4;
-  CN = 8;
-  NCT = 16;
-  NTC = 32;
-  N = 64;
-  X = 127; // Elementwise
-  EndDataLayout = 64;
+    option allow_alias = true;
+    UnknownLayout = 0;
+    NCHW = 1;
+    NHWC = 2;
+    NC = 4;
+    CN = 8;
+    NCT = 16;
+    NTC = 32;
+    N = 64;
+    X = 127;  // Elementwise
+    EndDataLayout = 64;
 }
 
 enum DataStorageFormat {
-  UnknownStorageFormat = 0;
-  Uncompressed = 1;
-  CSR = 2;
-  PackedCSR = 3;
-  UncompressedHalfPrecision = 4;
+    UnknownStorageFormat = 0;
+    Uncompressed = 1;
+    CSR = 2;
+    PackedCSR = 3;
+    UncompressedHalfPrecision = 4;
 }
 
 enum OpType {
-  UnknownOp = 0;
-  Convolution3d = 1;
-  ConvolutionDepthwise = 2;
-  MaxPooling = 3;
-  AveragePooling = 4;
-  InnerProduct = 5;
-  BatchNorm = 6;
-  Data = 7;
-  ReLU = 8;
-  LReLU = 9;
-  ELU = 10;
-  SELU = 11;
-  Tanh = 12;
-  HardTanh = 13;
-  Sigmoid = 14;
-  Softmax = 15;
-  EltwiseAdd = 16;
-  Reorder = 17;
-  EltwiseMul = 18;
-  Concat = 19;
-  Split = 20;
-  Reshape = 21;
-  Repeat = 22;
-  Less = 23;
-  LessEqual = 24;
-  Greater = 25;
-  GreaterEqual = 26;
-  Switch = 27;
-  Merge = 28;
+    UnknownOp = 0;
+    Convolution3d = 1;
+    ConvolutionDepthwise = 2;
+    MaxPooling = 3;
+    AveragePooling = 4;
+    InnerProduct = 5;
+    BatchNorm = 6;
+    Data = 7;
+    ReLU = 8;
+    LReLU = 9;
+    ELU = 10;
+    SELU = 11;
+    Tanh = 12;
+    HardTanh = 13;
+    Sigmoid = 14;
+    Softmax = 15;
+    EltwiseAdd = 16;
+    Reorder = 17;
+    EltwiseMul = 18;
+    Concat = 19;
+    Split = 20;
+    Reshape = 21;
+    Repeat = 22;
+    Less = 23;
+    LessEqual = 24;
+    Greater = 25;
+    GreaterEqual = 26;
+    Switch = 27;
+    Merge = 28;
+    Padding = 29;
 }
 
 enum PaddingType {
-  UnknownPadding = 0;
-  SamePadding = 1;
-  ValidPadding = 2;
+    UnknownPadding = 0;
+    SamePadding = 1;
+    ValidPadding = 2;
 }
 
 enum HostMemoryAccessPolicy {
-  UnknownMemoryPolicy = 0;
-  AllDma = 1;
-  AllAcp = 2;
-  AllCache = 3;
-  AllAcpWithDmaForWeights = 4;
+    UnknownMemoryPolicy = 0;
+    AllDma = 1;
+    AllAcp = 2;
+    AllCache = 3;
+    AllAcpWithDmaForWeights = 4;
 }

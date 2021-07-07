@@ -1,0 +1,3 @@
+build/
+experiments/
+smaug/operators/padding_op_test.h
