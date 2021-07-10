@@ -266,7 +266,7 @@ static void createAndAddOperator(const NodeProto& node,
         network->addOperator(op);
     } else if (type == OpType::Padding) {  // how to set this
         auto op = Backend::createPaddingOp(name, workspace);
-        // op->setParam1(node.param1());   // not sure if we need this.
+        op->setPadder(node.params().padding_params().padding_size());
         network->addOperator(op);
     } else if (type == OpType::HardTanh) {
         auto op = Backend::createHardTanhOp(name, workspace);
