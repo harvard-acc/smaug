@@ -48,6 +48,12 @@ class PaddingOp : public Operator {
       int ndims = input->ndims();
       std::vector<int> inputDims = input->getShape().dims();
       std::vector<int> outputDims = output->getShape().dims();
+      int total_dim = 1;
+      for (int i: outputDims){
+        total_dim *= i;
+      }
+      std::vector<float> vf(total_dim, 0);
+      output->fillData(vf.data(), vf.size());
       /*
       copyTensorRegion(Tensor* dest,
                       Tensor* src,
