@@ -344,3 +344,33 @@ def check_and_add_layout_transform(name, op, input_tensors):
       input_tensors[i] = reorder(input_tensors[i], expected_layoutset.layouts)
   return input_tensors
 
+def padding(input_tensor, padder, name="padding"):
+  """Construct a tensor by padding a given tensor.
+
+  Args:
+    input_tensor: Input tensor.
+    padder: A int value that represents the padding dimension
+    name: Name of the operator.
+
+  Returns:
+    A paded version of the input tensor.
+  """
+  if padder < 0:
+    raise ValueError("The padder must be eqaul or greater than 0")
+  src_layout = input_tensor.shape.layout
+  src_dims = input_tensor.shape.dims
+  if src_layout == types_pb2.NCHW:
+    output_tensor_dims = (src_dims[0], src_dims[1], src_dims[2]+2*padder, 
+                          src_dims[3]+2*padder)
+  elif src_layout == types_pb2.NHWC:
+    output_tensor_dims = (src_dims[0], src_dims[1]+2*padder, src_dims[2]+2*padder, 
+                          src_dims[3])
+  else:
+    raise ValueError("Only support layout as NHWC or NCHW")
+  params = node_pb2.Params()
+  params.padding_params.padding_size = padder
+  return common.add_node(
+      name=name, op=types_pb2.Padding, input_tensors=[input_tensor],
+      output_tensors_dims=[output_tensor_dims],
+      output_tensor_layout=input_tensor.shape.layout,
+      params=params)[0]

@@ -85,8 +85,6 @@ def depthwise_convolution(
     padding: A string from: `same`, `valid`. The zero padding options.
     name: Operator name (optional).
   """
-  # 这个函数计算输出的维度，需要进行修改，因为我输出的维度不一样了
-  # 好像还真是一样的，就是channel维度不一样
   def compute_output_dim(input_dim, weight_dim, stride, padding):
     pad = 0
     if to_padding_type(padding) == types_pb2.SamePadding:
