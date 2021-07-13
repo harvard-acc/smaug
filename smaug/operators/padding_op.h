@@ -40,7 +40,7 @@ class PaddingOp : public Operator {
         // set output size?
     }
 
-    auto getPadder() { return padder; }
+    int getPadder() { return padder; }
 
     void run() override {
       Tensor* input = getInput(0);
