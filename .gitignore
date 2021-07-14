@@ -1,0 +1,6 @@
+tags
+build/
+*.pyc
+__pycache__
+*.swp
+*.swo
