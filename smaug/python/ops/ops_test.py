@@ -103,7 +103,7 @@ class OperatorTest:
       out = array_ops.stack(out, 4, 1, "stack")
       out0, out1, out2, out3 = array_ops.unstack(out, 1, "unstack")
       out0 = array_ops.reshape(out0, [1, 1, 8, 10], types_pb2.NCHW, "reshape")
-      out0 = array_ops.padding(out0, 1, "padding")
+      out0 = array_ops.padding(out0, [0, 0, 0, 0, 1, 1, 1, 1], "padding")
 
     self.test_graph, _ = graph.to_proto()
     self.backend = backend

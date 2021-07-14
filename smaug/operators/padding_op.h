@@ -4,13 +4,14 @@
 #include "smaug/core/backend.h"
 #include "smaug/core/operator.h"
 #include "smaug/core/tensor.h"
-// #include "smaug/core/tensor_utils.h"
 #include "smaug/core/workspace.h"
+#include <google/protobuf/repeated_field.h>
+using namespace google::protobuf;
 
 namespace smaug {
 
 /** \ingroup Operators
- * \brief Pad a given tensor in different dimension.
+ * \brief Pad a given tensor in  any number of dimensions with arbitrary size.
  *
  * This has a software-based implementation.
  *
@@ -19,95 +20,77 @@ namespace smaug {
 template <typename Backend>
 class PaddingOp : public Operator {
    public:
-    PaddingOp(const std::string& name,
-              Workspace* workspace)
-            : Operator(name, OpType::Repeat, workspace){
+    PaddingOp(const std::string& name, Workspace* workspace)
+            : Operator(name, OpType::Padding, workspace) {
         inputs.resize(kNumInputs, nullptr);
         outputs.resize(kNumOutputs, nullptr);
     }
 
-    PaddingOp(const std::string& name,
-              Workspace* workspace,
-              int val)
-            : Operator(name, OpType::Repeat, workspace), padder(val){
-        inputs.resize(kNumInputs, nullptr);
-        outputs.resize(kNumOutputs, nullptr);
+    /**
+     * Set the paddingSize of the Tensor along each dimension.
+     * The paddingSize is orgainized as <dim1_forward, dim1_backward, ...
+     * ,dimk_backward>
+     */
+    void setPaddingSize(RepeatedField<google::protobuf::int32> const& val) {
+        std::vector<double> paddingSize(val.begin(), val.end());
     }
 
-    /** Set the number of padders of the Tensor along each dimension. */
-    void setPadder(const int& val) {
-        padder = val;
-        // set output size?
-    }
+    void setPaddingSize(std::vector<int> const& val) { paddingSize = val; }
 
-    int getPadder() { return padder; }
+    std::vector<int> getPaddingSize() { return paddingSize; }
 
     void run() override {
-      Tensor* input = getInput(0);
-      Tensor* output = getOutput(0);
-      int ndims = input->ndims();
-      std::vector<int> inputDims = input->getShape().dims();
-      std::vector<int> outputDims = output->getShape().dims();
-      int total_dim = 1;
-      for (int i: outputDims){
-        total_dim *= i;
-      }
-      std::vector<float> vf(total_dim, 0);
-      output->fillData(vf.data(), vf.size());
-      /*
-      copyTensorRegion(Tensor* dest,
-                      Tensor* src,
-                      const std::vector<int>& destOrigin,
-                      const std::vector<int>& srcOrigin,
-                      const std::vector<int>& regionSize
-      */
-      std::vector<int> destOrigin;
-      if (input->getShape().getLayout() == DataLayout::NCHW){
-        destOrigin = std::vector<int>({0, 0, padder, padder});
-      }
-      else if(input->getShape().getLayout() == DataLayout::NHWC){
-        destOrigin = std::vector<int>({0, padder, padder, 0});
-      }
-      else{
-        assert(false && "Invalid padding data type!");
-      }
-      std::vector<int> srcOrigin = std::vector<int>({0, 0, 0, 0});
-      std::vector<int> regionSize = inputDims;
-      copyTensorRegion(output, input, destOrigin, srcOrigin, regionSize);
+        Tensor* input = getInput(0);
+        Tensor* output = getOutput(0);
+        int ndims = input->ndims();
+        const std::vector<int> inputDims = input->getShape().dims();
+        const std::vector<int> outputDims = output->getShape().dims();
+        int total_dim = 1;
+        for (int i : outputDims) {
+            total_dim *= i;
+        }
+        std::vector<float> vf(total_dim, 0);
+        output->fillData(vf.data(), vf.size());
+        std::vector<int> destOrigin, paddingBegin, srcOrigin;
+        for (int i = 0; i < ndims; i++) {
+            paddingBegin.push_back(paddingSize[2 * i]);
+            srcOrigin.push_back(0);
+        }
+        destOrigin = std::vector<int>(paddingBegin);
+        std::vector<int> regionSize = inputDims;
+        copyTensorRegion(output, input, destOrigin, srcOrigin, regionSize);
     }
 
     // Optional override for testing purposes.
     void createAllTensors() override {
         Tensor* input = getInput(0);
+        int ndims = input->ndims();
         std::vector<int> dims = input->getShape().dims();
-        if (input->getShape().getLayout() == DataLayout::NCHW){
-          dims[2] += 2*padder;
-          dims[3] += 2*padder;
-        }
-        else if (input->getShape().getLayout() == DataLayout::NHWC){
-          dims[1] += 2*padder;
-          dims[2] += 2*padder;
+        for (int i = 0; i < ndims; i++) {
+            dims[i] += (paddingSize[2 * i] + paddingSize[2 * i + 1]);
         }
         TensorShape shape(
                 dims, input->getShape().getLayout(), Backend::Alignment);
         Tensor* output = new Tensor(name, shape);
         workspace->addTensor(output);
         outputs.at(0) = output;
-     }
+    }
 
     // Optional but recommended function to verify operator parameters.
     bool validate() override {
-      if (padder < 0){
-        return false;
-      }
+        Tensor* input = getInput(0);
+        int ndims = input->ndims();
+        if (paddingSize.size() != 2 * ndims) {
+            return false;
+        }
         return Operator::validate();
     }
-    
+
     enum { kInputs, kNumInputs };
     enum { kOutputs, kNumOutputs };
 
-  private:
-    int padder = 0;
+   private:
+    std::vector<int> paddingSize = {};
 };
 
 }  // namespace smaug

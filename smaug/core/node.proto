@@ -16,7 +16,7 @@ message PoolParams {
 }
 
 message PaddingParams {
-  int32 padding_size = 1;
+  repeated int32 padding_size = 1;
 }
 
 message ConcatParams {
