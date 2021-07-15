@@ -349,7 +349,8 @@ def padding(input_tensor, padding_size, name="padding"):
 
   Args:
     input_tensor: Input tensor.
-    padding_size: A list that contains number of values padded to each dimension.
+    padding_size: A list in the format of {dim0_begin, dim0_end, dim1_begin, dim1_end, ...} that 
+                  represent number of values padded to each dimension.
     name: Name of the operator.
 
   Returns:

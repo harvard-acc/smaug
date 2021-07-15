@@ -32,12 +32,12 @@ class PaddingOp : public Operator {
      * ,dimk_backward>
      */
     void setPaddingSize(RepeatedField<google::protobuf::int32> const& val) {
-        std::vector<double> paddingSize(val.begin(), val.end());
+        std::vector<int> paddingSize(val.begin(), val.end());
     }
 
     void setPaddingSize(std::vector<int> const& val) { paddingSize = val; }
 
-    std::vector<int> getPaddingSize() { return paddingSize; }
+    const std::vector<int> getPaddingSize() { return paddingSize; }
 
     void run() override {
         Tensor* input = getInput(0);
