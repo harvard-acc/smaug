@@ -99,7 +99,7 @@ TEST_CASE_METHOD(SmaugTest, "padding a tensor", "[refop]") {
         std::vector<float> expected_output{
             0, 0, 0,  // input 0, chan 0, row -1
             0, 0, 0,  // input 0, chan 0, row 0
-            0, 0, 0,  // input 0, chan 1, row 3
+            0, 0, 0,  // input 0, chan 1, row 1
         };
         // This performs an approximate comparison between the tensor's output
         // and the expected values.

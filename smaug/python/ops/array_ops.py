@@ -349,8 +349,10 @@ def padding(input_tensor, padding_size, name="padding"):
 
   Args:
     input_tensor: Input tensor.
-    padding_size: A list in the format of {dim0_begin, dim0_end, dim1_begin, dim1_end, ...} that 
-                  represent number of values padded to each dimension.
+    padding_size: A list in the format of {dim0_begin, dim0_end, dim1_begin, 
+                  dim1_end, ...} that represent number of values padded to 
+                  each dimension. Note that the order of dimensions of this 
+                  must align with the data layout of input_tensor.
     name: Name of the operator.
 
   Returns:
@@ -359,7 +361,7 @@ def padding(input_tensor, padding_size, name="padding"):
   src_layout = input_tensor.shape.layout
   src_dims = input_tensor.shape.dims
   if len(padding_size) != 2 * len(src_dims):
-    raise ValueError("The padding_size's dimension must be two times as the input_tensor")
+    raise ValueError("len(padding_size) should be 2x input_tensor.shape.dims")
   output_tensor_dims = [0] * len(src_dims)
   for i in range(len(src_dims)):
     output_tensor_dims[i] = src_dims[i] + padding_size[2 * i] + padding_size[2 * i+1]

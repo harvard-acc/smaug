@@ -28,42 +28,42 @@ class PaddingOp : public Operator {
 
     /**
      * Set the paddingSize of the Tensor along each dimension.
-     * The paddingSize is orgainized as <dim1_forward, dim1_backward, ...
-     * ,dimk_backward>
+     * The paddingSize is orgainized as <{dim0_begin, dim0_end, dim1_begin,
+     * dim1_end, ... >
      */
-    void setPaddingSize(RepeatedField<google::protobuf::int32> const& val) {
+    void setPaddingSize(const RepeatedField<google::protobuf::int32>& val) {
         paddingSize.assign(val.begin(), val.end());
     }
 
     void setPaddingSize(std::vector<int> const& val) { paddingSize = val; }
 
-    std::vector<int> getPaddingSize() const { return paddingSize; }
+    const std::vector<int>& getPaddingSize() const { return paddingSize; }
 
     void run() override {
-        Tensor* input = getInput(0);
-        Tensor* output = getOutput(0);
+        Tensor* input = getInput(kInput);
+        Tensor* output = getOutput(kOutput);
         int ndims = input->ndims();
-        const std::vector<int> inputDims = input->getShape().dims();
-        const std::vector<int> outputDims = output->getShape().dims();
+        const std::vector<int>& inputDims = input->getShape().dims();
+        const std::vector<int>& outputDims = output->getShape().dims();
         int total_dim = 1;
         for (int i : outputDims) {
             total_dim *= i;
         }
         std::vector<float> vf(total_dim, 0);
         output->fillData(vf.data(), vf.size());
-        std::vector<int> destOrigin, paddingBegin, srcOrigin;
+        std::vector<int> paddingBegin, srcOrigin;
         for (int i = 0; i < ndims; i++) {
-            paddingBegin.push_back(paddingSize[2 * i]);
+            paddingBegin.push_back(paddingSize.at(2 * i));
             srcOrigin.push_back(0);
         }
-        destOrigin = std::vector<int>(paddingBegin);
+        std::vector<int> destOrigin = std::vector<int>(paddingBegin);
         std::vector<int> regionSize = inputDims;
         copyTensorRegion(output, input, destOrigin, srcOrigin, regionSize);
     }
 
     // Optional override for testing purposes.
     void createAllTensors() override {
-        Tensor* input = getInput(0);
+        Tensor* input = getInput(kInput);
         int ndims = input->ndims();
         std::vector<int> dims = input->getShape().dims();
         for (int i = 0; i < ndims; i++) {
@@ -73,12 +73,12 @@ class PaddingOp : public Operator {
                 dims, input->getShape().getLayout(), Backend::Alignment);
         Tensor* output = new Tensor(name, shape);
         workspace->addTensor(output);
-        outputs.at(0) = output;
+        outputs.at(kOutput) = output;
     }
 
     // Optional but recommended function to verify operator parameters.
     bool validate() override {
-        Tensor* input = getInput(0);
+        Tensor* input = getInput(kInput);
         int ndims = input->ndims();
         if (paddingSize.size() != 2 * ndims) {
             return false;
@@ -86,8 +86,8 @@ class PaddingOp : public Operator {
         return Operator::validate();
     }
 
-    enum { kInputs, kNumInputs };
-    enum { kOutputs, kNumOutputs };
+    enum { kInput, kNumInputs };
+    enum { kOutput, kNumOutputs };
 
    private:
     std::vector<int> paddingSize = {};
