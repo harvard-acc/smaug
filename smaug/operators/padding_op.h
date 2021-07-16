@@ -56,9 +56,7 @@ class PaddingOp : public Operator {
             paddingBegin.push_back(paddingSize.at(2 * i));
             srcOrigin.push_back(0);
         }
-        std::vector<int> destOrigin = std::vector<int>(paddingBegin);
-        std::vector<int> regionSize = inputDims;
-        copyTensorRegion(output, input, destOrigin, srcOrigin, regionSize);
+        copyTensorRegion(output, input, paddingBegin, srcOrigin, inputDims);
     }
 
     // Optional override for testing purposes.
