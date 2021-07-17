@@ -114,11 +114,11 @@ DEF_CREATE_OP(PaddingOp, SmvBackend)
 
 // for simple tracing.
 namespace ref {
-const unsigned kConvolutionHw = 0x0001;   // 0x0001;
-const unsigned kInnerProductHw = 0x0001;  // 0x0002;
-const unsigned kEltwiseOpHw = 0x0001;     // 0x0003;
-const unsigned kBatchNormHw = 0x0001;     // 0x0004;
-const unsigned kPoolingHw = 0x0001;       // 0x0005;
+const unsigned kConvolutionHw = 0x0001;
+const unsigned kInnerProductHw = 0x0002;
+const unsigned kEltwiseOpHw = 0x0003;
+const unsigned kBatchNormHw = 0x0004;
+const unsigned kPoolingHw = 0x0005;
 }  // namespace ref
 
 namespace smv {
