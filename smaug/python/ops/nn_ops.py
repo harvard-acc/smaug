@@ -75,7 +75,8 @@ def convolution(
       output_tensor_layout=output_layout, params=params)[0]
 
 def depthwise_convolution(
-    input_tensor, filter_tensor, stride, padding, name="depthwise_conv"):
+    input_tensor, filter_tensor, stride, padding, activation=None,
+    activation_params=None, name="depthwise_conv"):
   """Compute a 3D depthwise Convolution given 4D `input_tensor` and `filter_tensor`.
 
   Args:
@@ -83,10 +84,10 @@ def depthwise_convolution(
     filter_tensor: A 4D `Tensor`.
     stride: A list of two integers: [row_stride, col_stride].
     padding: A string from: `same`, `valid`. The zero padding options.
+    activation: A string representing the activation function (optional).
+    activation_params: kwargs for the activation function (optional).
     name: Operator name (optional).
   """
-  # 这个函数计算输出的维度，需要进行修改，因为我输出的维度不一样了
-  # 好像还真是一样的，就是channel维度不一样
   def compute_output_dim(input_dim, weight_dim, stride, padding):
     pad = 0
     if to_padding_type(padding) == types_pb2.SamePadding:
@@ -124,7 +125,9 @@ def depthwise_convolution(
   params = node_pb2.Params()
   params.conv_params.padding = to_padding_type(padding)
   params.conv_params.stride.extend(stride)
-  
+  if activation is not None:
+    params.act_params.CopyFrom(
+        activation_ops.to_proto(activation, activation_params))
   return common.add_node(
       name=name, op=types_pb2.ConvolutionDepthwise,
       input_tensors=[input_tensor, filter_tensor],
