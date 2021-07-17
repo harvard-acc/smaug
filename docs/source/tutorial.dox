@@ -257,7 +257,7 @@ range of useful testing utilities. Open up a new cpp file
 
 using namespace smaug;
 
-TEST_CASE_METHOD(SmaugTest, MyCustomOperator) {
+TEST_CASE_METHOD(SmaugTest, MyCustomOperator, "[ops]") {
   // DataLayout::NC is a simple 2D layout, where N = batches and C = a column
   // of data.
   TensorShape shape(1, 10, DataLayout::NC);
@@ -508,7 +508,7 @@ void fillTensorWithSequentialFloat32Data(Tensor* tensor) {
   }
 }
 
-TEST_CASE_METHOD(SmaugTest, MyCustomOperatorWithTiling) {
+TEST_CASE_METHOD(SmaugTest, MyCustomOperatorWithTiling, "[tiling]") {
   // With float32 elements, this will occupy 128KB, which should create four
   // tiles per tensor.
   TensorShape shape(8, 4096, DataLayout::NC);

@@ -344,3 +344,31 @@ def check_and_add_layout_transform(name, op, input_tensors):
       input_tensors[i] = reorder(input_tensors[i], expected_layoutset.layouts)
   return input_tensors
 
+def padding(input_tensor, padding_size, name="padding"):
+  """Construct a tensor by padding a given tensor.
+
+  Args:
+    input_tensor: Input tensor.
+    padding_size: A list in the format of {dim0_begin, dim0_end, dim1_begin, 
+                  dim1_end, ...} that represent number of values padded to 
+                  each dimension. Note that the order of dimensions of this 
+                  must align with the data layout of input_tensor.
+    name: Name of the operator.
+
+  Returns:
+    A padded version of the input tensor.
+  """
+  src_layout = input_tensor.shape.layout
+  src_dims = input_tensor.shape.dims
+  if len(padding_size) != 2 * len(src_dims):
+    raise ValueError("len(padding_size) should be 2x input_tensor.shape.dims")
+  output_tensor_dims = [0] * len(src_dims)
+  for i in range(len(src_dims)):
+    output_tensor_dims[i] = src_dims[i] + padding_size[2 * i] + padding_size[2 * i+1]
+  params = node_pb2.Params()
+  params.padding_params.padding_size.extend(padding_size)
+  return common.add_node(
+      name=name, op=types_pb2.Padding, input_tensors=[input_tensor],
+      output_tensors_dims=[output_tensor_dims],
+      output_tensor_layout=input_tensor.shape.layout,
+      params=params)[0]

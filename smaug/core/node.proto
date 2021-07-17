@@ -15,6 +15,10 @@ message PoolParams {
   repeated int32 pool_size = 2;
 }
 
+message PaddingParams {
+  repeated int32 padding_size = 1;
+}
+
 message ConcatParams {
   int32 concat_axis = 1;
 }
@@ -52,6 +56,7 @@ message Params {
     PoolParams pool_params = 2;
     ConcatParams concat_params = 4;
     SplitParams split_params = 5;
+    PaddingParams padding_params = 6;
   }
   ActivationParams act_params = 3;
 }

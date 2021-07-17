@@ -82,6 +82,7 @@ TESTS = smaug/core/tensor_test.cpp \
         smaug/operators/split_op_test.cpp \
         smaug/operators/reshape_op_test.cpp \
         smaug/operators/repeat_op_test.cpp \
+        smaug/operators/padding_op_test.cpp \
         smaug/operators/control_flow_ops_test.cpp \
         smaug/operators/smv/smv_convolution_tiling_test.cpp \
         smaug/operators/smv/smv_convolution_op_test.cpp \

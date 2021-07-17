@@ -102,6 +102,8 @@ class OperatorTest:
       out = array_ops.repeat(out, [4, 2], "repeat")
       out = array_ops.stack(out, 4, 1, "stack")
       out0, out1, out2, out3 = array_ops.unstack(out, 1, "unstack")
+      out0 = array_ops.reshape(out0, [1, 1, 8, 10], types_pb2.NCHW, "reshape")
+      out0 = array_ops.padding(out0, [0, 0, 0, 0, 1, 1, 1, 1], "padding")
 
     self.test_graph, _ = graph.to_proto()
     self.backend = backend
@@ -430,6 +432,18 @@ class SequentialGraphTest(OperatorTest):
     self.assertEqual(node.output_tensors[0].data_type, self.expected_dtype)
     self.assertEqual(node.output_tensors[0].shape.dims, [8, 10])
     self.assertEqual(node.output_tensors[0].shape.layout, types_pb2.NC)
+    self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
+
+  def test_padding_op(self):
+    node = self.get_node("padding")
+    self.assertEqual(node.op, types_pb2.Padding)
+    self.assertEqual(len(node.input_tensors), 1)
+    self.assertEqual(len(node.output_tensors), 1)
+    # Output tensor
+    self.assertEqual(node.output_tensors[0].name, "padding/output0")
+    self.assertEqual(node.output_tensors[0].data_type, self.expected_dtype)
+    self.assertEqual(node.output_tensors[0].shape.dims, [1, 1, 10, 12])
+    self.assertEqual(node.output_tensors[0].shape.layout, types_pb2.NCHW)
     self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
 
   def test_stack_op(self):
