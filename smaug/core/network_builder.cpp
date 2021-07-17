@@ -1,56 +1,57 @@
-#include <iostream>
-#include <fstream>
 #include <fcntl.h>
+#include <fstream>
+#include <iostream>
 
-#include <google/protobuf/text_format.h>
 #include <google/protobuf/io/zero_copy_stream_impl.h>
+#include <google/protobuf/text_format.h>
 
 #include "smaug/core/backend.h"
-#include "smaug/core/tensor.h"
+#include "smaug/core/graph.pb.h"
 #include "smaug/core/network.h"
 #include "smaug/core/network_builder.h"
-#include "smaug/core/workspace.h"
-#include "smaug/core/graph.pb.h"
 #include "smaug/core/node.pb.h"
+#include "smaug/core/tensor.h"
 #include "smaug/core/tensor.pb.h"
 #include "smaug/core/types.pb.h"
-#include "smaug/operators/common.h"
+#include "smaug/core/workspace.h"
 #include "smaug/operators/batch_norm_op.h"
+#include "smaug/operators/common.h"
+#include "smaug/operators/concat_op.h"
+#include "smaug/operators/control_flow_ops.h"
 #include "smaug/operators/convolution_op.h"
 #include "smaug/operators/data_op.h"
 #include "smaug/operators/depthwise_convolution_op.h"
 #include "smaug/operators/eltwise_add_op.h"
 #include "smaug/operators/eltwise_mul_op.h"
-#include "smaug/operators/less_op.h"
-#include "smaug/operators/greater_op.h"
-#include "smaug/operators/control_flow_ops.h"
 #include "smaug/operators/elu_op.h"
+#include "smaug/operators/greater_op.h"
 #include "smaug/operators/inner_product_op.h"
+#include "smaug/operators/less_op.h"
+#include "smaug/operators/padding_op.h"
 #include "smaug/operators/pooling_op.h"
 #include "smaug/operators/relu_op.h"
 #include "smaug/operators/reorder_op.h"
-#include "smaug/operators/concat_op.h"
-#include "smaug/operators/split_op.h"
-#include "smaug/operators/reshape_op.h"
 #include "smaug/operators/repeat_op.h"
+#include "smaug/operators/reshape_op.h"
 #include "smaug/operators/sigmoid_op.h"
-#include "smaug/operators/softmax_op.h"
-#include "smaug/operators/tanh_op.h"
-#include "smaug/operators/smv/smv_convolution_op.h"
-#include "smaug/operators/smv/smv_inner_product_op.h"
-#include "smaug/operators/smv/smv_pooling_op.h"
 #include "smaug/operators/smv/smv_batch_norm_op.h"
-#include "smaug/operators/smv/smv_relu_op.h"
-#include "smaug/operators/smv/smv_elu_op.h"
-#include "smaug/operators/smv/smv_tanh_op.h"
-#include "smaug/operators/smv/smv_sigmoid_op.h"
-#include "smaug/operators/smv/smv_softmax_op.h"
+#include "smaug/operators/smv/smv_convolution_op.h"
 #include "smaug/operators/smv/smv_eltwise_add_op.h"
 #include "smaug/operators/smv/smv_eltwise_mul_op.h"
-#include "smaug/operators/smv/smv_less_op.h"
+#include "smaug/operators/smv/smv_elu_op.h"
 #include "smaug/operators/smv/smv_greater_op.h"
-#include "smaug/utility/utils.h"
+#include "smaug/operators/smv/smv_inner_product_op.h"
+#include "smaug/operators/smv/smv_less_op.h"
+#include "smaug/operators/smv/smv_pooling_op.h"
+#include "smaug/operators/smv/smv_relu_op.h"
+#include "smaug/operators/smv/smv_sigmoid_op.h"
+#include "smaug/operators/smv/smv_softmax_op.h"
+#include "smaug/operators/smv/smv_tanh_op.h"
+#include "smaug/operators/softmax_op.h"
+#include "smaug/operators/split_op.h"
+#include "smaug/operators/tanh_op.h"
 #include "smaug/utility/debug_stream.h"
+#include "smaug/utility/utils.h"
 
 using namespace smaug;
 using namespace std;
@@ -262,6 +263,10 @@ static void createAndAddOperator(const NodeProto& node,
         network->addOperator(op);
     } else if (type == OpType::Tanh) {
         auto op = Backend::createTanhOp(name, workspace);
+        network->addOperator(op);
+    } else if (type == OpType::Padding) {
+        auto op = Backend::createPaddingOp(name, workspace);
+        op->setPaddingSize(node.params().padding_params().padding_size());
         network->addOperator(op);
     } else if (type == OpType::HardTanh) {
         auto op = Backend::createHardTanhOp(name, workspace);

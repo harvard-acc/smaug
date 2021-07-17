@@ -22,7 +22,7 @@ enum DataLayout {
   NCT = 16;
   NTC = 32;
   N = 64;
-  X = 127; // Elementwise
+  X = 127;  // Elementwise
   EndDataLayout = 64;
 }
 
@@ -64,6 +64,7 @@ enum OpType {
   GreaterEqual = 26;
   Switch = 27;
   Merge = 28;
+  Padding = 29;
 }
 
 enum PaddingType {

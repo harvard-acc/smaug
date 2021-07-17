@@ -1,38 +1,39 @@
 #include "smaug/core/backend.h"
 #include "smaug/operators/batch_norm_op.h"
+#include "smaug/operators/concat_op.h"
+#include "smaug/operators/control_flow_ops.h"
 #include "smaug/operators/convolution_op.h"
 #include "smaug/operators/data_op.h"
 #include "smaug/operators/depthwise_convolution_op.h"
 #include "smaug/operators/eltwise_add_op.h"
 #include "smaug/operators/eltwise_mul_op.h"
-#include "smaug/operators/less_op.h"
-#include "smaug/operators/greater_op.h"
-#include "smaug/operators/control_flow_ops.h"
 #include "smaug/operators/elu_op.h"
+#include "smaug/operators/greater_op.h"
 #include "smaug/operators/inner_product_op.h"
+#include "smaug/operators/less_op.h"
+#include "smaug/operators/padding_op.h"
 #include "smaug/operators/pooling_op.h"
 #include "smaug/operators/relu_op.h"
 #include "smaug/operators/reorder_op.h"
-#include "smaug/operators/concat_op.h"
-#include "smaug/operators/split_op.h"
-#include "smaug/operators/reshape_op.h"
 #include "smaug/operators/repeat_op.h"
+#include "smaug/operators/reshape_op.h"
 #include "smaug/operators/sigmoid_op.h"
-#include "smaug/operators/softmax_op.h"
-#include "smaug/operators/tanh_op.h"
-#include "smaug/operators/smv/smv_convolution_op.h"
-#include "smaug/operators/smv/smv_inner_product_op.h"
-#include "smaug/operators/smv/smv_pooling_op.h"
 #include "smaug/operators/smv/smv_batch_norm_op.h"
-#include "smaug/operators/smv/smv_relu_op.h"
-#include "smaug/operators/smv/smv_elu_op.h"
-#include "smaug/operators/smv/smv_tanh_op.h"
-#include "smaug/operators/smv/smv_sigmoid_op.h"
-#include "smaug/operators/smv/smv_softmax_op.h"
+#include "smaug/operators/smv/smv_convolution_op.h"
 #include "smaug/operators/smv/smv_eltwise_add_op.h"
 #include "smaug/operators/smv/smv_eltwise_mul_op.h"
-#include "smaug/operators/smv/smv_less_op.h"
+#include "smaug/operators/smv/smv_elu_op.h"
 #include "smaug/operators/smv/smv_greater_op.h"
+#include "smaug/operators/smv/smv_inner_product_op.h"
+#include "smaug/operators/smv/smv_less_op.h"
+#include "smaug/operators/smv/smv_pooling_op.h"
+#include "smaug/operators/smv/smv_relu_op.h"
+#include "smaug/operators/smv/smv_sigmoid_op.h"
+#include "smaug/operators/smv/smv_softmax_op.h"
+#include "smaug/operators/smv/smv_tanh_op.h"
+#include "smaug/operators/softmax_op.h"
+#include "smaug/operators/split_op.h"
+#include "smaug/operators/tanh_op.h"
 
 namespace smaug {
 
@@ -79,6 +80,7 @@ DEF_CREATE_OP(EluOp, ReferenceBackend)
 DEF_CREATE_OP(SeluOp, ReferenceBackend)
 DEF_CREATE_OP(TanhOp, ReferenceBackend)
 DEF_CREATE_OP(HardTanhOp, ReferenceBackend)
+DEF_CREATE_OP(PaddingOp, ReferenceBackend)
 
 DEF_CREATE_SMV_OP(ConvolutionOp)
 DEF_CREATE_SMV_OP(InnerProductOp)
@@ -108,7 +110,9 @@ DEF_CREATE_OP(RepeatOp, SmvBackend)
 DEF_CREATE_OP(FlattenOp, SmvBackend)
 DEF_CREATE_OP(SwitchOp, SmvBackend)
 DEF_CREATE_OP(MergeOp, SmvBackend)
+DEF_CREATE_OP(PaddingOp, SmvBackend)
 
+// for simple tracing.
 namespace ref {
 const unsigned kConvolutionHw = 0x0001;
 const unsigned kInnerProductHw = 0x0002;
@@ -139,6 +143,5 @@ float* spad0;
 float* spad1;
 float* spad2;
 }  // namespace smv
-
 
 }  // namespace smaug
