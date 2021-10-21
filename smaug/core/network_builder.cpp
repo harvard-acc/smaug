@@ -288,10 +288,6 @@ static void createAndAddOperator(const NodeProto& node,
         op->setInputsMemType(MemoryType::acp);
         op->setWeightsMemType(MemoryType::acp);
         op->setOutputsMemType(MemoryType::acp);
-    } else if (memPolicy == HostMemoryAccessPolicy::AllCache) {
-        op->setInputsMemType(MemoryType::cache);
-        op->setWeightsMemType(MemoryType::cache);
-        op->setOutputsMemType(MemoryType::cache);
     } else if (memPolicy == HostMemoryAccessPolicy::AllAcpWithDmaForWeights) {
         op->setInputsMemType(MemoryType::acp);
         op->setWeightsMemType(MemoryType::dma);
