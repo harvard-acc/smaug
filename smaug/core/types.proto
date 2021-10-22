@@ -77,6 +77,6 @@ enum HostMemoryAccessPolicy {
   UnknownMemoryPolicy = 0;
   AllDma = 1;
   AllAcp = 2;
-  AllCache = 3;
+  reserved 3;  // Previously AllCache.
   AllAcpWithDmaForWeights = 4;
 }
