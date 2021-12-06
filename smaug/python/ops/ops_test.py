@@ -62,6 +62,9 @@ class OperatorTest:
       filter_tensor1 = Tensor(
           data_layout=types_pb2.NCHW,
           tensor_data=np.random.rand(64, 64, 3, 3).astype(np_dtype))
+      filter_tensor2 = Tensor(
+          data_layout=types_pb2.NCHW,
+          tensor_data=np.random.rand(1, 1, 3, 3).astype(np_dtype))
       weight_tensor0 = Tensor(
           data_layout=types_pb2.NC,
           tensor_data=np.random.rand(254, 12544).astype(np_dtype))
@@ -104,6 +107,8 @@ class OperatorTest:
       out0, out1, out2, out3 = array_ops.unstack(out, 1, "unstack")
       out0 = array_ops.reshape(out0, [1, 1, 8, 10], types_pb2.NCHW, "reshape")
       out0 = array_ops.padding(out0, [0, 0, 0, 0, 1, 1, 1, 1], "padding")
+      out0 = nn_ops.depthwise_convolution(
+          out0, filter_tensor2, stride=[1, 1], padding="same", name="depthwise_conv0")
 
     self.test_graph, _ = graph.to_proto()
     self.backend = backend
@@ -465,6 +470,35 @@ class SequentialGraphTest(OperatorTest):
       self.assertEqual(node.output_tensors[0].shape.dims, [8, 10])
       self.assertEqual(node.output_tensors[0].shape.layout, types_pb2.NC)
       self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
+
+  def test_depthwise_convolution_op(self):
+    expected_weight_layout = global_vars.backend_layouts[self.backend][
+        types_pb2.ConvolutionDepthwise].input_layoutsets[1].layouts
+    expected_output_layout = global_vars.backend_layouts[self.backend][
+        types_pb2.ConvolutionDepthwise].output_layoutset.layouts
+    node = self.get_node("depthwise_conv0")
+    self.assertEqual(node.op, types_pb2.ConvolutionDepthwise)
+    self.assertEqual(len(node.input_tensors), 2)
+    self.assertEqual(len(node.output_tensors), 1)
+    # Parameters
+    self.assertEqual(node.params.conv_params.padding, types_pb2.SamePadding)
+    self.assertEqual(node.params.conv_params.stride, [1, 1])
+    # Weight tensor
+    self.assertEqual(node.input_tensors[1].data_type, self.expected_dtype)
+    self.assertEqualDims(node.input_tensors[1].shape.dims,
+                         node.input_tensors[1].shape.layout, [1, 1, 3, 3],
+                         types_pb2.NCHW)
+    self.assertEqual(node.input_tensors[1].shape.layout, expected_weight_layout)
+    self.assertEqual(node.input_tensors[1].shape.alignment, self.alignment)
+    # Output tensor
+    self.assertEqual(node.output_tensors[0].name, "depthwise_conv0/output0")
+    self.assertEqual(node.output_tensors[0].data_type, self.expected_dtype)
+    self.assertEqualDims(node.output_tensors[0].shape.dims,
+                         node.output_tensors[0].shape.layout, [1, 1, 10, 12],
+                         types_pb2.NCHW)
+    self.assertEqual(node.output_tensors[0].shape.layout,
+                     expected_output_layout)
+    self.assertEqual(node.output_tensors[0].shape.alignment, self.alignment)
 
 class ResidualGraphTest(OperatorTest):
   """Common tests for the residual graph."""
