@@ -7,6 +7,3 @@
 [submodule "experiments"]
 	path = experiments
 	url = https://github.com/yaoyuannnn/experiments
-[submodule "spm_experiments"]
-	path = spm_experiments
-	url = https://github.com/mapochamp/spm_experiments.git
