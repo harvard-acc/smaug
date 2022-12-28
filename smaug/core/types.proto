@@ -65,6 +65,7 @@ enum OpType {
   Switch = 27;
   Merge = 28;
   Padding = 29;
+  MyCustom = 30;
 }
 
 enum PaddingType {

@@ -59,6 +59,7 @@ template <typename Backend> class SeluOp;
 template <typename Backend> class TanhOp;
 template <typename Backend> class HardTanhOp;
 template <typename Backend> class PaddingOp;
+template <typename Backend> class MyCustomOperator;
 
 #endif
 
@@ -126,6 +127,7 @@ class ReferenceBackend {
     DECL_CREATE_OP(TanhOp);
     DECL_CREATE_OP(HardTanhOp);
     DECL_CREATE_OP(PaddingOp);
+    DECL_CREATE_OP(MyCustomOperator);
 
 #undef DECL_CREATE_OP
 };
@@ -241,6 +243,7 @@ class SmvBackend {
     DECL_CREATE_OP(SwitchOp);
     DECL_CREATE_OP(MergeOp);
     DECL_CREATE_OP(PaddingOp);
+    DECL_CREATE_OP(MyCustomOperator);
 
 #undef DECL_SMV_OP
 #undef DECL_CREATE_OP

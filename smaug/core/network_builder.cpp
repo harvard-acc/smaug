@@ -34,6 +34,7 @@
 #include "smaug/operators/repeat_op.h"
 #include "smaug/operators/reshape_op.h"
 #include "smaug/operators/sigmoid_op.h"
+#include "smaug/operators/my_custom_operator.h"
 #include "smaug/operators/smv/smv_batch_norm_op.h"
 #include "smaug/operators/smv/smv_convolution_op.h"
 #include "smaug/operators/smv/smv_eltwise_add_op.h"
@@ -271,6 +272,11 @@ static void createAndAddOperator(const NodeProto& node,
     } else if (type == OpType::HardTanh) {
         auto op = Backend::createHardTanhOp(name, workspace);
         network->addOperator(op);
+    } else if (type == OpType::MyCustom) {
+	auto op = Backend::createMyCustomOperator(name, workspace);
+  	//op->setParam1(node.param1());
+  	//op->setParam2(node.param2());
+  	network->addOperator(op);
     } else if (type == OpType::UnknownOp) {
         assert(false && "Invalid operator type!");
     }

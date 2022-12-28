@@ -18,6 +18,7 @@
 #include "smaug/operators/repeat_op.h"
 #include "smaug/operators/reshape_op.h"
 #include "smaug/operators/sigmoid_op.h"
+#include "smaug/operators/my_custom_operator.h"
 #include "smaug/operators/smv/smv_batch_norm_op.h"
 #include "smaug/operators/smv/smv_convolution_op.h"
 #include "smaug/operators/smv/smv_eltwise_add_op.h"
@@ -81,6 +82,7 @@ DEF_CREATE_OP(SeluOp, ReferenceBackend)
 DEF_CREATE_OP(TanhOp, ReferenceBackend)
 DEF_CREATE_OP(HardTanhOp, ReferenceBackend)
 DEF_CREATE_OP(PaddingOp, ReferenceBackend)
+DEF_CREATE_OP(MyCustomOperator, ReferenceBackend)
 
 DEF_CREATE_SMV_OP(ConvolutionOp)
 DEF_CREATE_SMV_OP(InnerProductOp)
@@ -111,6 +113,7 @@ DEF_CREATE_OP(FlattenOp, SmvBackend)
 DEF_CREATE_OP(SwitchOp, SmvBackend)
 DEF_CREATE_OP(MergeOp, SmvBackend)
 DEF_CREATE_OP(PaddingOp, SmvBackend)
+DEF_CREATE_OP(MyCustomOperator, SmvBackend)
 
 // for simple tracing.
 namespace ref {
