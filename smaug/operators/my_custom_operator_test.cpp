@@ -25,7 +25,8 @@ TEST_CASE_METHOD(SmaugTest, "my custom operator", "[ops]") {
  
   // Create the operator and fill it with our tensors.
   using TestOp = MyCustomOperator<ReferenceBackend>;
-  auto op = new TestOp("eltwise_add", workspace());
+  //auto op = new TestOp("eltwise_add", workspace());
+  auto op = new MyCustomOperator<ReferenceBackend>("MyCustom", workspace());
   op->setInput(input0, TestOp::kInput0);
   op->setInput(input1, TestOp::kInput1);
   op->createAllTensors();
