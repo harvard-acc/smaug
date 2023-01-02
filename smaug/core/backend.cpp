@@ -122,6 +122,16 @@ const unsigned kInnerProductHw = 0x0002;
 const unsigned kEltwiseOpHw = 0x0003;
 const unsigned kBatchNormHw = 0x0004;
 const unsigned kPoolingHw = 0x0005;
+
+// Define out new scratchpads here
+int kSpadSize;
+float* spad0;
+float* spad1;
+float* spad2;
+
+// Add a unique ID for our accelerator HW. This will be used to invooke the
+// accelerator during simulation
+const unsigned kMyCustomOperatorHw = 0x0006;
 }  // namespace ref
 
 namespace smv {

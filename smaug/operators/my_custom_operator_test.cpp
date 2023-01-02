@@ -42,3 +42,51 @@ TEST_CASE_METHOD(SmaugTest, "my custom operator", "[ops]") {
   // the expected values.
   verifyOutputs(output, expected_output);
 }
+
+// A function to fill the tensor with a sequence of monotonically increasing
+// data, starting from 0. Note that this is ONLY advised for elementwise/unary
+// operators in which we don't care about data in specific dimensions.
+void fillTensorWithSequentialFloat32Data(Tensor* tensor) {
+  //float32* data = tensor->data<float>();
+  float* data = tensor->data<float>();
+  //for (int i = 0; i < tensor->getShape().getStorageSize(); i++) {
+  for (int i = 0; i < tensor->getShape().storageSize(); i++) {
+    data[i] = i;
+  }
+}
+ 
+TEST_CASE_METHOD(SmaugTest, "my custom with tiling", "[tiling]") {
+  // With float32 elements, this will occupy 128KB, which should create four
+  // tiles per tensor.
+  ReferenceBackend::initGlobals();
+  TensorShape shape({8, 4096}, DataLayout::NC);
+  Tensor* input0 = new Tensor("tensor0", shape);
+  Tensor* input1 = new Tensor("tensor1", shape);
+  input0->allocateStorage<float>();
+  input1->allocateStorage<float>();
+  workspace()->addTensor(input0);
+  workspace()->addTensor(input1);
+ 
+  // Create the operator and fill it with our tensors.
+  using TestOp = MyCustomOperator<ReferenceBackend>;
+  auto op = new TestOp("MyCustomTiled", workspace());
+  op->setInput(input0, TestOp::kInput0);
+  op->setInput(input1, TestOp::kInput1);
+  // This will handle creating/allocating storage/filling data into all the
+  // input tensors.
+  createAndFillTensorsWithData<float>(op, &fillTensorWithSequentialFloat32Data);
+  // Compute the expected output.
+  std::vector<float> expected_output(8*4096, 0);
+  for (int i = 0; i < expected_output.size(); i++) {
+    expected_output[i] = 2*i;
+  }
+ 
+  op->tile();
+  op->run_tiled();
+ 
+  using TestOp = MyCustomOperator<ReferenceBackend>;
+  Tensor* output = op->getOutput(TestOp::kOutput);
+  verifyOutputs(output, expected_output);
+  ReferenceBackend::freeGlobals();
+}
+

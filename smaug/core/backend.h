@@ -72,6 +72,13 @@ extern const unsigned kInnerProductHw;
 extern const unsigned kEltwiseOpHw;
 extern const unsigned kBatchNormHw;
 extern const unsigned kPoolingHw;
+
+// Declare our two new global arrays and accelerator IDs here.
+extern int kSpadSize;
+extern float* spad0;
+extern float* spad1;
+extern float* spad2;
+extern const unsigned kMyCustomOperatorHw;
 }  // namespace ref
 
 /**
@@ -94,9 +101,18 @@ class ReferenceBackend {
     static const std::string Name;
     static const DataLayout DefaultInputDataLayout = DataLayout::NCHW;
 
-    static int SpadSize() { return 0; }
-    static void initGlobals() {}
-    static void freeGlobals() {}
+    static int SpadSize() { return ref::kSpadSize; }
+    static void initGlobals() {
+        ref::kSpadSize = 32*1024; //Replace with whatever value you want
+        ref::spad0 = (float*) malloc_aligned(ref::kSpadSize * 2);
+        ref::spad1 = (float*) malloc_aligned(ref::kSpadSize * 2);
+        ref::spad2 = (float*) malloc_aligned(ref::kSpadSize * 2);
+    }
+    static void freeGlobals() {
+        free(ref::spad0);
+        free(ref::spad1);
+        free(ref::spad2);
+    }
 
     DECL_CREATE_OP(ConvolutionOp);
     DECL_CREATE_OP(DataOp);

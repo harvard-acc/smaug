@@ -2,6 +2,8 @@
 #include "smaug/core/operator.h"
 #include "smaug/core/workspace.h"
 #include "smaug/operators/common.h"
+#include "smaug/core/tensor.h"
+#include "smaug/core/tensor_utils.h"
  
 namespace smaug {
  
@@ -45,6 +47,32 @@ class MyCustomOperator : public Operator {
   	elementwise_add(input0Data, input1Data, outputData, output->getShape().size());
   }
 
+  void run_tiled() {
+	TiledTensor& input0 = tiledTensors[kInput0];
+  	TiledTensor& input1 = tiledTensors[kInput1];
+  	TiledTensor& output = tiledTensors[kOutput];
+
+  	Tensor* tensorOutput = getOutput(kInput0);
+ 
+  	for (int i = 0; i < input0.size(); i++) {
+  	  Tensor* input0Tile = input0.getTileWithData(i);
+  	  Tensor* input1Tile = input1.getTileWithData(i);
+  	  Tensor* outputTile = output.getTileWithData(i);
+ 
+  	  // Get handles to the actual underlying data storage. This performs a
+  	  // dynamic_cast to the specified data type, which we verified is safe inside
+  	  // validate().
+  	  float* input0Data = input0Tile->data<float>();
+  	  float* input1Data = input1Tile->data<float>();
+  	  float* outputData = outputTile->data<float>();
+  	  elementwise_add(input0Data, input1Data, outputData, outputTile->getShape().size());
+  	}
+  	// The results of the elementwise_add are stored in the tiled tensor. We need
+  	// to merge the data from the individual tiles back into a single contiguous
+  	// Tensor.
+  	flattenTiledTensor(tiledTensors[kOutput], tensorOutput);
+  }
+
   // Optional override for testing purposes.
   void createAllTensors() override { 
   	Tensor* output = new Tensor(name, inputs.at(kInput0)->getShape());
@@ -62,12 +90,35 @@ class MyCustomOperator : public Operator {
   }
  
   // An optional function to tile the input tensors.
-  void tile() override {}
+  void tile() override {
+    auto inputs0 = getInput(kInput0);
+    auto inputs1 = getInput(kInput1);
+    auto outputs = getOutput(kOutput);
+    // The simplest tiling strategy is to tile per batch. Each tile will have a
+    // size of at most 1 x maxTileSize.
+    int maxTileSize =
+            std::min(ReferenceBackend::SpadSize() / inputs0->getDataTypeSize(),
+                      inputs0->getShape().storageSize());
+    TensorShape tileShape(
+             { 1, maxTileSize }, DataLayout::NC, ReferenceBackend::Alignment);
+    // The final bool parameter specifies whether to copy the data from the
+    // source tensor into each of its tiles. Obivously, we want to do this for the
+    // input tensors, but the output tensor is empty, so there's no need to
+    // waste time on that.
+    tiledTensors[0] = generateTiledTensorPerBatchNC(inputs0, tileShape, this, false);
+    tiledTensors[1] = generateTiledTensorPerBatchNC(inputs1, tileShape, this, false);
+    tiledTensors[2] = generateTiledTensorPerBatchNC(outputs, tileShape, this, false);
+  }
+
  
  
  private:
   int param1 = 0;
   int param2 = 0;
+  // Because tensor tiling is done at the start of the program (before the
+  // operator starts running), these tiles need to be stored in memory for use
+  // later.
+  std::array<TiledTensor, 3> tiledTensors;
 };
  
 }  // namespace smaug
