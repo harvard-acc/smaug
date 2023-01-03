@@ -24,6 +24,7 @@ SRCS = smaug/operators/common.cpp \
        smaug/operators/ref/ref_softmax_op.cpp \
        smaug/operators/ref/ref_tanh_op.cpp \
        smaug/operators/ref/ref_activation_fun_op.cpp \
+       smaug/operators/ref/ref_my_custom_operator.cpp \
        smaug/operators/smv/smv_tiling_common.cpp \
        smaug/operators/smv/smv_tiling_base.cpp \
        smaug/operators/smv/smv_convolution_op.cpp \

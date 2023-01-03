@@ -5,6 +5,7 @@
 #include "smaug/core/tensor.h"
 #include "smaug/core/tensor_utils.h"
  
+
 namespace smaug {
  
 template <typename Backend>
@@ -22,13 +23,14 @@ class MyCustomOperator : public Operator {
   void setParam1(int val) { param1 = val; }
   void setParam2(int val) { param2 = val; }
 
+/*
+*/
   void elementwise_add(float* input0, float* input1, float* output, int size) {
 	  for (int i = 0; i < size; i++) {
 		  output[i] = input0[i] + input1[i];
 	  }
   }
-/*
-*/
+
  
   // A required function that implements the actual Operator logic.  Leave this
   // blank for now.
@@ -47,32 +49,7 @@ class MyCustomOperator : public Operator {
   	elementwise_add(input0Data, input1Data, outputData, output->getShape().size());
   }
 
-  void run_tiled() {
-	TiledTensor& input0 = tiledTensors[kInput0];
-  	TiledTensor& input1 = tiledTensors[kInput1];
-  	TiledTensor& output = tiledTensors[kOutput];
-
-  	Tensor* tensorOutput = getOutput(kInput0);
- 
-  	for (int i = 0; i < input0.size(); i++) {
-  	  Tensor* input0Tile = input0.getTileWithData(i);
-  	  Tensor* input1Tile = input1.getTileWithData(i);
-  	  Tensor* outputTile = output.getTileWithData(i);
- 
-  	  // Get handles to the actual underlying data storage. This performs a
-  	  // dynamic_cast to the specified data type, which we verified is safe inside
-  	  // validate().
-  	  float* input0Data = input0Tile->data<float>();
-  	  float* input1Data = input1Tile->data<float>();
-  	  float* outputData = outputTile->data<float>();
-  	  elementwise_add(input0Data, input1Data, outputData, outputTile->getShape().size());
-  	}
-  	// The results of the elementwise_add are stored in the tiled tensor. We need
-  	// to merge the data from the individual tiles back into a single contiguous
-  	// Tensor.
-  	flattenTiledTensor(tiledTensors[kOutput], tensorOutput);
-  }
-
+  void run_tiled();
   // Optional override for testing purposes.
   void createAllTensors() override { 
   	Tensor* output = new Tensor(name, inputs.at(kInput0)->getShape());
